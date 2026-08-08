@@ -1,0 +1,17 @@
+# Operating systems
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local environment and temporary files
+.env
+.env.*
+!.env.example
+*.tmp
+*.temp
+temp.txt
