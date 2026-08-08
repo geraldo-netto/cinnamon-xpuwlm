@@ -155,11 +155,7 @@ function toViewModel(state, nowMs = Date.now()) {
         bodyKey: JSON.stringify({
             screen,
             profiles: state.profiles,
-            alerts: [...activeAlerts, ...resolvedAlerts].map((alert) => ({
-                id: alert.id,
-                age: alert.age,
-                resolved: alert.resolved,
-            })),
+            alerts: activeAlerts.concat(resolvedAlerts),
             device: state.device,
             paused: state.paused,
         }),

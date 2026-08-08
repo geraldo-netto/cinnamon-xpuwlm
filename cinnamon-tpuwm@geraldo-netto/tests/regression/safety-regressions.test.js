@@ -7,6 +7,7 @@ const test = require("node:test");
 
 const Domain = require("../../lib/domain.js");
 const Runtime = require("../../lib/runtime-gateway.js");
+const ViewModel = require("../../lib/view-model.js");
 
 const ROOT = path.resolve(__dirname, "../..");
 const NOW = 1_700_000_000_000;
@@ -106,4 +107,43 @@ test("regression: warning backoff never hides failure state or overruns after cl
     assert.equal(warnings.length, 2);
     gateway.read();
     assert.equal(warnings.length, 2);
+});
+
+test("regression: same-identity alert content invalidates before its age changes", () => {
+    const profiles = new Domain.WorkloadPortfolio().list();
+    const alert = {
+        id: "stable-alert",
+        profileId: "hardware-health",
+        title: "Voltage drift",
+        summary: "Review the supply",
+        severity: "warning",
+        timestamp: NOW,
+        confidence: 0.2,
+        riskScore: 0.3,
+        resolved: false,
+    };
+    const state = {
+        selectedTab: "alerts",
+        paused: false,
+        profiles,
+        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
+        metrics: {load: 42, queueDepth: 0, runningProfiles: 1},
+        alerts: [alert],
+        attentionCount: 1,
+        stale: false,
+        source: "runtime",
+        generatedAt: NOW,
+    };
+    const initialKey = ViewModel.toViewModel(state, NOW).bodyKey;
+
+    for (const [field, value] of Object.entries({
+        title: "Critical voltage drift",
+        summary: "Disconnect the supply",
+        severity: "critical",
+        confidence: 0.8,
+        riskScore: 0.9,
+    })) {
+        const changedState = {...state, alerts: [{...alert, [field]: value}]};
+        assert.notEqual(ViewModel.toViewModel(changedState, NOW).bodyKey, initialKey, field);
+    }
 });

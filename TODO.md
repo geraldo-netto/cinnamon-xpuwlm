@@ -13,7 +13,6 @@
 | XTPU-0009 | open | medium | m | XTPU-0006, XTPU-0008 | Localize runtime UI, status, and accessibility strings through gettext and ngettext; verify plurals and expanded translations. |
 | XTPU-0010 | open | medium | xs | XTPU-0002 | Sort active alerts deterministically by severity, newest timestamp, and stable ID so critical items cannot be buried by runtime array order. |
 | XTPU-0013 | blocked | low | xs | — | Choose and add an explicit repository license before redistribution; no license currently grants reuse rights. |
-| XTPU-0016 | open | medium | xs | XTPU-0010 | Invalidate or update alert widgets when any rendered alert field changes; same-ID severity, title, summary, risk, and confidence updates can remain stale until the relative age changes. |
 | XTPU-0017 | open | medium | xs | XTPU-0004 | Make explicit retry bypass or invalidate the device-detection cache; reconnecting and selecting Retry can replay an unavailable result for up to 10 seconds. |
 | XTPU-0019 | open | medium | s | XTPU-0004 | Expire displayed runtime state at its freshness deadline independently of polling; the 60-second refresh setting can show a snapshot as online for 45 seconds beyond the 15-second stale threshold. |
 | XTPU-0020 | open | medium | m | — | Exercise object- and array-structure mutations instead of excluding them globally; current exclusions omit core domain and view-state behavior from the reported mutation score. |

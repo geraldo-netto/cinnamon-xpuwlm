@@ -141,3 +141,34 @@ test("view model groups profiles, separates alerts, and creates stable body key"
     assert.equal(offline.showTabs, false);
     assert.match(offline.headerSubtitle, /Connect device/);
 });
+
+test("body key tracks every rendered field of a same-identity alert", () => {
+    const alert = {
+        id: "stable-alert",
+        profileId: "hardware-health",
+        title: "Voltage drift",
+        summary: "Review the supply",
+        severity: "warning",
+        timestamp: NOW,
+        confidence: 0.2,
+        riskScore: 0.3,
+        resolved: false,
+    };
+    const initial = ViewModel.toViewModel(state({alerts: [alert], attentionCount: 1}), NOW);
+    const equivalent = ViewModel.toViewModel(state({alerts: [{...alert}], attentionCount: 1}), NOW);
+    assert.equal(equivalent.bodyKey, initial.bodyKey);
+
+    for (const [field, value] of Object.entries({
+        title: "Critical voltage drift",
+        summary: "Disconnect the supply",
+        severity: "critical",
+        confidence: 0.8,
+        riskScore: 0.9,
+    })) {
+        const changed = ViewModel.toViewModel(state({
+            alerts: [{...alert, [field]: value}],
+            attentionCount: 1,
+        }), NOW);
+        assert.notEqual(changed.bodyKey, initial.bodyKey, field);
+    }
+});

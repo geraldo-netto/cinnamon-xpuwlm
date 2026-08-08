@@ -150,6 +150,31 @@ test("alerts screen renders empty, active, resolved, and fallback evidence", () 
     assert.equal(findActors(root, (actor) => actor.text === "Voltage drift").length, 1);
     assert.equal(findActors(root, (actor) => actor.text === "No additional detail was supplied.").length, 1);
     assert.equal(findActors(root, (actor) => actor.text === "Temperature stable").length, 1);
+
+    const changedAlerts = [
+        {
+            ...alerts[0],
+            title: "Critical voltage drift",
+            summary: "Disconnect the supply",
+            severity: "critical",
+            confidence: 0.8,
+            riskScore: 0.9,
+        },
+        alerts[1],
+    ];
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "alerts",
+        alerts: changedAlerts,
+        attentionCount: 1,
+    }), NOW));
+    assert.equal(findActors(root, (actor) => actor.text === "Voltage drift").length, 0);
+    assert.equal(findActors(root, (actor) => actor.text === "No additional detail was supplied.").length, 0);
+    assert.equal(findActors(root, (actor) => actor.text === "Critical voltage drift").length, 1);
+    assert.equal(findActors(root, (actor) => actor.text === "Disconnect the supply").length, 1);
+    assert.equal(findActors(root, (actor) => actor.text === "critical").length, 1);
+    assert.equal(findActors(root, (actor) => actor.text === "80%").length, 1);
+    assert.equal(findActors(root, (actor) => actor.text === "90%").length, 1);
+    assert.equal(findActors(root, (actor) => actor.styleClasses.has("tpuwm-alert-critical")).length, 1);
 });
 
 test("paused screen invokes resume independently of button presentation text", () => {
