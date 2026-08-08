@@ -36,6 +36,11 @@ stale, oversized, unsupported, missing a required field, contains an unknown
 field, or violates a type or bound fails closed into an explicit
 unavailable/recovery state and never falls back to a device-only probe.
 
+Displayed runtime state expires on its own freshness deadline rather than at the
+next poll. A connected snapshot reads as fresh for at most 15 seconds after its
+`generatedAt`; the applet arms a single-shot timer for that deadline, so a long
+refresh interval can no longer present expired state as online.
+
 ## Local quality gates
 
 ```bash

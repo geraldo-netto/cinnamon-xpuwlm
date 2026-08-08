@@ -16,6 +16,21 @@ function createSilentLogger() {
     return {warn() {}, error() {}};
 }
 
+// Freshness still expires without a host timer: every projection re-checks the
+// deadline against the clock, the scheduler only makes the change observable.
+function createInertScheduler() {
+    return {schedule() { return null; }, cancel() { return false; }};
+}
+
+function requireScheduler(candidate) {
+    if (!candidate
+        || typeof candidate.schedule !== "function"
+        || typeof candidate.cancel !== "function") {
+        throw new TypeError("A scheduler with schedule/cancel is required");
+    }
+    return candidate;
+}
+
 class WorkloadManager {
     constructor({
         repository,
@@ -23,6 +38,8 @@ class WorkloadManager {
         errorReporter,
         clock = Date,
         logger = createSilentLogger(),
+        scheduler = createInertScheduler(),
+        staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS,
     }) {
         if (!repository || typeof repository.load !== "function" || typeof repository.save !== "function") {
             throw new TypeError("A profile repository with load/save is required");
@@ -37,6 +54,9 @@ class WorkloadManager {
         this._runtimeGateway = runtimeGateway;
         this._clock = clock;
         this._logger = logger;
+        this._scheduler = requireScheduler(scheduler);
+        this._staleAfterMs = Domain.normalizeStaleAfterMs(staleAfterMs);
+        this._expiryHandle = null;
         this._errors = FailureReporter.requireFailureReporter(errorReporter, "manager error");
         this._portfolio = new Domain.WorkloadPortfolio();
         this._selectedTab = "overview";
@@ -90,8 +110,53 @@ class WorkloadManager {
                 "error",
             );
         }
+        this._scheduleExpiry();
         this._publish();
         return this.state();
+    }
+
+    _scheduleExpiry() {
+        this._cancelExpiry();
+        const delayMs = Domain.snapshotExpiryDelayMs(
+            this._snapshot,
+            this._clock.now(),
+            this._staleAfterMs,
+        );
+        if (delayMs === null) {
+            return false;
+        }
+        this._expiryHandle = this._scheduler.schedule(delayMs, () => {
+            this._expiryHandle = null;
+            this._expireSnapshot();
+        });
+        return true;
+    }
+
+    _cancelExpiry() {
+        if (this._expiryHandle === null) {
+            return false;
+        }
+        const handle = this._expiryHandle;
+        this._expiryHandle = null;
+        this._scheduler.cancel(handle);
+        return true;
+    }
+
+    _expireSnapshot() {
+        if (this._disposed) {
+            return false;
+        }
+        const expired = this._freshSnapshot();
+        if (expired === this._snapshot) {
+            return false;
+        }
+        this._snapshot = expired;
+        this._publish();
+        return true;
+    }
+
+    _freshSnapshot() {
+        return Domain.expireSnapshot(this._snapshot, this._clock.now(), this._staleAfterMs);
     }
 
     replaceRuntimeGateway(runtimeGateway) {
@@ -155,18 +220,19 @@ class WorkloadManager {
     }
 
     state() {
-        const activeAlerts = this._snapshot.alerts.filter((alert) => !alert.resolved);
+        const snapshot = this._freshSnapshot();
+        const activeAlerts = snapshot.alerts.filter((alert) => !alert.resolved);
         return {
             selectedTab: this._selectedTab,
             paused: this._portfolio.paused,
-            profiles: this._portfolio.list(this._snapshot.profiles),
-            device: {...this._snapshot.device},
-            metrics: {...this._snapshot.metrics},
-            alerts: this._snapshot.alerts.map((alert) => ({...alert})),
+            profiles: this._portfolio.list(snapshot.profiles),
+            device: {...snapshot.device},
+            metrics: {...snapshot.metrics},
+            alerts: snapshot.alerts.map((alert) => ({...alert})),
             attentionCount: activeAlerts.length,
-            stale: this._snapshot.stale,
-            source: this._snapshot.source,
-            generatedAt: this._snapshot.generatedAt,
+            stale: snapshot.stale,
+            source: snapshot.source,
+            generatedAt: snapshot.generatedAt,
         };
     }
 
@@ -175,6 +241,7 @@ class WorkloadManager {
             return false;
         }
         this._disposed = true;
+        this._cancelExpiry();
         this._errors.recover(RUNTIME_READ_FAILURE);
         this._errors.recover(STATE_SAVE_FAILURE);
         for (const listener of this._listeners) {
@@ -241,6 +308,8 @@ module.exports = {
     STATE_SAVE_FAILURE,
     TABS,
     WorkloadManager,
+    createInertScheduler,
     createSilentLogger,
+    requireScheduler,
     sanitizeTab,
 };

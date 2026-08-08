@@ -91,6 +91,12 @@ global.imports = {
             timers.set(id, {seconds, callback});
             return id;
         },
+        timeout_add(milliseconds, callback) {
+            const id = nextTimerId;
+            nextTimerId += 1;
+            timers.set(id, {milliseconds, callback});
+            return id;
+        },
         source_remove: (id) => timers.delete(id),
     },
     misc: {util: {spawnCommandLineAsync: (command) => spawned.push(command)}},
@@ -343,6 +349,56 @@ test("menu destruction and panel rendering tolerate missing transient state", ()
     applet._latestState = null;
     assert.doesNotThrow(() => applet._renderPanel());
     applet.menu = null;
+    applet.on_applet_removed_from_panel();
+});
+
+test("applet wires a scheduler so connected state expires without a poll", () => {
+    const generatedAt = 1_700_000_000_000;
+    let nowMs = generatedAt;
+    const scheduled = [];
+    const applet = new AppletModule.TpuWorkloadApplet(
+        {uuid: AppletModule.UUID, path: "/tmp/tpuwm"},
+        "top",
+        40,
+        11,
+        {
+            logger: {warn() {}, error() {}},
+            environment: {},
+            clock: {now: () => nowMs},
+            settingsFactory: (owner) => new BoundSettings(owner),
+            repository: {load: () => ({}), save() {}},
+            runtimeGateway: {
+                read: () => Domain.normalizeSnapshot({
+                    version: Domain.SNAPSHOT_VERSION,
+                    generatedAt,
+                    device: {available: true, name: "Coral USB", kind: "usb"},
+                    metrics: {load: 40, queueDepth: 0, runningProfiles: 0},
+                    profiles: {},
+                    alerts: [],
+                }, nowMs),
+            },
+            scheduler: {
+                schedule(delayMs, callback) {
+                    scheduled.push({delayMs, callback});
+                    return scheduled.length;
+                },
+                cancel: () => true,
+            },
+            poller: {start() {}, stop() {}},
+            menuFactory: () => new FakeMenu(),
+            menuManagerFactory: () => new FakeMenuManager(),
+            viewFactory: () => ({render() {}, destroy() {}}),
+        },
+    );
+
+    assert.equal(applet.actor.styleClasses.has("tpuwm-panel-online"), true);
+    assert.equal(scheduled.length, 1);
+    assert.equal(scheduled[0].delayMs, Domain.DEFAULT_STALE_AFTER_MS + 1);
+
+    nowMs = generatedAt + Domain.DEFAULT_STALE_AFTER_MS + 1;
+    scheduled[0].callback();
+    assert.equal(applet.actor.styleClasses.has("tpuwm-panel-unavailable"), true);
+    assert.match(applet.tooltip, /stale/u);
     applet.on_applet_removed_from_panel();
 });
 

@@ -10,7 +10,6 @@
 | XTPU-0008 | open | medium | s | XTPU-0006 | Apply tab-list, tab, and toggle ATK roles plus selected and checked states so assistive technology receives semantic control state. |
 | XTPU-0009 | open | medium | m | XTPU-0006, XTPU-0008 | Localize runtime UI, status, and accessibility strings through gettext and ngettext; verify plurals and expanded translations. |
 | XTPU-0013 | blocked | low | xs | — | Choose and add an explicit repository license before redistribution; no license currently grants reuse rights. |
-| XTPU-0019 | open | medium | s | XTPU-0004 | Expire displayed runtime state at its freshness deadline independently of polling; the 60-second refresh setting can show a snapshot as online for 45 seconds beyond the 15-second stale threshold. |
 | XTPU-0020 | open | medium | xs | XTPU-0031, XTPU-0032 | Enable object- and array-structure mutations globally after their concrete core/UI contract gaps are covered; suppress the single proven-equivalent non-array alert fallback mutant locally. |
 | XTPU-0022 | open | high | s | XTPU-0002, XTPU-0003 | Reject symlinked/non-regular snapshots and path-object races using no-follow preflight plus opened-stream identity checks; enforce `MAX + 1` bounded async reads. |
 | XTPU-0023 | open | high | m | XTPU-0003 | Move PCIe and USB discovery plus sysfs reads to bounded cancellable async I/O and cancel pending discovery during teardown. |

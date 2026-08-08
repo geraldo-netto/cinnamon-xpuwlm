@@ -241,6 +241,41 @@ test("poller replaces timers and stops idempotently", () => {
     assert.equal(poller.stop(), false);
 });
 
+test("scheduler arms single-shot millisecond timers and cancels them", () => {
+    const removed = [];
+    const timers = new Map();
+    let nextId = 1;
+    const loop = {
+        timeout_add(milliseconds, callback) {
+            const id = nextId;
+            nextId += 1;
+            timers.set(id, {milliseconds, callback});
+            return id;
+        },
+        source_remove: (id) => removed.push(id),
+    };
+    assert.throws(() => new Cinnamon.CinnamonScheduler({}), /Mainloop/);
+    const scheduler = new Cinnamon.CinnamonScheduler(loop);
+    assert.throws(() => scheduler.schedule(10, null), /callback/);
+
+    let calls = 0;
+    const handle = scheduler.schedule(1500.9, () => { calls += 1; });
+    assert.equal(timers.get(handle).milliseconds, 1500);
+    assert.equal(timers.get(handle).callback(), false, "expiry timers must not repeat");
+    assert.equal(calls, 1);
+
+    assert.equal(scheduler.schedule(-5, () => {}) > 0, true);
+    assert.equal(timers.get(2).milliseconds, 0);
+    assert.equal(scheduler.schedule("later", () => {}) > 0, true);
+    assert.equal(timers.get(3).milliseconds, 0);
+
+    assert.equal(scheduler.cancel(handle), true);
+    assert.deepEqual(removed, [handle]);
+    assert.equal(scheduler.cancel(null), false);
+    assert.equal(scheduler.cancel(undefined), false);
+    assert.deepEqual(removed, [handle]);
+});
+
 test("logger prefixes Cinnamon warnings and errors", () => {
     const calls = [];
     const logger = Cinnamon.createLogger("Test", {

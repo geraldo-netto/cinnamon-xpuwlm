@@ -49,6 +49,29 @@ test("fuzz: freshness normalization always produces a finite bounded window", ()
     }
 });
 
+test("property: clock expiry agrees with normalization at every instant", () => {
+    const random = generator(0x434c4f43);
+
+    for (let iteration = 0; iteration < 2000; iteration += 1) {
+        const staleAfterMs = 1000 + Math.floor(random() * 120_000);
+        const connected = Domain.normalizeSnapshot(runtimeDocument(0), NOW, staleAfterMs);
+        const observedAt = NOW + Math.floor(random() * (staleAfterMs * 3));
+
+        const expired = Domain.expireSnapshot(connected, observedAt, staleAfterMs);
+        const renormalized = Domain.normalizeSnapshot(runtimeDocument(0), observedAt, staleAfterMs);
+        assert.deepEqual(expired, renormalized);
+
+        const delayMs = Domain.snapshotExpiryDelayMs(connected, observedAt, staleAfterMs);
+        assert.equal(delayMs >= 1, true);
+        assert.equal(
+            Domain.isSnapshotExpired(connected, observedAt + delayMs, staleAfterMs),
+            true,
+            "the armed delay must always land past the freshness deadline",
+        );
+        assert.equal(Domain.snapshotExpiryDelayMs(expired, observedAt, staleAfterMs) === null, expired.stale);
+    }
+});
+
 test("fuzz: non-finite windows expire old snapshots through every adapter path", () => {
     const random = generator(0x45585049);
     const nonFinite = [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];

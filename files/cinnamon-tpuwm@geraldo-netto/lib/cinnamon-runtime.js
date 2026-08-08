@@ -214,6 +214,35 @@ class CinnamonPoller {
     }
 }
 
+class CinnamonScheduler {
+    constructor(Mainloop) {
+        if (!Mainloop || typeof Mainloop.timeout_add !== "function"
+            || typeof Mainloop.source_remove !== "function") {
+            throw new TypeError("Cinnamon Mainloop is required");
+        }
+        this._mainloop = Mainloop;
+    }
+
+    schedule(delayMs, callback) {
+        if (typeof callback !== "function") {
+            throw new TypeError("A scheduled callback is required");
+        }
+        const delay = Math.max(0, Math.trunc(Number(delayMs) || 0));
+        return this._mainloop.timeout_add(delay, () => {
+            callback();
+            return false;
+        });
+    }
+
+    cancel(handle) {
+        if (handle === null || handle === undefined) {
+            return false;
+        }
+        this._mainloop.source_remove(handle);
+        return true;
+    }
+}
+
 function createLogger(prefix, cinnamonGlobal = global) {
     const name = String(prefix || "TPU Workload Manager");
     return {
@@ -257,6 +286,7 @@ module.exports = {
     USB_VENDOR,
     CachedDeviceDetector,
     CinnamonPoller,
+    CinnamonScheduler,
     CinnamonSettingsRepository,
     createLogger,
     createRuntimeGateway,

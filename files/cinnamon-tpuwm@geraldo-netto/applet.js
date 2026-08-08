@@ -65,6 +65,8 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             || new CinnamonRuntime.CinnamonSettingsRepository(this.settings);
         this._runtimeGateway = overrides.runtimeGateway
             || this._runtimeGatewayFactory(this.runtimeStatePath);
+        this._clock = overrides.clock || Date;
+        this._scheduler = overrides.scheduler || new CinnamonRuntime.CinnamonScheduler(Mainloop);
         this._manager = overrides.manager || new Manager.WorkloadManager({
             repository: this._repository,
             runtimeGateway: this._runtimeGateway,
@@ -72,6 +74,8 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
                 logger: this._logger,
             }),
             logger: this._logger,
+            clock: this._clock,
+            scheduler: this._scheduler,
         });
         this._poller = overrides.poller
             || new CinnamonRuntime.CinnamonPoller(Mainloop, () => this._refresh());

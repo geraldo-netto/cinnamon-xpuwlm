@@ -269,6 +269,40 @@ function unavailableSnapshot(reason, nowMs, source = "fallback") {
     };
 }
 
+function staleSnapshot(generatedAt) {
+    const snapshot = unavailableSnapshot("Runtime snapshot is stale", generatedAt, "runtime");
+    snapshot.stale = true;
+    return snapshot;
+}
+
+function expiresOnClock(snapshot) {
+    return isPlainObject(snapshot)
+        && snapshot.source === "runtime"
+        && snapshot.stale !== true;
+}
+
+// Milliseconds until a connected snapshot crosses its freshness deadline, or
+// null when the snapshot can never expire on its own. The extra millisecond
+// keeps the deadline strictly exceeded, matching `normalizeSnapshot`.
+function snapshotExpiryDelayMs(snapshot, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_MS) {
+    if (!expiresOnClock(snapshot)) {
+        return null;
+    }
+    const deadline = snapshot.generatedAt + normalizeStaleAfterMs(staleAfterMs);
+    return Math.max(0, deadline - nowMs) + 1;
+}
+
+function isSnapshotExpired(snapshot, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_MS) {
+    return expiresOnClock(snapshot)
+        && Math.max(0, nowMs - snapshot.generatedAt) > normalizeStaleAfterMs(staleAfterMs);
+}
+
+function expireSnapshot(snapshot, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_MS) {
+    return isSnapshotExpired(snapshot, nowMs, staleAfterMs)
+        ? staleSnapshot(snapshot.generatedAt)
+        : snapshot;
+}
+
 function probeSnapshot(device, nowMs) {
     const normalizedDevice = normalizeDevice(device);
     return {
@@ -296,9 +330,7 @@ function normalizeSnapshot(candidate, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_
     const generatedAt = candidate.generatedAt;
     const age = Math.max(0, nowMs - generatedAt);
     if (age > normalizeStaleAfterMs(staleAfterMs)) {
-        const snapshot = unavailableSnapshot("Runtime snapshot is stale", generatedAt, "runtime");
-        snapshot.stale = true;
-        return snapshot;
+        return staleSnapshot(generatedAt);
     }
 
     const profiles = {};
@@ -421,8 +453,10 @@ module.exports = {
     boundedNumber,
     clampWeight,
     defaultProfileState,
+    expireSnapshot,
     finiteNumber,
     isPlainObject,
+    isSnapshotExpired,
     isValidGeneratedAt,
     normalizeAlert,
     normalizeDevice,
@@ -434,5 +468,7 @@ module.exports = {
     probeSnapshot,
     safeText,
     sanitizeProfileState,
+    snapshotExpiryDelayMs,
+    staleSnapshot,
     unavailableSnapshot,
 };

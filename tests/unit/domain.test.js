@@ -185,6 +185,42 @@ test("snapshot normalization accepts only known profiles and valid alerts", () =
     assert.equal(result.alerts[0].severity, "warning");
 });
 
+test("connected snapshots expire on the clock independently of any reader", () => {
+    const connected = Domain.normalizeSnapshot(validSnapshot({generatedAt: NOW}), NOW);
+    const deadline = NOW + Domain.DEFAULT_STALE_AFTER_MS;
+
+    assert.equal(Domain.snapshotExpiryDelayMs(connected, NOW), Domain.DEFAULT_STALE_AFTER_MS + 1);
+    assert.equal(Domain.snapshotExpiryDelayMs(connected, deadline), 1);
+    assert.equal(Domain.snapshotExpiryDelayMs(connected, deadline + 5000), 1);
+    assert.equal(Domain.snapshotExpiryDelayMs(connected, NOW, 1000), 1001);
+
+    assert.equal(Domain.isSnapshotExpired(connected, deadline), false);
+    assert.equal(Domain.isSnapshotExpired(connected, deadline + 1), true);
+    assert.equal(Domain.expireSnapshot(connected, deadline), connected);
+
+    const expired = Domain.expireSnapshot(connected, deadline + 1);
+    assert.equal(expired.stale, true);
+    assert.equal(expired.source, "runtime");
+    assert.equal(expired.device.available, false);
+    assert.equal(expired.generatedAt, NOW);
+    assert.match(expired.device.reason, /stale/u);
+    assert.deepEqual(expired, Domain.normalizeSnapshot(validSnapshot({generatedAt: NOW}), deadline + 1));
+});
+
+test("snapshots without a live freshness deadline never expire on the clock", () => {
+    const later = NOW + 10_000_000;
+    for (const snapshot of [
+        Domain.probeSnapshot({available: true, name: "PCIe", kind: "pcie"}, NOW),
+        Domain.unavailableSnapshot("disconnected", NOW, "error"),
+        Domain.staleSnapshot(NOW),
+        null,
+    ]) {
+        assert.equal(Domain.snapshotExpiryDelayMs(snapshot, later), null);
+        assert.equal(Domain.isSnapshotExpired(snapshot, later), false);
+        assert.equal(Domain.expireSnapshot(snapshot, later), snapshot);
+    }
+});
+
 test("probe and unavailable snapshots carry explicit safe fallback state", () => {
     const unavailable = Domain.unavailableSnapshot(" disconnected ", NOW, "error");
     assert.equal(unavailable.device.reason, "disconnected");

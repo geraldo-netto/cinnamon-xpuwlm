@@ -13,6 +13,29 @@ function snapshot() {
     return Domain.probeSnapshot({available: true, name: "Coral", kind: "usb"}, NOW);
 }
 
+function fakeScheduler() {
+    return {
+        scheduled: [],
+        cancelled: [],
+        nextHandle: 1,
+        schedule(delayMs, callback) {
+            const handle = this.nextHandle;
+            this.nextHandle += 1;
+            this.scheduled.push({handle, delayMs, callback});
+            return handle;
+        },
+        cancel(handle) {
+            this.cancelled.push(handle);
+            return true;
+        },
+        fire() {
+            const entry = this.scheduled.at(-1);
+            entry.callback();
+            return entry;
+        },
+    };
+}
+
 function harness(overrides = {}) {
     const saves = [];
     const warnings = [];
@@ -29,14 +52,29 @@ function harness(overrides = {}) {
         warn: (message) => warnings.push(message),
         error: (message) => errors.push(message),
     };
+    const clock = overrides.clock || {now: () => NOW};
+    const scheduler = overrides.scheduler || fakeScheduler();
     const manager = new Manager.WorkloadManager({
         repository,
         runtimeGateway,
-        clock: {now: () => NOW},
+        clock,
         errorReporter: new FailureBackoff.FailureErrorBackoff({logger}),
         logger,
+        scheduler,
+        staleAfterMs: overrides.staleAfterMs,
     });
-    return {manager, saves, warnings, errors};
+    return {clock, manager, saves, warnings, errors, scheduler};
+}
+
+function connectedSnapshot(generatedAt) {
+    return Domain.normalizeSnapshot({
+        version: Domain.SNAPSHOT_VERSION,
+        generatedAt,
+        device: {available: true, name: "Coral USB", kind: "usb"},
+        metrics: {load: 40, queueDepth: 0, runningProfiles: 0},
+        profiles: {},
+        alerts: [],
+    }, generatedAt);
 }
 
 test("tab sanitization and silent logger are safe defaults", () => {
@@ -164,6 +202,95 @@ test("runtime gateway replacement validates input and refreshes after start", ()
     assert.equal(manager.state().device.reason, "before");
     manager.replaceRuntimeGateway({read: snapshot});
     assert.equal(manager.state().device.available, true);
+});
+
+test("manager validates an injected scheduler port", () => {
+    const base = {
+        repository: {load() {}, save() {}},
+        runtimeGateway: {read() {}},
+        errorReporter: {report() {}, recover() {}},
+    };
+    assert.throws(() => new Manager.WorkloadManager({...base, scheduler: {}}), /scheduler/);
+    assert.throws(() => Manager.requireScheduler({schedule() {}}), /scheduler/);
+    const inert = Manager.createInertScheduler();
+    assert.equal(inert.schedule(1, () => {}), null);
+    assert.equal(inert.cancel(null), false);
+});
+
+test("connected state expires at its freshness deadline instead of at the next poll", () => {
+    let nowMs = NOW;
+    const {manager, scheduler} = harness({
+        clock: {now: () => nowMs},
+        runtimeGateway: {read: () => connectedSnapshot(NOW)},
+    });
+    const states = [];
+    manager.subscribe((state) => states.push(state));
+    manager.start();
+
+    assert.equal(states.at(-1).source, "runtime");
+    assert.equal(states.at(-1).stale, false);
+    assert.equal(states.at(-1).device.available, true);
+    assert.equal(scheduler.scheduled.at(-1).delayMs, Domain.DEFAULT_STALE_AFTER_MS + 1);
+
+    nowMs = NOW + Domain.DEFAULT_STALE_AFTER_MS + 1;
+    scheduler.fire();
+
+    assert.equal(states.at(-1).stale, true);
+    assert.equal(states.at(-1).device.available, false);
+    assert.match(states.at(-1).device.reason, /stale/u);
+    assert.equal(manager.state().stale, true);
+});
+
+test("expiry is re-armed on every refresh and never fires twice for one snapshot", () => {
+    let nowMs = NOW;
+    let generatedAt = NOW;
+    const {manager, scheduler} = harness({
+        clock: {now: () => nowMs},
+        runtimeGateway: {read: () => connectedSnapshot(generatedAt)},
+    });
+    let publications = 0;
+    manager.subscribe(() => { publications += 1; });
+    manager.start();
+    const armedOnStart = scheduler.scheduled.length;
+
+    nowMs = NOW + 5000;
+    generatedAt = nowMs;
+    manager.refresh();
+    assert.equal(scheduler.cancelled.length, 1);
+    assert.equal(scheduler.scheduled.length, armedOnStart + 1);
+    assert.equal(scheduler.scheduled.at(-1).delayMs, Domain.DEFAULT_STALE_AFTER_MS + 1);
+
+    const before = publications;
+    scheduler.fire();
+    assert.equal(publications, before, "an unexpired snapshot must not republish");
+
+    nowMs = generatedAt + Domain.DEFAULT_STALE_AFTER_MS + 1;
+    scheduler.fire();
+    assert.equal(publications, before + 1);
+    scheduler.fire();
+    assert.equal(publications, before + 1);
+});
+
+test("snapshots that cannot expire leave the scheduler idle", () => {
+    const {manager, scheduler} = harness();
+    manager.start();
+    assert.deepEqual(scheduler.scheduled, []);
+    assert.equal(manager.state().source, "probe");
+});
+
+test("dispose cancels a pending expiry and ignores late callbacks", () => {
+    let nowMs = NOW;
+    const {manager, scheduler} = harness({
+        clock: {now: () => nowMs},
+        runtimeGateway: {read: () => connectedSnapshot(NOW)},
+    });
+    manager.start();
+    const armed = scheduler.scheduled.at(-1);
+    assert.equal(manager.dispose(), true);
+    assert.deepEqual(scheduler.cancelled, [armed.handle]);
+
+    nowMs = NOW + Domain.DEFAULT_STALE_AFTER_MS + 1;
+    assert.doesNotThrow(() => armed.callback());
 });
 
 test("dispose is idempotent and blocks subsequent work", () => {
