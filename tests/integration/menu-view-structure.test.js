@@ -88,7 +88,7 @@ test("the view model always describes exactly four metric tiles", () => {
         {label: "TPU load", value: "42%"},
         {label: "Queue", value: "2", suffix: "jobs"},
         {label: "Running", value: "1", suffix: "profiles"},
-        {label: "Attention", value: "1", suffix: "item", tone: "attention"},
+        {label: "Attention", value: "1", suffix: "item · none", tone: "attention"},
     ]);
     assert.deepEqual(ViewModel.metricModels(baseState({paused: true})).at(-1), {
         label: "State",

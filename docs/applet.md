@@ -19,6 +19,11 @@ in text, so meaning never depends on color alone.
 
 [Review the actual-size 16/20/24-pixel light and dark status montage](../design/prototype/mockup/tpuwm-panel-status-montage.png).
 
+When alerts need review, the highest active severity is stated as text in the
+panel label, tooltip, and accessible name, in the attention metric tile, and in
+the alerts section heading. Resolved alerts and unknown severities never raise
+it. The alert card border colour is a second cue, never the only one.
+
 ## Responsive popup
 
 St stylesheets have no media queries, so the popup resolves its own breakpoints

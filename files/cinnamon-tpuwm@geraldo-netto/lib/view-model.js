@@ -17,6 +17,34 @@ const ALERT_SEVERITY_PRIORITY = Object.freeze({
     critical: 2,
 });
 
+const SEVERITY_LABELS = Object.freeze({
+    advisory: "advisory",
+    warning: "warning",
+    critical: "critical",
+});
+
+// Severity is announced as text in the panel and popup summaries; the alert
+// card colour is a second cue, never the only one.
+function highestActiveSeverity(alerts) {
+    let highest = null;
+    for (const alert of alerts) {
+        const priority = ALERT_SEVERITY_PRIORITY[alert.severity];
+        if (alert.resolved === true || priority === undefined) {
+            continue;
+        }
+        if (highest === null || priority > ALERT_SEVERITY_PRIORITY[highest]) {
+            highest = alert.severity;
+        }
+    }
+    return highest;
+}
+
+function severityText(severity) {
+    return severity === null || severity === undefined
+        ? "none"
+        : SEVERITY_LABELS[severity] || "none";
+}
+
 function formatLoad(value) {
     return typeof value === "number" && Number.isFinite(value)
         ? `${Math.round(value)}%`
@@ -72,6 +100,7 @@ function panelModel(state) {
             accessibleName: `TPU Workload Manager, unavailable: ${state.device.reason}`,
             label: "TPU Offline",
             status: "unavailable",
+            severity: null,
             tooltip: `TPU Workload Manager — ${state.device.reason}`,
         };
     }
@@ -80,6 +109,7 @@ function panelModel(state) {
             accessibleName: "TPU Workload Manager, paused: all workloads paused",
             label: "TPU Paused",
             status: "paused",
+            severity: null,
             tooltip: "TPU Workload Manager — all workloads paused",
         };
     }
@@ -88,20 +118,24 @@ function panelModel(state) {
             accessibleName: "TPU Workload Manager, detected: hardware detected; runtime not connected",
             label: "TPU Detected",
             status: "detected",
+            severity: null,
             tooltip: "TPU Workload Manager — hardware detected; runtime not connected",
         };
     }
     const load = formatLoad(state.metrics.load);
     const attention = state.attentionCount > 0;
     const reviewText = attentionReviewText(state.attentionCount);
+    const severity = highestActiveSeverity(state.alerts);
+    const attentionText = `${reviewText}, highest severity ${severityText(severity)}`;
     return {
         accessibleName: attention
-            ? `TPU Workload Manager, attention: ${reviewText}`
+            ? `TPU Workload Manager, attention: ${attentionText}`
             : `TPU Workload Manager, online: ${load} load`,
-        label: `TPU ${load}`,
+        label: attention ? `TPU ${load} · ${severityText(severity)}` : `TPU ${load}`,
         status: attention ? "attention" : "online",
+        severity,
         tooltip: attention
-            ? `TPU Workload Manager — ${reviewText}`
+            ? `TPU Workload Manager — ${attentionText}`
             : "TPU Workload Manager — online",
     };
 }
@@ -123,7 +157,14 @@ function metricModels(state) {
         {label: "Running", value: state.paused ? "0" : `${state.metrics.runningProfiles}`, suffix: "profiles"},
         state.paused
             ? {label: "State", value: "Paused", tone: "attention"}
-            : {label: "Attention", value: `${state.attentionCount}`, suffix: state.attentionCount === 1 ? "item" : "items", tone: state.attentionCount > 0 ? "attention" : "normal"},
+            : {
+                label: "Attention",
+                value: `${state.attentionCount}`,
+                suffix: state.attentionCount > 0
+                    ? `${state.attentionCount === 1 ? "item" : "items"} · ${severityText(highestActiveSeverity(state.alerts))}`
+                    : "items",
+                tone: state.attentionCount > 0 ? "attention" : "normal",
+            },
     ];
 }
 
@@ -188,6 +229,8 @@ function toViewModel(state, nowMs = Date.now()) {
         activeAlerts,
         resolvedAlerts,
         attentionCount: state.attentionCount,
+        highestSeverity: highestActiveSeverity(state.alerts),
+        highestSeverityText: severityText(highestActiveSeverity(state.alerts)),
         stale: state.stale,
         source: state.source,
         bodyKey: JSON.stringify({
@@ -202,6 +245,7 @@ function toViewModel(state, nowMs = Date.now()) {
 
 module.exports = {
     ALERT_SEVERITY_PRIORITY,
+    SEVERITY_LABELS,
     STATUS_LABELS,
     alertModel,
     attentionReviewText,
@@ -211,7 +255,9 @@ module.exports = {
     formatLoad,
     formatRelativeTime,
     groupProfiles,
+    highestActiveSeverity,
     metricModels,
     panelModel,
+    severityText,
     toViewModel,
 };

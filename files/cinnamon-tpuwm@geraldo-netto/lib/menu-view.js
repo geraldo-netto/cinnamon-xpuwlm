@@ -420,7 +420,10 @@ class MenuView {
             );
             this._body.add_child(hero);
         } else {
-            this._addSectionHeading("Needs review", `${model.activeAlerts.length} active · no automatic action`);
+            this._addSectionHeading(
+                "Needs review",
+                `${model.activeAlerts.length} active · highest severity ${model.highestSeverityText} · no automatic action`,
+            );
             for (const alert of model.activeAlerts) {
                 this._body.add_child(this._alertCard(alert));
             }

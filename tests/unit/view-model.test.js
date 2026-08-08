@@ -62,30 +62,35 @@ test("panel state communicates offline, paused, attention, and online modes", ()
         accessibleName: "TPU Workload Manager, unavailable: Disconnected",
         label: "TPU Offline",
         status: "unavailable",
+        severity: null,
         tooltip: "TPU Workload Manager — Disconnected",
     });
     assert.deepEqual(ViewModel.panelModel(state({paused: true})), {
         accessibleName: "TPU Workload Manager, paused: all workloads paused",
         label: "TPU Paused",
         status: "paused",
+        severity: null,
         tooltip: "TPU Workload Manager — all workloads paused",
     });
     assert.deepEqual(ViewModel.panelModel(state({source: "probe"})), {
         accessibleName: "TPU Workload Manager, detected: hardware detected; runtime not connected",
         label: "TPU Detected",
         status: "detected",
+        severity: null,
         tooltip: "TPU Workload Manager — hardware detected; runtime not connected",
     });
     assert.deepEqual(ViewModel.panelModel(state({attentionCount: 2})), {
-        accessibleName: "TPU Workload Manager, attention: 2 items need review",
-        label: "TPU 41%",
+        accessibleName: "TPU Workload Manager, attention: 2 items need review, highest severity none",
+        label: "TPU 41% · none",
         status: "attention",
-        tooltip: "TPU Workload Manager — 2 items need review",
+        severity: null,
+        tooltip: "TPU Workload Manager — 2 items need review, highest severity none",
     });
     assert.deepEqual(ViewModel.panelModel(state()), {
         accessibleName: "TPU Workload Manager, online: 41% load",
         label: "TPU 41%",
         status: "online",
+        severity: null,
         tooltip: "TPU Workload Manager — online",
     });
 });
@@ -109,7 +114,7 @@ test("effective screen gives safety states precedence over tabs", () => {
 test("metrics explain normal and held workload state", () => {
     const normal = ViewModel.metricModels(state({attentionCount: 1}));
     assert.deepEqual(normal[1], {label: "Queue", value: "2", suffix: "jobs"});
-    assert.equal(normal[3].suffix, "item");
+    assert.equal(normal[3].suffix, "item · none");
     assert.equal(normal[3].tone, "attention");
     const paused = ViewModel.metricModels(state({paused: true, attentionCount: 0}));
     assert.equal(paused[0].value, "0%");

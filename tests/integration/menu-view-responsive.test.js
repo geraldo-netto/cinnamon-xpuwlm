@@ -175,7 +175,7 @@ test("re-applying a layout rebuilds structure only when it actually changes", ()
     assert.equal(metricRows(root).length, 2);
     assert.deepEqual(
         metricRows(root).flatMap((row) => row.children).map((metric) => metric.children[1].text),
-        ["42%", "2 jobs", "1 profiles", "1 item"],
+        ["42%", "2 jobs", "1 profiles", "1 item · warning"],
     );
     assert.equal(root.styleClasses.has("tpuwm-mode-compact"), true);
     const subtitle = findActors(root, (actor) => actor.styleClasses.has("tpuwm-subtitle"))[0];
