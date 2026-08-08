@@ -9,14 +9,15 @@ These rules apply to the entire repository.
 - Do not create duplicate entries. Update the existing row when the same finding changes.
 - Once a finding is fully resolved and verified, remove its row automatically instead of retaining completed work in `TODO.md`. Include the removal in the same scoped commit as the resolution; when no companion changes remain, commit the removal as a scoped documentation change.
 - The `done` status is transitional only; no completed row should remain after its resolution is committed.
-- Findings intentionally rejected or not planned may remain in `TODO.md` with status `rejected` or `wont_fix`; record the decision and concise rationale in the description instead of removing the row.
+- Move findings intentionally rejected or not planned to the dedicated `Rejected / Won't fix` table in `TODO.md`; never mix them into the active `Findings` table. Record the decision and concise rationale in the description instead of removing the row.
 - Use stable sequential IDs in the form `XTPU-0001`.
-- Use only these status values: `open`, `in_progress`, `blocked`, `done`, `rejected`, `wont_fix`.
+- Use only `open`, `in_progress`, `blocked`, or transitional `done` in the active `Findings` table.
+- Use only `rejected` or `wont_fix` in the `Rejected / Won't fix` table.
 - Use only these severity values: `critical`, `high`, `medium`, `low`.
 - Use only these effort values: `xs`, `s`, `m`, `l`, `xl`.
 - Put comma-separated IDs in `related ids`; use `—` when none exist.
 - Keep descriptions concise, actionable, and specific.
-- Preserve this exact table schema:
+- Preserve this exact schema for both tables:
 
   `| id | status | severity | effort | related ids | description |`
 

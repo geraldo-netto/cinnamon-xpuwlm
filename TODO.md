@@ -6,7 +6,7 @@
 | XTPU-0002 | open | high | m | XTPU-0001 | Enforce the complete runtime snapshot schema at the adapter boundary; schema-invalid missing, extra, fractional, and out-of-range fields are currently defaulted or clamped into an apparently connected state. |
 | XTPU-0003 | open | high | m | XTPU-0001, XTPU-0002, XTPU-0022 | Replace synchronous snapshot reads with size-bounded cancellable GIO async reads; sequence refreshes, discard stale completions, and cancel pending reads during teardown. |
 | XTPU-0004 | open | medium | m | XTPU-0002, XTPU-0003, XTPU-0023 | Model device and runtime health independently; render specific absent, stale, malformed, read-error, and probe-error telemetry and recovery guidance instead of fabricated operational values. |
-| XTPU-0005 | open | medium | l | XTPU-0001, XTPU-0002 | Replace the hard-coded eight-profile catalog and limits with a versioned, validated profile registry or descriptor contract so additional workloads are discoverable instead of silently discarded. |
+| XTPU-0005 | open | medium | l | XTPU-0001, XTPU-0002, XTPU-0035, XTPU-0036, XTPU-0037, XTPU-0038, XTPU-0039, XTPU-0040, XTPU-0041 | Replace the hard-coded catalog with a modular workload plug-in architecture; the related items define and deliver the contract, registry, migration, lifecycle, safety boundary, low-light workload, and developer tooling. |
 | XTPU-0006 | open | medium | m | XTPU-0004 | Make the Cinnamon popup responsive at narrow work areas, high scale factors, and large text sizes while preserving essential content and controls. |
 | XTPU-0008 | open | medium | s | XTPU-0006 | Apply tab-list, tab, and toggle ATK roles plus selected and checked states so assistive technology receives semantic control state. |
 | XTPU-0009 | open | medium | m | XTPU-0006, XTPU-0008 | Localize runtime UI, status, and accessibility strings through gettext and ngettext; verify plurals and expanded translations. |
@@ -26,3 +26,16 @@
 | XTPU-0031 | open | low | s | XTPU-0020 | Add structural contract and clone-isolation coverage for device detection, profile statuses, fallback/probe snapshots, portfolio serialization, manager projections, and status labels. |
 | XTPU-0032 | open | medium | s | XTPU-0008, XTPU-0020 | Add structural UI contract coverage for panel-state cleanup, metrics, icons, recovery steps, scroll layout, and interactive button properties. |
 | XTPU-0033 | open | medium | s | XTPU-0028 | Replace the default long panel label with a compact status icon using theme-derived color plus a non-color shape/badge and an accessible tooltip; status must not depend on color alone. |
+| XTPU-0034 | open | low | xs | XTPU-0002 | Truncate bounded runtime text by Unicode code point instead of UTF-16 code unit so a boundary cannot emit an unpaired surrogate into Cinnamon labels, tooltips, or serialized view keys. |
+| XTPU-0035 | open | medium | m | XTPU-0001, XTPU-0002, XTPU-0005 | Define a versioned declarative workload plug-in manifest and domain contract with stable identity, capabilities, model/runtime requirements, UI metadata, defaults, and strict schema validation. |
+| XTPU-0036 | open | medium | m | XTPU-0005, XTPU-0035 | Inject a workload registry port into the domain and application layers, with a Cinnamon adapter that discovers validated descriptors without coupling domain logic to files or framework APIs. |
+| XTPU-0037 | open | medium | m | XTPU-0005, XTPU-0035, XTPU-0036 | Migrate all eight built-in workload profiles into independent plug-in descriptors and remove hard-coded catalog knowledge and fixed profile-count limits from the domain. |
+| XTPU-0038 | open | medium | s | XTPU-0005, XTPU-0035, XTPU-0036 | Add low-light image enhancement as a normal Visual Library workload plug-in with replaceable model metadata, host-pipeline responsibilities, and measurable quality/performance acceptance criteria. |
+| XTPU-0039 | open | medium | m | XTPU-0001, XTPU-0005, XTPU-0036 | Implement deterministic install, enable, disable, upgrade, and removal reconciliation so unknown or removed plug-ins do not corrupt persisted preferences or runtime state. |
+| XTPU-0040 | open | high | m | XTPU-0001, XTPU-0002, XTPU-0005, XTPU-0035, XTPU-0036 | Keep applet plug-ins declarative and non-executable, validate all discovered data and paths at the trust boundary, and leave model execution and privileged actions behind the runtime service contract. |
+| XTPU-0041 | open | low | s | XTPU-0005, XTPU-0035, XTPU-0036 | Provide a workload plug-in template, authoring guide, schema/compatibility checker, and contract-test fixture so workloads can be added or removed independently. |
+
+# Rejected / Won't fix
+
+| id | status | severity | effort | related ids | description |
+| --- | --- | --- | --- | --- | --- |
