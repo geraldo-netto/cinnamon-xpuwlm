@@ -27,3 +27,4 @@
 | XTPU-0029 | open | medium | m | XTPU-0004, XTPU-0010 | Emit each critical desktop notification once per alert occurrence while allowing notification after resolution and reappearance. |
 | XTPU-0031 | open | low | s | XTPU-0020 | Add structural contract and clone-isolation coverage for device detection, profile statuses, fallback/probe snapshots, portfolio serialization, manager projections, and status labels. |
 | XTPU-0032 | open | medium | s | XTPU-0008, XTPU-0020 | Add structural UI contract coverage for panel-state cleanup, metrics, icons, recovery steps, scroll layout, and interactive button properties. |
+| XTPU-0033 | open | medium | s | XTPU-0007, XTPU-0028 | Replace the default long panel label with a compact status icon using theme-derived color plus a non-color shape/badge and an accessible tooltip; status must not depend on color alone. |
