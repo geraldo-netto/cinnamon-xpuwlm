@@ -9,7 +9,8 @@
   "incrementalFile": "mutation-report/incremental.json",
   "mutate": [
     "files/cinnamon-tpuwm@geraldo-netto/applet.js",
-    "files/cinnamon-tpuwm@geraldo-netto/lib/**/*.js"
+    "files/cinnamon-tpuwm@geraldo-netto/lib/**/*.js",
+    "scripts/check-workload-manifests.js"
   ],
   "mutator": {
     "excludedMutations": ["StringLiteral"]

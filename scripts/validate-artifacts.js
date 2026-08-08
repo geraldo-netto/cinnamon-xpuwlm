@@ -143,6 +143,8 @@ function validateJsonArtifacts() {
     }
     assert.equal(packageJson.scripts.test.includes("test:mutation"), true);
     assert.equal(packageJson.scripts.test.includes("test:visual"), true);
+    assert.equal(packageJson.scripts.test.includes("check:workloads"), true);
+    assert.equal(packageJson.scripts["test:contract"], "node --test tests/contract/*.test.js");
     assert.equal(packageJson.devDependencies.ajv, "8.18.0");
     assert.equal(packageJson.scripts["test:visual"], "node --test tests/visual/*.test.js");
     assert.equal(packageJson.scripts["test:mutation-target"].includes("tests/visual"), false);

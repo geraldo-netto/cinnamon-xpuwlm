@@ -1,0 +1,32 @@
+{
+  "manifestVersion": 1,
+  "id": "replace-me",
+  "version": "0.1.0",
+  "capabilities": ["replace-capability"],
+  "requirements": {
+    "runtimeApi": 1,
+    "accelerator": "edge-tpu",
+    "minimumDevices": 1,
+    "model": null
+  },
+  "ui": {
+    "title": "Replace me",
+    "group": "Local workflows",
+    "description": "Replace with a concise user-facing purpose",
+    "icon": "applications-science-symbolic",
+    "order": 900
+  },
+  "defaults": {"enabled": false, "weight": 1},
+  "pipeline": {
+    "hostResponsibilities": ["Replace with bounded host-side processing"]
+  },
+  "acceptance": [
+    {
+      "metric": "replace-metric",
+      "comparator": "at-least",
+      "target": 1,
+      "unit": "ratio",
+      "description": "Replace with a reproducible acceptance criterion"
+    }
+  ]
+}

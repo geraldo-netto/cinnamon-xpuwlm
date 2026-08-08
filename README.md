@@ -37,6 +37,7 @@ This document is application-neutral. It explains the hardware and software boun
   - [Hardware integration](docs/setup.md#hardware-integration)
   - [Software setup](docs/setup.md#software-setup)
 - [Cinnamon applet integration](docs/cinnamon-integration.md)
+- [Workload plug-in authoring](docs/workload-plugins.md)
 - [Deployment, safety, and references](docs/deployment.md)
   - [Virtualization](docs/deployment.md#virtualization)
   - [Deployment and evaluation workflow](docs/deployment.md#deployment-and-evaluation-workflow)
