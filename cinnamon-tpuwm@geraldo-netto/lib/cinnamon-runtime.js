@@ -4,6 +4,12 @@ const Runtime = require("./runtime-gateway.js");
 
 const USB_VENDOR = "18d1";
 const USB_PRODUCT = "9302";
+const USB_DFU_VENDOR = "1a6e";
+const USB_DFU_PRODUCT = "089a";
+const CORAL_USB_IDENTITIES = Object.freeze([
+    Object.freeze({vendor: USB_VENDOR, product: USB_PRODUCT, name: "Coral USB Accelerator"}),
+    Object.freeze({vendor: USB_DFU_VENDOR, product: USB_DFU_PRODUCT, name: "Coral USB Accelerator (DFU)"}),
+]);
 const DEVICE_CACHE_MS = 10000;
 
 function expandHome(path, homeDirectory) {
@@ -51,6 +57,12 @@ function readTrimmed(path, environment) {
     return text === null ? "" : text.trim().toLowerCase();
 }
 
+function findCoralUsbIdentity(vendor, product) {
+    return CORAL_USB_IDENTITIES.find(
+        (identity) => identity.vendor === vendor && identity.product === product,
+    ) || null;
+}
+
 function detectPcieDevice(environment) {
     for (let index = 0; index < 8; index += 1) {
         if (environment.Gio.File.new_for_path(`/dev/apex_${index}`).query_exists(null)) {
@@ -79,11 +91,14 @@ function detectUsbDevice(environment) {
         let info = enumerator.next_file(null);
         while (info !== null) {
             const base = `/sys/bus/usb/devices/${info.get_name()}`;
-            if (readTrimmed(`${base}/idVendor`, environment) === USB_VENDOR
-                && readTrimmed(`${base}/idProduct`, environment) === USB_PRODUCT) {
+            const identity = findCoralUsbIdentity(
+                readTrimmed(`${base}/idVendor`, environment),
+                readTrimmed(`${base}/idProduct`, environment),
+            );
+            if (identity !== null) {
                 return {
                     available: true,
-                    name: "Coral USB Accelerator",
+                    name: identity.name,
                     kind: "usb",
                     reason: "",
                 };
@@ -219,7 +234,10 @@ function createRuntimeGateway({path, environment, clock = Date, logger, deviceDe
 }
 
 module.exports = {
+    CORAL_USB_IDENTITIES,
     DEVICE_CACHE_MS,
+    USB_DFU_PRODUCT,
+    USB_DFU_VENDOR,
     USB_PRODUCT,
     USB_VENDOR,
     CachedDeviceDetector,
@@ -232,6 +250,7 @@ module.exports = {
     detectPcieDevice,
     detectUsbDevice,
     expandHome,
+    findCoralUsbIdentity,
     readFileText,
     readTrimmed,
 };

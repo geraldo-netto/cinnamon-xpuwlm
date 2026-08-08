@@ -13,7 +13,12 @@ shutdown, firmware, or access-control policy.
 
 A trusted local workload service may atomically publish `~/.local/state/tpu-workload-manager/state.json`. The accepted version 1 contract is defined by `runtime-snapshot.schema.json`. The applet only reads and validates this file; it never executes its content.
 
-If no snapshot exists, the applet probes for Coral USB (`18d1:9302`) and PCIe (`/dev/apex_*`) devices and reports device-only state. Missing, malformed, stale, oversized, or unsupported snapshots fail closed into an explicit unavailable/recovery state.
+If no snapshot exists, the applet probes for Coral USB runtime
+(`18d1:9302`), Coral USB DFU (`1a6e:089a`), and PCIe (`/dev/apex_*`)
+devices and reports device-only state. USB authorization uses those exact
+vendor/product pairs; mixed pairs are rejected. Missing, malformed, stale,
+oversized, or unsupported snapshots fail closed into an explicit
+unavailable/recovery state.
 
 ## Local quality gates
 

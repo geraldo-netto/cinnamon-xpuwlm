@@ -97,21 +97,47 @@ test("PCIe detection uses the first available accelerator", () => {
     assert.equal(second.kind, "pcie");
 });
 
-test("USB detection matches exact Coral identifiers and always closes enumeration", () => {
+test("USB identity policy accepts only exact runtime and DFU pairs", () => {
+    assert.equal(
+        Cinnamon.findCoralUsbIdentity(Cinnamon.USB_VENDOR, Cinnamon.USB_PRODUCT).name,
+        "Coral USB Accelerator",
+    );
+    assert.equal(
+        Cinnamon.findCoralUsbIdentity(Cinnamon.USB_DFU_VENDOR, Cinnamon.USB_DFU_PRODUCT).name,
+        "Coral USB Accelerator (DFU)",
+    );
+    assert.equal(Cinnamon.findCoralUsbIdentity(Cinnamon.USB_VENDOR, Cinnamon.USB_DFU_PRODUCT), null);
+    assert.equal(Cinnamon.findCoralUsbIdentity(Cinnamon.USB_DFU_VENDOR, Cinnamon.USB_PRODUCT), null);
+    assert.equal(Cinnamon.findCoralUsbIdentity("ffff", "ffff"), null);
+});
+
+test("USB detection normalizes Coral identifiers and always closes enumeration", () => {
     const root = "/sys/bus/usb/devices";
     const foundEnv = environment({
         [root]: "",
         [`${root}/1/idVendor`]: "18D1\n",
         [`${root}/1/idProduct`]: "9302\n",
     }, ["1"]);
-    assert.equal(Cinnamon.detectUsbDevice(foundEnv).kind, "usb");
+    const runtimeDevice = Cinnamon.detectUsbDevice(foundEnv);
+    assert.equal(runtimeDevice.available, true);
+    assert.equal(runtimeDevice.kind, "usb");
     assert.equal(foundEnv.closed, true);
+
+    const dfuEnv = environment({
+        [root]: "",
+        [`${root}/2/idVendor`]: "  1A6E\n",
+        [`${root}/2/idProduct`]: "089A\n",
+    }, ["2"]);
+    const dfuDevice = Cinnamon.detectUsbDevice(dfuEnv);
+    assert.equal(dfuDevice.available, true);
+    assert.equal(dfuDevice.name, "Coral USB Accelerator (DFU)");
+    assert.equal(dfuEnv.closed, true);
 
     const otherEnv = environment({
         [root]: "",
-        [`${root}/2/idVendor`]: "ffff",
-        [`${root}/2/idProduct`]: "9302",
-    }, ["2"]);
+        [`${root}/3/idVendor`]: "ffff",
+        [`${root}/3/idProduct`]: "9302",
+    }, ["3"]);
     assert.equal(Cinnamon.detectUsbDevice(otherEnv), null);
     assert.equal(otherEnv.closed, true);
     assert.equal(Cinnamon.detectUsbDevice(environment()), null);
