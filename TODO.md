@@ -12,7 +12,6 @@
 | XTPU-0008 | open | medium | s | XTPU-0006 | Apply tab-list, tab, and toggle ATK roles plus selected and checked states so assistive technology receives semantic control state. |
 | XTPU-0009 | open | medium | m | XTPU-0006, XTPU-0008 | Localize runtime UI, status, and accessibility strings through gettext and ngettext; verify plurals and expanded translations. |
 | XTPU-0010 | open | medium | xs | XTPU-0002 | Sort active alerts deterministically by severity, newest timestamp, and stable ID so critical items cannot be buried by runtime array order. |
-| XTPU-0011 | open | medium | s | XTPU-0003 | Add bounded backoff and log deduplication for repeated snapshot-read and device-probe failures; current polling can emit the same warning every refresh interval indefinitely. |
 | XTPU-0013 | blocked | low | xs | — | Choose and add an explicit repository license before redistribution; no license currently grants reuse rights. |
 | XTPU-0015 | open | medium | xs | XTPU-0001, XTPU-0004 | Derive the pause/resume control from policy intent rather than the effective screen; a paused policy cannot be resumed while the device is unavailable. |
 | XTPU-0016 | open | medium | xs | XTPU-0010 | Invalidate or update alert widgets when any rendered alert field changes; same-ID severity, title, summary, risk, and confidence updates can remain stale until the relative age changes. |

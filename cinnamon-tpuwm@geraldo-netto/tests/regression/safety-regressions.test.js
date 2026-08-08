@@ -74,3 +74,36 @@ test("regression: UTF-8 size checks count encoded bytes, not UTF-16 units", () =
     const tooLarge = "😀".repeat(Math.floor(Runtime.MAX_SNAPSHOT_BYTES / 4) + 1);
     assert.match(Runtime.parseSnapshotDocument(tooLarge, NOW).device.reason, /exceeds/);
 });
+
+test("regression: warning backoff never hides failure state or overruns after clock rollback", () => {
+    const warnings = [];
+    let nowMs = NOW;
+    const gateway = new Runtime.RuntimeSnapshotGateway({
+        path: "/unreadable/state.json",
+        clock: {now: () => nowMs},
+        readText() {
+            throw new Error("permission denied");
+        },
+        detectDevice() {
+            throw new Error("must not probe after read failure");
+        },
+        logger: {warn: (message) => warnings.push(message)},
+    });
+
+    for (let poll = 0; poll < 20; poll += 1) {
+        const snapshot = gateway.read();
+        assert.equal(snapshot.source, "invalid");
+        assert.equal(snapshot.device.available, false);
+        assert.match(snapshot.device.reason, /could not be read/);
+        nowMs += 1000;
+    }
+    assert.equal(warnings.length, 1);
+
+    nowMs = NOW - 1000;
+    const rolledBackSnapshot = gateway.read();
+    assert.equal(rolledBackSnapshot.source, "invalid");
+    assert.equal(rolledBackSnapshot.device.available, false);
+    assert.equal(warnings.length, 2);
+    gateway.read();
+    assert.equal(warnings.length, 2);
+});

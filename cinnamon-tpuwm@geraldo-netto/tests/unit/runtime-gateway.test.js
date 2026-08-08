@@ -42,6 +42,82 @@ test("gateway validates dependencies", () => {
     assert.throws(() => new Runtime.RuntimeSnapshotGateway({...base, clock: {}}), /clock/);
 });
 
+test("failure warning backoff is independent, exponential, bounded, and recoverable", () => {
+    const warnings = [];
+    const backoff = new Runtime.FailureWarningBackoff({
+        logger: {warn: (message) => warnings.push(message)},
+        initialDelayMs: 10,
+        maximumDelayMs: 25,
+    });
+
+    assert.equal(backoff.warn("read", "read-1", 0), true);
+    assert.equal(backoff.warn("read", "read-suppressed", 9), false);
+    assert.equal(backoff.warn("probe", "probe-1", 9), true);
+    assert.equal(backoff.warn("read", "read-2", 10), true);
+    assert.equal(backoff.warn("read", "read-suppressed", 29), false);
+    assert.equal(backoff.warn("read", "read-3", 30), true);
+    assert.equal(backoff.warn("read", "read-suppressed", 54), false);
+    assert.equal(backoff.warn("read", "read-4", 55), true);
+    assert.deepEqual(warnings, ["read-1", "probe-1", "read-2", "read-3", "read-4"]);
+
+    assert.equal(backoff.recover("missing"), false);
+    assert.equal(backoff.recover("read"), true);
+    assert.equal(backoff.warn("read", "read-after-recovery", 55), true);
+    assert.equal(warnings.at(-1), "read-after-recovery");
+});
+
+test("failure warning backoff validates and normalizes configuration", () => {
+    assert.throws(() => new Runtime.FailureWarningBackoff({logger: null}), /logger/);
+    assert.throws(() => new Runtime.FailureWarningBackoff({logger: {}}), /logger/);
+    assert.equal(Runtime.WARNING_INITIAL_DELAY_MS, 30_000);
+    assert.equal(Runtime.WARNING_MAX_DELAY_MS, 900_000);
+    assert.equal(Runtime.normalizeDelay("5.9", 20), 5);
+    assert.equal(Runtime.normalizeDelay(-4, 20), 1);
+    for (const value of [0, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+        assert.equal(Runtime.normalizeDelay(value, 20), 20);
+    }
+    const warnings = [];
+    const backoff = new Runtime.FailureWarningBackoff({
+        logger: {warn: (message) => warnings.push(message)},
+        initialDelayMs: -10,
+        maximumDelayMs: 0,
+    });
+    assert.equal(backoff.warn(7, "first", 0), true);
+    assert.equal(backoff.warn("7", "suppressed", 0), false);
+    assert.equal(backoff.warn(7, "default-delay", Runtime.WARNING_INITIAL_DELAY_MS), true);
+    assert.deepEqual(warnings, ["first", "default-delay"]);
+
+    const capped = new Runtime.FailureWarningBackoff({
+        logger: {warn: (message) => warnings.push(message)},
+        initialDelayMs: 600_000,
+        maximumDelayMs: Number.POSITIVE_INFINITY,
+    });
+    assert.equal(capped.warn("read", "cap-1", 0), true);
+    assert.equal(capped.warn("read", "cap-2", 600_000), true);
+    assert.equal(capped.warn("read", "cap-suppressed", 1_499_999), false);
+    assert.equal(capped.warn("read", "cap-3", 1_500_000), true);
+});
+
+test("failure warning backoff resets a channel after backward clock movement", () => {
+    const warnings = [];
+    const backoff = new Runtime.FailureWarningBackoff({
+        logger: {warn: (message) => warnings.push(message)},
+        initialDelayMs: 10,
+        maximumDelayMs: 20,
+    });
+
+    assert.equal(backoff.warn("read", "first", 100), true);
+    assert.equal(backoff.warn("read", "suppressed", 105), false);
+    assert.equal(backoff.warn("read", "after-rollback", 90), true);
+    assert.equal(backoff.warn("read", "suppressed-after-rollback", 99), false);
+    assert.equal(backoff.warn("read", "due-after-rollback", 100), true);
+    assert.deepEqual(warnings, ["first", "after-rollback", "due-after-rollback"]);
+
+    assert.equal(backoff.warn("invalid-time", "invalid-first", Number.POSITIVE_INFINITY), true);
+    assert.equal(backoff.warn("invalid-time", "invalid-suppressed", Number.NaN), false);
+    assert.equal(backoff.warn("invalid-time", "invalid-due", 10), true);
+});
+
 test("gateway prefers a non-empty runtime document", () => {
     let probes = 0;
     const gateway = new Runtime.RuntimeSnapshotGateway({
@@ -114,6 +190,52 @@ test("gateway fails closed when device probing throws", () => {
     assert.match(result.device.reason, /discovery failed/);
     assert.equal(warnings.length, 1);
     assert.equal(Domain.DEFAULT_STALE_AFTER_MS > 1000, true);
+});
+
+test("gateway backs off read and probe warnings independently", () => {
+    let nowMs = NOW;
+    let readFails = true;
+    let probeFails = true;
+    const warnings = [];
+    const gateway = new Runtime.RuntimeSnapshotGateway({
+        path: "/run/tpuwm.json",
+        clock: {now: () => nowMs},
+        readText() {
+            if (readFails) {
+                throw new Error("read denied");
+            }
+            return null;
+        },
+        detectDevice() {
+            if (probeFails) {
+                throw new Error("probe denied");
+            }
+            return {available: false};
+        },
+        logger: {warn: (message) => warnings.push(message)},
+    });
+
+    assert.equal(gateway.read().source, "invalid");
+    nowMs += 1;
+    assert.equal(gateway.read().source, "invalid");
+    assert.equal(warnings.length, 1);
+
+    readFails = false;
+    assert.equal(gateway.read().source, "probe");
+    assert.equal(warnings.length, 2);
+    nowMs += 1;
+    assert.equal(gateway.read().source, "probe");
+    assert.equal(warnings.length, 2);
+
+    readFails = true;
+    assert.equal(gateway.read().source, "invalid");
+    assert.equal(warnings.length, 3);
+    readFails = false;
+    probeFails = false;
+    assert.equal(gateway.read().source, "probe");
+    probeFails = true;
+    assert.equal(gateway.read().source, "probe");
+    assert.equal(warnings.length, 4);
 });
 
 test("gateway default logger safely absorbs fallback failures", () => {

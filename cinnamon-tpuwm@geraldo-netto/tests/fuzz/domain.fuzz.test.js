@@ -87,6 +87,60 @@ test("fuzz: UTF-8 counter agrees with platform encoder", () => {
     }
 });
 
+test("fuzz: warning backoff follows bounded exponential state transitions", () => {
+    const random = generator(0x4241434b);
+    const warnings = [];
+    const initialDelayMs = 4;
+    const maximumDelayMs = 32;
+    const backoff = new Runtime.FailureWarningBackoff({
+        logger: {warn: (message) => warnings.push(message)},
+        initialDelayMs,
+        maximumDelayMs,
+    });
+    let nowMs = 0;
+
+    for (let cycle = 0; cycle < 100; cycle += 1) {
+        const key = `channel-${cycle % 3}`;
+        backoff.recover(key);
+        let delayMs = initialDelayMs;
+        assert.equal(backoff.warn(key, `first-${cycle}`, nowMs), true);
+        for (let emission = 0; emission < 20; emission += 1) {
+            const beforeDeadline = Math.floor(random() * delayMs);
+            assert.equal(backoff.warn(key, "suppressed", nowMs + beforeDeadline), false);
+            nowMs += delayMs;
+            assert.equal(backoff.warn(key, `due-${cycle}-${emission}`, nowMs), true);
+            delayMs = Math.min(delayMs * 2, maximumDelayMs);
+        }
+        nowMs += 1;
+    }
+    assert.equal(warnings.length, 2100);
+});
+
+test("fuzz: non-finite delays and backward clocks remain bounded", () => {
+    const random = generator(0x434c4f43);
+    const nonFiniteValues = [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
+    const warnings = [];
+
+    for (let cycle = 0; cycle < 500; cycle += 1) {
+        const backoff = new Runtime.FailureWarningBackoff({
+            logger: {warn: (message) => warnings.push(message)},
+            initialDelayMs: nonFiniteValues[Math.floor(random() * nonFiniteValues.length)],
+            maximumDelayMs: nonFiniteValues[Math.floor(random() * nonFiniteValues.length)],
+        });
+        const key = `channel-${cycle}`;
+        const start = Math.floor(random() * 1_000_000) + Runtime.WARNING_INITIAL_DELAY_MS;
+        assert.equal(backoff.warn(key, "first", start), true);
+        assert.equal(backoff.warn(key, "before-default-delay", start + Runtime.WARNING_INITIAL_DELAY_MS - 1), false);
+        assert.equal(backoff.warn(key, "at-default-delay", start + Runtime.WARNING_INITIAL_DELAY_MS), true);
+
+        const rolledBackAt = start - Math.floor(random() * Runtime.WARNING_MAX_DELAY_MS) - 1;
+        assert.equal(backoff.warn(key, "after-rollback", rolledBackAt), true);
+        assert.equal(backoff.warn(key, "bounded-suppression", rolledBackAt + Runtime.WARNING_INITIAL_DELAY_MS - 1), false);
+        assert.equal(backoff.warn(key, "bounded-emission", rolledBackAt + Runtime.WARNING_INITIAL_DELAY_MS), true);
+    }
+    assert.equal(warnings.length, 2000);
+});
+
 test("fuzz: portfolio operations preserve invariants", () => {
     const random = generator(0x574f524b);
     const portfolio = new Domain.WorkloadPortfolio();
