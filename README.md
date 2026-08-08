@@ -15,6 +15,7 @@ This document is application-neutral. It explains the hardware and software boun
   - [Reference UI/interaction design](tpu-workloads@local/DESIGN.md) — approved prototype rationale and states; not the live implementation
   - [Consolidated workload profiles](tpu-workloads@local/WORKLOADS.md)
   - [Prototype screen gallery](tpu-workloads@local/mockup/screens/all-screens.png)
+  - [Compact panel status montage](tpu-workloads@local/mockup/tpuwm-panel-status-montage.png)
 - [Fundamentals and execution model](docs/fundamentals.md)
   - [Documentation and maintenance status](docs/fundamentals.md#documentation-and-maintenance-status)
   - [How to read the evidence](docs/fundamentals.md#how-to-read-the-evidence)

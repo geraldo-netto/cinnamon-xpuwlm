@@ -36,7 +36,7 @@ jobs:
       - name: Install Cinnamon theme test runtime
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends cinnamon cjs
+          sudo apt-get install --yes --no-install-recommends cinnamon cjs imagemagick librsvg2-bin
 
       - name: Install locked dependencies
         run: npm ci

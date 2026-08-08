@@ -15,7 +15,7 @@ const {
 const DEFAULTS = {
     "refresh-interval": 5,
     "runtime-state-path": "~/.local/state/tpu-workload-manager/runtime.json",
-    "show-panel-label": true,
+    "show-panel-label": false,
     "profile-state": Domain.defaultProfileState(),
     "selected-tab": "overview",
 };
@@ -25,12 +25,14 @@ class FakeTextIconApplet {
         this.baseArguments = {orientation, panelHeight, instanceId};
         this.actor = new FakeActor();
         this.iconPath = null;
+        this.symbolicIconPaths = [];
         this.label = null;
         this.tooltip = null;
     }
 
-    set_applet_icon_path(path) {
+    set_applet_icon_symbolic_path(path) {
         this.iconPath = path;
+        this.symbolicIconPaths.push(path);
     }
 
     set_applet_label(label) {
@@ -206,10 +208,14 @@ function appletHarness() {
 test("constructor binds settings, registers icon, renders, and starts polling", () => {
     const {applet, manager, menus, poller, views} = appletHarness();
     assert.deepEqual(applet.baseArguments, {orientation: "top", panelHeight: 40, instanceId: 7});
-    assert.equal(applet.iconPath, "/tmp/tpuwm/icons/tpuwm-symbolic.svg");
+    assert.deepEqual(applet.symbolicIconPaths, [
+        "/tmp/tpuwm/icons/tpuwm-symbolic-v2.svg",
+        "/tmp/tpuwm/icons/tpuwm-status-detected-symbolic.svg",
+    ]);
     assert.equal(iconPaths.includes("/tmp/tpuwm/icons"), true);
-    assert.equal(applet.label, "TPU Detected");
+    assert.equal(applet.label, "");
     assert.match(applet.tooltip, /hardware detected/);
+    assert.match(applet.actor.accessibleName, /detected: hardware detected/);
     assert.equal(applet.actor.styleClasses.has("tpuwm-panel-detected"), true);
     assert.deepEqual(manager.calls[0], ["start"]);
     assert.deepEqual(poller.calls, [["start", 5]]);
@@ -269,8 +275,47 @@ test("runtime setting changes replace gateway and restart poller", () => {
     assert.deepEqual(manager.calls.at(-1), ["replaceRuntimeGateway", gateways.at(-1)]);
     settings.setValue("refresh-interval", 9);
     assert.deepEqual(poller.calls.at(-1), ["start", 9]);
-    settings.setValue("show-panel-label", false);
-    assert.equal(applet.label, "");
+    settings.setValue("show-panel-label", true);
+    assert.equal(applet.label, "TPU Detected");
+});
+
+test("panel uses cached symbolic state icons and explicit accessible status", () => {
+    const {applet, manager} = appletHarness();
+    const states = [
+        [liveState({source: "runtime"}), "online", /online: 55% load/u],
+        [liveState({source: "runtime", attentionCount: 1}), "attention", /attention: 1 item needs review/u],
+        [liveState({paused: true}), "paused", /paused: all workloads paused/u],
+        [liveState({source: "probe"}), "detected", /detected: hardware detected/u],
+        [liveState({device: {available: false, name: "No TPU", kind: "unknown", reason: "Disconnected"}}), "unavailable", /unavailable: Disconnected/u],
+    ];
+
+    for (const [state, status, accessibleName] of states) {
+        manager.callback(state);
+        assert.equal(
+            applet.iconPath,
+            `/tmp/tpuwm/icons/tpuwm-status-${status}-symbolic.svg`,
+        );
+        assert.match(applet.actor.accessibleName, accessibleName);
+        assert.equal(applet.label, "");
+        for (const candidate of AppletModule.PANEL_STATUSES) {
+            assert.equal(
+                applet.actor.styleClasses.has(`tpuwm-panel-${candidate}`),
+                candidate === status,
+            );
+        }
+    }
+
+    const callsBeforeRepeatedState = applet.symbolicIconPaths.length;
+    manager.callback(states.at(-1)[0]);
+    assert.equal(applet.symbolicIconPaths.length, callsBeforeRepeatedState);
+    assert.equal(applet._setPanelIcon("online"), true);
+    assert.match(applet.iconPath, /tpuwm-status-online-symbolic\.svg$/u);
+    assert.equal(applet._setPanelIcon("online"), false);
+    assert.equal(applet._setPanelIcon("future-status"), true);
+    assert.match(applet.iconPath, /tpuwm-status-unavailable-symbolic\.svg$/u);
+    assert.equal(applet._setPanelIcon("future-status"), false);
+    assert.equal(AppletModule.panelIconFilename("future-status"), "tpuwm-status-unavailable-symbolic.svg");
+    assert.equal(AppletModule.panelIconFilename("online"), "tpuwm-status-online-symbolic.svg");
 });
 
 test("render updates safety styling and ignores work after teardown", () => {
@@ -313,7 +358,9 @@ test("default environment, logger, and main construct with Cinnamon dependencies
         8,
     );
     assert.equal(instance instanceof AppletModule.TpuWorkloadApplet, true);
-    assert.equal(instance.label, "TPU Offline");
+    assert.equal(instance.label, "");
+    assert.match(instance.iconPath, /tpuwm-status-unavailable-symbolic\.svg$/u);
+    assert.match(instance.actor.accessibleName, /unavailable:/u);
     const timer = [...timers.values()].at(-1);
     assert.equal(timer.callback(), true);
     instance.on_applet_removed_from_panel();

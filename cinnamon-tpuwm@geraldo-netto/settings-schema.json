@@ -35,7 +35,7 @@
   },
   "show-panel-label": {
     "type": "switch",
-    "default": true,
+    "default": false,
     "description": "Show TPU status beside the panel icon"
   },
   "refresh-interval": {

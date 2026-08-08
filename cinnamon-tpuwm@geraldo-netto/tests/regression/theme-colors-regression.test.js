@@ -61,9 +61,6 @@ print(JSON.stringify({
         alert: cue("tpuwm-alert-card", null, St.Side.LEFT, St.BoxLayout.$gtype),
     },
     panel: {
-        foreground: color(attentionApplet.get_foreground_color()),
-        border: color(attentionApplet.get_border_color(St.Side.BOTTOM)),
-        borderWidth: attentionApplet.get_border_width(St.Side.BOTTOM),
         normalGeometry: geometry(normalApplet),
         attentionGeometry: geometry(attentionApplet),
     },
@@ -231,9 +228,7 @@ test("regression: semantic and interaction states explicitly use the symbolic fo
     assert.match(ruleBody(".tpuwm-alert-card"), /border-left-width:\s*3px/u);
     assert.match(ruleBody(".tpuwm-alert-card"), /border-left-color:\s*symbolic/u);
     assert.match(ruleBody(".tpuwm-history-mark"), /font-weight:\s*bold/u);
-    assert.match(ruleBody(".tpuwm-panel-unavailable"), /border-bottom-color:\s*symbolic/u);
-    assert.match(ruleBody(".tpuwm-panel-online"), /border-bottom-width:\s*1px/u);
-    assert.match(ruleBody(".tpuwm-panel-online"), /border-bottom-color:\s*rgba\(127, 127, 127, 0\)/u);
+    assert.doesNotMatch(stylesheet, /\.tpuwm-panel-/u);
 });
 
 test("regression: St resolves visible cues in light, dark, and high-contrast palettes", () => {
@@ -262,12 +257,10 @@ test("regression: St resolves visible cues in light, dark, and high-contrast pal
                 assert.ok(contrast(cue.border, cueSurface) >= 3, `${name} ${cueName} cue must reach 3:1`);
                 assert.ok(contrast(cue.foreground, cueSurface) >= 4.5, `${name} ${cueName} text must reach 4.5:1`);
             }
-            assert.deepEqual(matrix.panel.border, matrix.panel.foreground, `${name} panel border must use foreground`);
-            assert.equal(matrix.panel.borderWidth, 1, `${name} panel border must be visible`);
             assert.deepEqual(
                 matrix.panel.attentionGeometry,
                 matrix.panel.normalGeometry,
-                `${name} panel attention cue must not change layout geometry`,
+                `${name} icon status must not change panel geometry`,
             );
         }
     } finally {

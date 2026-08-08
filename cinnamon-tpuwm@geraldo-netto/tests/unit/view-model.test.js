@@ -54,21 +54,40 @@ test("profile grouping preserves first-seen order and clones entries", () => {
 });
 
 test("panel state communicates offline, paused, attention, and online modes", () => {
+    assert.equal(ViewModel.attentionReviewText(1), "1 item needs review");
+    assert.equal(ViewModel.attentionReviewText(2), "2 items need review");
     assert.deepEqual(ViewModel.panelModel(state({
         device: {available: false, reason: "Disconnected"},
     })), {
+        accessibleName: "TPU Workload Manager, unavailable: Disconnected",
         label: "TPU Offline",
         status: "unavailable",
         tooltip: "TPU Workload Manager — Disconnected",
     });
-    assert.equal(ViewModel.panelModel(state({paused: true})).status, "paused");
+    assert.deepEqual(ViewModel.panelModel(state({paused: true})), {
+        accessibleName: "TPU Workload Manager, paused: all workloads paused",
+        label: "TPU Paused",
+        status: "paused",
+        tooltip: "TPU Workload Manager — all workloads paused",
+    });
     assert.deepEqual(ViewModel.panelModel(state({source: "probe"})), {
+        accessibleName: "TPU Workload Manager, detected: hardware detected; runtime not connected",
         label: "TPU Detected",
         status: "detected",
         tooltip: "TPU Workload Manager — hardware detected; runtime not connected",
     });
-    assert.match(ViewModel.panelModel(state({attentionCount: 2})).tooltip, /2 items? needs? review/);
-    assert.equal(ViewModel.panelModel(state()).label, "TPU 41%");
+    assert.deepEqual(ViewModel.panelModel(state({attentionCount: 2})), {
+        accessibleName: "TPU Workload Manager, attention: 2 items need review",
+        label: "TPU 41%",
+        status: "attention",
+        tooltip: "TPU Workload Manager — 2 items need review",
+    });
+    assert.deepEqual(ViewModel.panelModel(state()), {
+        accessibleName: "TPU Workload Manager, online: 41% load",
+        label: "TPU 41%",
+        status: "online",
+        tooltip: "TPU Workload Manager — online",
+    });
 });
 
 test("effective screen gives safety states precedence over tabs", () => {

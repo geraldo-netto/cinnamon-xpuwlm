@@ -62,9 +62,14 @@ function groupProfiles(profiles) {
     return groups;
 }
 
+function attentionReviewText(count) {
+    return count === 1 ? "1 item needs review" : `${count} items need review`;
+}
+
 function panelModel(state) {
     if (!state.device.available) {
         return {
+            accessibleName: `TPU Workload Manager, unavailable: ${state.device.reason}`,
             label: "TPU Offline",
             status: "unavailable",
             tooltip: `TPU Workload Manager — ${state.device.reason}`,
@@ -72,6 +77,7 @@ function panelModel(state) {
     }
     if (state.paused) {
         return {
+            accessibleName: "TPU Workload Manager, paused: all workloads paused",
             label: "TPU Paused",
             status: "paused",
             tooltip: "TPU Workload Manager — all workloads paused",
@@ -79,17 +85,23 @@ function panelModel(state) {
     }
     if (state.source === "probe") {
         return {
+            accessibleName: "TPU Workload Manager, detected: hardware detected; runtime not connected",
             label: "TPU Detected",
             status: "detected",
             tooltip: "TPU Workload Manager — hardware detected; runtime not connected",
         };
     }
     const load = formatLoad(state.metrics.load);
+    const attention = state.attentionCount > 0;
+    const reviewText = attentionReviewText(state.attentionCount);
     return {
+        accessibleName: attention
+            ? `TPU Workload Manager, attention: ${reviewText}`
+            : `TPU Workload Manager, online: ${load} load`,
         label: `TPU ${load}`,
-        status: state.attentionCount > 0 ? "attention" : "online",
-        tooltip: state.attentionCount > 0
-            ? `TPU Workload Manager — ${state.attentionCount} item needs review`
+        status: attention ? "attention" : "online",
+        tooltip: attention
+            ? `TPU Workload Manager — ${reviewText}`
             : "TPU Workload Manager — online",
     };
 }
@@ -192,6 +204,7 @@ module.exports = {
     ALERT_SEVERITY_PRIORITY,
     STATUS_LABELS,
     alertModel,
+    attentionReviewText,
     compareActiveAlerts,
     effectiveScreen,
     formatFraction,

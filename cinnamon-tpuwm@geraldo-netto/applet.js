@@ -20,6 +20,12 @@ const Menu = require("./lib/menu-view.js");
 const ViewModel = require("./lib/view-model.js");
 
 const UUID = "cinnamon-tpuwm@geraldo-netto";
+const PANEL_STATUSES = Object.freeze(["online", "attention", "detected", "paused", "unavailable"]);
+
+function panelIconFilename(status) {
+    const safeStatus = PANEL_STATUSES.includes(status) ? status : "unavailable";
+    return `tpuwm-status-${safeStatus}-symbolic.svg`;
+}
 
 function defaultEnvironment() {
     return {ByteArray, Gio, GLib};
@@ -36,6 +42,7 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
         this._orientation = orientation;
         this._destroyed = false;
         this._latestState = null;
+        this._panelIconStatus = null;
         this._logger = overrides.logger || defaultLogger();
         this._environment = overrides.environment || defaultEnvironment();
         this._runtimeGatewayFactory = overrides.runtimeGatewayFactory
@@ -50,8 +57,9 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
                 : new Settings.AppletSettings(this, metadata.uuid, instanceId));
         this._bindSettings();
         this._registerIconPath();
-        this.set_applet_icon_path(`${metadata.path}/icons/tpuwm-symbolic.svg`);
+        this.set_applet_icon_symbolic_path(`${metadata.path}/icons/tpuwm-symbolic-v2.svg`);
         this.set_applet_tooltip("TPU Workload Manager — starting");
+        this.actor.set_accessible_name("TPU Workload Manager, starting");
 
         this._repository = overrides.repository
             || new CinnamonRuntime.CinnamonSettingsRepository(this.settings);
@@ -176,10 +184,24 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
         const viewModel = model || ViewModel.toViewModel(this._latestState);
         this.set_applet_label(this.showPanelLabel ? viewModel.panel.label : "");
         this.set_applet_tooltip(viewModel.panel.tooltip);
-        for (const status of ["online", "attention", "detected", "paused", "unavailable"]) {
+        this.actor.set_accessible_name(viewModel.panel.accessibleName);
+        this._setPanelIcon(viewModel.panel.status);
+        for (const status of PANEL_STATUSES) {
             this.actor.remove_style_class_name(`tpuwm-panel-${status}`);
         }
         this.actor.add_style_class_name(`tpuwm-panel-${viewModel.panel.status}`);
+    }
+
+    _setPanelIcon(status) {
+        const iconStatus = PANEL_STATUSES.includes(status) ? status : "unavailable";
+        if (this._panelIconStatus === iconStatus) {
+            return false;
+        }
+        this.set_applet_icon_symbolic_path(
+            `${this._metadata.path}/icons/${panelIconFilename(iconStatus)}`,
+        );
+        this._panelIconStatus = iconStatus;
+        return true;
     }
 
     _refresh() {
@@ -234,9 +256,11 @@ function main(metadata, orientation, panelHeight, instanceId) {
 if (typeof module !== "undefined") {
     module.exports = {
         UUID,
+        PANEL_STATUSES,
         TpuWorkloadApplet,
         defaultEnvironment,
         defaultLogger,
         main,
+        panelIconFilename,
     };
 }

@@ -11,6 +11,6 @@
     <circle id="graph-node-north-east" cx="10" cy="6" r="1"/>
     <circle id="graph-node-south-west" cx="6" cy="10" r="1"/>
     <circle id="graph-node-south-east" cx="10" cy="10" r="1"/>
-    <path id="graph-core" d="M8 6.8 9.2 8 8 9.2 6.8 8Z"/>
+    <path id="status-online" class="success" fill="#33d17a" stroke="#2e3436" stroke-width="1" paint-order="stroke fill" d="M8 6.4 9.6 8 8 9.6 6.4 8Z"/>
   </g>
 </svg>

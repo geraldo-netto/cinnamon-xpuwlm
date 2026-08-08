@@ -34,11 +34,15 @@ function validateJsonArtifacts() {
     assert.equal(metadata["max-instances"], 1);
     assert.ok(metadata["cinnamon-version"].includes("6.6"));
     assert.equal(schema.properties.version.const, Domain.SNAPSHOT_VERSION);
+    assert.equal(settings["show-panel-label"].default, false);
     assert.deepEqual(
         Object.keys(settings["profile-state"].default.profiles),
         Domain.PROFILE_DEFINITIONS.map((profile) => profile.id),
     );
     assert.equal(packageJson.scripts.test.includes("test:mutation"), true);
+    assert.equal(packageJson.scripts.test.includes("test:visual"), true);
+    assert.equal(packageJson.scripts["test:visual"], "node --test tests/visual/*.test.js");
+    assert.equal(packageJson.scripts["test:mutation-target"].includes("tests/visual"), false);
     assert.equal(stryker.thresholds.break >= 80, true);
 }
 
@@ -52,9 +56,21 @@ function validateJavaScriptSyntax() {
 }
 
 function validateStaticAssets() {
-    const svg = fs.readFileSync(path.join(root, "icons/tpuwm-symbolic.svg"), "utf8");
+    const iconNames = [
+        "tpuwm-symbolic.svg",
+        "tpuwm-symbolic-v2.svg",
+        "tpuwm-status-online-symbolic.svg",
+        "tpuwm-status-detected-symbolic.svg",
+        "tpuwm-status-attention-symbolic.svg",
+        "tpuwm-status-paused-symbolic.svg",
+        "tpuwm-status-unavailable-symbolic.svg",
+    ];
     const css = fs.readFileSync(path.join(root, "stylesheet.css"), "utf8");
-    assert.match(svg, /^<svg[\s\S]*<\/svg>\s*$/);
+    for (const iconName of iconNames) {
+        const svg = fs.readFileSync(path.join(root, "icons", iconName), "utf8");
+        assert.match(svg, /^<svg[^>]*viewBox="0 0 16 16"[^>]*>[\s\S]*<\/svg>\s*$/);
+        assert.doesNotMatch(svg, /<(?:script|style|text|image)\b/i);
+    }
     assert.equal((css.match(/{/g) || []).length, (css.match(/}/g) || []).length);
     assert.equal(css.includes("outline: none"), false);
 }

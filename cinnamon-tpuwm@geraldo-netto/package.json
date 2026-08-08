@@ -10,11 +10,12 @@
     "test:integration": "node --test tests/integration/*.test.js",
     "test:regression": "node --test tests/regression/*.test.js",
     "test:fuzz": "node --test tests/fuzz/*.test.js",
+    "test:visual": "node --test tests/visual/*.test.js",
     "test:mutation-target": "node --test tests/unit/*.test.js tests/integration/*.test.js tests/regression/*.test.js",
     "test:coverage-target": "node --test tests/unit/*.test.js tests/integration/*.test.js tests/regression/*.test.js",
     "test:coverage": "c8 --clean --reporter=text --reporter=json --reports-dir=coverage --all --include=applet.js --include='lib/**/*.js' --check-coverage --lines=80 --branches=80 --functions=80 --statements=80 npm run test:coverage-target && node scripts/check-per-function-coverage.js",
     "test:mutation": "stryker run",
-    "test": "npm run lint && npm run test:syntax && npm run test:coverage && npm run test:fuzz && npm run test:mutation"
+    "test": "npm run lint && npm run test:syntax && npm run test:coverage && npm run test:fuzz && npm run test:visual && npm run test:mutation"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

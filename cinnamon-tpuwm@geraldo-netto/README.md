@@ -9,6 +9,16 @@ not claim job enforcement from hardware discovery alone. It does not make model
 scores authoritative or bypass deterministic device authorization, backup,
 shutdown, firmware, or access-control policy.
 
+## Panel status
+
+The panel defaults to a compact icon without a text label; the label remains an
+opt-in setting. Cinnamon recolors each symbolic status icon from the active
+theme. Online, detected, attention, paused, and unavailable states also use
+different center shapes, and the tooltip plus accessible name state the status
+in text, so meaning never depends on color alone.
+
+[Review the actual-size 16/20/24-pixel light and dark status montage](../tpu-workloads@local/mockup/tpuwm-panel-status-montage.png).
+
 ## Runtime boundary
 
 A trusted local workload service may atomically publish `~/.local/state/tpu-workload-manager/state.json`. The accepted version 1 contract is defined by `runtime-snapshot.schema.json`. The applet only reads and validates this file; it never executes its content.
@@ -27,7 +37,9 @@ npm ci
 npm test
 ```
 
-`npm test` runs ESLint, artifact validation, unit/integration/regression tests, per-function coverage checks, deterministic fuzz tests, and Stryker mutation tests.
+`npm test` runs ESLint, artifact validation, unit/integration/regression tests,
+per-function coverage checks, deterministic fuzz and real 16/20/24-pixel icon
+rendering tests, and Stryker mutation tests.
 
 ## Module loading
 

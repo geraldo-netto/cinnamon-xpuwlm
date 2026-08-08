@@ -342,16 +342,3 @@
     min-height: 40px;
     padding-top: 2px;
 }
-
-.tpuwm-panel-online {
-    border-bottom-width: 1px;
-    border-bottom-color: rgba(127, 127, 127, 0);
-}
-
-.tpuwm-panel-attention,
-.tpuwm-panel-detected,
-.tpuwm-panel-paused,
-.tpuwm-panel-unavailable {
-    border-bottom-width: 1px;
-    border-bottom-color: symbolic;
-}
