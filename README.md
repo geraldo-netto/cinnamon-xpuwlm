@@ -11,11 +11,11 @@ This document is application-neutral. It explains the hardware and software boun
 ## Documentation index
 
 - Product artifacts
-  - [Production Cinnamon applet](cinnamon-tpuwm@geraldo-netto/README.md) — current behavior, runtime boundary, quality gates, and installation
-  - [Reference UI/interaction design](tpu-workloads@local/DESIGN.md) — approved prototype rationale and states; not the live implementation
-  - [Consolidated workload profiles](tpu-workloads@local/WORKLOADS.md)
-  - [Prototype screen gallery](tpu-workloads@local/mockup/screens/all-screens.png)
-  - [Compact panel status montage](tpu-workloads@local/mockup/tpuwm-panel-status-montage.png)
+  - [Production Cinnamon applet](docs/applet.md) — current behavior, runtime boundary, quality gates, and installation
+  - [Reference UI/interaction design](design/prototype/DESIGN.md) — approved prototype rationale and states; not the live implementation
+  - [Consolidated workload profiles](design/prototype/WORKLOADS.md)
+  - [Prototype screen gallery](design/prototype/mockup/screens/all-screens.png)
+  - [Compact panel status montage](design/prototype/mockup/tpuwm-panel-status-montage.png)
 - [Fundamentals and execution model](docs/fundamentals.md)
   - [Documentation and maintenance status](docs/fundamentals.md#documentation-and-maintenance-status)
   - [How to read the evidence](docs/fundamentals.md#how-to-read-the-evidence)

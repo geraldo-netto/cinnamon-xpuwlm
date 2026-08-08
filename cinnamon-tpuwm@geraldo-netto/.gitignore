@@ -1,5 +1,0 @@
-node_modules/
-coverage/
-mutation-report/
-.stryker-tmp/
-npm-debug.log*
