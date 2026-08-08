@@ -13,6 +13,64 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  cjs-compatibility:
+    name: Cinnamon ${{ matrix.cinnamon-version }} / CJS ${{ matrix.cjs-version }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - channel: floor
+            cinnamon-version: "6.0"
+            cjs-version: "6.0.0"
+          # Cinnamon 6.6 in Linux Mint 22.3 uses the frozen CJS 115.1 line.
+          - channel: current
+            cinnamon-version: "6.6"
+            cjs-version: "115.1"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+
+      - name: Refresh Ubuntu package metadata
+        run: sudo apt-get update
+
+      - name: Install CJS runtime floor
+        if: matrix.channel == 'floor'
+        run: sudo apt-get install --yes --no-install-recommends cjs=6.0.0-2build3
+
+      - name: Install pinned current CJS runtime
+        if: matrix.channel == 'current'
+        run: |
+          mkdir --parents /tmp/tpuwm-cjs-packages
+          curl --fail --location --retry 3 \
+            --output /tmp/tpuwm-cjs-packages/cjs_115.1+zena_amd64.deb \
+            https://mirrors.edge.kernel.org/linuxmint-packages/pool/backport/c/cjs/cjs_115.1+zena_amd64.deb
+          curl --fail --location --retry 3 \
+            --output /tmp/tpuwm-cjs-packages/libcjs0_115.1+zena_amd64.deb \
+            https://mirrors.edge.kernel.org/linuxmint-packages/pool/backport/c/cjs/libcjs0_115.1+zena_amd64.deb
+          cd /tmp/tpuwm-cjs-packages
+          printf '%s  %s\n' \
+            '300b989cff2c7c98fb7f25998e984763ff993b2760d19449c6631033222d6980' \
+            'cjs_115.1+zena_amd64.deb' \
+            '3b376cb554a8d3a559b1d34b6cd244554422e099c7708242de2fe94648838e79' \
+            'libcjs0_115.1+zena_amd64.deb' | sha256sum --check
+          sudo apt-get install --yes --no-install-recommends \
+            ./libcjs0_115.1+zena_amd64.deb ./cjs_115.1+zena_amd64.deb
+
+      - name: Verify CJS version
+        run: test "$(cjs --version)" = "cjs ${{ matrix.cjs-version }}"
+
+      - name: Compile and import production sources
+        run: npm run test:cjs
+
   quality:
     name: Node.js 24 quality gates
     runs-on: ubuntu-24.04

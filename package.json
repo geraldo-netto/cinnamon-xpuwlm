@@ -13,6 +13,7 @@
     "test:regression": "node --test tests/regression/*.test.js",
     "test:fuzz": "node --test tests/fuzz/*.test.js",
     "test:visual": "node --test tests/visual/*.test.js",
+    "test:cjs": "\"${TPUWM_CJS:-cjs}\" tests/cjs/production-smoke.js files/cinnamon-tpuwm@geraldo-netto/*.js files/cinnamon-tpuwm@geraldo-netto/lib/*.js",
     "test:mutation-target": "node --test --test-concurrency=2 tests/unit/*.test.js tests/integration/*.test.js tests/regression/*.test.js tests/contract/*.test.js",
     "test:coverage-target": "node --test tests/unit/*.test.js tests/integration/*.test.js tests/regression/*.test.js tests/contract/*.test.js",
     "test:coverage": "c8 --clean --reporter=text --reporter=json --reports-dir=coverage --all --include='files/cinnamon-tpuwm@geraldo-netto/applet.js' --include='files/cinnamon-tpuwm@geraldo-netto/lib/**/*.js' --include='scripts/check-workload-manifests.js' --check-coverage --lines=80 --branches=80 --functions=80 --statements=80 npm run test:coverage-target && node scripts/check-per-function-coverage.js",
