@@ -342,6 +342,8 @@ function normalizeSnapshot(candidate, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_
     }
 
     const alerts = [];
+    // Stryker disable next-line ArrayDeclaration: a seeded element is not a plain
+    // object, so normalizeAlert discards it and the fallback stays observably empty.
     const suppliedAlerts = Array.isArray(candidate.alerts) ? candidate.alerts : [];
     for (const suppliedAlert of suppliedAlerts.slice(0, MAX_ALERTS)) {
         const alert = normalizeAlert(suppliedAlert, nowMs);

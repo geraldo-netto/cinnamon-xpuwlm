@@ -221,6 +221,22 @@ test("snapshots without a live freshness deadline never expire on the clock", ()
     }
 });
 
+test("snapshot normalization bounds the accepted alert list", () => {
+    const template = validSnapshot().alerts[0];
+    const overflowing = validSnapshot({
+        alerts: Array.from({length: Domain.MAX_ALERTS + 1}, (_, index) => ({
+            ...template,
+            id: `alert-${index}`,
+        })),
+    });
+    const normalized = Domain.normalizeSnapshot(overflowing, NOW);
+    assert.equal(normalized.alerts.length, Domain.MAX_ALERTS);
+    assert.equal(normalized.alerts.at(-1).id, `alert-${Domain.MAX_ALERTS - 1}`);
+
+    const nonArray = Domain.normalizeSnapshot(validSnapshot({alerts: "not-an-array"}), NOW);
+    assert.deepEqual(nonArray.alerts, []);
+});
+
 test("probe and unavailable snapshots carry explicit safe fallback state", () => {
     const unavailable = Domain.unavailableSnapshot(" disconnected ", NOW, "error");
     assert.equal(unavailable.device.reason, "disconnected");

@@ -10,7 +10,7 @@
     "files/cinnamon-tpuwm@geraldo-netto/lib/**/*.js"
   ],
   "mutator": {
-    "excludedMutations": ["StringLiteral", "ObjectLiteral", "ArrayDeclaration"]
+    "excludedMutations": ["StringLiteral"]
   },
   "reporters": ["clear-text", "progress", "html"],
   "htmlReporter": {
