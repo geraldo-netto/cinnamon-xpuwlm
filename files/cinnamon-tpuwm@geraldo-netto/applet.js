@@ -66,13 +66,16 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
     }
 
     _construct(metadata, instanceId, overrides) {
+        this._createSettings(metadata, instanceId, overrides);
+        this._createServices(overrides);
+        this._createPresentation(overrides);
+        this._unsubscribe = this._manager.subscribe((state) => this._render(state));
+        this._manager.start();
+        this._poller.start(this.refreshInterval);
+    }
+
+    _createSettings(metadata, instanceId, overrides) {
         this._environment = overrides.environment || defaultEnvironment();
-        this._runtimeGatewayFactory = overrides.runtimeGatewayFactory
-            || ((path) => CinnamonRuntime.createRuntimeGateway({
-                path,
-                environment: this._environment,
-                logger: this._logger,
-            }));
         this.settings = overrides.settings
             || (overrides.settingsFactory
                 ? overrides.settingsFactory(this)
@@ -82,32 +85,50 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
         this.set_applet_icon_symbolic_path(`${metadata.path}/icons/tpuwm-symbolic-v2.svg`);
         this.set_applet_tooltip("TPU Workload Manager — starting");
         this.actor.set_accessible_name("TPU Workload Manager, starting");
+    }
 
+    _createServices(overrides) {
+        this._runtimeGatewayFactory = overrides.runtimeGatewayFactory
+            || ((path) => CinnamonRuntime.createRuntimeGateway({
+                path,
+                environment: this._environment,
+                logger: this._logger,
+            }));
         this._repository = overrides.repository
             || new CinnamonRuntime.CinnamonSettingsRepository(this.settings);
         this._runtimeGateway = overrides.runtimeGateway
             || this._runtimeGatewayFactory(this.runtimeStatePath);
         this._clock = overrides.clock || Date;
         this._scheduler = overrides.scheduler || new CinnamonRuntime.CinnamonScheduler(Mainloop);
-        this._manager = overrides.manager || new Manager.WorkloadManager({
+        this._manager = this._createManager(overrides);
+        this._notifier = this._createNotifier(overrides);
+        this._poller = overrides.poller
+            || new CinnamonRuntime.CinnamonPoller(Mainloop, () => this._refresh());
+    }
+
+    _createManager(overrides) {
+        return overrides.manager || new Manager.WorkloadManager({
             repository: this._repository,
             runtimeGateway: this._runtimeGateway,
-            errorReporter: overrides.errorReporter || new FailureBackoff.FailureErrorBackoff({
-                logger: this._logger,
-            }),
+            errorReporter: overrides.errorReporter
+                || new FailureBackoff.FailureErrorBackoff({logger: this._logger}),
             logger: this._logger,
             clock: this._clock,
             scheduler: this._scheduler,
         });
-        this._notifier = overrides.notifier || new AlertNotifier.CriticalAlertNotifier({
+    }
+
+    _createNotifier(overrides) {
+        return overrides.notifier || new AlertNotifier.CriticalAlertNotifier({
             notifications: overrides.notifications
                 || CinnamonRuntime.createCriticalNotifications(Main),
             errorReporter: overrides.notificationReporter
                 || new FailureBackoff.FailureErrorBackoff({logger: this._logger}),
             clock: this._clock,
         });
-        this._poller = overrides.poller
-            || new CinnamonRuntime.CinnamonPoller(Mainloop, () => this._refresh());
+    }
+
+    _createPresentation(overrides) {
         this._menuFactory = overrides.menuFactory
             || ((applet, menuOrientation) => new Applet.AppletPopupMenu(applet, menuOrientation));
         this._menuManagerFactory = overrides.menuManagerFactory
@@ -125,12 +146,7 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
                 actions: this._menuActions(),
             }));
         this.menuManager = this._menuManagerFactory(this);
-        this.menu = null;
-        this._view = null;
         this._createMenu(this._orientation);
-        this._unsubscribe = this._manager.subscribe((state) => this._render(state));
-        this._manager.start();
-        this._poller.start(this.refreshInterval);
     }
 
     on_applet_clicked(_event) {

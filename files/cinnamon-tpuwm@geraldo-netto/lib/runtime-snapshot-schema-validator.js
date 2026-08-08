@@ -93,18 +93,30 @@ function isNullableEvidence(value) {
     return value === null || isNumberBetween(value, 0, 1);
 }
 
+function hasAlertIdentity(value) {
+    return hasCodePointLength(value.id, 1, 120)
+        && hasCodePointLength(value.profileId, 1, 80)
+        && hasCodePointLength(value.title, 1, 160);
+}
+
+function hasAlertReport(value) {
+    return hasCodePointLength(value.summary, 0, 500)
+        && ALERT_SEVERITIES.has(value.severity)
+        && isIntegerAtLeast(value.timestamp, 0);
+}
+
+function hasAlertEvidence(value) {
+    return optionalProperty(value, "confidence", isNullableEvidence)
+        && optionalProperty(value, "riskScore", isNullableEvidence)
+        && optionalProperty(value, "resolved", (resolved) => typeof resolved === "boolean");
+}
+
 function isAlert(value) {
     return isRecord(value)
         && hasContractProperties(value, ALERT_REQUIRED, ALERT_PROPERTIES)
-        && hasCodePointLength(value.id, 1, 120)
-        && hasCodePointLength(value.profileId, 1, 80)
-        && hasCodePointLength(value.title, 1, 160)
-        && hasCodePointLength(value.summary, 0, 500)
-        && ALERT_SEVERITIES.has(value.severity)
-        && isIntegerAtLeast(value.timestamp, 0)
-        && optionalProperty(value, "confidence", isNullableEvidence)
-        && optionalProperty(value, "riskScore", isNullableEvidence)
-        && optionalProperty(value, "resolved", (resolved) => typeof resolved === "boolean");
+        && hasAlertIdentity(value)
+        && hasAlertReport(value)
+        && hasAlertEvidence(value);
 }
 
 function isAlerts(value) {

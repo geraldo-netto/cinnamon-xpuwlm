@@ -38,4 +38,13 @@ module.exports = [
             "prefer-const": "error",
         },
     },
+    {
+        // Complexity budget for shipped applet sources and repository scripts.
+        // Exemptions are permitted only for flat declarative mappings and must
+        // carry an inline justification.
+        files: ["files/**/*.js", "scripts/**/*.js"],
+        rules: {
+            "complexity": ["error", {"max": 8}],
+        },
+    },
 ];

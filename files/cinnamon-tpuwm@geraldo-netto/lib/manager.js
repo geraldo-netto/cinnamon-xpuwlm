@@ -22,6 +22,20 @@ function createInertScheduler() {
     return {schedule() { return null; }, cancel() { return false; }};
 }
 
+function requireRepository(candidate) {
+    if (!candidate || typeof candidate.load !== "function" || typeof candidate.save !== "function") {
+        throw new TypeError("A profile repository with load/save is required");
+    }
+    return candidate;
+}
+
+function requireClock(candidate) {
+    if (!candidate || typeof candidate.now !== "function") {
+        throw new TypeError("A clock with now is required");
+    }
+    return candidate;
+}
+
 function requireRuntimeGateway(candidate) {
     if (!candidate || typeof candidate.read !== "function") {
         throw new TypeError("A runtime gateway with read is required");
@@ -48,14 +62,9 @@ class WorkloadManager {
         scheduler = createInertScheduler(),
         staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS,
     }) {
-        if (!repository || typeof repository.load !== "function" || typeof repository.save !== "function") {
-            throw new TypeError("A profile repository with load/save is required");
-        }
+        this._repository = requireRepository(repository);
         requireRuntimeGateway(runtimeGateway);
-        if (!clock || typeof clock.now !== "function") {
-            throw new TypeError("A clock with now is required");
-        }
-        this._repository = repository;
+        requireClock(clock);
         this._runtimeGateway = runtimeGateway;
         this._clock = clock;
         this._logger = logger;
@@ -344,6 +353,8 @@ module.exports = {
     WorkloadManager,
     createInertScheduler,
     createSilentLogger,
+    requireClock,
+    requireRepository,
     requireRuntimeGateway,
     requireScheduler,
     sanitizeTab,

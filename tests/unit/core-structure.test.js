@@ -7,6 +7,7 @@ const Cinnamon = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/cinnamon-
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
+const SchemaValidator = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
 
 const NOW = 1_700_000_000_000;
@@ -275,4 +276,47 @@ test("manager projections are complete and isolated from listener mutation", () 
     assert.equal(next.alerts[0].title, "Voltage drift");
     assert.equal(next.profiles[0].weight, 2);
     manager.dispose();
+});
+
+test("the complexity budget is enforced for shipped sources and scripts", () => {
+    const config = require("../../eslint.config.cjs");
+    const budget = config.find((entry) => entry.rules && entry.rules.complexity);
+    assert.notEqual(budget, undefined, "a complexity budget must be configured");
+    assert.deepEqual(budget.files, ["files/**/*.js", "scripts/**/*.js"]);
+    assert.deepEqual(budget.rules.complexity, ["error", {max: 8}]);
+});
+
+test("simplified predicates keep their original acceptance", () => {
+    const alert = {
+        id: "power-risk",
+        profileId: "hardware-health",
+        title: "Voltage drift",
+        summary: "",
+        severity: "warning",
+        timestamp: 1,
+    };
+    const snapshot = {
+        version: Domain.SNAPSHOT_VERSION,
+        generatedAt: NOW,
+        device: {available: true, name: "Coral USB", kind: "usb"},
+        metrics: {load: null, queueDepth: 0, runningProfiles: 0},
+        profiles: {},
+        alerts: [alert],
+    };
+    assert.equal(SchemaValidator.isRuntimeSnapshot(snapshot), true);
+    for (const change of [
+        (value) => { value.alerts[0].id = ""; },
+        (value) => { value.alerts[0].severity = "future"; },
+        (value) => { value.alerts[0].confidence = 2; },
+    ]) {
+        const candidate = structuredClone(snapshot);
+        change(candidate);
+        assert.equal(SchemaValidator.isRuntimeSnapshot(candidate), false);
+    }
+
+    assert.equal(Domain.rejectSnapshot(snapshot, NOW, 15_000), null);
+    assert.equal(Domain.rejectSnapshot(null, NOW, 15_000).source, "invalid");
+    assert.deepEqual(Domain.normalizeProfiles(null), {});
+    assert.deepEqual(Domain.normalizeAlerts(null, NOW), []);
+    assert.equal(Domain.normalizeAlerts([alert], NOW).length, 1);
 });

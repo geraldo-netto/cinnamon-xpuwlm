@@ -24,6 +24,12 @@ function notificationMessage(alert, profiles = []) {
     };
 }
 
+function activeCriticalAlerts(alerts) {
+    return alerts.filter(
+        (alert) => alert.severity === CRITICAL_SEVERITY && alert.resolved !== true,
+    );
+}
+
 // One desktop notification per critical alert occurrence. An alert that stays
 // active is never repeated; an alert that resolves or disappears is forgotten,
 // so the same identity notifies again when it reappears.
@@ -39,19 +45,11 @@ class CriticalAlertNotifier {
     }
 
     observe(alerts, profiles = []) {
-        const active = new Set();
-        const pending = [];
-        for (const alert of alerts) {
-            if (alert.severity !== CRITICAL_SEVERITY || alert.resolved === true) {
-                continue;
-            }
-            active.add(alert.id);
-            if (!this._notified.has(alert.id)) {
-                pending.push(alert);
-            }
-        }
+        const active = activeCriticalAlerts(alerts);
+        const pending = active.filter((alert) => !this._notified.has(alert.id));
+        const activeIds = new Set(active.map((alert) => alert.id));
         for (const id of [...this._notified]) {
-            if (!active.has(id)) {
+            if (!activeIds.has(id)) {
                 this._notified.delete(id);
             }
         }
@@ -93,6 +91,7 @@ class CriticalAlertNotifier {
 
 module.exports = {
     CRITICAL_SEVERITY,
+    activeCriticalAlerts,
     CriticalAlertNotifier,
     NOTIFY_FAILURE,
     notificationMessage,

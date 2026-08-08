@@ -365,7 +365,7 @@ function probeSnapshot(device, nowMs) {
     };
 }
 
-function normalizeSnapshot(candidate, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_MS) {
+function rejectSnapshot(candidate, nowMs, staleAfterMs) {
     if (!isPlainObject(candidate)) {
         return unavailableSnapshot("Runtime snapshot is not an object", nowMs, "invalid");
     }
@@ -375,30 +375,45 @@ function normalizeSnapshot(candidate, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_
     if (!isValidGeneratedAt(candidate.generatedAt, nowMs)) {
         return unavailableSnapshot("Runtime snapshot timestamp is invalid", nowMs, "invalid");
     }
-    const generatedAt = candidate.generatedAt;
-    const age = Math.max(0, nowMs - generatedAt);
-    if (age > normalizeStaleAfterMs(staleAfterMs)) {
-        return staleSnapshot(generatedAt);
+    if (Math.max(0, nowMs - candidate.generatedAt) > normalizeStaleAfterMs(staleAfterMs)) {
+        return staleSnapshot(candidate.generatedAt);
     }
+    return null;
+}
 
+function normalizeProfiles(candidate) {
     const profiles = {};
-    const suppliedProfiles = isPlainObject(candidate.profiles) ? candidate.profiles : {};
+    const supplied = isPlainObject(candidate) ? candidate : {};
     for (const definition of PROFILE_DEFINITIONS) {
-        if (Object.hasOwn(suppliedProfiles, definition.id)) {
-            profiles[definition.id] = normalizeProfileRuntime(suppliedProfiles[definition.id]);
+        if (Object.hasOwn(supplied, definition.id)) {
+            profiles[definition.id] = normalizeProfileRuntime(supplied[definition.id]);
         }
     }
+    return profiles;
+}
 
-    const alerts = [];
+function normalizeAlerts(candidate, nowMs) {
     // Stryker disable next-line ArrayDeclaration: a seeded element is not a plain
     // object, so normalizeAlert discards it and the fallback stays observably empty.
-    const suppliedAlerts = Array.isArray(candidate.alerts) ? candidate.alerts : [];
-    for (const suppliedAlert of suppliedAlerts.slice(0, MAX_ALERTS)) {
+    const supplied = Array.isArray(candidate) ? candidate : [];
+    const alerts = [];
+    for (const suppliedAlert of supplied.slice(0, MAX_ALERTS)) {
         const alert = normalizeAlert(suppliedAlert, nowMs);
         if (alert !== null) {
             alerts.push(alert);
         }
     }
+    return alerts;
+}
+
+function normalizeSnapshot(candidate, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_MS) {
+    const rejected = rejectSnapshot(candidate, nowMs, staleAfterMs);
+    if (rejected !== null) {
+        return rejected;
+    }
+    const generatedAt = candidate.generatedAt;
+    const profiles = normalizeProfiles(candidate.profiles);
+    const alerts = normalizeAlerts(candidate.alerts, nowMs);
 
     const device = normalizeDevice(candidate.device);
     return {
@@ -514,13 +529,16 @@ module.exports = {
     isSnapshotExpired,
     isValidGeneratedAt,
     normalizeAlert,
+    normalizeAlerts,
     normalizeDevice,
     normalizeMetrics,
     normalizeProfileRuntime,
+    normalizeProfiles,
     normalizeSnapshot,
     normalizeStaleAfterMs,
     nullableBoundedNumber,
     probeSnapshot,
+    rejectSnapshot,
     safeText,
     sanitizeProfileState,
     snapshotExpiryDelayMs,

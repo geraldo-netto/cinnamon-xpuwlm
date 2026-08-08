@@ -216,20 +216,23 @@ function attentionReviewText(count) {
     return count === 1 ? "1 item needs review" : `${count} items need review`;
 }
 
+function unavailablePanel(state) {
+    const unknown = healthOf(state).device === "unknown";
+    const reason = unknown
+        ? `${runtimeStatusText(state).toLowerCase()}; device state unknown`
+        : state.device.reason;
+    return {
+        accessibleName: `TPU Workload Manager, ${unknown ? "unknown" : "unavailable"}: ${reason}`,
+        label: unknown ? "TPU Unknown" : "TPU Offline",
+        status: "unavailable",
+        severity: null,
+        tooltip: `TPU Workload Manager — ${reason}`,
+    };
+}
+
 function panelModel(state) {
     if (!state.device.available) {
-        const health = healthOf(state);
-        const unknown = health.device === "unknown";
-        const reason = unknown
-            ? `${runtimeStatusText(state).toLowerCase()}; device state unknown`
-            : state.device.reason;
-        return {
-            accessibleName: `TPU Workload Manager, ${unknown ? "unknown" : "unavailable"}: ${reason}`,
-            label: unknown ? "TPU Unknown" : "TPU Offline",
-            status: "unavailable",
-            severity: null,
-            tooltip: `TPU Workload Manager — ${reason}`,
-        };
+        return unavailablePanel(state);
     }
     if (state.paused) {
         return {
@@ -396,4 +399,5 @@ module.exports = {
     panelModel,
     severityText,
     toViewModel,
+    unavailablePanel,
 };

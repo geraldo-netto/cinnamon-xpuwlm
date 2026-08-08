@@ -18,7 +18,6 @@
 | XTPU-0042 | open | low | s | XTPU-0038 | Review the interim low-light catalog and profile draft committed in `828a261` after the plug-in is implemented; reconcile wording, model metadata, host-pipeline responsibilities, and measurable acceptance criteria with test results, then revise or remove the feature if warranted. |
 | XTPU-0046 | open | medium | s | — | Add an explicit CJS production-source syntax and import smoke gate for the declared Cinnamon 6.0 floor and the current supported release; the workflow does not visibly enforce the runtime floor. |
 | XTPU-0047 | open | low | m | XTPU-0013 | Add deterministic staging, packaging, install and uninstall verification, and checksums; after licensing, add Spices release metadata and a real applet screenshot if public distribution is intended. |
-| XTPU-0048 | open | low | s | XTPU-0044 | Add a complexity budget and simplify the applet constructor, `normalizeSnapshot`, and `isAlert`; permit explicit exemptions only for flat declarative mappings. |
 | XTPU-0049 | blocked | medium | s | XTPU-0046 | Host tooling blocks local quality gates: `tests/regression/theme-colors-regression.test.js` needs `cjs` plus Cinnamon typelibs and `tests/visual/panel-icon-raster.test.js` needs `rsvg-convert` or `inkscape`. Both hard-fail without them, which also aborts `npm run test:mutation` at its initial run. Document a provisioning path and a deliberate local opt-out that keeps CI enforcement unconditional. |
 
 # Rejected / Won't fix

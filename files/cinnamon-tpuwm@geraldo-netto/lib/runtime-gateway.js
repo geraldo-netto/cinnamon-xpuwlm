@@ -61,6 +61,22 @@ function parseSnapshotDocument(
 // Reads are asynchronous, sequenced, and cancellable: only one read is ever in
 // flight, a completion that arrives after a newer read (or after teardown) is
 // discarded, and teardown cancels whatever is still pending.
+function requirePorts({readTextAsync, detectDevice, clock, cancellableFactory}) {
+    for (const [port, description] of [
+        [readTextAsync, "An asynchronous text reader is required"],
+        [detectDevice, "A device detector is required"],
+        [cancellableFactory, "A cancellable factory is required"],
+    ]) {
+        if (typeof port !== "function") {
+            throw new TypeError(description);
+        }
+    }
+    if (!clock || typeof clock.now !== "function") {
+        throw new TypeError("A clock with now is required");
+    }
+    return true;
+}
+
 class RuntimeSnapshotGateway {
     constructor({
         readTextAsync,
@@ -72,18 +88,7 @@ class RuntimeSnapshotGateway {
         staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS,
         cancellableFactory = () => null,
     }) {
-        if (typeof readTextAsync !== "function") {
-            throw new TypeError("An asynchronous text reader is required");
-        }
-        if (typeof detectDevice !== "function") {
-            throw new TypeError("A device detector is required");
-        }
-        if (!clock || typeof clock.now !== "function") {
-            throw new TypeError("A clock with now is required");
-        }
-        if (typeof cancellableFactory !== "function") {
-            throw new TypeError("A cancellable factory is required");
-        }
+        requirePorts({readTextAsync, detectDevice, clock, cancellableFactory});
         this._readTextAsync = readTextAsync;
         this._detectDevice = detectDevice;
         this._cancellableFactory = cancellableFactory;
@@ -202,4 +207,5 @@ module.exports = {
     SNAPSHOT_READ_FAILURE,
     byteLength,
     parseSnapshotDocument,
+    requirePorts,
 };
