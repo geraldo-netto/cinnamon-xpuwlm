@@ -24,6 +24,17 @@ panel label, tooltip, and accessible name, in the attention metric tile, and in
 the alerts section heading. Resolved alerts and unknown severities never raise
 it. The alert card border colour is a second cue, never the only one.
 
+## Lifecycle
+
+Construction is transactional: if any step fails, the applet tears down whatever
+it already created — settings bindings, timers, subscriptions, the manager, the
+notifier, and the popup — and rethrows, so a half-built applet never stays in
+the panel. The icon search path is appended only when absent, so a retry does
+not duplicate it.
+
+Teardown attempts every cleanup step even after an earlier step throws, reports
+each failure through the logger, and remains idempotent afterwards.
+
 ## Critical notifications
 
 Each unresolved critical alert raises exactly one desktop notification per

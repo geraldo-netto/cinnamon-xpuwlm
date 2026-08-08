@@ -47,6 +47,25 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
         this._latestState = null;
         this._panelIconStatus = null;
         this._logger = overrides.logger || defaultLogger();
+        this.settings = null;
+        this.menu = null;
+        this.menuManager = null;
+        this._view = null;
+        this._manager = null;
+        this._notifier = null;
+        this._poller = null;
+        this._unsubscribe = null;
+        try {
+            this._construct(metadata, instanceId, overrides);
+        } catch (error) {
+            // A half-built applet must not stay in the panel holding a timer, a
+            // subscription, or a settings binding.
+            this._teardown();
+            throw error;
+        }
+    }
+
+    _construct(metadata, instanceId, overrides) {
         this._environment = overrides.environment || defaultEnvironment();
         this._runtimeGatewayFactory = overrides.runtimeGatewayFactory
             || ((path) => CinnamonRuntime.createRuntimeGateway({
@@ -195,18 +214,36 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
         return this._view ? this._view.applyLayout(this._layout) : false;
     }
 
+    // Every step runs even when an earlier one throws, so a failing view never
+    // leaves the menu registered with the menu manager.
     _destroyMenu() {
         if (!this.menu) {
             return false;
         }
-        if (this._view) {
-            this._view.destroy();
-            this._view = null;
-        }
-        this.menuManager.removeMenu(this.menu);
-        this.menu.destroy();
+        const menu = this.menu;
+        const view = this._view;
+        const menuManager = this.menuManager;
         this.menu = null;
+        this._view = null;
+        this._runIsolated([
+            ["destroy the popup view", () => view && view.destroy()],
+            ["remove the popup menu", () => menuManager && menuManager.removeMenu(menu)],
+            ["destroy the popup menu", () => menu.destroy()],
+        ]);
         return true;
+    }
+
+    _runIsolated(steps) {
+        let failures = 0;
+        for (const [description, step] of steps) {
+            try {
+                step();
+            } catch (error) {
+                failures += 1;
+                this._logger.error(`Could not ${description}: ${error}`);
+            }
+        }
+        return failures;
     }
 
     _render(state) {
@@ -270,28 +307,29 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
         Util.spawnCommandLineAsync(`cinnamon-settings applets ${UUID}`);
     }
 
+    // Teardown attempts every step even after a failure, and stays idempotent
+    // afterwards, so a partially failed removal never leaks a timer or a
+    // subscription and never runs twice.
     _teardown() {
         if (this._destroyed) {
             return false;
         }
         this._destroyed = true;
-        if (this._poller) {
-            this._poller.stop();
-        }
-        if (this._unsubscribe) {
-            this._unsubscribe();
-            this._unsubscribe = null;
-        }
-        this._destroyMenu();
-        if (this._manager) {
-            this._manager.dispose();
-        }
-        if (this._notifier) {
-            this._notifier.dispose();
-        }
-        if (this.settings) {
-            this.settings.finalize();
-        }
+        const poller = this._poller;
+        const unsubscribe = this._unsubscribe;
+        const manager = this._manager;
+        const notifier = this._notifier;
+        const settings = this.settings;
+        this._poller = null;
+        this._unsubscribe = null;
+        this._runIsolated([
+            ["stop the refresh timer", () => poller && poller.stop()],
+            ["release the state subscription", () => unsubscribe && unsubscribe()],
+            ["destroy the popup menu", () => this._destroyMenu()],
+            ["dispose the workload manager", () => manager && manager.dispose()],
+            ["dispose the alert notifier", () => notifier && notifier.dispose()],
+            ["finalize the applet settings", () => settings && settings.finalize()],
+        ]);
         this._latestState = null;
         return true;
     }
