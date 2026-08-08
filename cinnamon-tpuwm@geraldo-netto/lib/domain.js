@@ -102,6 +102,14 @@ function finiteNumber(value, fallback) {
     return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+function normalizeStaleAfterMs(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric === 0) {
+        return DEFAULT_STALE_AFTER_MS;
+    }
+    return Math.max(1000, numeric);
+}
+
 function boundedInteger(value, minimum, maximum, fallback) {
     const number = finiteNumber(value, fallback);
     return Math.min(maximum, Math.max(minimum, Math.trunc(number)));
@@ -267,7 +275,7 @@ function normalizeSnapshot(candidate, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_
     }
     const generatedAt = Math.trunc(candidate.generatedAt);
     const age = Math.max(0, nowMs - generatedAt);
-    if (age > Math.max(1000, staleAfterMs)) {
+    if (age > normalizeStaleAfterMs(staleAfterMs)) {
         const snapshot = unavailableSnapshot("Runtime snapshot is stale", generatedAt, "runtime");
         snapshot.stale = true;
         return snapshot;
@@ -398,6 +406,7 @@ module.exports = {
     normalizeMetrics,
     normalizeProfileRuntime,
     normalizeSnapshot,
+    normalizeStaleAfterMs,
     nullableBoundedNumber,
     probeSnapshot,
     safeText,

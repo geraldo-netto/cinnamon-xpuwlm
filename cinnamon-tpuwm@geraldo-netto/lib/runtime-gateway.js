@@ -114,7 +114,7 @@ class RuntimeSnapshotGateway {
         this._detectDevice = detectDevice;
         this._path = String(path || "");
         this._clock = clock;
-        this._staleAfterMs = Math.max(1000, Number(staleAfterMs) || Domain.DEFAULT_STALE_AFTER_MS);
+        this._staleAfterMs = Domain.normalizeStaleAfterMs(staleAfterMs);
         this._warnings = new FailureWarningBackoff({logger});
     }
 

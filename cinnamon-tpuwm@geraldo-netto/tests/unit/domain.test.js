@@ -51,6 +51,22 @@ test("numeric and object helpers reject malformed values and clamp bounds", () =
     assert.equal(Domain.clampWeight(-99), Domain.MIN_WEIGHT);
 });
 
+test("freshness windows are finite, bounded, and centrally normalized", () => {
+    for (const value of [
+        0,
+        "0",
+        Number.NaN,
+        Number.POSITIVE_INFINITY,
+        Number.NEGATIVE_INFINITY,
+    ]) {
+        assert.equal(Domain.normalizeStaleAfterMs(value), Domain.DEFAULT_STALE_AFTER_MS);
+    }
+    assert.equal(Domain.normalizeStaleAfterMs(-1), 1000);
+    assert.equal(Domain.normalizeStaleAfterMs(999), 1000);
+    assert.equal(Domain.normalizeStaleAfterMs("2500"), 2500);
+    assert.equal(Domain.normalizeStaleAfterMs(2500.5), 2500.5);
+});
+
 test("profile state defaults are complete and sanitization is allow-listed", () => {
     const defaults = Domain.defaultProfileState();
     assert.equal(defaults.paused, false);
