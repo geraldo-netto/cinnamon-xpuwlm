@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const Menu = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/menu-view.js");
 const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
 const {
@@ -21,7 +22,7 @@ function baseState(overrides = {}) {
     return {
         selectedTab: "overview",
         paused: false,
-        profiles: new Domain.WorkloadPortfolio().list({
+        profiles: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list({
             "hardware-health": {status: "running", queued: 2, detail: "sampling"},
         }),
         device: {available: true, state: "present", name: "Coral USB", kind: "usb", reason: ""},
@@ -123,10 +124,10 @@ test("every symbolic icon declares a name, type, size, and placement", () => {
     assert.equal(settings.icon_type, "symbolic");
 
     const profileIcons = icons(root).filter((actor) => actor.style_class === "tpuwm-profile-icon");
-    assert.equal(profileIcons.length, Domain.PROFILE_DEFINITIONS.length);
+    assert.equal(profileIcons.length, BuiltIns.coreCatalog().size);
     assert.deepEqual(
         profileIcons.map((actor) => actor.icon_name),
-        Domain.PROFILE_DEFINITIONS.map((definition) => definition.icon),
+        BuiltIns.coreCatalog().definitions().map((definition) => definition.icon),
     );
     assert.equal(profileIcons.every((actor) => actor.icon_size === 20), true);
     assert.equal(profileIcons.every((actor) => actor.icon_type === "symbolic"), true);

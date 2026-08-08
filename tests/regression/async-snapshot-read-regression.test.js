@@ -5,6 +5,7 @@ const test = require("node:test");
 
 const Cinnamon = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/cinnamon-runtime.js");
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
@@ -119,6 +120,7 @@ test("regression: the manager discards a completion that lost its race", () => {
     const reader = deferredReader();
     const subject = gateway(reader);
     const manager = new Manager.WorkloadManager({
+        workloadRegistry: BuiltIns.coreRegistry(),
         repository: {load: () => ({}), save() {}},
         runtimeGateway: subject,
         errorReporter: {report() {}, recover() {}},
@@ -139,6 +141,7 @@ test("regression: the manager discards a completion that lost its race", () => {
 test("regression: the manager guards sequencing even when the gateway does not", () => {
     const callbacks = [];
     const manager = new Manager.WorkloadManager({
+        workloadRegistry: BuiltIns.coreRegistry(),
         repository: {load: () => ({}), save() {}},
         runtimeGateway: {read: (options, callback) => callbacks.push(callback)},
         errorReporter: {report() {}, recover() {}},
@@ -162,6 +165,7 @@ test("regression: teardown cancels a pending read and ignores its completion", (
     const reader = deferredReader();
     const subject = gateway(reader);
     const manager = new Manager.WorkloadManager({
+        workloadRegistry: BuiltIns.coreRegistry(),
         repository: {load: () => ({}), save() {}},
         runtimeGateway: subject,
         errorReporter: {report() {}, recover() {}},
@@ -180,6 +184,7 @@ test("regression: replacing the gateway cancels the read still in flight", () =>
     const reader = deferredReader();
     const subject = gateway(reader);
     const manager = new Manager.WorkloadManager({
+        workloadRegistry: BuiltIns.coreRegistry(),
         repository: {load: () => ({}), save() {}},
         runtimeGateway: subject,
         errorReporter: {report() {}, recover() {}},
@@ -200,6 +205,7 @@ test("regression: replacing the gateway cancels the read still in flight", () =>
 
 test("regression: a gateway without cancellation support is still replaceable", () => {
     const manager = new Manager.WorkloadManager({
+        workloadRegistry: BuiltIns.coreRegistry(),
         repository: {load: () => ({}), save() {}},
         runtimeGateway: {read: (options, callback) => callback(Domain.probeSnapshot({available: true, name: "First", kind: "usb"}, NOW))},
         errorReporter: {report() {}, recover() {}},

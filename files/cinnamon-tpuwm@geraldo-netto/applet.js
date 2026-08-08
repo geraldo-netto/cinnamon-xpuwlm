@@ -41,9 +41,11 @@ function defaultLogger() {
 }
 
 function resolveWorkloadCatalog(workloadRegistry) {
-    return workloadRegistry === null
-        ? Domain.DEFAULT_WORKLOAD_CATALOG
-        : new Domain.WorkloadCatalog(WorkloadRegistry.profileDefinitions(workloadRegistry));
+    return new Domain.WorkloadCatalog(WorkloadRegistry.profileDefinitions(workloadRegistry));
+}
+
+function resolveWorkloadRegistry(metadata, environment, override) {
+    return override || CinnamonRuntime.createWorkloadRegistry(`${metadata.path}/workloads`, environment);
 }
 
 class TpuWorkloadApplet extends Applet.TextIconApplet {
@@ -75,7 +77,7 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
 
     _construct(metadata, instanceId, overrides) {
         this._createSettings(metadata, instanceId, overrides);
-        this._createServices(overrides);
+        this._createServices(metadata, overrides);
         this._createPresentation(overrides);
         this._unsubscribe = this._manager.subscribe((state) => this._render(state));
         this._manager.start();
@@ -95,8 +97,12 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
         this.actor.set_accessible_name("TPU Workload Manager, starting");
     }
 
-    _createServices(overrides) {
-        this._workloadRegistry = overrides.workloadRegistry || null;
+    _createServices(metadata, overrides) {
+        this._workloadRegistry = resolveWorkloadRegistry(
+            metadata,
+            this._environment,
+            overrides.workloadRegistry,
+        );
         this._workloadCatalog = resolveWorkloadCatalog(this._workloadRegistry);
         this._runtimeGatewayFactory = overrides.runtimeGatewayFactory
             || ((path) => CinnamonRuntime.createRuntimeGateway({
@@ -377,5 +383,6 @@ if (typeof module !== "undefined") {
         main,
         panelIconFilename,
         resolveWorkloadCatalog,
+        resolveWorkloadRegistry,
     };
 }

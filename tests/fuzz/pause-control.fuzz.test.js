@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
 const Menu = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/menu-view.js");
 const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
@@ -45,7 +46,7 @@ test("fuzz: pause control follows policy across effective-screen transitions", (
         actions,
     });
     const tabs = [...Manager.TABS, "invalid"];
-    const profiles = new Domain.WorkloadPortfolio().list({});
+    const profiles = new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list({});
 
     for (let index = 0; index < 1000; index += 1) {
         const paused = random() < 0.5;

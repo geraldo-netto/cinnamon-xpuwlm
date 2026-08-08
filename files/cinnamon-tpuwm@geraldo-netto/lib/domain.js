@@ -9,89 +9,6 @@ const MAX_WEIGHT = 5;
 const MAX_QUEUE_DEPTH = 1000000;
 const MAX_ALERTS = 100;
 
-const PROFILE_DEFINITIONS = Object.freeze([
-    Object.freeze({
-        id: "hardware-health",
-        title: "Hardware health",
-        group: "System health",
-        description: "Power · UPS · memory faults",
-        icon: "applications-system-symbolic",
-        order: 10,
-        defaultEnabled: true,
-        defaultWeight: 2,
-    }),
-    Object.freeze({
-        id: "storage-intelligence",
-        title: "Storage intelligence",
-        group: "System health",
-        description: "SMART · I/O · cache · storage tiers",
-        icon: "drive-harddisk-symbolic",
-        order: 20,
-        defaultEnabled: true,
-        defaultWeight: 3,
-    }),
-    Object.freeze({
-        id: "resource-scheduler",
-        title: "Resource scheduler",
-        group: "Orchestration",
-        description: "Placement · queues · background jobs",
-        icon: "view-grid-symbolic",
-        order: 30,
-        defaultEnabled: true,
-        defaultWeight: 3,
-    }),
-    Object.freeze({
-        id: "build-advisor",
-        title: "Build advisor",
-        group: "Orchestration",
-        description: "Compiler profiles · regressions",
-        icon: "applications-engineering-symbolic",
-        order: 40,
-        defaultEnabled: true,
-        defaultWeight: 2,
-    }),
-    Object.freeze({
-        id: "visual-library",
-        title: "Visual library",
-        group: "Local workflows",
-        description: "Search · tagging · scenes · low-light",
-        icon: "image-x-generic-symbolic",
-        order: 50,
-        defaultEnabled: true,
-        defaultWeight: 2,
-    }),
-    Object.freeze({
-        id: "network-peripherals",
-        title: "Network & peripherals",
-        group: "Local workflows",
-        description: "Wi-Fi · USB anomaly scoring",
-        icon: "network-wireless-symbolic",
-        order: 60,
-        defaultEnabled: false,
-        defaultWeight: 2,
-    }),
-    Object.freeze({
-        id: "desktop-context",
-        title: "Desktop context",
-        group: "Local workflows",
-        description: "Window-layout suggestions",
-        icon: "view-dual-symbolic",
-        order: 70,
-        defaultEnabled: false,
-        defaultWeight: 1,
-    }),
-    Object.freeze({
-        id: "document-intelligence",
-        title: "Document intelligence",
-        group: "Local workflows",
-        description: "Categories · duplicates · layout",
-        icon: "x-office-document-symbolic",
-        order: 80,
-        defaultEnabled: false,
-        defaultWeight: 2,
-    }),
-]);
-
 const PROFILE_STATUSES = new Set([
     "healthy",
     "running",
@@ -245,8 +162,7 @@ class WorkloadCatalog {
     }
 }
 
-const DEFAULT_WORKLOAD_CATALOG = new WorkloadCatalog(PROFILE_DEFINITIONS);
-const PROFILE_IDS = new Set(PROFILE_DEFINITIONS.map((profile) => profile.id));
+const EMPTY_WORKLOAD_CATALOG = new WorkloadCatalog([]);
 
 function requireWorkloadCatalog(candidate) {
     if (!(candidate instanceof WorkloadCatalog)) {
@@ -268,7 +184,7 @@ function clampWeight(value) {
     return boundedInteger(value, MIN_WEIGHT, MAX_WEIGHT, MIN_WEIGHT);
 }
 
-function defaultProfileState(catalog = DEFAULT_WORKLOAD_CATALOG) {
+function defaultProfileState(catalog = EMPTY_WORKLOAD_CATALOG) {
     const definitions = requireWorkloadCatalog(catalog).definitions();
     const profiles = {};
     for (const definition of definitions) {
@@ -280,7 +196,7 @@ function defaultProfileState(catalog = DEFAULT_WORKLOAD_CATALOG) {
     return {paused: false, profiles};
 }
 
-function sanitizeProfileState(candidate, catalog = DEFAULT_WORKLOAD_CATALOG) {
+function sanitizeProfileState(candidate, catalog = EMPTY_WORKLOAD_CATALOG) {
     const definitions = requireWorkloadCatalog(catalog).definitions();
     const defaults = defaultProfileState(catalog);
     if (!isPlainObject(candidate)) {
@@ -352,7 +268,7 @@ function health(device, runtime, detail) {
     };
 }
 
-function normalizeMetrics(candidate, catalog = DEFAULT_WORKLOAD_CATALOG) {
+function normalizeMetrics(candidate, catalog = EMPTY_WORKLOAD_CATALOG) {
     const source = isPlainObject(candidate) ? candidate : {};
     const load = nullableBoundedNumber(source.load, 0, 100);
     return {
@@ -362,7 +278,7 @@ function normalizeMetrics(candidate, catalog = DEFAULT_WORKLOAD_CATALOG) {
     };
 }
 
-function normalizeAlert(candidate, nowMs, catalog = DEFAULT_WORKLOAD_CATALOG) {
+function normalizeAlert(candidate, nowMs, catalog = EMPTY_WORKLOAD_CATALOG) {
     if (!isPlainObject(candidate)) {
         return null;
     }
@@ -469,7 +385,7 @@ function rejectSnapshot(candidate, nowMs, staleAfterMs) {
     return null;
 }
 
-function normalizeProfiles(candidate, catalog = DEFAULT_WORKLOAD_CATALOG) {
+function normalizeProfiles(candidate, catalog = EMPTY_WORKLOAD_CATALOG) {
     const profiles = {};
     const supplied = isPlainObject(candidate) ? candidate : {};
     for (const definition of requireWorkloadCatalog(catalog).definitions()) {
@@ -480,7 +396,7 @@ function normalizeProfiles(candidate, catalog = DEFAULT_WORKLOAD_CATALOG) {
     return profiles;
 }
 
-function normalizeAlerts(candidate, nowMs, catalog = DEFAULT_WORKLOAD_CATALOG) {
+function normalizeAlerts(candidate, nowMs, catalog = EMPTY_WORKLOAD_CATALOG) {
     // Stryker disable next-line ArrayDeclaration: a seeded element is not a plain
     // object, so normalizeAlert discards it and the fallback stays observably empty.
     const supplied = Array.isArray(candidate) ? candidate : [];
@@ -498,7 +414,7 @@ function normalizeSnapshot(
     candidate,
     nowMs,
     staleAfterMs = DEFAULT_STALE_AFTER_MS,
-    catalog = DEFAULT_WORKLOAD_CATALOG,
+    catalog = EMPTY_WORKLOAD_CATALOG,
 ) {
     const rejected = rejectSnapshot(candidate, nowMs, staleAfterMs);
     if (rejected !== null) {
@@ -523,7 +439,7 @@ function normalizeSnapshot(
 }
 
 class WorkloadPortfolio {
-    constructor(candidate, catalog = DEFAULT_WORKLOAD_CATALOG) {
+    constructor(candidate, catalog = EMPTY_WORKLOAD_CATALOG) {
         this._catalog = requireWorkloadCatalog(catalog);
         const state = sanitizeProfileState(candidate, catalog);
         this._paused = state.paused;
@@ -600,15 +516,13 @@ class WorkloadPortfolio {
 module.exports = {
     ALERT_SEVERITIES,
     DEFAULT_STALE_AFTER_MS,
-    DEFAULT_WORKLOAD_CATALOG,
+    EMPTY_WORKLOAD_CATALOG,
     DEVICE_STATES,
     MAX_ALERTS,
     MAX_CLOCK_SKEW_MS,
     MAX_WEIGHT,
     MIN_GENERATED_AT,
     MIN_WEIGHT,
-    PROFILE_DEFINITIONS,
-    PROFILE_IDS,
     PROFILE_STATUSES,
     RUNTIME_STATES,
     SNAPSHOT_VERSION,

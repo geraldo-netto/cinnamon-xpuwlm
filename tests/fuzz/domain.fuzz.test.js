@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
@@ -48,12 +49,16 @@ function arbitrary(random, depth = 0) {
 
 test("fuzz: normalizers never throw or leak unknown profile keys", () => {
     const random = generator(0x58545055);
+    const catalog = BuiltIns.coreCatalog();
+    const identifiers = catalog.definitions().map((definition) => definition.id);
     for (let index = 0; index < 5000; index += 1) {
         const value = arbitrary(random);
-        assert.doesNotThrow(() => Domain.sanitizeProfileState(value));
-        assert.doesNotThrow(() => Domain.normalizeSnapshot(value, 1_700_000_000_000));
-        const state = Domain.sanitizeProfileState(value);
-        assert.deepEqual(Object.keys(state.profiles), [...Domain.PROFILE_IDS]);
+        assert.doesNotThrow(() => Domain.sanitizeProfileState(value, catalog));
+        assert.doesNotThrow(() => Domain.normalizeSnapshot(
+            value, 1_700_000_000_000, Domain.DEFAULT_STALE_AFTER_MS, catalog,
+        ));
+        const state = Domain.sanitizeProfileState(value, catalog);
+        assert.deepEqual(Object.keys(state.profiles), identifiers);
         assert.equal(typeof state.paused, "boolean");
         for (const profile of Object.values(state.profiles)) {
             assert.equal(profile.weight >= Domain.MIN_WEIGHT && profile.weight <= Domain.MAX_WEIGHT, true);
@@ -150,8 +155,8 @@ test("fuzz: non-finite delays and backward clocks remain bounded", () => {
 
 test("fuzz: portfolio operations preserve invariants", () => {
     const random = generator(0x574f524b);
-    const portfolio = new Domain.WorkloadPortfolio();
-    const ids = [...Domain.PROFILE_IDS];
+    const portfolio = new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog());
+    const ids = BuiltIns.coreCatalog().definitions().map((definition) => definition.id);
     for (let index = 0; index < 5000; index += 1) {
         const id = ids[Math.floor(random() * ids.length)];
         portfolio.setEnabled(id, random() < 0.5);

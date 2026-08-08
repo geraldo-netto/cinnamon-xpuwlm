@@ -30,7 +30,7 @@ function parseSnapshotDocument(
     nowMs,
     snapshotValidator,
     staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS,
-    workloadCatalog = Domain.DEFAULT_WORKLOAD_CATALOG,
+    workloadCatalog = Domain.EMPTY_WORKLOAD_CATALOG,
 ) {
     if (typeof text !== "string") {
         return Domain.unavailableSnapshot("Runtime snapshot is not text", nowMs, "invalid");
@@ -88,7 +88,7 @@ class RuntimeSnapshotGateway {
         clock = Date,
         staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS,
         cancellableFactory = () => null,
-        workloadCatalog = Domain.DEFAULT_WORKLOAD_CATALOG,
+        workloadCatalog = Domain.EMPTY_WORKLOAD_CATALOG,
     }) {
         requirePorts({readTextAsync, detectDevice, clock, cancellableFactory});
         this._readTextAsync = readTextAsync;

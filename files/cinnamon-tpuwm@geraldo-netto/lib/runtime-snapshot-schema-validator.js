@@ -2,6 +2,7 @@
 
 const Domain = require("./domain.js");
 const SnapshotValidator = require("./snapshot-validator.js");
+const WorkloadRegistry = require("./workload-registry.js");
 
 const ROOT_PROPERTIES = new Set(["version", "generatedAt", "device", "metrics", "profiles", "alerts"]);
 const ROOT_REQUIRED = Object.freeze([...ROOT_PROPERTIES]);
@@ -74,7 +75,7 @@ function isMetrics(value) {
         && hasContractProperties(value, METRIC_REQUIRED, METRIC_PROPERTIES)
         && (value.load === null || isNumberBetween(value.load, 0, 100))
         && isIntegerBetween(value.queueDepth, 0, 1_000_000)
-        && isIntegerBetween(value.runningProfiles, 0, 8);
+        && isIntegerBetween(value.runningProfiles, 0, WorkloadRegistry.MAX_WORKLOADS);
 }
 
 function isProfile(value) {

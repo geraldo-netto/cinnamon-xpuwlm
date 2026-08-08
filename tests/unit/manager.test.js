@@ -9,6 +9,7 @@ const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js
 const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
 const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
 const ManifestFixtures = require("../helpers/workload-manifest-fixtures.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -66,7 +67,7 @@ function harness(overrides = {}) {
         logger,
         scheduler,
         staleAfterMs: overrides.staleAfterMs,
-        workloadRegistry: overrides.workloadRegistry,
+        workloadRegistry: overrides.workloadRegistry || BuiltIns.coreRegistry(),
     });
     return {clock, manager, saves, warnings, errors, scheduler};
 }
@@ -94,6 +95,7 @@ test("manager validates collaborators", () => {
         repository: {load() {}, save() {}},
         runtimeGateway: {read() {}},
         errorReporter: {report() {}, recover() {}},
+        workloadRegistry: BuiltIns.coreRegistry(),
     };
     assert.throws(() => new Manager.WorkloadManager({...base, repository: null}), /repository/);
     assert.throws(() => new Manager.WorkloadManager({...base, runtimeGateway: null}), /gateway/);

@@ -1,0 +1,17 @@
+{
+  "manifestVersion": 1,
+  "id": "desktop-context",
+  "version": "1.0.0",
+  "capabilities": ["context-prediction", "layout-suggestion"],
+  "requirements": {"runtimeApi": 1, "accelerator": "edge-tpu", "minimumDevices": 1, "model": null},
+  "ui": {
+    "title": "Desktop context",
+    "group": "Local workflows",
+    "description": "Window-layout suggestions",
+    "icon": "view-dual-symbolic",
+    "order": 70
+  },
+  "defaults": {"enabled": false, "weight": 1},
+  "pipeline": {"hostResponsibilities": []},
+  "acceptance": []
+}

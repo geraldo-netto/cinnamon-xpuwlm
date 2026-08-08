@@ -30,6 +30,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "workload-manifest.js",
     "workload-manifest.schema.json",
     "workload-registry.js",
+    "workloads",
 ]);
 const FORBIDDEN_PAYLOAD_SEGMENTS = new Set([
     ".cache",
@@ -117,6 +118,8 @@ function validateJsonArtifacts() {
     const packageJson = readJson(repositoryRoot, "package.json");
     const stryker = readJson(repositoryRoot, "stryker.config.json");
     const Domain = require(path.join(appletRoot, "lib/domain.js"));
+    const Manifest = require(path.join(appletRoot, "lib/workload-manifest.js"));
+    const Registry = require(path.join(appletRoot, "lib/workload-registry.js"));
 
     assert.equal(metadata.uuid, UUID);
     assert.equal(metadata.uuid, path.basename(appletRoot));
@@ -128,10 +131,15 @@ function validateJsonArtifacts() {
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(schema));
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(workloadSchema));
     assert.equal(settings["show-panel-label"].default, false);
-    assert.deepEqual(
-        Object.keys(settings["profile-state"].default.profiles),
-        Domain.PROFILE_DEFINITIONS.map((profile) => profile.id),
-    );
+    assert.deepEqual(settings["profile-state"].default.profiles, {});
+    assert.equal(schema.properties.metrics.properties.runningProfiles.maximum, Registry.MAX_WORKLOADS);
+    const workloadDirectories = fs.readdirSync(path.join(appletRoot, "workloads"), {withFileTypes: true});
+    assert.equal(workloadDirectories.length > 0, true);
+    for (const entry of workloadDirectories) {
+        assert.equal(entry.isDirectory(), true, `Workload must be a directory: ${entry.name}`);
+        const manifest = readJson(appletRoot, `workloads/${entry.name}/manifest.json`);
+        assert.equal(new Manifest.WorkloadDescriptor(manifest).id, entry.name);
+    }
     assert.equal(packageJson.scripts.test.includes("test:mutation"), true);
     assert.equal(packageJson.scripts.test.includes("test:visual"), true);
     assert.equal(packageJson.devDependencies.ajv, "8.18.0");

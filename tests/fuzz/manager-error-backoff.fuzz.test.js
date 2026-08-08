@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
 
@@ -58,6 +59,7 @@ test("fuzz: listener lifecycle releases every reporter identity", () => {
         },
     };
     const manager = new Manager.WorkloadManager({
+        workloadRegistry: BuiltIns.coreRegistry(),
         repository: {load: () => ({}), save() {}},
         runtimeGateway: {
             read: (options, callback) => callback(Domain.probeSnapshot({available: true, name: "TPU", kind: "usb"}, 0)),

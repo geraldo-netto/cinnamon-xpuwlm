@@ -65,16 +65,7 @@
     "type": "generic",
     "default": {
       "paused": false,
-      "profiles": {
-        "hardware-health": {"enabled": true, "weight": 2},
-        "storage-intelligence": {"enabled": true, "weight": 3},
-        "resource-scheduler": {"enabled": true, "weight": 3},
-        "build-advisor": {"enabled": true, "weight": 2},
-        "visual-library": {"enabled": true, "weight": 2},
-        "network-peripherals": {"enabled": false, "weight": 2},
-        "desktop-context": {"enabled": false, "weight": 1},
-        "document-intelligence": {"enabled": false, "weight": 2}
-      }
+      "profiles": {}
     }
   },
   "selected-tab": {

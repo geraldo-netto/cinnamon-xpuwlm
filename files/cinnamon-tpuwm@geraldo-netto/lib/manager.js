@@ -62,7 +62,7 @@ class WorkloadManager {
         logger = createSilentLogger(),
         scheduler = createInertScheduler(),
         staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS,
-        workloadRegistry = null,
+        workloadRegistry,
     }) {
         this._repository = requireRepository(repository);
         requireRuntimeGateway(runtimeGateway);
@@ -75,9 +75,9 @@ class WorkloadManager {
         this._staleAfterMs = Domain.normalizeStaleAfterMs(staleAfterMs);
         this._expiryHandle = null;
         this._errors = FailureReporter.requireFailureReporter(errorReporter, "manager error");
-        this._catalog = workloadRegistry === null
-            ? Domain.DEFAULT_WORKLOAD_CATALOG
-            : new Domain.WorkloadCatalog(WorkloadRegistry.profileDefinitions(workloadRegistry));
+        this._catalog = new Domain.WorkloadCatalog(WorkloadRegistry.profileDefinitions(
+            WorkloadRegistry.requireWorkloadRegistry(workloadRegistry),
+        ));
         this._portfolio = new Domain.WorkloadPortfolio(null, this._catalog);
         this._selectedTab = "overview";
         this._snapshot = Domain.unavailableSnapshot("Monitoring has not started", this._clock.now());

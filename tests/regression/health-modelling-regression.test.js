@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
@@ -21,6 +22,7 @@ function gateway(overrides = {}) {
         detectDevice: () => ({available: true, name: "Coral USB", kind: "usb"}),
         snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: new FailureBackoff.FailureWarningBackoff({logger: {warn() {}}}),
+        workloadCatalog: BuiltIns.coreCatalog(),
         ...overrides,
     });
 }
@@ -145,6 +147,7 @@ test("regression: each runtime state renders its own recovery guidance", () => {
 
 test("regression: the manager projects health and starts in a not-started state", () => {
     const manager = new Manager.WorkloadManager({
+        workloadRegistry: BuiltIns.coreRegistry(),
         repository: {load: () => ({}), save() {}},
         runtimeGateway: {read: (options, callback) => callback(readSnapshot(gateway()))},
         errorReporter: {report() {}, recover() {}},

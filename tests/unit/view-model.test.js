@@ -4,12 +4,13 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
 
 const NOW = 1_700_000_000_000;
 
 function state(overrides = {}) {
-    const profiles = new Domain.WorkloadPortfolio().list({
+    const profiles = new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list({
         "hardware-health": {status: "running", queued: 2, detail: "sampling"},
     });
     return {

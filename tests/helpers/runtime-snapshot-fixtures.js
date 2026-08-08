@@ -84,7 +84,7 @@ function runtimeSnapshotSchemaCases() {
             value.generatedAt = 1;
         }),
         snapshotCase("numeric maxima", true, (value) => {
-            value.metrics = {load: 100, queueDepth: 1_000_000, runningProfiles: 8};
+            value.metrics = {load: 100, queueDepth: 1_000_000, runningProfiles: 128};
             value.profiles["hardware-health"].queued = 1_000_000;
             value.alerts[0].confidence = 1;
             value.alerts[0].riskScore = 1;
@@ -152,7 +152,7 @@ function runtimeSnapshotSchemaCases() {
         ["queue above maximum", (value) => value.metrics, {queueDepth: 1_000_001}],
         ["fractional running count", (value) => value.metrics, {runningProfiles: 1.5}],
         ["negative running count", (value) => value.metrics, {runningProfiles: -1}],
-        ["running count above maximum", (value) => value.metrics, {runningProfiles: 9}],
+        ["running count above maximum", (value) => value.metrics, {runningProfiles: 129}],
         ["profiles array", (value) => value, {profiles: []}],
         ["profile scalar", (value) => value.profiles, {"hardware-health": null}],
         ["profile status unknown", (value) => value.profiles["hardware-health"], {status: "future"}],

@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 
 test("regression: runtime labels stay well-formed at their code-point boundary", () => {
     const title = `${"a".repeat(159)}💡truncated`;
@@ -11,7 +12,7 @@ test("regression: runtime labels stay well-formed at their code-point boundary",
         id: "unicode-boundary",
         profileId: "hardware-health",
         title,
-    }, 1_700_000_000_000);
+    }, 1_700_000_000_000, BuiltIns.coreCatalog());
 
     assert.ok(alert);
     assert.equal(Array.from(alert.title).length, 160);

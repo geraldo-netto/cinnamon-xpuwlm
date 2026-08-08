@@ -26,7 +26,7 @@
       "properties": {
         "load": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
         "queueDepth": {"type": "integer", "minimum": 0, "maximum": 1000000},
-        "runningProfiles": {"type": "integer", "minimum": 0, "maximum": 8}
+        "runningProfiles": {"type": "integer", "minimum": 0, "maximum": 128}
       }
     },
     "profiles": {

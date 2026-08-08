@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const {
     FakeActor,
     FakeMenu,
@@ -17,7 +18,7 @@ const DEFAULTS = {
     "refresh-interval": 5,
     "runtime-state-path": "~/.local/state/tpu-workload-manager/runtime.json",
     "show-panel-label": false,
-    "profile-state": Domain.defaultProfileState(),
+    "profile-state": Domain.defaultProfileState(BuiltIns.coreCatalog()),
     "selected-tab": "overview",
 };
 
@@ -94,6 +95,7 @@ function tracker() {
             return {
                 logger: {warn() {}, error: (message) => record.push(["error", message])},
                 environment: {},
+                workloadRegistry: BuiltIns.coreRegistry(),
                 clock: {now: () => 1_700_000_000_000},
                 settingsFactory(owner) {
                     const settings = new BoundSettings(owner);

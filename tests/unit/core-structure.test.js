@@ -5,12 +5,15 @@ const test = require("node:test");
 
 const Cinnamon = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/cinnamon-runtime.js");
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
 const SchemaValidator = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
 
 const NOW = 1_700_000_000_000;
+const CATALOG = BuiltIns.coreCatalog();
+const DEFINITIONS = CATALOG.definitions();
 
 function absentEnvironment() {
     return {
@@ -86,7 +89,10 @@ test("the accepted enumerations stay closed and exact", () => {
         "healthy", "running", "watching", "idle", "paused", "unavailable",
     ]);
     assert.deepEqual([...Domain.ALERT_SEVERITIES], ["advisory", "warning", "critical"]);
-    assert.deepEqual([...Domain.PROFILE_IDS], Domain.PROFILE_DEFINITIONS.map((p) => p.id));
+    assert.deepEqual(DEFINITIONS.map((definition) => definition.id), [
+        "hardware-health", "storage-intelligence", "resource-scheduler", "build-advisor",
+        "visual-library", "network-peripherals", "desktop-context", "document-intelligence",
+    ]);
     assert.deepEqual(Manager.TABS, ["overview", "profiles", "alerts"]);
     assert.deepEqual(Object.keys(ViewModel.STATUS_LABELS), [...Domain.PROFILE_STATUSES]);
     assert.deepEqual(ViewModel.STATUS_LABELS, {
@@ -180,7 +186,7 @@ test("normalized runtime fragments expose exactly their contract fields", () => 
         id: "power-risk",
         profileId: "hardware-health",
         title: "Voltage drift",
-    }, NOW), {
+    }, NOW, CATALOG), {
         id: "power-risk",
         profileId: "hardware-health",
         title: "Voltage drift",
@@ -194,14 +200,14 @@ test("normalized runtime fragments expose exactly their contract fields", () => 
 });
 
 test("default state and portfolio serialization cover every declared profile", () => {
-    const defaults = Domain.defaultProfileState();
+    const defaults = Domain.defaultProfileState(CATALOG);
     assert.deepEqual(Object.keys(defaults), ["paused", "profiles"]);
     assert.equal(defaults.paused, false);
     assert.deepEqual(
         Object.keys(defaults.profiles),
-        Domain.PROFILE_DEFINITIONS.map((definition) => definition.id),
+        DEFINITIONS.map((definition) => definition.id),
     );
-    for (const definition of Domain.PROFILE_DEFINITIONS) {
+    for (const definition of DEFINITIONS) {
         assert.deepEqual(defaults.profiles[definition.id], {
             enabled: definition.defaultEnabled,
             weight: definition.defaultWeight,
@@ -211,7 +217,7 @@ test("default state and portfolio serialization cover every declared profile", (
         ]);
     }
 
-    const portfolio = new Domain.WorkloadPortfolio();
+    const portfolio = new Domain.WorkloadPortfolio(null, CATALOG);
     assert.deepEqual(portfolio.serialize(), defaults);
     const serialized = portfolio.serialize();
     serialized.paused = true;
@@ -241,10 +247,11 @@ test("manager projections are complete and isolated from listener mutation", () 
                     severity: "warning",
                     timestamp: NOW,
                 }],
-            }), NOW)),
+            }), NOW, Domain.DEFAULT_STALE_AFTER_MS, CATALOG)),
         },
         errorReporter: new FailureBackoff.FailureErrorBackoff({logger: {error() {}}}),
         clock: {now: () => NOW},
+        workloadRegistry: BuiltIns.coreRegistry(),
     });
     manager.start();
 
@@ -262,7 +269,7 @@ test("manager projections are complete and isolated from listener mutation", () 
     });
     assert.deepEqual(state.health, {device: "present", runtime: "connected", detail: ""});
     assert.deepEqual(state.metrics, {load: 40, queueDepth: 3, runningProfiles: 1});
-    assert.equal(state.profiles.length, Domain.PROFILE_DEFINITIONS.length);
+    assert.equal(state.profiles.length, DEFINITIONS.length);
     assert.equal(state.alerts.length, 1);
     assert.equal(state.attentionCount, 1);
 
@@ -318,5 +325,5 @@ test("simplified predicates keep their original acceptance", () => {
     assert.equal(Domain.rejectSnapshot(null, NOW, 15_000).source, "invalid");
     assert.deepEqual(Domain.normalizeProfiles(null), {});
     assert.deepEqual(Domain.normalizeAlerts(null, NOW), []);
-    assert.equal(Domain.normalizeAlerts([alert], NOW).length, 1);
+    assert.equal(Domain.normalizeAlerts([alert], NOW, CATALOG).length, 1);
 });

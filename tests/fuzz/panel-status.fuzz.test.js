@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
 
 function generator(seed) {
@@ -16,7 +17,7 @@ function generator(seed) {
 
 test("fuzz: compact panel status preserves safety precedence and text alternatives", () => {
     const random = generator(0x50414e4c);
-    const profiles = new Domain.WorkloadPortfolio().list();
+    const profiles = new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list();
     for (let iteration = 0; iteration < 4_096; iteration += 1) {
         const bits = random();
         const available = (bits & 1) !== 0;

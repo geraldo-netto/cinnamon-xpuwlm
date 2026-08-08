@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const Menu = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/menu-view.js");
 const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
 const {
@@ -37,7 +38,7 @@ test("regression: a paused policy can be resumed while the device is unavailable
     const model = ViewModel.toViewModel({
         selectedTab: "overview",
         paused: true,
-        profiles: new Domain.WorkloadPortfolio().list({}),
+        profiles: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list({}),
         device: {available: false, name: "No TPU", kind: "unknown", reason: "Disconnected"},
         metrics: {load: null, queueDepth: 0, runningProfiles: 0},
         alerts: [],

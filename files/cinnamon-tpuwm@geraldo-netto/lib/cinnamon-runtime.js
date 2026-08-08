@@ -433,7 +433,7 @@ function createRuntimeGateway({
     deviceDetector,
     snapshotValidator,
     warningReporter,
-    workloadCatalog = Domain.DEFAULT_WORKLOAD_CATALOG,
+    workloadCatalog = Domain.EMPTY_WORKLOAD_CATALOG,
 }) {
     const expandedPath = expandHome(path, environment.GLib.get_home_dir());
     const detector = deviceDetector || new CachedDeviceDetector(environment, clock);

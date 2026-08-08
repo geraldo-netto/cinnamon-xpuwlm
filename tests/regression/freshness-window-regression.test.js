@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
@@ -32,6 +33,7 @@ test("regression: a slow poll interval cannot present expired state as online", 
     let nowMs = NOW;
     const timers = [];
     const manager = new Manager.WorkloadManager({
+        workloadRegistry: BuiltIns.coreRegistry(),
         repository: {load: () => ({}), save() {}},
         runtimeGateway: {
             read: (options, callback) => callback(Domain.normalizeSnapshot({

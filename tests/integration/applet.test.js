@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const Layout = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/layout.js");
 const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
 const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
@@ -21,7 +22,7 @@ const DEFAULTS = {
     "refresh-interval": 5,
     "runtime-state-path": "~/.local/state/tpu-workload-manager/runtime.json",
     "show-panel-label": false,
-    "profile-state": Domain.defaultProfileState(),
+    "profile-state": Domain.defaultProfileState(BuiltIns.coreCatalog()),
     "selected-tab": "overview",
 };
 
@@ -125,21 +126,21 @@ global.imports = {
 
 const AppletModule = require("../../files/cinnamon-tpuwm@geraldo-netto/applet.js");
 
-test("workload catalog resolver keeps default and injected registries separate", () => {
-    assert.equal(AppletModule.resolveWorkloadCatalog(null), Domain.DEFAULT_WORKLOAD_CATALOG);
+test("workload catalog resolver projects only the injected registry", () => {
     const descriptor = new Manifest.WorkloadDescriptor(ManifestFixtures.validWorkloadManifest({
         id: "custom-workload",
     }));
     const registry = new Registry.StaticWorkloadRegistry([descriptor]);
     const catalog = AppletModule.resolveWorkloadCatalog(registry);
     assert.deepEqual(catalog.definitions().map((definition) => definition.id), ["custom-workload"]);
+    assert.throws(() => AppletModule.resolveWorkloadCatalog(null), /registry/u);
 });
 
 function liveState(overrides = {}) {
     return {
         selectedTab: "overview",
         paused: false,
-        profiles: new Domain.WorkloadPortfolio().list(),
+        profiles: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list(),
         device: {available: true, state: "present", name: "Coral USB", kind: "usb", reason: ""},
         health: {device: "present", runtime: "connected", detail: ""},
         metrics: {load: 55, queueDepth: 1, runningProfiles: 2},
@@ -199,6 +200,7 @@ function appletHarness(extraOverrides = {}) {
         {
             logger: {warn() {}, error() {}},
             environment: {},
+            workloadRegistry: BuiltIns.coreRegistry(),
             settingsFactory(owner) {
                 const settings = new BoundSettings(owner);
                 settingsInstances.push(settings);
@@ -487,6 +489,7 @@ test("an unusable layout measurement falls back to the default popup layout", ()
         {
             logger: {warn: (message) => warnings.push(message), error() {}},
             environment: {},
+            workloadRegistry: BuiltIns.coreRegistry(),
             settingsFactory: (owner) => new BoundSettings(owner),
             repository: {load: () => ({}), save() {}},
             runtimeGateway: {read: (options, callback) => callback(Domain.unavailableSnapshot("none", 1, "error"))},
@@ -523,6 +526,7 @@ test("applet wires a scheduler so connected state expires without a poll", () =>
         {
             logger: {warn() {}, error() {}},
             environment: {},
+            workloadRegistry: BuiltIns.coreRegistry(),
             clock: {now: () => nowMs},
             settingsFactory: (owner) => new BoundSettings(owner),
             repository: {load: () => ({}), save() {}},

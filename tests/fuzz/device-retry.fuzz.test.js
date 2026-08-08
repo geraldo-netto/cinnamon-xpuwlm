@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Cinnamon = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/cinnamon-runtime.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
@@ -56,6 +57,7 @@ test("fuzz: explicit retries observe current hardware across cached state transi
         warningReporter: new FailureBackoff.FailureWarningBackoff({logger}),
     });
     const manager = new Manager.WorkloadManager({
+        workloadRegistry: BuiltIns.coreRegistry(),
         clock,
         repository: {load: () => ({}), save() {}},
         runtimeGateway: gateway,

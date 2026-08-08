@@ -6,6 +6,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
@@ -62,7 +63,7 @@ test("regression: malformed nullable measurements remain unknown rather than zer
             confidence: "0",
             riskScore: false,
         }],
-    }, NOW);
+    }, NOW, Domain.DEFAULT_STALE_AFTER_MS, BuiltIns.coreCatalog());
     assert.equal(snapshot.metrics.load, null);
     assert.equal(snapshot.alerts[0].confidence, null);
     assert.equal(snapshot.alerts[0].riskScore, null);
@@ -135,7 +136,7 @@ test("regression: warning backoff never hides failure state or overruns after cl
 });
 
 test("regression: same-identity alert content invalidates before its age changes", () => {
-    const profiles = new Domain.WorkloadPortfolio().list();
+    const profiles = new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list();
     const alert = {
         id: "stable-alert",
         profileId: "hardware-health",
@@ -174,7 +175,7 @@ test("regression: same-identity alert content invalidates before its age changes
 });
 
 test("regression: critical active alerts cannot be buried by runtime array order", () => {
-    const profiles = new Domain.WorkloadPortfolio().list();
+    const profiles = new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list();
     const alert = (id, severity) => ({
         id,
         profileId: "hardware-health",

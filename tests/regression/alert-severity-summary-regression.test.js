@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const Menu = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/menu-view.js");
 const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
 const {
@@ -34,7 +35,7 @@ function state(alerts, overrides = {}) {
     return {
         selectedTab: "alerts",
         paused: false,
-        profiles: new Domain.WorkloadPortfolio().list(),
+        profiles: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list(),
         device: {available: true, state: "present", name: "Coral USB", kind: "usb", reason: ""},
         health: {device: "present", runtime: "connected", detail: ""},
         metrics: {load: 42, queueDepth: 0, runningProfiles: 1},

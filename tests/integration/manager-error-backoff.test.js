@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
@@ -24,6 +25,7 @@ test("manager polling integrates runtime state with bounded render failures", ()
     });
     const logger = {warn() {}, error: (message) => errors.push(message)};
     const manager = new Manager.WorkloadManager({
+        workloadRegistry: BuiltIns.coreRegistry(),
         repository: {load: () => ({}), save() {}},
         runtimeGateway: gateway,
         clock: {now: () => nowMs},

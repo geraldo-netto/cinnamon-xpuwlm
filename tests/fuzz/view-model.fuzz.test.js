@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
 
 const NOW = 1_700_000_000_000;
@@ -33,7 +34,7 @@ function viewState(profiles, alert) {
 
 test("fuzz: every rendered alert mutation invalidates a stable identity", () => {
     const random = generator(0x414c4552);
-    const profiles = new Domain.WorkloadPortfolio().list();
+    const profiles = new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list();
     const fields = ["title", "summary", "severity", "confidence", "riskScore"];
 
     for (let index = 0; index < 1000; index += 1) {
@@ -65,7 +66,7 @@ test("fuzz: every rendered alert mutation invalidates a stable identity", () => 
 
 test("fuzz: active alert order is deterministic across input permutations", () => {
     const random = generator(0x534f5254);
-    const profiles = new Domain.WorkloadPortfolio().list();
+    const profiles = new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list();
     const severities = ["advisory", "warning", "critical"];
 
     for (let iteration = 0; iteration < 1000; iteration += 1) {
