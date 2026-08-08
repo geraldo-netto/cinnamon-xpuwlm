@@ -295,3 +295,31 @@ test("runtime gateway factory injects a supplied warning reporter port", () => {
     assert.equal(reports.length, 1);
     assert.match(reports[0][1], /Could not read/);
 });
+
+test("runtime gateway factory composes through an injected snapshot validator port", () => {
+    const document = JSON.stringify({
+        version: 1,
+        generatedAt: NOW,
+        device: {available: true, name: "Coral USB", kind: "usb"},
+        metrics: {load: 10, queueDepth: 0, runningProfiles: 1},
+        profiles: {},
+        alerts: [],
+    });
+    const candidates = [];
+    const gateway = Cinnamon.createRuntimeGateway({
+        path: "~/state.json",
+        environment: environment({"/home/tester/state.json": document}),
+        clock: {now: () => NOW},
+        logger: {warn() {}},
+        snapshotValidator: {
+            validate(candidate) {
+                candidates.push(candidate);
+                return {valid: true, code: "accepted"};
+            },
+        },
+    });
+
+    assert.equal(gateway.read().source, "runtime");
+    assert.equal(candidates.length, 1);
+    assert.equal(candidates[0].version, 1);
+});

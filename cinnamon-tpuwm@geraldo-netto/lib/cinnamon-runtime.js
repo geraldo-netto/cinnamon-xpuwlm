@@ -2,6 +2,7 @@
 
 const FailureBackoff = require("./failure-log-backoff.js");
 const Runtime = require("./runtime-gateway.js");
+const RuntimeSchema = require("./runtime-snapshot-schema-validator.js");
 
 const USB_VENDOR = "18d1";
 const USB_PRODUCT = "9302";
@@ -231,6 +232,7 @@ function createRuntimeGateway({
     clock = Date,
     logger,
     deviceDetector,
+    snapshotValidator,
     warningReporter,
 }) {
     const expandedPath = expandHome(path, environment.GLib.get_home_dir());
@@ -238,6 +240,8 @@ function createRuntimeGateway({
     return new Runtime.RuntimeSnapshotGateway({
         path: expandedPath,
         clock,
+        snapshotValidator: snapshotValidator
+            ?? new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: warningReporter || new FailureBackoff.FailureWarningBackoff({logger}),
         readText: (filename) => readFileText(filename, environment, Runtime.MAX_SNAPSHOT_BYTES),
         detectDevice: (forceRefresh) => detector.detect(forceRefresh),

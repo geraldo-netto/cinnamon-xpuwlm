@@ -6,6 +6,7 @@ const test = require("node:test");
 const Domain = require("../../lib/domain.js");
 const FailureBackoff = require("../../lib/failure-log-backoff.js");
 const Runtime = require("../../lib/runtime-gateway.js");
+const RuntimeSchema = require("../../lib/runtime-snapshot-schema-validator.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -14,7 +15,7 @@ function expiredDocument() {
         version: Domain.SNAPSHOT_VERSION,
         generatedAt: NOW - Domain.DEFAULT_STALE_AFTER_MS - 1,
         device: {available: true, name: "Coral USB", kind: "usb"},
-        metrics: {},
+        metrics: {load: null, queueDepth: 0, runningProfiles: 0},
         profiles: {},
         alerts: [],
     };
@@ -39,6 +40,7 @@ test("regression: non-finite freshness windows cannot keep runtime state connect
             detectDevice: () => {
                 throw new Error("runtime documents must not trigger probing");
             },
+            snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
             warningReporter: new FailureBackoff.FailureWarningBackoff({logger: {warn() {}}}),
         });
         const adapted = gateway.read();

@@ -8,20 +8,34 @@ const test = require("node:test");
 const Domain = require("../../lib/domain.js");
 const FailureBackoff = require("../../lib/failure-log-backoff.js");
 const Runtime = require("../../lib/runtime-gateway.js");
+const RuntimeSchema = require("../../lib/runtime-snapshot-schema-validator.js");
 const ViewModel = require("../../lib/view-model.js");
 
 const ROOT = path.resolve(__dirname, "../..");
 const NOW = 1_700_000_000_000;
 
 test("regression: shared runtime modules contain no Node-only Buffer dependency", () => {
-    for (const relativePath of ["lib/domain.js", "lib/runtime-gateway.js", "lib/cinnamon-runtime.js"]) {
+    for (const relativePath of [
+        "lib/domain.js",
+        "lib/runtime-gateway.js",
+        "lib/runtime-snapshot-schema-validator.js",
+        "lib/snapshot-validator.js",
+        "lib/cinnamon-runtime.js",
+    ]) {
         const source = fs.readFileSync(path.join(ROOT, relativePath), "utf8");
         assert.equal(/\bBuffer\b/u.test(source), false, `${relativePath} must remain CJS-compatible`);
     }
 });
 
 test("regression: Cinnamon root-resolution bridges export every nested dependency", () => {
-    for (const moduleName of ["domain", "manager", "runtime-gateway", "view-model"]) {
+    for (const moduleName of [
+        "domain",
+        "manager",
+        "runtime-gateway",
+        "runtime-snapshot-schema-validator",
+        "snapshot-validator",
+        "view-model",
+    ]) {
         const bridge = require(path.join(ROOT, `${moduleName}.js`));
         const implementation = require(path.join(ROOT, "lib", `${moduleName}.js`));
         assert.equal(bridge, implementation);
@@ -74,7 +88,11 @@ test("regression: far-future snapshots cannot remain fresh indefinitely", () => 
 test("regression: UTF-8 size checks count encoded bytes, not UTF-16 units", () => {
     assert.equal(Runtime.byteLength("😀"), new TextEncoder().encode("😀").byteLength);
     const tooLarge = "😀".repeat(Math.floor(Runtime.MAX_SNAPSHOT_BYTES / 4) + 1);
-    assert.match(Runtime.parseSnapshotDocument(tooLarge, NOW).device.reason, /exceeds/);
+    assert.match(Runtime.parseSnapshotDocument(
+        tooLarge,
+        NOW,
+        new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
+    ).device.reason, /exceeds/);
 });
 
 test("regression: warning backoff never hides failure state or overruns after clock rollback", () => {
@@ -89,6 +107,7 @@ test("regression: warning backoff never hides failure state or overruns after cl
         detectDevice() {
             throw new Error("must not probe after read failure");
         },
+        snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: new FailureBackoff.FailureWarningBackoff({
             logger: {warn: (message) => warnings.push(message)},
         }),

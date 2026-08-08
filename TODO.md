@@ -3,7 +3,6 @@
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
 | XTPU-0001 | open | high | xl | — | Add a versioned runtime service and bidirectional command contract; profile, weight, and pause controls currently change local intent and present it as applied without runtime acknowledgement, failure feedback, or rollback. |
-| XTPU-0002 | open | high | m | XTPU-0001 | Enforce the complete runtime snapshot schema at the adapter boundary; schema-invalid missing, extra, fractional, and out-of-range fields are currently defaulted or clamped into an apparently connected state. |
 | XTPU-0003 | open | high | m | XTPU-0001, XTPU-0002, XTPU-0022 | Replace synchronous snapshot reads with size-bounded cancellable GIO async reads; sequence refreshes, discard stale completions, and cancel pending reads during teardown. |
 | XTPU-0004 | open | medium | m | XTPU-0002, XTPU-0003, XTPU-0023 | Model device and runtime health independently; render specific absent, stale, malformed, read-error, and probe-error telemetry and recovery guidance instead of fabricated operational values. |
 | XTPU-0005 | open | medium | l | XTPU-0001, XTPU-0002, XTPU-0035, XTPU-0036, XTPU-0037, XTPU-0038, XTPU-0039, XTPU-0040, XTPU-0041 | Replace the hard-coded catalog with a modular workload plug-in architecture; the related items define and deliver the contract, registry, migration, lifecycle, safety boundary, low-light workload, and developer tooling. |

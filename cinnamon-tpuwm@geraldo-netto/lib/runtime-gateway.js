@@ -2,6 +2,7 @@
 
 const Domain = require("./domain.js");
 const FailureReporter = require("./failure-reporter.js");
+const SnapshotValidator = require("./snapshot-validator.js");
 
 const MAX_SNAPSHOT_BYTES = 1024 * 1024;
 const SNAPSHOT_READ_FAILURE = "snapshot-read";
@@ -24,18 +25,37 @@ function byteLength(text) {
     return length;
 }
 
-function parseSnapshotDocument(text, nowMs, staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS) {
+function parseSnapshotDocument(
+    text,
+    nowMs,
+    snapshotValidator,
+    staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS,
+) {
     if (typeof text !== "string") {
         return Domain.unavailableSnapshot("Runtime snapshot is not text", nowMs, "invalid");
     }
     if (byteLength(text) > MAX_SNAPSHOT_BYTES) {
         return Domain.unavailableSnapshot("Runtime snapshot exceeds 1 MiB", nowMs, "invalid");
     }
+    let candidate;
     try {
-        return Domain.normalizeSnapshot(JSON.parse(text), nowMs, staleAfterMs);
+        candidate = JSON.parse(text);
     } catch {
         return Domain.unavailableSnapshot("Runtime snapshot contains invalid JSON", nowMs, "invalid");
     }
+    try {
+        const report = SnapshotValidator.validateSnapshot(snapshotValidator, candidate);
+        if (!report.valid) {
+            return Domain.unavailableSnapshot(
+                "Runtime snapshot does not match the version 1 schema",
+                nowMs,
+                "invalid",
+            );
+        }
+    } catch {
+        return Domain.unavailableSnapshot("Runtime snapshot validation failed", nowMs, "invalid");
+    }
+    return Domain.normalizeSnapshot(candidate, nowMs, staleAfterMs);
 }
 
 class RuntimeSnapshotGateway {
@@ -43,6 +63,7 @@ class RuntimeSnapshotGateway {
         readText,
         detectDevice,
         path,
+        snapshotValidator,
         warningReporter,
         clock = Date,
         staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS,
@@ -61,6 +82,7 @@ class RuntimeSnapshotGateway {
         this._path = String(path || "");
         this._clock = clock;
         this._staleAfterMs = Domain.normalizeStaleAfterMs(staleAfterMs);
+        this._snapshotValidator = SnapshotValidator.requireSnapshotValidator(snapshotValidator);
         this._warnings = FailureReporter.requireFailureReporter(warningReporter, "runtime warning");
     }
 
@@ -83,8 +105,15 @@ class RuntimeSnapshotGateway {
                 "invalid",
             );
         }
-        if (typeof text === "string" && text.trim() !== "") {
-            return parseSnapshotDocument(text, nowMs, this._staleAfterMs);
+        const snapshotIsMissing = text === null;
+        const snapshotIsEmpty = typeof text === "string" && text.trim() === "";
+        if (!snapshotIsMissing && !snapshotIsEmpty) {
+            return parseSnapshotDocument(
+                text,
+                nowMs,
+                this._snapshotValidator,
+                this._staleAfterMs,
+            );
         }
         try {
             const snapshot = Domain.probeSnapshot(

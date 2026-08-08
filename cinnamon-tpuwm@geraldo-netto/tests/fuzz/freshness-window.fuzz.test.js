@@ -6,6 +6,7 @@ const test = require("node:test");
 const Domain = require("../../lib/domain.js");
 const FailureBackoff = require("../../lib/failure-log-backoff.js");
 const Runtime = require("../../lib/runtime-gateway.js");
+const RuntimeSchema = require("../../lib/runtime-snapshot-schema-validator.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -22,7 +23,7 @@ function runtimeDocument(ageMs) {
         version: Domain.SNAPSHOT_VERSION,
         generatedAt: NOW - ageMs,
         device: {available: true, name: "Coral USB", kind: "usb"},
-        metrics: {},
+        metrics: {load: null, queueDepth: 0, runningProfiles: 0},
         profiles: {},
         alerts: [],
     };
@@ -64,6 +65,7 @@ test("fuzz: non-finite windows expire old snapshots through every adapter path",
             path: "/run/tpuwm.json",
             readText: () => JSON.stringify(document),
             detectDevice: () => null,
+            snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
             warningReporter: new FailureBackoff.FailureWarningBackoff({logger: {warn() {}}}),
         });
         assert.equal(gateway.read().stale, true);

@@ -6,6 +6,7 @@ const test = require("node:test");
 const Domain = require("../../lib/domain.js");
 const FailureBackoff = require("../../lib/failure-log-backoff.js");
 const Runtime = require("../../lib/runtime-gateway.js");
+const RuntimeSchema = require("../../lib/runtime-snapshot-schema-validator.js");
 
 function generator(seed) {
     let state = seed >>> 0;
@@ -62,10 +63,15 @@ test("fuzz: normalizers never throw or leak unknown profile keys", () => {
 
 test("fuzz: document parsing fails closed for arbitrary strings", () => {
     const random = generator(0x434f5241);
+    const snapshotValidator = new RuntimeSchema.RuntimeSnapshotSchemaValidator();
     for (let index = 0; index < 3000; index += 1) {
         const value = arbitrary(random);
         const text = typeof value === "string" ? value : JSON.stringify(value);
-        const snapshot = Runtime.parseSnapshotDocument(text, 1_700_000_000_000);
+        const snapshot = Runtime.parseSnapshotDocument(
+            text,
+            1_700_000_000_000,
+            snapshotValidator,
+        );
         assert.equal(typeof snapshot.device.available, "boolean");
         assert.equal(Array.isArray(snapshot.alerts), true);
         assert.equal(Number.isFinite(snapshot.generatedAt), true);

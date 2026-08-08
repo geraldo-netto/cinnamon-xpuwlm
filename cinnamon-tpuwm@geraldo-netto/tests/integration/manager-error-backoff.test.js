@@ -6,6 +6,7 @@ const test = require("node:test");
 const Manager = require("../../lib/manager.js");
 const FailureBackoff = require("../../lib/failure-log-backoff.js");
 const Runtime = require("../../lib/runtime-gateway.js");
+const RuntimeSchema = require("../../lib/runtime-snapshot-schema-validator.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -18,6 +19,7 @@ test("manager polling integrates runtime state with bounded render failures", ()
         clock: {now: () => nowMs},
         readText: () => "",
         detectDevice: () => ({available: true, name: "TPU", kind: "usb"}),
+        snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter,
     });
     const logger = {warn() {}, error: (message) => errors.push(message)};

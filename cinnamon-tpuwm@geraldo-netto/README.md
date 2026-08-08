@@ -21,14 +21,20 @@ in text, so meaning never depends on color alone.
 
 ## Runtime boundary
 
-A trusted local workload service may atomically publish `~/.local/state/tpu-workload-manager/state.json`. The accepted version 1 contract is defined by `runtime-snapshot.schema.json`. The applet only reads and validates this file; it never executes its content.
+A trusted local workload service may atomically publish
+`~/.local/state/tpu-workload-manager/state.json`. The accepted version 1
+contract is defined by `runtime-snapshot.schema.json`. The applet validates the
+complete document before normalizing or displaying any runtime field; it never
+executes its content.
 
 If no snapshot exists, the applet probes for Coral USB runtime
 (`18d1:9302`), Coral USB DFU (`1a6e:089a`), and PCIe (`/dev/apex_*`)
 devices and reports device-only state. USB authorization uses those exact
-vendor/product pairs; mixed pairs are rejected. Missing, malformed, stale,
-oversized, or unsupported snapshots fail closed into an explicit
-unavailable/recovery state.
+vendor/product pairs; mixed pairs are rejected. Missing or empty snapshot
+content enables this trusted local probe. A present snapshot that is malformed,
+stale, oversized, unsupported, missing a required field, contains an unknown
+field, or violates a type or bound fails closed into an explicit
+unavailable/recovery state and never falls back to a device-only probe.
 
 ## Local quality gates
 

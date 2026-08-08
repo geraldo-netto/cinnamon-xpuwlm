@@ -6,11 +6,16 @@ const test = require("node:test");
 const Domain = require("../../lib/domain.js");
 const FailureBackoff = require("../../lib/failure-log-backoff.js");
 const Runtime = require("../../lib/runtime-gateway.js");
+const RuntimeSchema = require("../../lib/runtime-snapshot-schema-validator.js");
 
 const NOW = 1_700_000_000_000;
 
 function warningReporter(logger = {warn() {}}) {
     return new FailureBackoff.FailureWarningBackoff({logger});
+}
+
+function snapshotValidator() {
+    return new RuntimeSchema.RuntimeSnapshotSchemaValidator();
 }
 
 function validSnapshot() {
@@ -29,15 +34,44 @@ test("UTF-8 byte counting is runtime-neutral", () => {
     assert.equal(Runtime.byteLength("é"), 2);
     assert.equal(Runtime.byteLength("€"), 3);
     assert.equal(Runtime.byteLength("😀"), 4);
+    assert.equal(Runtime.byteLength("\u007f"), 1);
+    assert.equal(Runtime.byteLength("\u07ff"), 2);
+    assert.equal(Runtime.byteLength("\uffff"), 3);
 });
 
 test("snapshot document parser rejects non-text, oversized, and malformed data", () => {
-    assert.match(Runtime.parseSnapshotDocument(null, NOW).device.reason, /not text/);
-    assert.match(Runtime.parseSnapshotDocument("x".repeat(Runtime.MAX_SNAPSHOT_BYTES + 1), NOW).device.reason, /exceeds/);
-    assert.match(Runtime.parseSnapshotDocument("{", NOW).device.reason, /invalid JSON/);
-    const parsed = Runtime.parseSnapshotDocument(JSON.stringify(validSnapshot()), NOW);
+    const validator = snapshotValidator();
+    assert.match(Runtime.parseSnapshotDocument(null, NOW, validator).device.reason, /not text/);
+    assert.match(Runtime.parseSnapshotDocument(
+        "x".repeat(Runtime.MAX_SNAPSHOT_BYTES + 1),
+        NOW,
+        validator,
+    ).device.reason, /exceeds/);
+    assert.match(Runtime.parseSnapshotDocument(
+        "x".repeat(Runtime.MAX_SNAPSHOT_BYTES),
+        NOW,
+        validator,
+    ).device.reason, /invalid JSON/u);
+    assert.match(Runtime.parseSnapshotDocument("{", NOW, validator).device.reason, /invalid JSON/);
+    const parsed = Runtime.parseSnapshotDocument(JSON.stringify(validSnapshot()), NOW, validator);
     assert.equal(parsed.source, "runtime");
     assert.equal(parsed.metrics.queueDepth, 4);
+
+    assert.match(Runtime.parseSnapshotDocument(
+        JSON.stringify({...validSnapshot(), extra: true}),
+        NOW,
+        validator,
+    ).device.reason, /does not match/u);
+    assert.match(Runtime.parseSnapshotDocument(
+        JSON.stringify(validSnapshot()),
+        NOW,
+        {validate() { throw new Error("validator unavailable"); }},
+    ).device.reason, /validation failed/u);
+    assert.match(Runtime.parseSnapshotDocument(
+        JSON.stringify(validSnapshot()),
+        NOW,
+        {validate: () => true},
+    ).device.reason, /validation failed/u);
 });
 
 test("gateway validates dependencies", () => {
@@ -45,11 +79,13 @@ test("gateway validates dependencies", () => {
         readText() {},
         detectDevice() {},
         path: "/tmp/state",
+        snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter(),
     };
     assert.throws(() => new Runtime.RuntimeSnapshotGateway({...base, readText: null}), /reader/);
     assert.throws(() => new Runtime.RuntimeSnapshotGateway({...base, detectDevice: null}), /detector/);
     assert.throws(() => new Runtime.RuntimeSnapshotGateway({...base, clock: {}}), /clock/);
+    assert.throws(() => new Runtime.RuntimeSnapshotGateway({...base, snapshotValidator: {}}), /validator/);
     assert.throws(() => new Runtime.RuntimeSnapshotGateway({...base, warningReporter: {}}), /reporter/);
 });
 
@@ -142,6 +178,7 @@ test("gateway prefers a non-empty runtime document", () => {
             probes += 1;
             return {};
         },
+        snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter(),
     });
     assert.equal(gateway.read().source, "runtime");
@@ -158,12 +195,38 @@ test("gateway probes only when documents are absent", () => {
             probes.push(forceDeviceDetection);
             return {available: true, name: "Coral", kind: "usb"};
         },
+        snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter(),
     });
     assert.equal(gateway.read().source, "probe");
     assert.equal(gateway.read(null).source, "probe");
     assert.equal(gateway.read({forceDeviceDetection: true}).source, "probe");
     assert.deepEqual(probes, [false, false, true]);
+});
+
+test("gateway rejects present non-text documents without probing", () => {
+    const documents = [undefined, false, 0, 42, {}, []];
+    let index = 0;
+    let probes = 0;
+    const gateway = new Runtime.RuntimeSnapshotGateway({
+        path: "/run/tpuwm.json",
+        clock: {now: () => NOW},
+        readText: () => documents[index],
+        detectDevice() {
+            probes += 1;
+            return {available: true, name: "Coral", kind: "usb"};
+        },
+        snapshotValidator: snapshotValidator(),
+        warningReporter: warningReporter(),
+    });
+
+    for (index = 0; index < documents.length; index += 1) {
+        const snapshot = gateway.read();
+        assert.equal(snapshot.source, "invalid");
+        assert.equal(snapshot.device.available, false);
+        assert.match(snapshot.device.reason, /not text/u);
+    }
+    assert.equal(probes, 0);
 });
 
 test("gateway fails closed and logs runtime read failures", () => {
@@ -179,6 +242,7 @@ test("gateway fails closed and logs runtime read failures", () => {
             probes += 1;
             return {available: true, name: "Coral", kind: "usb"};
         },
+        snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter({warn: (message) => warnings.push(message)}),
     });
     const result = gateway.read();
@@ -197,6 +261,7 @@ test("gateway fails closed when device probing throws", () => {
         detectDevice() {
             throw new Error("denied");
         },
+        snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter({warn: (message) => warnings.push(message)}),
     });
     const result = gateway.read();
@@ -227,6 +292,7 @@ test("gateway backs off read and probe warnings independently", () => {
             }
             return {available: false};
         },
+        snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter({warn: (message) => warnings.push(message)}),
     });
 
@@ -259,6 +325,7 @@ test("gateway silent reporter safely absorbs fallback failures", () => {
         detectDevice() { throw new Error("denied"); },
         path: "/missing",
         clock: {now: () => NOW},
+        snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter(),
     });
     const result = gateway.read();

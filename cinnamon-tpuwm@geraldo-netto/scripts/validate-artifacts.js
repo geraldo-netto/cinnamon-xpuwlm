@@ -1,6 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const Ajv2020 = require("ajv/dist/2020").default;
 const childProcess = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -34,6 +35,7 @@ function validateJsonArtifacts() {
     assert.equal(metadata["max-instances"], 1);
     assert.ok(metadata["cinnamon-version"].includes("6.6"));
     assert.equal(schema.properties.version.const, Domain.SNAPSHOT_VERSION);
+    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(schema));
     assert.equal(settings["show-panel-label"].default, false);
     assert.deepEqual(
         Object.keys(settings["profile-state"].default.profiles),
@@ -41,6 +43,7 @@ function validateJsonArtifacts() {
     );
     assert.equal(packageJson.scripts.test.includes("test:mutation"), true);
     assert.equal(packageJson.scripts.test.includes("test:visual"), true);
+    assert.equal(packageJson.devDependencies.ajv, "8.18.0");
     assert.equal(packageJson.scripts["test:visual"], "node --test tests/visual/*.test.js");
     assert.equal(packageJson.scripts["test:mutation-target"].includes("tests/visual"), false);
     assert.equal(stryker.thresholds.break >= 80, true);

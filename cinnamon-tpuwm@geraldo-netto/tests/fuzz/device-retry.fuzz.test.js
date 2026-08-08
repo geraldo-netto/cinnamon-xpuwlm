@@ -7,6 +7,7 @@ const Cinnamon = require("../../lib/cinnamon-runtime.js");
 const FailureBackoff = require("../../lib/failure-log-backoff.js");
 const Manager = require("../../lib/manager.js");
 const Runtime = require("../../lib/runtime-gateway.js");
+const RuntimeSchema = require("../../lib/runtime-snapshot-schema-validator.js");
 
 const CACHE_MS = 100;
 
@@ -51,6 +52,7 @@ test("fuzz: explicit retries observe current hardware across cached state transi
         path: "/missing/runtime.json",
         readText: () => null,
         detectDevice: (forceRefresh) => detector.detect(forceRefresh),
+        snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: new FailureBackoff.FailureWarningBackoff({logger}),
     });
     const manager = new Manager.WorkloadManager({
