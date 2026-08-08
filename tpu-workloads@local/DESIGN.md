@@ -1,8 +1,26 @@
 # TPU Workload Manager design proposal
 
-Status: visual and interaction prototype only. No Cinnamon applet, inference service, model runner, scheduler, or hardware control is implemented yet.
+Status: reference visual and interaction prototype. The production Cinnamon
+applet is implemented in [`../cinnamon-tpuwm@geraldo-netto/`](../cinnamon-tpuwm@geraldo-netto/README.md);
+the prototype files in this directory are design artifacts, not executable
+applet code. No inference service, model runner, scheduler, or hardware-control
+service is implemented in this repository.
 
-## Approval screens
+## Current production boundary
+
+The production applet presents device and workload state, persists local
+profile intent and contention weights, provides pause/resume and recovery UX,
+validates a trusted local runtime snapshot, and falls back to local Coral device
+discovery when no snapshot exists. It does not execute models, schedule jobs, or
+claim that UI intent has been enforced by hardware. See the [production applet
+README](../cinnamon-tpuwm@geraldo-netto/README.md) for the current runtime
+contract, quality gates, and installation instructions.
+
+The profile taxonomy remains documented in [WORKLOADS.md](WORKLOADS.md). The
+screens below preserve the approved design direction and responsive references;
+live behavior is defined by the production applet.
+
+## Reference screens
 
 The panel prototype covers every primary navigation screen and critical recovery state:
 
@@ -66,7 +84,7 @@ Several requested cases share inputs, preprocessing, models, or actions. Profile
 - Expose model version, last successful run, confidence, latency, and failure reason.
 - Never delay backups because a disk model reports low risk.
 
-## Approval scope
+## Prototype review scope
 
 Approve or revise:
 

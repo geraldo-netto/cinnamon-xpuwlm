@@ -10,6 +10,11 @@ This document is application-neutral. It explains the hardware and software boun
 
 ## Documentation index
 
+- Product artifacts
+  - [Production Cinnamon applet](cinnamon-tpuwm@geraldo-netto/README.md) — current behavior, runtime boundary, quality gates, and installation
+  - [Reference UI/interaction design](tpu-workloads@local/DESIGN.md) — approved prototype rationale and states; not the live implementation
+  - [Consolidated workload profiles](tpu-workloads@local/WORKLOADS.md)
+  - [Prototype screen gallery](tpu-workloads@local/mockup/screens/all-screens.png)
 - [Fundamentals and execution model](docs/fundamentals.md)
   - [Documentation and maintenance status](docs/fundamentals.md#documentation-and-maintenance-status)
   - [How to read the evidence](docs/fundamentals.md#how-to-read-the-evidence)
@@ -43,4 +48,12 @@ The Edge TPU is a narrow but capable accelerator: it executes the compatible, co
 
 The evidence-based application catalog is therefore a set of mappings, not promises, while the separate speculative idea bank is intentionally a source-free brainstorming inventory. A use case is justified only when its model compiles well, quantized accuracy remains acceptable, the host-side work is controlled, the complete pipeline beats a CPU baseline, operational risk is bounded, and the archived software stack can be maintained for the intended lifetime.
 
-For Cinnamon, use a thin asynchronous applet as a client of a supervised inference service. The service—not the panel UI—should own the Edge TPU runtime, compiled models, input validation, per-workload queues, scheduling, inference, accounting, and recovery. It can accept many jobs concurrently, but it should serialize dispatch to each physical TPU. Weighted userspace scheduling can approximate shares such as 25/25/25/25 under contention; it cannot physically partition one TPU or provide hard isolation.
+The repository now includes the production Cinnamon panel applet. It presents
+device and workload state, persists local profile intent, and reads a validated
+snapshot from a trusted local service; it does not contain the inference service
+or directly enforce workload policy. That service—not the panel UI—should own
+the Edge TPU runtime, compiled models, input validation, per-workload queues,
+scheduling, inference, accounting, and recovery. It can accept many jobs
+concurrently, but it should serialize dispatch to each physical TPU. Weighted
+userspace scheduling can approximate shares such as 25/25/25/25 under
+contention; it cannot physically partition one TPU or provide hard isolation.
