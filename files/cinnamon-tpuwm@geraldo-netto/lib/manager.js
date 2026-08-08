@@ -227,6 +227,7 @@ class WorkloadManager {
             paused: this._portfolio.paused,
             profiles: this._portfolio.list(snapshot.profiles),
             device: {...snapshot.device},
+            health: {...snapshot.health},
             metrics: {...snapshot.metrics},
             alerts: snapshot.alerts.map((alert) => ({...alert})),
             attentionCount: activeAlerts.length,

@@ -373,7 +373,7 @@ test("runtime gateway factory injects a supplied warning reporter port", () => {
         deviceDetector: {detect: () => ({available: false})},
     });
 
-    assert.equal(gateway.read().source, "invalid");
+    assert.equal(gateway.read().source, "error");
     assert.equal(reports.length, 1);
     assert.match(reports[0][1], /Could not read/);
 });

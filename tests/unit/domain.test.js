@@ -111,12 +111,14 @@ test("runtime fields preserve unknown measurements and reject unsafe content", (
     });
     assert.deepEqual(Domain.normalizeDevice(null), {
         available: false,
+        state: "absent",
         name: "No TPU detected",
         kind: "unknown",
         reason: "Device state is missing",
     });
     assert.deepEqual(Domain.normalizeDevice({available: true, name: 4, kind: "future", reason: 7}), {
         available: true,
+        state: "present",
         name: "TPU accelerator",
         kind: "unknown",
         reason: "",

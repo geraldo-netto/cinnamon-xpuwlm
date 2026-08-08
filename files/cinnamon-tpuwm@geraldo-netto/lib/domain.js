@@ -96,6 +96,27 @@ const PROFILE_STATUSES = new Set([
 const ALERT_SEVERITIES = new Set(["advisory", "warning", "critical"]);
 const DEVICE_KINDS = new Set(["usb", "pcie", "unknown"]);
 
+// Device presence and runtime availability are independent facts. A snapshot
+// that cannot be read says nothing about the accelerator, so device health
+// stays `unknown` instead of claiming the device is absent.
+const DEVICE_STATES = new Set(["present", "absent", "unknown"]);
+const RUNTIME_STATES = new Set([
+    "connected",
+    "not-started",
+    "absent",
+    "stale",
+    "malformed",
+    "unreadable",
+    "probe-failed",
+]);
+const SOURCE_RUNTIME_STATES = Object.freeze({
+    fallback: "not-started",
+    invalid: "malformed",
+    error: "unreadable",
+    probe: "probe-failed",
+    runtime: "stale",
+});
+
 function isPlainObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -207,14 +228,39 @@ function normalizeProfileRuntime(candidate) {
 
 function normalizeDevice(candidate) {
     if (!isPlainObject(candidate)) {
-        return {available: false, name: "No TPU detected", kind: "unknown", reason: "Device state is missing"};
+        return {
+            available: false,
+            state: "absent",
+            name: "No TPU detected",
+            kind: "unknown",
+            reason: "Device state is missing",
+        };
     }
     const available = candidate.available === true;
     return {
         available,
+        state: available ? "present" : "absent",
         name: safeText(candidate.name, 120, available ? "TPU accelerator" : "No TPU detected"),
         kind: DEVICE_KINDS.has(candidate.kind) ? candidate.kind : "unknown",
         reason: safeText(candidate.reason, 240, available ? "" : "Device unavailable"),
+    };
+}
+
+function unknownDevice(detail) {
+    return {
+        available: false,
+        state: "unknown",
+        name: "TPU state unknown",
+        kind: "unknown",
+        reason: detail,
+    };
+}
+
+function health(device, runtime, detail) {
+    return {
+        device: DEVICE_STATES.has(device) ? device : "unknown",
+        runtime: RUNTIME_STATES.has(runtime) ? runtime : "unreadable",
+        detail: safeText(detail, 240),
     };
 }
 
@@ -252,18 +298,15 @@ function normalizeAlert(candidate, nowMs) {
 }
 
 function unavailableSnapshot(reason, nowMs, source = "fallback") {
+    const detail = safeText(reason, 240, "Runtime state is unknown");
     return {
         version: SNAPSHOT_VERSION,
         generatedAt: nowMs,
         stale: false,
         source,
-        device: {
-            available: false,
-            name: "No TPU detected",
-            kind: "unknown",
-            reason: safeText(reason, 240, "Device unavailable"),
-        },
-        metrics: {load: null, queueDepth: 0, runningProfiles: 0},
+        health: health("unknown", SOURCE_RUNTIME_STATES[source], detail),
+        device: unknownDevice(detail),
+        metrics: {load: null, queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
     };
@@ -310,8 +353,13 @@ function probeSnapshot(device, nowMs) {
         generatedAt: nowMs,
         stale: false,
         source: "probe",
+        health: health(
+            normalizedDevice.state,
+            "absent",
+            "No runtime service is publishing a snapshot",
+        ),
         device: normalizedDevice,
-        metrics: {load: null, queueDepth: 0, runningProfiles: 0},
+        metrics: {load: null, queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
     };
@@ -352,12 +400,14 @@ function normalizeSnapshot(candidate, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_
         }
     }
 
+    const device = normalizeDevice(candidate.device);
     return {
         version: SNAPSHOT_VERSION,
         generatedAt,
         stale: false,
         source: "runtime",
-        device: normalizeDevice(candidate.device),
+        health: health(device.state, "connected", device.available ? "" : device.reason),
+        device,
         metrics: normalizeMetrics(candidate.metrics),
         profiles,
         alerts,
@@ -441,6 +491,7 @@ class WorkloadPortfolio {
 module.exports = {
     ALERT_SEVERITIES,
     DEFAULT_STALE_AFTER_MS,
+    DEVICE_STATES,
     MAX_ALERTS,
     MAX_CLOCK_SKEW_MS,
     MAX_WEIGHT,
@@ -449,6 +500,7 @@ module.exports = {
     PROFILE_DEFINITIONS,
     PROFILE_IDS,
     PROFILE_STATUSES,
+    RUNTIME_STATES,
     SNAPSHOT_VERSION,
     WorkloadPortfolio,
     boundedInteger,
@@ -457,6 +509,7 @@ module.exports = {
     defaultProfileState,
     expireSnapshot,
     finiteNumber,
+    health,
     isPlainObject,
     isSnapshotExpired,
     isValidGeneratedAt,
@@ -473,4 +526,5 @@ module.exports = {
     snapshotExpiryDelayMs,
     staleSnapshot,
     unavailableSnapshot,
+    unknownDevice,
 };

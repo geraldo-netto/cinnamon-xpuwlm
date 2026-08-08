@@ -16,7 +16,8 @@ function state(overrides = {}) {
         selectedTab: "overview",
         paused: false,
         profiles,
-        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
+        device: {available: true, state: "present", name: "Coral USB", kind: "usb", reason: ""},
+        health: {device: "present", runtime: "connected", detail: ""},
         metrics: {load: 41.4, queueDepth: 2, runningProfiles: 1},
         alerts: [],
         attentionCount: 0,
@@ -197,15 +198,22 @@ test("view model groups profiles, separates alerts, and creates stable body key"
     assert.equal(model.activeAlerts.length, 1);
     assert.equal(model.resolvedAlerts.length, 1);
     assert.match(model.headerSubtitle, /Updated just now/);
-    assert.match(ViewModel.toViewModel(state({source: "probe"}), NOW).headerSubtitle, /Device-only monitoring/);
+    assert.match(
+        ViewModel.toViewModel(state({
+            source: "probe",
+            health: {device: "present", runtime: "absent", detail: ""},
+        }), NOW).headerSubtitle,
+        /Runtime absent/,
+    );
     assert.doesNotThrow(() => JSON.parse(model.bodyKey));
     const agedModel = ViewModel.toViewModel(state({alerts, attentionCount: 1}), NOW + 10_000);
     assert.notEqual(agedModel.bodyKey, model.bodyKey);
 
     const offline = ViewModel.toViewModel(state({
-        device: {available: false, name: "No TPU", kind: "unknown", reason: "Connect device"},
+        device: {available: false, state: "absent", name: "No TPU", kind: "unknown", reason: "Connect device"},
+        health: {device: "absent", runtime: "connected", detail: "Connect device"},
     }), NOW);
-    assert.equal(offline.device.status, "Unavailable");
+    assert.equal(offline.device.status, "No device");
     assert.equal(offline.showTabs, false);
     assert.match(offline.headerSubtitle, /Connect device/);
 });

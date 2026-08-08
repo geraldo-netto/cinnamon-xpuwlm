@@ -15,7 +15,8 @@ function state(overrides = {}) {
         selectedTab: "overview",
         paused: false,
         profiles: new Domain.WorkloadPortfolio().list(),
-        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
+        device: {available: true, state: "present", name: "Coral USB", kind: "usb", reason: ""},
+        health: {device: "present", runtime: "connected", detail: ""},
         metrics: {load: 42, queueDepth: 0, runningProfiles: 1},
         alerts: [],
         attentionCount: 0,
@@ -31,17 +32,32 @@ test("regression: compact icon is default while every status keeps explicit text
     assert.equal(settings["show-panel-label"].default, false);
 
     const cases = [
-        [state(), "online"],
-        [state({attentionCount: 1}), "attention"],
-        [state({source: "probe"}), "detected"],
-        [state({paused: true}), "paused"],
-        [state({device: {available: false, reason: "Disconnected"}}), "unavailable"],
+        [state(), "online", "online"],
+        [state({attentionCount: 1}), "attention", "attention"],
+        [state({source: "probe", health: {device: "present", runtime: "absent", detail: ""}}), "detected", "detected"],
+        [state({paused: true}), "paused", "paused"],
+        [
+            state({
+                device: {available: false, state: "absent", reason: "Disconnected"},
+                health: {device: "absent", runtime: "connected", detail: "Disconnected"},
+            }),
+            "unavailable",
+            "unavailable",
+        ],
+        [
+            state({
+                device: {available: false, state: "unknown", reason: "Runtime snapshot is stale"},
+                health: {device: "unknown", runtime: "stale", detail: "Runtime snapshot is stale"},
+            }),
+            "unavailable",
+            "unknown",
+        ],
     ];
-    for (const [value, expectedStatus] of cases) {
+    for (const [value, expectedStatus, spokenStatus] of cases) {
         const panel = ViewModel.panelModel(value);
         assert.equal(panel.status, expectedStatus);
         assert.match(panel.tooltip, /^TPU Workload Manager — /u);
-        assert.match(panel.accessibleName, new RegExp(`^TPU Workload Manager, ${expectedStatus}:`, "u"));
+        assert.match(panel.accessibleName, new RegExp(`^TPU Workload Manager, ${spokenStatus}:`, "u"));
         assert.equal(
             fs.existsSync(path.join(ROOT, "icons", `tpuwm-status-${expectedStatus}-symbolic.svg`)),
             true,

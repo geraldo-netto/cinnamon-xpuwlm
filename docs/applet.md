@@ -81,6 +81,26 @@ stale, oversized, unsupported, missing a required field, contains an unknown
 field, or violates a type or bound fails closed into an explicit
 unavailable/recovery state and never falls back to a device-only probe.
 
+Device presence and runtime availability are modelled as independent facts.
+Every snapshot carries `health` with a device state (`present`, `absent`,
+`unknown`) and a runtime state (`connected`, `not-started`, `absent`, `stale`,
+`malformed`, `unreadable`, `probe-failed`).
+
+| Runtime state | Meaning |
+| --- | --- |
+| `connected` | A valid, fresh snapshot is being read |
+| `not-started` | Monitoring has not read anything yet |
+| `absent` | No runtime publishes a snapshot; device-only monitoring |
+| `stale` | The last snapshot passed its freshness deadline |
+| `malformed` | The document was read but failed contract validation |
+| `unreadable` | The document could not be read at all |
+| `probe-failed` | Local device discovery could not complete |
+
+A runtime problem never reports the device as absent: an unreadable, malformed,
+stale, or not-yet-started runtime leaves device health `unknown`, and load,
+queue depth, and running-profile counts read as `—` rather than as zero. Each
+runtime state renders its own recovery guidance and its own numbered steps.
+
 Displayed runtime state expires on its own freshness deadline rather than at the
 next poll. A connected snapshot reads as fresh for at most 15 seconds after its
 `generatedAt`; the applet arms a single-shot timer for that deadline, so a long

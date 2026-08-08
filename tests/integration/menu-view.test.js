@@ -24,7 +24,8 @@ function baseState(overrides = {}) {
         profiles: new Domain.WorkloadPortfolio().list({
             "hardware-health": {status: "running", queued: 2, detail: "sampling"},
         }),
-        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
+        device: {available: true, state: "present", name: "Coral USB", kind: "usb", reason: ""},
+        health: {device: "present", runtime: "connected", detail: ""},
         metrics: {load: 42, queueDepth: 2, runningProfiles: 1},
         alerts: [],
         attentionCount: 0,

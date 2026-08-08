@@ -246,7 +246,7 @@ test("gateway fails closed and logs runtime read failures", () => {
         warningReporter: warningReporter({warn: (message) => warnings.push(message)}),
     });
     const result = gateway.read();
-    assert.equal(result.source, "invalid");
+    assert.equal(result.source, "error");
     assert.equal(result.device.available, false);
     assert.equal(probes, 0);
     assert.match(warnings[0], /Could not read/);
@@ -296,9 +296,9 @@ test("gateway backs off read and probe warnings independently", () => {
         warningReporter: warningReporter({warn: (message) => warnings.push(message)}),
     });
 
-    assert.equal(gateway.read().source, "invalid");
+    assert.equal(gateway.read().source, "error");
     nowMs += 1;
-    assert.equal(gateway.read().source, "invalid");
+    assert.equal(gateway.read().source, "error");
     assert.equal(warnings.length, 1);
 
     readFails = false;
@@ -309,7 +309,7 @@ test("gateway backs off read and probe warnings independently", () => {
     assert.equal(warnings.length, 2);
 
     readFails = true;
-    assert.equal(gateway.read().source, "invalid");
+    assert.equal(gateway.read().source, "error");
     assert.equal(warnings.length, 3);
     readFails = false;
     probeFails = false;
@@ -330,5 +330,5 @@ test("gateway silent reporter safely absorbs fallback failures", () => {
     });
     const result = gateway.read();
     assert.equal(result.device.available, false);
-    assert.equal(result.source, "invalid");
+    assert.equal(result.source, "error");
 });

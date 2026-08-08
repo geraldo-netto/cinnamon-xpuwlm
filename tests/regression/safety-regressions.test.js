@@ -115,7 +115,7 @@ test("regression: warning backoff never hides failure state or overruns after cl
 
     for (let poll = 0; poll < 20; poll += 1) {
         const snapshot = gateway.read();
-        assert.equal(snapshot.source, "invalid");
+        assert.equal(snapshot.source, "error");
         assert.equal(snapshot.device.available, false);
         assert.match(snapshot.device.reason, /could not be read/);
         nowMs += 1000;
@@ -124,7 +124,7 @@ test("regression: warning backoff never hides failure state or overruns after cl
 
     nowMs = NOW - 1000;
     const rolledBackSnapshot = gateway.read();
-    assert.equal(rolledBackSnapshot.source, "invalid");
+    assert.equal(rolledBackSnapshot.source, "error");
     assert.equal(rolledBackSnapshot.device.available, false);
     assert.equal(warnings.length, 2);
     gateway.read();

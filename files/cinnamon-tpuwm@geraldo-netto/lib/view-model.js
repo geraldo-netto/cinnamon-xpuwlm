@@ -45,6 +45,128 @@ function severityText(severity) {
         : SEVERITY_LABELS[severity] || "none";
 }
 
+const DEVICE_STATUS_LABELS = Object.freeze({
+    present: "Device detected",
+    absent: "No device",
+    unknown: "Device unknown",
+});
+
+const RUNTIME_STATUS_LABELS = Object.freeze({
+    connected: "Online",
+    "not-started": "Starting",
+    absent: "Runtime absent",
+    stale: "Runtime stale",
+    malformed: "Runtime malformed",
+    unreadable: "Runtime unreadable",
+    "probe-failed": "Detection failed",
+});
+
+// Specific telemetry and recovery guidance per runtime state. Nothing here
+// invents an operational value: what is unknown is presented as unknown.
+const RUNTIME_RECOVERY = Object.freeze({
+    "not-started": Object.freeze({
+        kicker: "Starting",
+        title: "Monitoring has not started",
+        description: "No runtime state has been read yet. Local profile intent is unchanged.",
+        steps: Object.freeze([
+            Object.freeze(["1", "Wait for the first read", "Monitoring starts with the applet and repeats on the refresh interval."]),
+            Object.freeze(["2", "Check the runtime path", "Open the settings and confirm the runtime state path."]),
+        ]),
+    }),
+    absent: Object.freeze({
+        kicker: "Runtime absent",
+        title: "No runtime service is publishing state",
+        description: "Device detection still works. Queue, load, and profile telemetry stay unknown until a runtime publishes a snapshot.",
+        steps: Object.freeze([
+            Object.freeze(["1", "Start the workload runtime", "A trusted local service must publish the snapshot document."]),
+            Object.freeze(["2", "Check the runtime path", "Confirm the configured runtime state path matches the service."]),
+        ]),
+    }),
+    stale: Object.freeze({
+        kicker: "Runtime stale",
+        title: "The runtime snapshot stopped updating",
+        description: "The last snapshot is older than its freshness deadline, so its values are no longer shown as current.",
+        steps: Object.freeze([
+            Object.freeze(["1", "Check the runtime service", "Confirm the service is running and still writing its snapshot."]),
+            Object.freeze(["2", "Check the clock", "A large clock change can also age a snapshot past its deadline."]),
+        ]),
+    }),
+    malformed: Object.freeze({
+        kicker: "Runtime malformed",
+        title: "The runtime snapshot failed validation",
+        description: "The document was read but rejected by the version 1 contract, so none of its values are displayed.",
+        steps: Object.freeze([
+            Object.freeze(["1", "Check the runtime version", "The service must publish the version 1 snapshot contract."]),
+            Object.freeze(["2", "Inspect the document", "Validate it against runtime-snapshot.schema.json."]),
+        ]),
+    }),
+    unreadable: Object.freeze({
+        kicker: "Runtime unreadable",
+        title: "The runtime snapshot could not be read",
+        description: "Reading the snapshot failed, so device and workload telemetry are unknown rather than assumed.",
+        steps: Object.freeze([
+            Object.freeze(["1", "Check permissions", "Confirm the current user can read the runtime state path."]),
+            Object.freeze(["2", "Check the path", "A missing directory or a replaced path object also fails the read."]),
+        ]),
+    }),
+    "probe-failed": Object.freeze({
+        kicker: "Detection failed",
+        title: "TPU device discovery failed",
+        description: "Local discovery could not complete, so device presence is unknown rather than reported as absent.",
+        steps: Object.freeze([
+            Object.freeze(["1", "Check device access", "Confirm the current user can read the USB and PCIe device nodes."]),
+            Object.freeze(["2", "Retry detection", "Discovery runs again on request."]),
+        ]),
+    }),
+    connected: Object.freeze({
+        kicker: "Connection required",
+        title: "TPU accelerator unavailable",
+        description: "Profiles remain saved locally. No data, authorization, backup, or CPU-fallback policy is changed.",
+        steps: Object.freeze([
+            Object.freeze(["1", "Check the connection", "Reconnect the accelerator directly to a supported USB or PCIe interface."]),
+            Object.freeze(["2", "Check device access", "Confirm the current user can access the Edge TPU runtime."]),
+        ]),
+    }),
+});
+
+function formatCount(value) {
+    return Number.isFinite(value) ? `${value}` : "—";
+}
+
+function healthOf(state) {
+    return state.health || {device: "unknown", runtime: "unreadable", detail: ""};
+}
+
+function deviceStatusText(state) {
+    const health = healthOf(state);
+    return health.runtime === "connected" && health.device === "present"
+        ? RUNTIME_STATUS_LABELS.connected
+        : DEVICE_STATUS_LABELS[health.device] || DEVICE_STATUS_LABELS.unknown;
+}
+
+function runtimeStatusText(state) {
+    const health = healthOf(state);
+    return RUNTIME_STATUS_LABELS[health.runtime] || RUNTIME_STATUS_LABELS.unreadable;
+}
+
+function recoveryModel(state) {
+    const health = healthOf(state);
+    const guidance = RUNTIME_RECOVERY[health.runtime] || RUNTIME_RECOVERY.connected;
+    const detail = health.detail || state.device.reason;
+    return {
+        kicker: guidance.kicker,
+        title: guidance.title,
+        description: guidance.description,
+        steps: guidance.steps
+            .map(([number, title, description]) => ({number, title, description}))
+            .concat({
+                number: `${guidance.steps.length + 1}`,
+                title: "Retry now",
+                description: detail,
+            }),
+    };
+}
+
 function formatLoad(value) {
     return typeof value === "number" && Number.isFinite(value)
         ? `${Math.round(value)}%`
@@ -96,12 +218,17 @@ function attentionReviewText(count) {
 
 function panelModel(state) {
     if (!state.device.available) {
+        const health = healthOf(state);
+        const unknown = health.device === "unknown";
+        const reason = unknown
+            ? `${runtimeStatusText(state).toLowerCase()}; device state unknown`
+            : state.device.reason;
         return {
-            accessibleName: `TPU Workload Manager, unavailable: ${state.device.reason}`,
-            label: "TPU Offline",
+            accessibleName: `TPU Workload Manager, ${unknown ? "unknown" : "unavailable"}: ${reason}`,
+            label: unknown ? "TPU Unknown" : "TPU Offline",
             status: "unavailable",
             severity: null,
-            tooltip: `TPU Workload Manager — ${state.device.reason}`,
+            tooltip: `TPU Workload Manager — ${reason}`,
         };
     }
     if (state.paused) {
@@ -153,8 +280,8 @@ function effectiveScreen(state) {
 function metricModels(state) {
     return [
         {label: "TPU load", value: state.paused ? "0%" : formatLoad(state.metrics.load)},
-        {label: "Queue", value: `${state.metrics.queueDepth}`, suffix: state.paused ? "held" : "jobs"},
-        {label: "Running", value: state.paused ? "0" : `${state.metrics.runningProfiles}`, suffix: "profiles"},
+        {label: "Queue", value: formatCount(state.metrics.queueDepth), suffix: state.paused ? "held" : "jobs"},
+        {label: "Running", value: state.paused ? "0" : formatCount(state.metrics.runningProfiles), suffix: "profiles"},
         state.paused
             ? {label: "State", value: "Paused", tone: "attention"}
             : {
@@ -209,9 +336,7 @@ function toViewModel(state, nowMs = Date.now()) {
     const resolvedAlerts = state.alerts
         .filter((alert) => alert.resolved)
         .map((alert) => alertModel(alert, state.profiles, nowMs));
-    const deviceStatus = state.device.available
-        ? (state.source === "probe" ? "Device detected" : "Online")
-        : "Unavailable";
+    const deviceStatus = deviceStatusText(state);
     return {
         screen,
         policyPaused: state.paused === true,
@@ -219,8 +344,8 @@ function toViewModel(state, nowMs = Date.now()) {
         showTabs: Manager.TABS.includes(screen),
         device: {...state.device, status: deviceStatus},
         headerSubtitle: state.device.available
-            ? `${state.device.name} · ${state.source === "probe" ? "Device-only monitoring" : "Runtime connected"} · Updated ${formatRelativeTime(state.generatedAt, nowMs)}`
-            : `${state.device.reason} · Last update ${formatRelativeTime(state.generatedAt, nowMs)}`,
+            ? `${state.device.name} · ${runtimeStatusText(state)} · Updated ${formatRelativeTime(state.generatedAt, nowMs)}`
+            : `${runtimeStatusText(state)} · ${healthOf(state).detail || state.device.reason} · Last update ${formatRelativeTime(state.generatedAt, nowMs)}`,
         panel: panelModel(state),
         metrics: metricModels(state),
         enabledGroups: groupProfiles(enabledProfiles),
@@ -233,11 +358,15 @@ function toViewModel(state, nowMs = Date.now()) {
         highestSeverityText: severityText(highestActiveSeverity(state.alerts)),
         stale: state.stale,
         source: state.source,
+        health: {...healthOf(state)},
+        runtimeStatus: runtimeStatusText(state),
+        recovery: recoveryModel(state),
         bodyKey: JSON.stringify({
             screen,
             profiles: state.profiles,
             alerts: activeAlerts.concat(resolvedAlerts),
             device: state.device,
+            health: healthOf(state),
             paused: state.paused,
         }),
     };
@@ -245,9 +374,16 @@ function toViewModel(state, nowMs = Date.now()) {
 
 module.exports = {
     ALERT_SEVERITY_PRIORITY,
+    DEVICE_STATUS_LABELS,
+    RUNTIME_RECOVERY,
+    RUNTIME_STATUS_LABELS,
     SEVERITY_LABELS,
     STATUS_LABELS,
     alertModel,
+    deviceStatusText,
+    formatCount,
+    recoveryModel,
+    runtimeStatusText,
     attentionReviewText,
     compareActiveAlerts,
     effectiveScreen,

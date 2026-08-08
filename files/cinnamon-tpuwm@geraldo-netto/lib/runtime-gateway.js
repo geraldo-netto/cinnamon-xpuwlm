@@ -102,7 +102,7 @@ class RuntimeSnapshotGateway {
             return Domain.unavailableSnapshot(
                 "Runtime snapshot could not be read",
                 nowMs,
-                "invalid",
+                "error",
             );
         }
         const snapshotIsMissing = text === null;

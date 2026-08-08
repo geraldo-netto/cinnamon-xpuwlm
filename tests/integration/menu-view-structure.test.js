@@ -24,7 +24,8 @@ function baseState(overrides = {}) {
         profiles: new Domain.WorkloadPortfolio().list({
             "hardware-health": {status: "running", queued: 2, detail: "sampling"},
         }),
-        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
+        device: {available: true, state: "present", name: "Coral USB", kind: "usb", reason: ""},
+        health: {device: "present", runtime: "connected", detail: ""},
         metrics: {load: 42, queueDepth: 2, runningProfiles: 1},
         alerts: [],
         attentionCount: 0,
@@ -141,7 +142,8 @@ test("every symbolic icon declares a name, type, size, and placement", () => {
 test("the unavailable screen renders every numbered recovery step", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState({
-        device: {available: false, name: "No TPU", kind: "unknown", reason: "Reconnect device"},
+        device: {available: false, state: "absent", name: "No TPU", kind: "unknown", reason: "Reconnect device"},
+        health: {device: "absent", runtime: "connected", detail: "Reconnect device"},
     }), NOW));
 
     assert.deepEqual(labelsWithClass(root, "tpuwm-step-number"), ["1", "2", "3"]);
@@ -150,7 +152,7 @@ test("the unavailable screen renders every numbered recovery step", () => {
     assert.deepEqual(rows.map((row) => labelsWithClass(row, "tpuwm-profile-title")), [
         ["Check the connection"],
         ["Check device access"],
-        ["Retry detection"],
+        ["Retry now"],
     ]);
     assert.deepEqual(
         rows.map((row) => labelsWithClass(row, "tpuwm-profile-description").length),

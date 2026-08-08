@@ -109,13 +109,15 @@ test("fallback, probe, and stale snapshots carry the complete snapshot structure
         generatedAt: NOW,
         stale: false,
         source: "error",
+        health: {device: "unknown", runtime: "unreadable", detail: "Disconnected"},
         device: {
             available: false,
-            name: "No TPU detected",
+            state: "unknown",
+            name: "TPU state unknown",
             kind: "unknown",
             reason: "Disconnected",
         },
-        metrics: {load: null, queueDepth: 0, runningProfiles: 0},
+        metrics: {load: null, queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
     });
@@ -125,8 +127,13 @@ test("fallback, probe, and stale snapshots carry the complete snapshot structure
         generatedAt: NOW,
         stale: false,
         source: "probe",
-        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
-        metrics: {load: null, queueDepth: 0, runningProfiles: 0},
+        health: {
+            device: "present",
+            runtime: "absent",
+            detail: "No runtime service is publishing a snapshot",
+        },
+        device: {available: true, state: "present", name: "Coral USB", kind: "usb", reason: ""},
+        metrics: {load: null, queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
     });
@@ -136,13 +143,15 @@ test("fallback, probe, and stale snapshots carry the complete snapshot structure
         generatedAt: NOW,
         stale: true,
         source: "runtime",
+        health: {device: "unknown", runtime: "stale", detail: "Runtime snapshot is stale"},
         device: {
             available: false,
-            name: "No TPU detected",
+            state: "unknown",
+            name: "TPU state unknown",
             kind: "unknown",
             reason: "Runtime snapshot is stale",
         },
-        metrics: {load: null, queueDepth: 0, runningProfiles: 0},
+        metrics: {load: null, queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
     });
@@ -151,6 +160,7 @@ test("fallback, probe, and stale snapshots carry the complete snapshot structure
 test("normalized runtime fragments expose exactly their contract fields", () => {
     assert.deepEqual(Domain.normalizeDevice(null), {
         available: false,
+        state: "absent",
         name: "No TPU detected",
         kind: "unknown",
         reason: "Device state is missing",
@@ -239,15 +249,17 @@ test("manager projections are complete and isolated from listener mutation", () 
 
     const state = manager.state();
     assert.deepEqual(Object.keys(state), [
-        "selectedTab", "paused", "profiles", "device", "metrics", "alerts",
+        "selectedTab", "paused", "profiles", "device", "health", "metrics", "alerts",
         "attentionCount", "stale", "source", "generatedAt",
     ]);
     assert.deepEqual(state.device, {
         available: true,
+        state: "present",
         name: "Coral USB",
         kind: "usb",
         reason: "",
     });
+    assert.deepEqual(state.health, {device: "present", runtime: "connected", detail: ""});
     assert.deepEqual(state.metrics, {load: 40, queueDepth: 3, runningProfiles: 1});
     assert.equal(state.profiles.length, Domain.PROFILE_DEFINITIONS.length);
     assert.equal(state.alerts.length, 1);

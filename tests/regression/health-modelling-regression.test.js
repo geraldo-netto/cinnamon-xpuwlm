@@ -1,0 +1,189 @@
+"use strict";
+
+const assert = require("node:assert/strict");
+const test = require("node:test");
+
+const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
+const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
+const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
+const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+
+const NOW = 1_700_000_000_000;
+
+function gateway(overrides = {}) {
+    return new Runtime.RuntimeSnapshotGateway({
+        path: "/run/tpuwm.json",
+        clock: {now: () => NOW},
+        readText: () => null,
+        detectDevice: () => ({available: true, name: "Coral USB", kind: "usb"}),
+        snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
+        warningReporter: new FailureBackoff.FailureWarningBackoff({logger: {warn() {}}}),
+        ...overrides,
+    });
+}
+
+function connectedDocument(overrides = {}) {
+    return JSON.stringify({
+        version: Domain.SNAPSHOT_VERSION,
+        generatedAt: NOW,
+        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
+        metrics: {load: 40, queueDepth: 3, runningProfiles: 1},
+        profiles: {},
+        alerts: [],
+        ...overrides,
+    });
+}
+
+test("regression: an unreadable runtime never claims the device is absent", () => {
+    const snapshot = gateway({
+        readText() { throw new Error("permission denied"); },
+    }).read();
+
+    assert.deepEqual(snapshot.health, {
+        device: "unknown",
+        runtime: "unreadable",
+        detail: "Runtime snapshot could not be read",
+    });
+    assert.equal(snapshot.device.state, "unknown");
+    assert.equal(snapshot.device.name, "TPU state unknown");
+});
+
+test("regression: a malformed document reports malformed, not a missing device", () => {
+    const snapshot = gateway({readText: () => "{\"version\":1}"}).read();
+    assert.equal(snapshot.health.runtime, "malformed");
+    assert.equal(snapshot.health.device, "unknown");
+    assert.equal(snapshot.device.available, false);
+});
+
+test("regression: failed discovery reports probe failure, not an absent device", () => {
+    const snapshot = gateway({
+        detectDevice() { throw new Error("sysfs unavailable"); },
+    }).read();
+    assert.equal(snapshot.health.runtime, "probe-failed");
+    assert.equal(snapshot.health.device, "unknown");
+});
+
+test("regression: a detected device with no runtime keeps both facts separate", () => {
+    const snapshot = gateway().read();
+    assert.deepEqual(snapshot.health, {
+        device: "present",
+        runtime: "absent",
+        detail: "No runtime service is publishing a snapshot",
+    });
+    assert.equal(snapshot.device.available, true);
+});
+
+test("regression: a connected runtime reports both device and runtime health", () => {
+    const present = gateway({readText: () => connectedDocument()}).read();
+    assert.deepEqual(present.health, {device: "present", runtime: "connected", detail: ""});
+
+    const absent = gateway({
+        readText: () => connectedDocument({
+            device: {available: false, name: "No TPU detected", kind: "unknown", reason: "Unplugged"},
+        }),
+    }).read();
+    assert.deepEqual(absent.health, {
+        device: "absent",
+        runtime: "connected",
+        detail: "Unplugged",
+    });
+});
+
+test("regression: unknown telemetry is shown as unknown, never as zero", () => {
+    for (const snapshot of [
+        gateway({readText() { throw new Error("denied"); }}).read(),
+        gateway().read(),
+        Domain.staleSnapshot(NOW),
+    ]) {
+        assert.equal(snapshot.metrics.queueDepth, null, snapshot.health.runtime);
+        assert.equal(snapshot.metrics.runningProfiles, null, snapshot.health.runtime);
+        assert.equal(snapshot.metrics.load, null, snapshot.health.runtime);
+    }
+
+    const connected = gateway({readText: () => connectedDocument()}).read();
+    assert.deepEqual(connected.metrics, {load: 40, queueDepth: 3, runningProfiles: 1});
+});
+
+test("regression: each runtime state renders its own recovery guidance", () => {
+    const seen = new Set();
+    for (const runtime of [...Domain.RUNTIME_STATES]) {
+        const state = {
+            selectedTab: "overview",
+            paused: false,
+            profiles: [],
+            device: Domain.unknownDevice("Detail for the state"),
+            health: {device: "unknown", runtime, detail: `Detail for ${runtime}`},
+            metrics: {load: null, queueDepth: null, runningProfiles: null},
+            alerts: [],
+            attentionCount: 0,
+            stale: false,
+            source: "invalid",
+            generatedAt: NOW,
+        };
+        const model = ViewModel.toViewModel(state, NOW);
+        assert.equal(model.screen, "unavailable", runtime);
+        assert.equal(model.runtimeStatus, ViewModel.RUNTIME_STATUS_LABELS[runtime], runtime);
+        assert.equal(model.recovery.steps.length, 3, runtime);
+        assert.equal(model.recovery.steps.at(-1).description, `Detail for ${runtime}`, runtime);
+        assert.equal(model.metrics[1].value, "—", runtime);
+        assert.equal(model.metrics[2].value, "—", runtime);
+        seen.add(model.recovery.title);
+    }
+    assert.equal(seen.size, Domain.RUNTIME_STATES.size);
+});
+
+test("regression: the manager projects health and starts in a not-started state", () => {
+    const manager = new Manager.WorkloadManager({
+        repository: {load: () => ({}), save() {}},
+        runtimeGateway: {read: () => gateway().read()},
+        errorReporter: {report() {}, recover() {}},
+        clock: {now: () => NOW},
+    });
+    assert.deepEqual(manager.state().health, {
+        device: "unknown",
+        runtime: "not-started",
+        detail: "Monitoring has not started",
+    });
+    manager.start();
+    assert.deepEqual(manager.state().health, {
+        device: "present",
+        runtime: "absent",
+        detail: "No runtime service is publishing a snapshot",
+    });
+    manager.dispose();
+});
+
+test("regression: an unrecognised health value degrades to an explicit unknown", () => {
+    assert.deepEqual(Domain.health("future", "future", "detail"), {
+        device: "unknown",
+        runtime: "unreadable",
+        detail: "detail",
+    });
+    const state = {
+        selectedTab: "overview",
+        paused: false,
+        profiles: [],
+        device: Domain.unknownDevice("No health reported"),
+        metrics: {load: null, queueDepth: null, runningProfiles: null},
+        alerts: [],
+        attentionCount: 0,
+        stale: false,
+        source: "invalid",
+        generatedAt: NOW,
+    };
+    const model = ViewModel.toViewModel(state, NOW);
+    assert.deepEqual(model.health, {device: "unknown", runtime: "unreadable", detail: ""});
+    assert.equal(model.device.status, "Device unknown");
+    assert.equal(model.recovery.steps.at(-1).description, "No health reported");
+
+    const forged = ViewModel.toViewModel({
+        ...state,
+        health: {device: "future", runtime: "future", detail: "Forged health"},
+    }, NOW);
+    assert.equal(forged.runtimeStatus, ViewModel.RUNTIME_STATUS_LABELS.unreadable);
+    assert.equal(forged.device.status, ViewModel.DEVICE_STATUS_LABELS.unknown);
+    assert.equal(forged.recovery.title, ViewModel.RUNTIME_RECOVERY.connected.title);
+    assert.equal(forged.recovery.steps.at(-1).description, "Forged health");
+});

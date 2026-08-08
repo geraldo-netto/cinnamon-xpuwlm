@@ -33,7 +33,8 @@ function alertState(overrides = {}) {
         selectedTab: "alerts",
         paused: false,
         profiles: new Domain.WorkloadPortfolio().list(),
-        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
+        device: {available: true, state: "present", name: "Coral USB", kind: "usb", reason: ""},
+        health: {device: "present", runtime: "connected", detail: ""},
         metrics: {load: 42, queueDepth: 2, runningProfiles: 1},
         alerts: [{
             id: "power-risk",

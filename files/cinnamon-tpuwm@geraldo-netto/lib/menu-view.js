@@ -472,22 +472,17 @@ class MenuView {
     _renderUnavailable(model) {
         this._body.add_child(this._hero(
             "dialog-warning-symbolic",
-            "Connection required",
-            "TPU accelerator unavailable",
-            "Profiles remain saved locally. No data, authorization, backup, or CPU-fallback policy is changed.",
+            model.recovery.kicker,
+            model.recovery.title,
+            model.recovery.description,
             "tpuwm-hero-unavailable",
         ));
-        const steps = [
-            ["1", "Check the connection", "Reconnect the accelerator directly to a supported USB or PCIe interface."],
-            ["2", "Check device access", "Confirm the current user can access the Edge TPU runtime."],
-            ["3", "Retry detection", model.device.reason],
-        ];
-        for (const [number, title, description] of steps) {
+        for (const step of model.recovery.steps) {
             const row = this._box("tpuwm-recovery-row");
-            row.add_child(this._label(number, "tpuwm-step-number"));
+            row.add_child(this._label(step.number, "tpuwm-step-number"));
             const copy = this._box("tpuwm-profile-copy", true, true);
-            copy.add_child(this._label(title, "tpuwm-profile-title", true));
-            copy.add_child(this._label(description, "tpuwm-profile-description", true));
+            copy.add_child(this._label(step.title, "tpuwm-profile-title", true));
+            copy.add_child(this._label(step.description, "tpuwm-profile-description", true));
             row.add_child(copy);
             this._body.add_child(row);
         }
