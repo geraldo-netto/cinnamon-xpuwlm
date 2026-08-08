@@ -60,8 +60,24 @@ test("gateway prefers a non-empty runtime document", () => {
     assert.equal(probes, 0);
 });
 
-test("gateway probes on absent documents and logs read failures", () => {
+test("gateway probes only when documents are absent", () => {
+    let probes = 0;
+    const gateway = new Runtime.RuntimeSnapshotGateway({
+        path: "/missing",
+        clock: {now: () => NOW},
+        readText: () => null,
+        detectDevice() {
+            probes += 1;
+            return {available: true, name: "Coral", kind: "usb"};
+        },
+    });
+    assert.equal(gateway.read().source, "probe");
+    assert.equal(probes, 1);
+});
+
+test("gateway fails closed and logs runtime read failures", () => {
     const warnings = [];
+    let probes = 0;
     const gateway = new Runtime.RuntimeSnapshotGateway({
         path: "",
         clock: {now: () => NOW},
@@ -69,13 +85,15 @@ test("gateway probes on absent documents and logs read failures", () => {
             throw new Error("missing");
         },
         detectDevice() {
+            probes += 1;
             return {available: true, name: "Coral", kind: "usb"};
         },
         logger: {warn: (message) => warnings.push(message)},
     });
     const result = gateway.read();
-    assert.equal(result.source, "probe");
-    assert.equal(result.device.available, true);
+    assert.equal(result.source, "invalid");
+    assert.equal(result.device.available, false);
+    assert.equal(probes, 0);
     assert.match(warnings[0], /Could not read/);
 });
 
@@ -105,5 +123,7 @@ test("gateway default logger safely absorbs fallback failures", () => {
         path: "/missing",
         clock: {now: () => NOW},
     });
-    assert.equal(gateway.read().device.available, false);
+    const result = gateway.read();
+    assert.equal(result.device.available, false);
+    assert.equal(result.source, "invalid");
 });

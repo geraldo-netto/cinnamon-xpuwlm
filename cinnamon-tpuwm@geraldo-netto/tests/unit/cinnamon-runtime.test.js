@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Cinnamon = require("../../lib/cinnamon-runtime.js");
+const Runtime = require("../../lib/runtime-gateway.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -15,6 +16,12 @@ class FakeFile {
 
     query_exists() {
         return this.environment.existing.has(this.path);
+    }
+
+    query_info() {
+        const value = this.environment.files.get(this.path);
+        const size = typeof value === "string" ? new TextEncoder().encode(value).byteLength : 0;
+        return {get_size: () => size};
     }
 
     enumerate_children() {
@@ -74,6 +81,11 @@ test("file reading distinguishes absent, valid, and failed files", () => {
     assert.equal(Cinnamon.readTrimmed("/ok", env), "value");
     assert.equal(Cinnamon.readTrimmed("/absent", env), "");
     assert.throws(() => Cinnamon.readFileText("/failed", env), /Could not read/);
+    const oversized = environment({"/large": "x".repeat(Runtime.MAX_SNAPSHOT_BYTES + 1)});
+    assert.throws(
+        () => Cinnamon.readFileText("/large", oversized, Runtime.MAX_SNAPSHOT_BYTES),
+        /exceeds 1 MiB/,
+    );
 });
 
 test("PCIe detection uses the first available accelerator", () => {

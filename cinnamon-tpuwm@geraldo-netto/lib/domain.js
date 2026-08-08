@@ -259,10 +259,13 @@ function normalizeSnapshot(candidate, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_
     if (candidate.version !== SNAPSHOT_VERSION) {
         return unavailableSnapshot("Unsupported runtime snapshot version", nowMs, "invalid");
     }
-    const generatedAt = boundedInteger(candidate.generatedAt, 0, nowMs + 60000, 0);
-    if (generatedAt === 0) {
+    if (typeof candidate.generatedAt !== "number"
+        || !Number.isFinite(candidate.generatedAt)
+        || candidate.generatedAt <= 0
+        || candidate.generatedAt > nowMs + 60000) {
         return unavailableSnapshot("Runtime snapshot timestamp is invalid", nowMs, "invalid");
     }
+    const generatedAt = Math.trunc(candidate.generatedAt);
     const age = Math.max(0, nowMs - generatedAt);
     if (age > Math.max(1000, staleAfterMs)) {
         const snapshot = unavailableSnapshot("Runtime snapshot is stale", generatedAt, "runtime");

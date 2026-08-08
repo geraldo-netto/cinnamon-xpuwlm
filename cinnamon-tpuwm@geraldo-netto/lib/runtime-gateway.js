@@ -63,11 +63,16 @@ class RuntimeSnapshotGateway {
 
     read() {
         const nowMs = this._clock.now();
-        let text = null;
+        let text;
         try {
             text = this._readText(this._path);
         } catch (error) {
             this._logger.warn(`Could not read ${this._path}: ${error}`);
+            return Domain.unavailableSnapshot(
+                "Runtime snapshot could not be read",
+                nowMs,
+                "invalid",
+            );
         }
         if (typeof text === "string" && text.trim() !== "") {
             return parseSnapshotDocument(text, nowMs, this._staleAfterMs);

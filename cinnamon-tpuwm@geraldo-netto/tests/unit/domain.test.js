@@ -128,6 +128,8 @@ test("snapshot normalization fails closed for invalid, unsupported, and stale in
     assert.equal(Domain.normalizeSnapshot(null, NOW).source, "invalid");
     assert.match(Domain.normalizeSnapshot({version: 2}, NOW).device.reason, /Unsupported/);
     assert.match(Domain.normalizeSnapshot({version: 1, generatedAt: 0}, NOW).device.reason, /timestamp/);
+    assert.match(Domain.normalizeSnapshot({version: 1, generatedAt: NOW + 60_001}, NOW).device.reason, /timestamp/);
+    assert.equal(Domain.normalizeSnapshot(validSnapshot({generatedAt: NOW + 60_000}), NOW).source, "runtime");
     const stale = Domain.normalizeSnapshot(validSnapshot({generatedAt: NOW - 3000}), NOW, 1000);
     assert.equal(stale.stale, true);
     assert.equal(stale.source, "runtime");

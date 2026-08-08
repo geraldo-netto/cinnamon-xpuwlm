@@ -58,6 +58,17 @@ test("regression: stale snapshots cannot display a connected device", () => {
     assert.equal(snapshot.source, "runtime");
 });
 
+test("regression: far-future snapshots cannot remain fresh indefinitely", () => {
+    const snapshot = Domain.normalizeSnapshot({
+        version: 1,
+        generatedAt: NOW + 86_400_000,
+        device: {available: true, name: "Coral", kind: "usb"},
+    }, NOW);
+    assert.equal(snapshot.source, "invalid");
+    assert.equal(snapshot.device.available, false);
+    assert.match(snapshot.device.reason, /timestamp/);
+});
+
 test("regression: UTF-8 size checks count encoded bytes, not UTF-16 units", () => {
     assert.equal(Runtime.byteLength("😀"), new TextEncoder().encode("😀").byteLength);
     const tooLarge = "😀".repeat(Math.floor(Runtime.MAX_SNAPSHOT_BYTES / 4) + 1);

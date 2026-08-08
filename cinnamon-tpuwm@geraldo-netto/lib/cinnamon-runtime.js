@@ -24,10 +24,20 @@ function decodeBytes(bytes, ByteArray) {
     return ByteArray.toString(bytes);
 }
 
-function readFileText(path, environment) {
+function readFileText(path, environment, maximumBytes = null) {
     const file = environment.Gio.File.new_for_path(path);
     if (!file.query_exists(null)) {
         return null;
+    }
+    if (maximumBytes !== null) {
+        const info = file.query_info(
+            "standard::size",
+            environment.Gio.FileQueryInfoFlags.NONE,
+            null,
+        );
+        if (info.get_size() > maximumBytes) {
+            throw new RangeError("Runtime snapshot exceeds 1 MiB");
+        }
     }
     const [ok, contents] = environment.GLib.file_get_contents(path);
     if (!ok) {
@@ -203,7 +213,7 @@ function createRuntimeGateway({path, environment, clock = Date, logger, deviceDe
         path: expandedPath,
         clock,
         logger,
-        readText: (filename) => readFileText(filename, environment),
+        readText: (filename) => readFileText(filename, environment, Runtime.MAX_SNAPSHOT_BYTES),
         detectDevice: () => detector.detect(),
     });
 }
