@@ -6,7 +6,6 @@
 | XTPU-0005 | open | medium | l | XTPU-0001, XTPU-0002, XTPU-0035, XTPU-0036, XTPU-0037, XTPU-0038, XTPU-0039, XTPU-0040, XTPU-0041 | Replace the hard-coded catalog with a modular workload plug-in architecture; the related items define and deliver the contract, registry, migration, lifecycle, safety boundary, low-light workload, and developer tooling. |
 | XTPU-0009 | open | medium | m | XTPU-0006, XTPU-0008 | Localize runtime UI, status, and accessibility strings through gettext and ngettext; verify plurals and expanded translations. |
 | XTPU-0013 | blocked | low | xs | — | Choose and add an explicit repository license before redistribution; no license currently grants reuse rights. |
-| XTPU-0022 | open | high | s | XTPU-0002, XTPU-0003 | Reject symlinked/non-regular snapshots and path-object races using no-follow preflight plus opened-stream identity checks; enforce `MAX + 1` bounded async reads. |
 | XTPU-0023 | open | high | m | XTPU-0003 | Move PCIe and USB discovery plus sysfs reads to bounded cancellable async I/O and cancel pending discovery during teardown. |
 | XTPU-0027 | open | medium | s | XTPU-0009 | Localize settings and metadata through Cinnamon conventions and include their strings in extraction and catalog validation. |
 | XTPU-0035 | open | medium | m | XTPU-0001, XTPU-0002, XTPU-0005 | Define a versioned declarative workload plug-in manifest and domain contract with stable identity, capabilities, model/runtime requirements, UI metadata, defaults, and strict schema validation. |

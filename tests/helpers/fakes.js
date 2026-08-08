@@ -231,6 +231,83 @@ class FakeSettings {
     }
 }
 
+const GIO_ERRORS = Object.freeze({NOT_FOUND: 1, CANCELLED: 19});
+
+function gioError(code) {
+    return {
+        matches: (enumeration, candidate) => enumeration === GIO_ERRORS && candidate === code,
+    };
+}
+
+// A GIO surface with just enough of the real shape to exercise the no-follow
+// preflight, the opened-stream identity check, and the bounded byte read.
+function createGio(entries = {}) {
+    const opened = [];
+    const Gio = {
+        IOErrorEnum: GIO_ERRORS,
+        FileType: {REGULAR: 1, SYMBOLIC_LINK: 3, DIRECTORY: 2, SPECIAL: 4},
+        FileQueryInfoFlags: {NONE: 0, NOFOLLOW_SYMLINKS: 1},
+        Cancellable: class { cancel() { this.cancelled = true; } },
+        opened,
+        File: {
+            new_for_path(path) {
+                const entry = entries[path];
+                const info = (identity) => ({
+                    get_file_type: () => (entry.type === undefined ? Gio.FileType.REGULAR : entry.type),
+                    get_size: () => (entry.size === undefined ? String(entry.contents || "").length : entry.size),
+                    get_attribute_uint64: () => identity.inode,
+                    get_attribute_uint32: () => identity.device,
+                });
+                return {
+                    query_info_async(attributes, flags, priority, cancellable, callback) {
+                        opened.push({path, flags});
+                        callback(this, {});
+                    },
+                    query_info_finish() {
+                        if (!entry) {
+                            throw gioError(GIO_ERRORS.NOT_FOUND);
+                        }
+                        if (entry.queryError) {
+                            throw entry.queryError;
+                        }
+                        return info({inode: entry.inode ?? 1, device: entry.device ?? 1});
+                    },
+                    read_async(priority, cancellable, callback) { callback(this, {}); },
+                    read_finish() {
+                        if (entry.openError) {
+                            throw entry.openError;
+                        }
+                        return {
+                            query_info: () => info({
+                                inode: entry.openedInode ?? entry.inode ?? 1,
+                                device: entry.openedDevice ?? entry.device ?? 1,
+                            }),
+                            read_bytes_async(count, priority, cancellable, bytesCallback) {
+                                bytesCallback(this, {count});
+                            },
+                            read_bytes_finish() {
+                                if (entry.readError) {
+                                    throw entry.readError;
+                                }
+                                return {get_data: () => String(entry.contents || "")};
+                            },
+                        };
+                    },
+                };
+            },
+        },
+    };
+    return Gio;
+}
+
+function createGioEnvironment(entries = {}) {
+    return {
+        ByteArray: {toString: (bytes) => String(bytes)},
+        GLib: {get_home_dir: () => "/home/tester", PRIORITY_DEFAULT: 0},
+        Gio: createGio(entries),
+    };
+}
+
 // The production reader is asynchronous; these fakes complete synchronously so
 // the tests stay deterministic while still exercising the callback contract.
 function textReader(value) {
@@ -334,8 +411,11 @@ module.exports = {
     FakeSettings,
     createAtk,
     createClutter,
+    createGio,
+    createGioEnvironment,
     createSt,
     findActors,
+    gioError,
     readSnapshot,
     snapshotGateway,
     textReader,

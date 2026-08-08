@@ -25,26 +25,42 @@ class FakeFile {
         return {get_size: () => size};
     }
 
-    load_contents_async(cancellable, callback) {
-        if (cancellable && cancellable.cancelled) {
-            callback(this, {cancelled: true});
-            return;
-        }
+    query_info_async(attributes, flags, priority, cancellable, callback) {
         callback(this, {});
     }
 
-    load_contents_finish(result) {
-        if (result.cancelled) {
-            throw ioError(this.environment, "CANCELLED");
-        }
+    query_info_finish() {
         if (!this.environment.existing.has(this.path)) {
             throw ioError(this.environment, "NOT_FOUND");
         }
         const value = this.environment.files.get(this.path);
         if (value instanceof Error) {
-            return [false, ""];
+            throw value;
         }
-        return [true, value];
+        return this.identityInfo(String(value).length);
+    }
+
+    identityInfo(size) {
+        return {
+            get_file_type: () => this.environment.Gio.FileType.REGULAR,
+            get_size: () => size,
+            get_attribute_uint64: () => 1,
+            get_attribute_uint32: () => 1,
+        };
+    }
+
+    read_async(priority, cancellable, callback) {
+        callback(this, {});
+    }
+
+    read_finish() {
+        const value = String(this.environment.files.get(this.path));
+        const identityInfo = (size) => this.identityInfo(size);
+        return {
+            query_info: () => identityInfo(value.length),
+            read_bytes_async(count, priority, cancellable, cb) { cb(this, {}); },
+            read_bytes_finish: () => ({get_data: () => value}),
+        };
     }
 
     enumerate_children() {
@@ -80,6 +96,7 @@ function environment(files = {}, usbNames = []) {
             File: {new_for_path: (path) => new FakeFile(path, env)},
             FileQueryInfoFlags: {NOFOLLOW_SYMLINKS: 1},
             IOErrorEnum: {NOT_FOUND: 1, CANCELLED: 19},
+            FileType: {REGULAR: 1},
             Cancellable: class { cancel() { this.cancelled = true; } },
         },
         GLib: {

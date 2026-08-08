@@ -100,6 +100,13 @@ stale, oversized, unsupported, missing a required field, contains an unknown
 field, or violates a type or bound fails closed into an explicit
 unavailable/recovery state and never falls back to a device-only probe.
 
+The snapshot is only ever read as a regular file the applet has verified. A
+no-follow preflight rejects a symlink, directory, or special file outright, and
+the identity (device and inode) of the opened stream must match the identity the
+preflight saw, so a path object swapped in between is refused rather than read.
+The declared size and the delivered bytes are both bounded, so a file that grows
+after the preflight is refused too.
+
 Snapshot reads are asynchronous, size-bounded, sequenced, and cancellable. The
 applet never blocks the Cinnamon main loop on the file system: it asks GIO to
 load at most one byte past the accepted maximum, keeps a single read in flight,

@@ -62,23 +62,37 @@ function isIoError(environment, error, name) {
     return error.matches(enumeration, enumeration[name]);
 }
 
-// Bounded, cancellable GIO read. An absent file reports no text so the caller
-// can fall back to device discovery; a cancelled read never calls back at all.
+const IDENTITY_ATTRIBUTES = "standard::type,standard::size,unix::inode,unix::device";
+
+function fileIdentity(info) {
+    return {
+        inode: info.get_attribute_uint64("unix::inode"),
+        device: info.get_attribute_uint32("unix::device"),
+    };
+}
+
+function sameIdentity(left, right) {
+    return left.inode === right.inode && left.device === right.device;
+}
+
+// Bounded, cancellable GIO read that never follows a symlink and never trusts
+// the path between calls. The no-follow preflight rejects anything that is not
+// a regular file, and the identity of the opened stream must match the identity
+// the preflight saw, so a path object swapped in between is rejected rather
+// than read. An absent file reports no text so the caller can fall back to
+// device discovery; a cancelled read never calls back at all.
 function readFileTextAsync(path, environment, options, callback) {
     const maximumBytes = options && Number.isFinite(options.maximumBytes)
         ? options.maximumBytes
         : null;
     const cancellable = options ? options.cancellable || null : null;
-    const file = environment.Gio.File.new_for_path(path);
-    file.load_contents_async(cancellable, (source, result) => {
-        let contents;
+    const Gio = environment.Gio;
+    const file = Gio.File.new_for_path(path);
+
+    const fail = (error) => callback(error, null);
+    const guarded = (step) => {
         try {
-            const [ok, bytes] = source.load_contents_finish(result);
-            if (!ok) {
-                callback(new Error(`Could not read ${path}`), null);
-                return;
-            }
-            contents = bytes;
+            step();
         } catch (error) {
             if (isIoError(environment, error, "CANCELLED")) {
                 return;
@@ -87,15 +101,50 @@ function readFileTextAsync(path, environment, options, callback) {
                 callback(null, null);
                 return;
             }
-            callback(error, null);
-            return;
+            fail(error);
         }
-        if (maximumBytes !== null && contents.length > maximumBytes) {
-            callback(new RangeError("Runtime snapshot exceeds 1 MiB"), null);
-            return;
-        }
-        callback(null, decodeBytes(contents, environment.ByteArray));
-    });
+    };
+
+    file.query_info_async(
+        IDENTITY_ATTRIBUTES,
+        Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
+        null,
+        cancellable,
+        (infoSource, infoResult) => guarded(() => {
+            const info = infoSource.query_info_finish(infoResult);
+            if (info.get_file_type() !== Gio.FileType.REGULAR) {
+                fail(new Error(`Runtime snapshot is not a regular file: ${path}`));
+                return;
+            }
+            if (maximumBytes !== null && info.get_size() > maximumBytes) {
+                fail(new RangeError("Runtime snapshot exceeds 1 MiB"));
+                return;
+            }
+            const expected = fileIdentity(info);
+            file.read_async(null, cancellable, (readSource, readResult) => guarded(() => {
+                const stream = readSource.read_finish(readResult);
+                const opened = fileIdentity(stream.query_info(IDENTITY_ATTRIBUTES, cancellable));
+                if (!sameIdentity(expected, opened)) {
+                    fail(new Error(`Runtime snapshot path changed while opening: ${path}`));
+                    return;
+                }
+                stream.read_bytes_async(
+                    maximumBytes === null ? Runtime.MAX_SNAPSHOT_BYTES + 1 : maximumBytes,
+                    null,
+                    cancellable,
+                    (bytesSource, bytesResult) => guarded(() => {
+                        const bytes = bytesSource.read_bytes_finish(bytesResult);
+                        const data = typeof bytes.get_data === "function" ? bytes.get_data() : bytes;
+                        if (maximumBytes !== null && data.length > maximumBytes) {
+                            fail(new RangeError("Runtime snapshot exceeds 1 MiB"));
+                            return;
+                        }
+                        callback(null, decodeBytes(data, environment.ByteArray));
+                    }),
+                );
+            }));
+        }),
+    );
 }
 
 function createCancellableFactory(environment) {
@@ -391,8 +440,10 @@ module.exports = {
     detectUsbDevice,
     expandHome,
     findCoralUsbIdentity,
+    fileIdentity,
     isIoError,
     readFileText,
     readFileTextAsync,
     readTrimmed,
+    sameIdentity,
 };

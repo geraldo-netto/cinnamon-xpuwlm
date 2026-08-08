@@ -8,6 +8,7 @@ const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js")
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const {createGioEnvironment, gioError} = require("../helpers/fakes.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -213,56 +214,110 @@ test("regression: a gateway without cancellation support is still replaceable", 
     manager.dispose();
 });
 
-test("regression: the GIO adapter maps absent, cancelled, and failed reads", () => {
-    const enumeration = {NOT_FOUND: 1, CANCELLED: 19};
-    const ioError = (code) => ({
-        matches: (candidateEnum, candidateCode) => candidateEnum === enumeration
-            && candidateCode === code,
+test("regression: the GIO adapter refuses anything that is not a regular file", () => {
+    const environment = createGioEnvironment({
+        "/link": {type: 3, contents: "{}"},
+        "/dir": {type: 2, contents: ""},
+        "/special": {type: 4, contents: ""},
+        "/regular": {type: 1, contents: "{}"},
     });
-    const results = [];
-    const environmentFor = (behaviour) => ({
-        ByteArray: {toString: (bytes) => String(bytes)},
-        Gio: {
-            IOErrorEnum: enumeration,
-            Cancellable: class { cancel() { this.cancelled = true; } },
-            File: {
-                new_for_path: () => ({
-                    load_contents_async(cancellable, callback) { callback(this, {}); },
-                    load_contents_finish: behaviour,
-                }),
-            },
-        },
-    });
+    const seen = [];
+    for (const path of ["/link", "/dir", "/special", "/regular"]) {
+        Cinnamon.readFileTextAsync(path, environment, {maximumBytes: 100},
+            (error, text) => seen.push([path, error && error.message, text]));
+    }
+    assert.match(seen[0][1], /not a regular file/u);
+    assert.match(seen[1][1], /not a regular file/u);
+    assert.match(seen[2][1], /not a regular file/u);
+    assert.deepEqual(seen[3], ["/regular", null, "{}"]);
+    assert.equal(
+        environment.Gio.opened.every((entry) => entry.flags === environment.Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS),
+        true,
+        "the preflight must never follow a symlink",
+    );
+});
 
-    Cinnamon.readFileTextAsync("/absent", environmentFor(() => {
-        throw ioError(enumeration.NOT_FOUND);
-    }), {}, (error, text) => results.push(["absent", error, text]));
+test("regression: a path object swapped between preflight and open is rejected", () => {
+    const environment = createGioEnvironment({
+        "/swapped": {contents: "{}", inode: 10, device: 1, openedInode: 11},
+        "/moved": {contents: "{}", inode: 10, device: 1, openedDevice: 2},
+        "/stable": {contents: "{}", inode: 10, device: 1},
+    });
+    const seen = [];
+    for (const path of ["/swapped", "/moved", "/stable"]) {
+        Cinnamon.readFileTextAsync(path, environment, {maximumBytes: 100},
+            (error, text) => seen.push([path, error && error.message, text]));
+    }
+    assert.match(seen[0][1], /path changed while opening/u);
+    assert.match(seen[1][1], /path changed while opening/u);
+    assert.deepEqual(seen[2], ["/stable", null, "{}"]);
+
+    assert.equal(Cinnamon.sameIdentity({inode: 1, device: 2}, {inode: 1, device: 2}), true);
+    assert.equal(Cinnamon.sameIdentity({inode: 1, device: 2}, {inode: 9, device: 2}), false);
+    assert.equal(Cinnamon.sameIdentity({inode: 1, device: 2}, {inode: 1, device: 9}), false);
+    assert.deepEqual(
+        Cinnamon.fileIdentity({get_attribute_uint64: () => 7, get_attribute_uint32: () => 8}),
+        {inode: 7, device: 8},
+    );
+});
+
+test("regression: reads stay bounded at the declared maximum in both directions", () => {
+    const environment = createGioEnvironment({
+        "/declared": {contents: "0123456789", size: 99},
+        "/grown": {contents: "0123456789", size: 1},
+    });
+    const seen = [];
+    Cinnamon.readFileTextAsync("/declared", environment, {maximumBytes: 4},
+        (error) => seen.push(error && error.message));
+    assert.match(seen[0], /exceeds 1 MiB/u, "an oversized preflight size is refused");
+
+    Cinnamon.readFileTextAsync("/grown", environment, {maximumBytes: 4},
+        (error) => seen.push(error && error.message));
+    assert.match(seen[1], /exceeds 1 MiB/u, "a file that grew after the preflight is refused");
+});
+
+test("regression: absent, cancelled, and failed reads keep their own outcomes", () => {
+    const results = [];
+    const absent = createGioEnvironment({});
+    Cinnamon.readFileTextAsync("/absent", absent, {maximumBytes: 100},
+        (error, text) => results.push(["absent", error, text]));
     assert.deepEqual(results.at(-1), ["absent", null, null]);
 
-    Cinnamon.readFileTextAsync("/cancelled", environmentFor(() => {
-        throw ioError(enumeration.CANCELLED);
-    }), {}, () => results.push(["cancelled"]));
+    const cancelled = createGioEnvironment({
+        "/cancelled": {contents: "{}", queryError: gioError(19)},
+    });
+    Cinnamon.readFileTextAsync("/cancelled", cancelled, {maximumBytes: 100},
+        () => results.push(["cancelled"]));
     assert.notEqual(results.at(-1)[0], "cancelled", "a cancelled read must not call back");
 
-    Cinnamon.readFileTextAsync("/denied", environmentFor(() => {
-        throw new Error("permission denied");
-    }), {}, (error) => results.push(["denied", error.message]));
+    const denied = createGioEnvironment({
+        "/denied": {contents: "{}", queryError: new Error("permission denied")},
+    });
+    Cinnamon.readFileTextAsync("/denied", denied, {maximumBytes: 100},
+        (error) => results.push(["denied", error.message]));
     assert.deepEqual(results.at(-1), ["denied", "permission denied"]);
 
-    Cinnamon.readFileTextAsync("/unreadable", environmentFor(() => [false, ""]), {},
-        (error) => results.push(["unreadable", error.message]));
-    assert.match(results.at(-1)[1], /Could not read/u);
+    const unreadable = createGioEnvironment({
+        "/unreadable": {contents: "{}", openError: new Error("stream refused")},
+    });
+    Cinnamon.readFileTextAsync("/unreadable", unreadable, {maximumBytes: 100},
+        (error) => results.push(["open", error.message]));
+    assert.deepEqual(results.at(-1), ["open", "stream refused"]);
 
-    Cinnamon.readFileTextAsync("/large", environmentFor(() => [true, "0123456789"]),
-        {maximumBytes: 4}, (error) => results.push(["large", error.message]));
-    assert.match(results.at(-1)[1], /exceeds 1 MiB/u);
+    const truncated = createGioEnvironment({
+        "/truncated": {contents: "{}", readError: new Error("read interrupted")},
+    });
+    Cinnamon.readFileTextAsync("/truncated", truncated, {maximumBytes: 100},
+        (error) => results.push(["read", error.message]));
+    assert.deepEqual(results.at(-1), ["read", "read interrupted"]);
 
-    Cinnamon.readFileTextAsync("/ok", environmentFor(() => [true, "content"]), {maximumBytes: 100},
-        (error, text) => results.push(["ok", error, text]));
-    assert.deepEqual(results.at(-1), ["ok", null, "content"]);
+    const unbounded = createGioEnvironment({"/unbounded": {contents: "{}"}});
+    Cinnamon.readFileTextAsync("/unbounded", unbounded, {},
+        (error, text) => results.push(["unbounded", error, text]));
+    assert.deepEqual(results.at(-1), ["unbounded", null, "{}"]);
 
-    assert.equal(Cinnamon.isIoError({}, ioError(1), "NOT_FOUND"), false);
-    assert.equal(Cinnamon.isIoError({Gio: {IOErrorEnum: enumeration}}, null, "NOT_FOUND"), false);
+    assert.equal(Cinnamon.isIoError({}, gioError(1), "NOT_FOUND"), false);
+    assert.equal(Cinnamon.isIoError(absent, null, "NOT_FOUND"), false);
 });
 
 test("regression: the cancellable factory degrades on a build without Gio", () => {
