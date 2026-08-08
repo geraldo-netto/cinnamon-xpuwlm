@@ -324,6 +324,25 @@ test("panel uses cached symbolic state icons and explicit accessible status", ()
     assert.equal(AppletModule.panelIconFilename("online"), "tpuwm-status-online-symbolic.svg");
 });
 
+test("panel state classes are a closed set that is fully cleaned between renders", () => {
+    assert.deepEqual(AppletModule.PANEL_STATUSES, [
+        "online", "attention", "detected", "paused", "unavailable",
+    ]);
+    const {applet, manager} = appletHarness();
+    for (const status of AppletModule.PANEL_STATUSES) {
+        applet.actor.add_style_class_name(`tpuwm-panel-${status}`);
+    }
+    applet.actor.add_style_class_name("tpuwm-panel-unrelated");
+
+    manager.callback(liveState({source: "runtime"}));
+    const applied = [...applet.actor.styleClasses].filter((name) => name.startsWith("tpuwm-panel-"));
+    assert.deepEqual(applied.sort(), ["tpuwm-panel-online", "tpuwm-panel-unrelated"].sort());
+    assert.deepEqual(
+        AppletModule.PANEL_STATUSES.map((status) => AppletModule.panelIconFilename(status)),
+        AppletModule.PANEL_STATUSES.map((status) => `tpuwm-status-${status}-symbolic.svg`),
+    );
+});
+
 test("render updates safety styling and ignores work after teardown", () => {
     const {applet, manager, poller, settings} = appletHarness();
     manager.callback(liveState({source: "runtime", attentionCount: 1}));
