@@ -131,7 +131,10 @@ class CachedDeviceDetector {
         this._cached = null;
     }
 
-    detect() {
+    detect(forceRefresh = false) {
+        if (forceRefresh === true) {
+            this.invalidate();
+        }
         const nowMs = this._clock.now();
         if (this._cached !== null && nowMs - this._cachedAt < this._cacheMs) {
             return {...this._cached};
@@ -229,7 +232,7 @@ function createRuntimeGateway({path, environment, clock = Date, logger, deviceDe
         clock,
         logger,
         readText: (filename) => readFileText(filename, environment, Runtime.MAX_SNAPSHOT_BYTES),
-        detectDevice: () => detector.detect(),
+        detectDevice: (forceRefresh) => detector.detect(forceRefresh),
     });
 }
 

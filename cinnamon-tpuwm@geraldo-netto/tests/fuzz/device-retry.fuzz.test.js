@@ -1,0 +1,78 @@
+"use strict";
+
+const assert = require("node:assert/strict");
+const test = require("node:test");
+
+const Cinnamon = require("../../lib/cinnamon-runtime.js");
+const Manager = require("../../lib/manager.js");
+const Runtime = require("../../lib/runtime-gateway.js");
+
+const CACHE_MS = 100;
+
+function nextRandom(generator) {
+    let value = generator.value;
+    value ^= value << 13;
+    value ^= value >>> 17;
+    value ^= value << 5;
+    generator.value = value >>> 0;
+    return generator.value;
+}
+
+function mutableDeviceEnvironment() {
+    let connected = false;
+    return {
+        environment: {
+            Gio: {
+                File: {
+                    new_for_path(path) {
+                        return {
+                            query_exists: () => connected && path === "/dev/apex_0",
+                        };
+                    },
+                },
+            },
+        },
+        isConnected: () => connected,
+        setConnected(value) {
+            connected = value;
+        },
+    };
+}
+
+test("fuzz: explicit retries observe current hardware across cached state transitions", () => {
+    let nowMs = 0;
+    const clock = {now: () => nowMs};
+    const device = mutableDeviceEnvironment();
+    const detector = new Cinnamon.CachedDeviceDetector(device.environment, clock, CACHE_MS);
+    const gateway = new Runtime.RuntimeSnapshotGateway({
+        clock,
+        path: "/missing/runtime.json",
+        readText: () => null,
+        detectDevice: (forceRefresh) => detector.detect(forceRefresh),
+    });
+    const manager = new Manager.WorkloadManager({
+        clock,
+        repository: {load: () => ({}), save() {}},
+        runtimeGateway: gateway,
+    });
+    const generator = {value: 0x1a2b3c4d};
+    let expectedCached = false;
+    let cachedAt = nowMs;
+    manager.start();
+
+    for (let index = 0; index < 1_000; index += 1) {
+        device.setConnected((nextRandom(generator) & 1) === 1);
+        nowMs += nextRandom(generator) % 151;
+        if (nowMs - cachedAt >= CACHE_MS) {
+            expectedCached = device.isConnected();
+        }
+
+        const periodic = manager.refresh();
+        assert.equal(periodic.device.available, expectedCached);
+
+        const retried = manager.retryDeviceDetection();
+        assert.equal(retried.device.available, device.isConnected());
+        expectedCached = device.isConnected();
+        cachedAt = nowMs;
+    }
+});

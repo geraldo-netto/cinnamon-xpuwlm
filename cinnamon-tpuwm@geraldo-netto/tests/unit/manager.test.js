@@ -97,6 +97,27 @@ test("state changes persist only when effective values change", () => {
     assert.equal(saves.at(-1).portfolio.paused, false);
 });
 
+test("explicit device retry requests a fresh probe and publishes its result", () => {
+    const readOptions = [];
+    const {manager} = harness({
+        runtimeGateway: {
+            read(options) {
+                readOptions.push(options);
+                return snapshot();
+            },
+        },
+    });
+    let publications = 0;
+    manager.subscribe(() => { publications += 1; });
+    manager.start();
+    assert.equal(manager.retryDeviceDetection().device.available, true);
+    assert.deepEqual(readOptions, [
+        {forceDeviceDetection: false},
+        {forceDeviceDetection: true},
+    ]);
+    assert.equal(publications, 2);
+});
+
 test("save and listener failures do not stop other observers", () => {
     const {manager, errors} = harness({
         repository: {load: () => ({}), save() { throw new Error("readonly"); }},
@@ -143,5 +164,6 @@ test("dispose is idempotent and blocks subsequent work", () => {
     assert.equal(manager.dispose(), true);
     assert.equal(manager.dispose(), false);
     assert.throws(() => manager.refresh(), /disposed/);
+    assert.throws(() => manager.retryDeviceDetection(), /disposed/);
     assert.throws(() => manager.subscribe(() => {}), /disposed/);
 });

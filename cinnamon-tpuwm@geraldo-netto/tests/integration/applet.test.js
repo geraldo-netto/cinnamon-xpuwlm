@@ -130,6 +130,10 @@ function managerFake(initial = liveState()) {
             this.callback(this.state);
         },
         refresh() { this.calls.push(["refresh"]); this.callback(this.state); },
+        retryDeviceDetection() {
+            this.calls.push(["retryDeviceDetection"]);
+            this.callback(this.state);
+        },
         replaceRuntimeGateway(value) { this.calls.push(["replaceRuntimeGateway", value]); },
         selectTab(value) { this.calls.push(["selectTab", value]); },
         toggleProfile(value) { this.calls.push(["toggleProfile", value]); },
@@ -229,9 +233,19 @@ test("menu actions delegate without mixing responsibilities", () => {
         ["changeWeight", "hardware-health", -1],
         ["pauseAll"],
         ["resumeAll"],
-        ["refresh"],
+        ["retryDeviceDetection"],
     ]);
     assert.equal(spawned.at(-1), `cinnamon-settings applets ${AppletModule.UUID}`);
+});
+
+test("polling refresh remains cacheable while manual refresh requests fresh detection", () => {
+    const {applet, manager} = appletHarness();
+    applet._refresh();
+    applet._menuActions().refresh();
+    assert.deepEqual(manager.calls.slice(-2), [
+        ["refresh"],
+        ["retryDeviceDetection"],
+    ]);
 });
 
 test("click and orientation lifecycle replace menu and preserve latest state", () => {

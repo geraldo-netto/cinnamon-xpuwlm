@@ -118,7 +118,8 @@ class RuntimeSnapshotGateway {
         this._warnings = new FailureWarningBackoff({logger});
     }
 
-    read() {
+    read(options = {}) {
+        const forceDeviceDetection = options?.forceDeviceDetection === true;
         const nowMs = this._clock.now();
         let text;
         try {
@@ -140,7 +141,10 @@ class RuntimeSnapshotGateway {
             return parseSnapshotDocument(text, nowMs, this._staleAfterMs);
         }
         try {
-            const snapshot = Domain.probeSnapshot(this._detectDevice(), nowMs);
+            const snapshot = Domain.probeSnapshot(
+                this._detectDevice(forceDeviceDetection),
+                nowMs,
+            );
             this._warnings.recover(DEVICE_PROBE_FAILURE);
             return snapshot;
         } catch (error) {

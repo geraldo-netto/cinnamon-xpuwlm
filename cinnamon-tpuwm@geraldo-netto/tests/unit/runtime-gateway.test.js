@@ -137,18 +137,20 @@ test("gateway prefers a non-empty runtime document", () => {
 });
 
 test("gateway probes only when documents are absent", () => {
-    let probes = 0;
+    const probes = [];
     const gateway = new Runtime.RuntimeSnapshotGateway({
         path: "/missing",
         clock: {now: () => NOW},
         readText: () => null,
-        detectDevice() {
-            probes += 1;
+        detectDevice(forceDeviceDetection) {
+            probes.push(forceDeviceDetection);
             return {available: true, name: "Coral", kind: "usb"};
         },
     });
     assert.equal(gateway.read().source, "probe");
-    assert.equal(probes, 1);
+    assert.equal(gateway.read(null).source, "probe");
+    assert.equal(gateway.read({forceDeviceDetection: true}).source, "probe");
+    assert.deepEqual(probes, [false, false, true]);
 });
 
 test("gateway fails closed and logs runtime read failures", () => {

@@ -181,10 +181,14 @@ test("cached detector respects TTL and supports invalidation", () => {
     detector.invalidate();
     detector.detect();
     assert.equal(probes, 3);
+    detector.detect(true);
+    assert.equal(probes, 4);
+    detector.detect(false);
+    assert.equal(probes, 4);
     const uncached = new Cinnamon.CachedDeviceDetector(env, {now: () => now}, "invalid");
     uncached.detect();
     uncached.detect();
-    assert.equal(probes, 5);
+    assert.equal(probes, 6);
 });
 
 test("settings repository avoids redundant writes", () => {
@@ -256,14 +260,20 @@ test("logger prefixes Cinnamon warnings and errors", () => {
 
 test("runtime gateway factory expands home and accepts a supplied detector", () => {
     const env = environment({"/home/tester/state.json": ""});
-    let detections = 0;
+    const detections = [];
     const gateway = Cinnamon.createRuntimeGateway({
         path: "~/state.json",
         environment: env,
         clock: {now: () => NOW},
         logger: {warn() {}},
-        deviceDetector: {detect() { detections += 1; return {available: false}; }},
+        deviceDetector: {
+            detect(forceRefresh) {
+                detections.push(forceRefresh);
+                return {available: false};
+            },
+        },
     });
     assert.equal(gateway.read().source, "probe");
-    assert.equal(detections, 1);
+    assert.equal(gateway.read({forceDeviceDetection: true}).source, "probe");
+    assert.deepEqual(detections, [false, true]);
 });

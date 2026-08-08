@@ -56,9 +56,17 @@ class WorkloadManager {
     }
 
     refresh() {
+        return this._refreshRuntime(false);
+    }
+
+    retryDeviceDetection() {
+        return this._refreshRuntime(true);
+    }
+
+    _refreshRuntime(forceDeviceDetection) {
         this._ensureActive();
         try {
-            this._snapshot = this._runtimeGateway.read();
+            this._snapshot = this._runtimeGateway.read({forceDeviceDetection});
         } catch (error) {
             this._logger.error(`Could not read runtime state: ${error}`);
             this._snapshot = Domain.unavailableSnapshot(

@@ -128,7 +128,7 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             changeWeight: (id, delta) => this._manager.changeWeight(id, delta),
             pauseAll: () => this._manager.pauseAll(),
             resumeAll: () => this._manager.resumeAll(),
-            refresh: () => this._refresh(),
+            refresh: () => this._manager.retryDeviceDetection(),
             openSettings: () => this._openSettings(),
         };
     }
