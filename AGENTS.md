@@ -58,3 +58,4 @@ These rules apply to the entire repository.
 - Do not commit a failing, incomplete, or blocked implementation or fix.
 - Do not stage or commit unrelated user changes.
 - Use concise Conventional Commit messages.
+- Never add AI or assistant co-author trailers. Commit messages must contain no `Co-Authored-By` line naming Claude or any other assistant, and no generated-by attribution.
