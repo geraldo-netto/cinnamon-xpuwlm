@@ -50,7 +50,7 @@ test("fuzz: explicit retries observe current hardware across cached state transi
     const gateway = new Runtime.RuntimeSnapshotGateway({
         clock,
         path: "/missing/runtime.json",
-        readText: () => null,
+        readTextAsync: (filename, options, callback) => callback(null, null),
         detectDevice: (forceRefresh) => detector.detect(forceRefresh),
         snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: new FailureBackoff.FailureWarningBackoff({logger}),
@@ -73,11 +73,11 @@ test("fuzz: explicit retries observe current hardware across cached state transi
             expectedCached = device.isConnected();
         }
 
-        const periodic = manager.refresh();
-        assert.equal(periodic.device.available, expectedCached);
+        manager.refresh();
+        assert.equal(manager.state().device.available, expectedCached);
 
-        const retried = manager.retryDeviceDetection();
-        assert.equal(retried.device.available, device.isConnected());
+        manager.retryDeviceDetection();
+        assert.equal(manager.state().device.available, device.isConnected());
         expectedCached = device.isConnected();
         cachedAt = nowMs;
     }

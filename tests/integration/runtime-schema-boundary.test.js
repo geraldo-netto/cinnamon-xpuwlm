@@ -6,6 +6,7 @@ const test = require("node:test");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const Fixtures = require("../helpers/runtime-snapshot-fixtures.js");
+const {readSnapshot} = require("../helpers/fakes.js");
 
 function silentReporter() {
     return {report() {}, recover() {}};
@@ -20,7 +21,7 @@ test("schema validator and gateway reject present invalid snapshots without prob
     const gateway = new Runtime.RuntimeSnapshotGateway({
         path: "/run/tpuwm.json",
         clock: {now: () => Fixtures.NOW},
-        readText: () => JSON.stringify(invalidDocuments[index].value),
+        readTextAsync: (filename, options, callback) => callback(null, JSON.stringify(invalidDocuments[index].value)),
         detectDevice() {
             probes += 1;
             return {available: true, name: "TPU", kind: "usb"};
@@ -30,7 +31,7 @@ test("schema validator and gateway reject present invalid snapshots without prob
     });
 
     for (index = 0; index < invalidDocuments.length; index += 1) {
-        const snapshot = gateway.read();
+        const snapshot = readSnapshot(gateway);
         assert.equal(snapshot.source, "invalid", invalidDocuments[index].name);
         assert.equal(snapshot.device.available, false, invalidDocuments[index].name);
     }
@@ -44,7 +45,7 @@ test("gateway reserves trusted device probing for absent or empty documents", ()
     const gateway = new Runtime.RuntimeSnapshotGateway({
         path: "/run/tpuwm.json",
         clock: {now: () => Fixtures.NOW},
-        readText: () => documents[index],
+        readTextAsync: (filename, options, callback) => callback(null, documents[index]),
         detectDevice() {
             probes += 1;
             return {available: true, name: "Coral USB", kind: "usb"};
@@ -54,7 +55,7 @@ test("gateway reserves trusted device probing for absent or empty documents", ()
     });
 
     for (index = 0; index < documents.length; index += 1) {
-        const snapshot = gateway.read();
+        const snapshot = readSnapshot(gateway);
         assert.equal(snapshot.source, "probe");
         assert.equal(snapshot.device.available, true);
     }
@@ -68,7 +69,7 @@ test("reader and parser integration rejects non-text present values before probi
     const gateway = new Runtime.RuntimeSnapshotGateway({
         path: "/run/tpuwm.json",
         clock: {now: () => Fixtures.NOW},
-        readText: () => documents[index],
+        readTextAsync: (filename, options, callback) => callback(null, documents[index]),
         detectDevice() {
             probes += 1;
             return {available: true, name: "Coral USB", kind: "usb"};
@@ -78,7 +79,7 @@ test("reader and parser integration rejects non-text present values before probi
     });
 
     for (index = 0; index < documents.length; index += 1) {
-        assert.equal(gateway.read().source, "invalid");
+        assert.equal(readSnapshot(gateway).source, "invalid");
     }
     assert.equal(probes, 0);
 });

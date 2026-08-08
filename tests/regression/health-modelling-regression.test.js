@@ -9,6 +9,7 @@ const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const {readSnapshot} = require("../helpers/fakes.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -16,7 +17,7 @@ function gateway(overrides = {}) {
     return new Runtime.RuntimeSnapshotGateway({
         path: "/run/tpuwm.json",
         clock: {now: () => NOW},
-        readText: () => null,
+        readTextAsync: (filename, options, callback) => callback(null, null),
         detectDevice: () => ({available: true, name: "Coral USB", kind: "usb"}),
         snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: new FailureBackoff.FailureWarningBackoff({logger: {warn() {}}}),
@@ -37,9 +38,9 @@ function connectedDocument(overrides = {}) {
 }
 
 test("regression: an unreadable runtime never claims the device is absent", () => {
-    const snapshot = gateway({
-        readText() { throw new Error("permission denied"); },
-    }).read();
+    const snapshot = readSnapshot(gateway({
+        readTextAsync(filename, options, callback) { callback(new Error("permission denied"), null); },
+    }));
 
     assert.deepEqual(snapshot.health, {
         device: "unknown",
@@ -51,22 +52,24 @@ test("regression: an unreadable runtime never claims the device is absent", () =
 });
 
 test("regression: a malformed document reports malformed, not a missing device", () => {
-    const snapshot = gateway({readText: () => "{\"version\":1}"}).read();
+    const snapshot = readSnapshot(gateway({
+        readTextAsync: (filename, options, callback) => callback(null, "{\"version\":1}"),
+    }));
     assert.equal(snapshot.health.runtime, "malformed");
     assert.equal(snapshot.health.device, "unknown");
     assert.equal(snapshot.device.available, false);
 });
 
 test("regression: failed discovery reports probe failure, not an absent device", () => {
-    const snapshot = gateway({
+    const snapshot = readSnapshot(gateway({
         detectDevice() { throw new Error("sysfs unavailable"); },
-    }).read();
+    }));
     assert.equal(snapshot.health.runtime, "probe-failed");
     assert.equal(snapshot.health.device, "unknown");
 });
 
 test("regression: a detected device with no runtime keeps both facts separate", () => {
-    const snapshot = gateway().read();
+    const snapshot = readSnapshot(gateway());
     assert.deepEqual(snapshot.health, {
         device: "present",
         runtime: "absent",
@@ -76,14 +79,16 @@ test("regression: a detected device with no runtime keeps both facts separate", 
 });
 
 test("regression: a connected runtime reports both device and runtime health", () => {
-    const present = gateway({readText: () => connectedDocument()}).read();
+    const present = readSnapshot(gateway({
+        readTextAsync: (filename, options, callback) => callback(null, connectedDocument()),
+    }));
     assert.deepEqual(present.health, {device: "present", runtime: "connected", detail: ""});
 
-    const absent = gateway({
-        readText: () => connectedDocument({
+    const absent = readSnapshot(gateway({
+        readTextAsync: (filename, options, callback) => callback(null, connectedDocument({
             device: {available: false, name: "No TPU detected", kind: "unknown", reason: "Unplugged"},
-        }),
-    }).read();
+        })),
+    }));
     assert.deepEqual(absent.health, {
         device: "absent",
         runtime: "connected",
@@ -93,8 +98,10 @@ test("regression: a connected runtime reports both device and runtime health", (
 
 test("regression: unknown telemetry is shown as unknown, never as zero", () => {
     for (const snapshot of [
-        gateway({readText() { throw new Error("denied"); }}).read(),
-        gateway().read(),
+        readSnapshot(gateway({
+            readTextAsync(filename, options, callback) { callback(new Error("denied"), null); },
+        })),
+        readSnapshot(gateway()),
         Domain.staleSnapshot(NOW),
     ]) {
         assert.equal(snapshot.metrics.queueDepth, null, snapshot.health.runtime);
@@ -102,7 +109,9 @@ test("regression: unknown telemetry is shown as unknown, never as zero", () => {
         assert.equal(snapshot.metrics.load, null, snapshot.health.runtime);
     }
 
-    const connected = gateway({readText: () => connectedDocument()}).read();
+    const connected = readSnapshot(gateway({
+        readTextAsync: (filename, options, callback) => callback(null, connectedDocument()),
+    }));
     assert.deepEqual(connected.metrics, {load: 40, queueDepth: 3, runningProfiles: 1});
 });
 
@@ -137,7 +146,7 @@ test("regression: each runtime state renders its own recovery guidance", () => {
 test("regression: the manager projects health and starts in a not-started state", () => {
     const manager = new Manager.WorkloadManager({
         repository: {load: () => ({}), save() {}},
-        runtimeGateway: {read: () => gateway().read()},
+        runtimeGateway: {read: (options, callback) => callback(readSnapshot(gateway()))},
         errorReporter: {report() {}, recover() {}},
         clock: {now: () => NOW},
     });

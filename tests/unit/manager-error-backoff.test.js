@@ -17,7 +17,7 @@ function createManager({repository, runtimeGateway, clock, errors}) {
     const logger = {warn() {}, error: (message) => errors.push(message)};
     return new Manager.WorkloadManager({
         repository: repository || {load: () => ({}), save() {}},
-        runtimeGateway: runtimeGateway || {read: () => availableSnapshot(clock.now())},
+        runtimeGateway: runtimeGateway || {read: (options, callback) => callback(availableSnapshot(clock.now()))},
         clock,
         errorReporter: new FailureBackoff.FailureErrorBackoff({logger}),
         logger,
@@ -102,7 +102,7 @@ test("manager bounds runtime failures and resets the channel after recovery", ()
     nowMs += 1;
     manager.refresh();
     assert.equal(errors.length, 2);
-    manager.replaceRuntimeGateway({read: () => availableSnapshot(nowMs)});
+    manager.replaceRuntimeGateway({read: (options, callback) => callback(availableSnapshot(nowMs))});
     manager.replaceRuntimeGateway(failingGateway);
     assert.equal(errors.length, 3);
     assert.match(errors.at(-1), /Could not read runtime state/);

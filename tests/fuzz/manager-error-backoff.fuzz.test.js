@@ -60,7 +60,7 @@ test("fuzz: listener lifecycle releases every reporter identity", () => {
     const manager = new Manager.WorkloadManager({
         repository: {load: () => ({}), save() {}},
         runtimeGateway: {
-            read: () => Domain.probeSnapshot({available: true, name: "TPU", kind: "usb"}, 0),
+            read: (options, callback) => callback(Domain.probeSnapshot({available: true, name: "TPU", kind: "usb"}, 0)),
         },
         clock: {now: () => 0},
         errorReporter,

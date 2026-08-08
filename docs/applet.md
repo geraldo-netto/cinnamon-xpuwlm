@@ -100,6 +100,12 @@ stale, oversized, unsupported, missing a required field, contains an unknown
 field, or violates a type or bound fails closed into an explicit
 unavailable/recovery state and never falls back to a device-only probe.
 
+Snapshot reads are asynchronous, size-bounded, sequenced, and cancellable. The
+applet never blocks the Cinnamon main loop on the file system: it asks GIO to
+load at most one byte past the accepted maximum, keeps a single read in flight,
+discards any completion that arrives after a newer refresh, and cancels the
+pending read when the runtime path changes or the applet is removed.
+
 Device presence and runtime availability are modelled as independent facts.
 Every snapshot carries `health` with a device state (`present`, `absent`,
 `unknown`) and a runtime state (`connected`, `not-started`, `absent`, `stale`,

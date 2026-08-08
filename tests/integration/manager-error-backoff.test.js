@@ -17,7 +17,7 @@ test("manager polling integrates runtime state with bounded render failures", ()
     const gateway = new Runtime.RuntimeSnapshotGateway({
         path: "/run/tpuwm.json",
         clock: {now: () => nowMs},
-        readText: () => "",
+        readTextAsync: (filename, options, callback) => callback(null, ""),
         detectDevice: () => ({available: true, name: "TPU", kind: "usb"}),
         snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter,

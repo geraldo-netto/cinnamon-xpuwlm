@@ -101,7 +101,7 @@ function tracker() {
                     return settings;
                 },
                 repository: {load: () => ({}), save() {}},
-                runtimeGateway: {read: () => Domain.unavailableSnapshot("none", 1, "error")},
+                runtimeGateway: {read: (options, callback) => callback(Domain.unavailableSnapshot("none", 1, "error"))},
                 notifications: {notify() {}},
                 layoutProvider: {measure: () => ({workAreaWidth: 1920, workAreaHeight: 1080})},
                 poller: {

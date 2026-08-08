@@ -9,6 +9,7 @@ const Ajv2020 = require("ajv/dist/2020").default;
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const Fixtures = require("../helpers/runtime-snapshot-fixtures.js");
+const {readSnapshot} = require("../helpers/fakes.js");
 
 function generator(seed) {
     let state = seed >>> 0;
@@ -79,7 +80,7 @@ test("fuzz: every present non-text reader value fails without probing", () => {
         const gateway = new Runtime.RuntimeSnapshotGateway({
             path: "/run/tpuwm.json",
             clock: {now: () => Fixtures.NOW},
-            readText: () => value,
+            readTextAsync: (filename, options, callback) => callback(null, value),
             detectDevice() {
                 probes += 1;
                 return {available: true, name: "Coral USB", kind: "usb"};
@@ -87,7 +88,7 @@ test("fuzz: every present non-text reader value fails without probing", () => {
             snapshotValidator: validator,
             warningReporter: {report() {}, recover() {}},
         });
-        const snapshot = gateway.read();
+        const snapshot = readSnapshot(gateway);
         assert.equal(snapshot.source, "invalid", `iteration ${iteration}`);
         assert.equal(snapshot.device.available, false, `iteration ${iteration}`);
     }

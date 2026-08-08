@@ -10,6 +10,7 @@ const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/fai
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const {readSnapshot} = require("../helpers/fakes.js");
 
 const ROOT = path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto");
 const NOW = 1_700_000_000_000;
@@ -101,9 +102,7 @@ test("regression: warning backoff never hides failure state or overruns after cl
     const gateway = new Runtime.RuntimeSnapshotGateway({
         path: "/unreadable/state.json",
         clock: {now: () => nowMs},
-        readText() {
-            throw new Error("permission denied");
-        },
+        readTextAsync(filename, options, callback) { callback(new Error("permission denied"), null); },
         detectDevice() {
             throw new Error("must not probe after read failure");
         },
@@ -114,7 +113,7 @@ test("regression: warning backoff never hides failure state or overruns after cl
     });
 
     for (let poll = 0; poll < 20; poll += 1) {
-        const snapshot = gateway.read();
+        const snapshot = readSnapshot(gateway);
         assert.equal(snapshot.source, "error");
         assert.equal(snapshot.device.available, false);
         assert.match(snapshot.device.reason, /could not be read/);
@@ -123,11 +122,11 @@ test("regression: warning backoff never hides failure state or overruns after cl
     assert.equal(warnings.length, 1);
 
     nowMs = NOW - 1000;
-    const rolledBackSnapshot = gateway.read();
+    const rolledBackSnapshot = readSnapshot(gateway);
     assert.equal(rolledBackSnapshot.source, "error");
     assert.equal(rolledBackSnapshot.device.available, false);
     assert.equal(warnings.length, 2);
-    gateway.read();
+    readSnapshot(gateway);
     assert.equal(warnings.length, 2);
 });
 

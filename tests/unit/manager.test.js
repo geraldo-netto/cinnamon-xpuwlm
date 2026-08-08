@@ -47,7 +47,8 @@ function harness(overrides = {}) {
         }),
         save: (value) => saves.push(value),
     };
-    const runtimeGateway = overrides.runtimeGateway || {read: snapshot};
+    const runtimeGateway = overrides.runtimeGateway
+        || {read: (options, callback) => callback(snapshot())};
     const logger = {
         warn: (message) => warnings.push(message),
         error: (message) => errors.push(message),
@@ -147,16 +148,17 @@ test("explicit device retry requests a fresh probe and publishes its result", ()
     const readOptions = [];
     const {manager} = harness({
         runtimeGateway: {
-            read(options) {
+            read(options, callback) {
                 readOptions.push(options);
-                return snapshot();
+                callback(snapshot());
             },
         },
     });
     let publications = 0;
     manager.subscribe(() => { publications += 1; });
     manager.start();
-    assert.equal(manager.retryDeviceDetection().device.available, true);
+    assert.equal(manager.retryDeviceDetection(), true);
+    assert.equal(manager.state().device.available, true);
     assert.deepEqual(readOptions, [
         {forceDeviceDetection: false},
         {forceDeviceDetection: true},
@@ -195,12 +197,12 @@ test("listeners receive isolated state projections", () => {
 test("runtime gateway replacement validates input and refreshes after start", () => {
     const {manager} = harness();
     assert.throws(() => manager.replaceRuntimeGateway({}), /gateway/);
-    const beforeStart = {read: () => Domain.unavailableSnapshot("before", NOW)};
+    const beforeStart = {read: (options, callback) => callback(Domain.unavailableSnapshot("before", NOW))};
     assert.equal(manager.replaceRuntimeGateway(beforeStart), undefined);
     assert.equal(manager.state().device.reason, "Monitoring has not started");
     manager.start();
     assert.equal(manager.state().device.reason, "before");
-    manager.replaceRuntimeGateway({read: snapshot});
+    manager.replaceRuntimeGateway({read: (options, callback) => callback(snapshot())});
     assert.equal(manager.state().device.available, true);
 });
 
@@ -221,7 +223,7 @@ test("connected state expires at its freshness deadline instead of at the next p
     let nowMs = NOW;
     const {manager, scheduler} = harness({
         clock: {now: () => nowMs},
-        runtimeGateway: {read: () => connectedSnapshot(NOW)},
+        runtimeGateway: {read: (options, callback) => callback(connectedSnapshot(NOW))},
     });
     const states = [];
     manager.subscribe((state) => states.push(state));
@@ -246,7 +248,7 @@ test("expiry is re-armed on every refresh and never fires twice for one snapshot
     let generatedAt = NOW;
     const {manager, scheduler} = harness({
         clock: {now: () => nowMs},
-        runtimeGateway: {read: () => connectedSnapshot(generatedAt)},
+        runtimeGateway: {read: (options, callback) => callback(connectedSnapshot(generatedAt))},
     });
     let publications = 0;
     manager.subscribe(() => { publications += 1; });
@@ -282,7 +284,7 @@ test("dispose cancels a pending expiry and ignores late callbacks", () => {
     let nowMs = NOW;
     const {manager, scheduler} = harness({
         clock: {now: () => nowMs},
-        runtimeGateway: {read: () => connectedSnapshot(NOW)},
+        runtimeGateway: {read: (options, callback) => callback(connectedSnapshot(NOW))},
     });
     manager.start();
     const armed = scheduler.scheduled.at(-1);

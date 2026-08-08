@@ -7,6 +7,7 @@ const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js")
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const {readSnapshot} = require("../helpers/fakes.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -76,13 +77,17 @@ test("snapshot document parser rejects non-text, oversized, and malformed data",
 
 test("gateway validates dependencies", () => {
     const base = {
-        readText() {},
+        readTextAsync() {},
         detectDevice() {},
         path: "/tmp/state",
         snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter(),
     };
-    assert.throws(() => new Runtime.RuntimeSnapshotGateway({...base, readText: null}), /reader/);
+    assert.throws(() => new Runtime.RuntimeSnapshotGateway({...base, readTextAsync: null}), /reader/);
+    assert.throws(
+        () => new Runtime.RuntimeSnapshotGateway({...base, cancellableFactory: null}),
+        /cancellable/,
+    );
     assert.throws(() => new Runtime.RuntimeSnapshotGateway({...base, detectDevice: null}), /detector/);
     assert.throws(() => new Runtime.RuntimeSnapshotGateway({...base, clock: {}}), /clock/);
     assert.throws(() => new Runtime.RuntimeSnapshotGateway({...base, snapshotValidator: {}}), /validator/);
@@ -170,9 +175,9 @@ test("gateway prefers a non-empty runtime document", () => {
     const gateway = new Runtime.RuntimeSnapshotGateway({
         path: "/run/tpuwm.json",
         clock: {now: () => NOW},
-        readText(path) {
-            assert.equal(path, "/run/tpuwm.json");
-            return JSON.stringify(validSnapshot());
+        readTextAsync(filename, options, callback) {
+            assert.equal(filename, "/run/tpuwm.json");
+            callback(null, JSON.stringify(validSnapshot()));
         },
         detectDevice() {
             probes += 1;
@@ -181,7 +186,7 @@ test("gateway prefers a non-empty runtime document", () => {
         snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter(),
     });
-    assert.equal(gateway.read().source, "runtime");
+    assert.equal(readSnapshot(gateway).source, "runtime");
     assert.equal(probes, 0);
 });
 
@@ -190,7 +195,7 @@ test("gateway probes only when documents are absent", () => {
     const gateway = new Runtime.RuntimeSnapshotGateway({
         path: "/missing",
         clock: {now: () => NOW},
-        readText: () => null,
+        readTextAsync: (filename, options, callback) => callback(null, null),
         detectDevice(forceDeviceDetection) {
             probes.push(forceDeviceDetection);
             return {available: true, name: "Coral", kind: "usb"};
@@ -198,9 +203,10 @@ test("gateway probes only when documents are absent", () => {
         snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter(),
     });
-    assert.equal(gateway.read().source, "probe");
-    assert.equal(gateway.read(null).source, "probe");
-    assert.equal(gateway.read({forceDeviceDetection: true}).source, "probe");
+    assert.equal(readSnapshot(gateway).source, "probe");
+    assert.equal(readSnapshot(gateway, null).source, "probe");
+    assert.equal(readSnapshot(gateway, {forceDeviceDetection: true}).source, "probe");
+    assert.throws(() => gateway.read({}), /callback/);
     assert.deepEqual(probes, [false, false, true]);
 });
 
@@ -211,7 +217,7 @@ test("gateway rejects present non-text documents without probing", () => {
     const gateway = new Runtime.RuntimeSnapshotGateway({
         path: "/run/tpuwm.json",
         clock: {now: () => NOW},
-        readText: () => documents[index],
+        readTextAsync: (filename, options, callback) => callback(null, documents[index]),
         detectDevice() {
             probes += 1;
             return {available: true, name: "Coral", kind: "usb"};
@@ -221,7 +227,7 @@ test("gateway rejects present non-text documents without probing", () => {
     });
 
     for (index = 0; index < documents.length; index += 1) {
-        const snapshot = gateway.read();
+        const snapshot = readSnapshot(gateway);
         assert.equal(snapshot.source, "invalid");
         assert.equal(snapshot.device.available, false);
         assert.match(snapshot.device.reason, /not text/u);
@@ -235,9 +241,7 @@ test("gateway fails closed and logs runtime read failures", () => {
     const gateway = new Runtime.RuntimeSnapshotGateway({
         path: "",
         clock: {now: () => NOW},
-        readText() {
-            throw new Error("missing");
-        },
+        readTextAsync(filename, options, callback) { callback(new Error("missing"), null); },
         detectDevice() {
             probes += 1;
             return {available: true, name: "Coral", kind: "usb"};
@@ -245,7 +249,7 @@ test("gateway fails closed and logs runtime read failures", () => {
         snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter({warn: (message) => warnings.push(message)}),
     });
-    const result = gateway.read();
+    const result = readSnapshot(gateway);
     assert.equal(result.source, "error");
     assert.equal(result.device.available, false);
     assert.equal(probes, 0);
@@ -257,14 +261,14 @@ test("gateway fails closed when device probing throws", () => {
     const gateway = new Runtime.RuntimeSnapshotGateway({
         clock: {now: () => NOW},
         staleAfterMs: 0,
-        readText: () => " ",
+        readTextAsync: (filename, options, callback) => callback(null, " "),
         detectDevice() {
             throw new Error("denied");
         },
         snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter({warn: (message) => warnings.push(message)}),
     });
-    const result = gateway.read();
+    const result = readSnapshot(gateway);
     assert.equal(result.source, "probe");
     assert.equal(result.device.available, false);
     assert.match(result.device.reason, /discovery failed/);
@@ -280,11 +284,12 @@ test("gateway backs off read and probe warnings independently", () => {
     const gateway = new Runtime.RuntimeSnapshotGateway({
         path: "/run/tpuwm.json",
         clock: {now: () => nowMs},
-        readText() {
+        readTextAsync(filename, options, callback) {
             if (readFails) {
-                throw new Error("read denied");
+                callback(new Error("read denied"), null);
+                return;
             }
-            return null;
+            callback(null, null);
         },
         detectDevice() {
             if (probeFails) {
@@ -296,39 +301,39 @@ test("gateway backs off read and probe warnings independently", () => {
         warningReporter: warningReporter({warn: (message) => warnings.push(message)}),
     });
 
-    assert.equal(gateway.read().source, "error");
+    assert.equal(readSnapshot(gateway).source, "error");
     nowMs += 1;
-    assert.equal(gateway.read().source, "error");
+    assert.equal(readSnapshot(gateway).source, "error");
     assert.equal(warnings.length, 1);
 
     readFails = false;
-    assert.equal(gateway.read().source, "probe");
+    assert.equal(readSnapshot(gateway).source, "probe");
     assert.equal(warnings.length, 2);
     nowMs += 1;
-    assert.equal(gateway.read().source, "probe");
+    assert.equal(readSnapshot(gateway).source, "probe");
     assert.equal(warnings.length, 2);
 
     readFails = true;
-    assert.equal(gateway.read().source, "error");
+    assert.equal(readSnapshot(gateway).source, "error");
     assert.equal(warnings.length, 3);
     readFails = false;
     probeFails = false;
-    assert.equal(gateway.read().source, "probe");
+    assert.equal(readSnapshot(gateway).source, "probe");
     probeFails = true;
-    assert.equal(gateway.read().source, "probe");
+    assert.equal(readSnapshot(gateway).source, "probe");
     assert.equal(warnings.length, 4);
 });
 
 test("gateway silent reporter safely absorbs fallback failures", () => {
     const gateway = new Runtime.RuntimeSnapshotGateway({
-        readText() { throw new Error("missing"); },
+        readTextAsync(filename, options, callback) { callback(new Error("missing"), null); },
         detectDevice() { throw new Error("denied"); },
         path: "/missing",
         clock: {now: () => NOW},
         snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter(),
     });
-    const result = gateway.read();
+    const result = readSnapshot(gateway);
     assert.equal(result.device.available, false);
     assert.equal(result.source, "error");
 });

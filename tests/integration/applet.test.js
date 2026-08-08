@@ -192,7 +192,7 @@ function appletHarness(extraOverrides = {}) {
                 return settings;
             },
             runtimeGatewayFactory(path) {
-                const gateway = {path, read() { return {}; }};
+                const gateway = {path, read: (options, callback) => callback(Domain.unavailableSnapshot("stub", 1, "error"))};
                 gateways.push(gateway);
                 return gateway;
             },
@@ -476,7 +476,7 @@ test("an unusable layout measurement falls back to the default popup layout", ()
             environment: {},
             settingsFactory: (owner) => new BoundSettings(owner),
             repository: {load: () => ({}), save() {}},
-            runtimeGateway: {read: () => Domain.unavailableSnapshot("none", 1, "error")},
+            runtimeGateway: {read: (options, callback) => callback(Domain.unavailableSnapshot("none", 1, "error"))},
             layoutProvider: {measure() { throw new Error("no monitor"); }},
             poller: {start() {}, stop() {}},
             menuFactory: () => new FakeMenu(),
@@ -514,14 +514,14 @@ test("applet wires a scheduler so connected state expires without a poll", () =>
             settingsFactory: (owner) => new BoundSettings(owner),
             repository: {load: () => ({}), save() {}},
             runtimeGateway: {
-                read: () => Domain.normalizeSnapshot({
+                read: (options, callback) => callback(Domain.normalizeSnapshot({
                     version: Domain.SNAPSHOT_VERSION,
                     generatedAt,
                     device: {available: true, name: "Coral USB", kind: "usb"},
                     metrics: {load: 40, queueDepth: 0, runningProfiles: 0},
                     profiles: {},
                     alerts: [],
-                }, nowMs),
+                }, nowMs)),
             },
             scheduler: {
                 schedule(delayMs, callback) {
@@ -562,7 +562,7 @@ test("default environment, logger, and main construct with Cinnamon dependencies
     assert.equal(instance instanceof AppletModule.TpuWorkloadApplet, true);
     assert.equal(instance.label, "");
     assert.match(instance.iconPath, /tpuwm-status-unavailable-symbolic\.svg$/u);
-    assert.match(instance.actor.accessibleName, /unavailable:/u);
+    assert.match(instance.actor.accessibleName, /unknown:/u);
     const timer = [...timers.values()].at(-1);
     assert.equal(timer.callback(), true);
     instance.on_applet_removed_from_panel();

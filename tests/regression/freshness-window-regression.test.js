@@ -9,6 +9,7 @@ const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const {readSnapshot} = require("../helpers/fakes.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -33,14 +34,14 @@ test("regression: a slow poll interval cannot present expired state as online", 
     const manager = new Manager.WorkloadManager({
         repository: {load: () => ({}), save() {}},
         runtimeGateway: {
-            read: () => Domain.normalizeSnapshot({
+            read: (options, callback) => callback(Domain.normalizeSnapshot({
                 version: Domain.SNAPSHOT_VERSION,
                 generatedAt: nowMs,
                 device: {available: true, name: "Coral USB", kind: "usb"},
                 metrics: {load: 40, queueDepth: 0, runningProfiles: 0},
                 profiles: {},
                 alerts: [],
-            }, nowMs),
+            }, nowMs)),
         },
         errorReporter: {report() {}, recover() {}},
         clock: {now: () => nowMs},
@@ -88,14 +89,14 @@ test("regression: non-finite freshness windows cannot keep runtime state connect
             path: "/run/tpuwm.json",
             clock: {now: () => NOW},
             staleAfterMs,
-            readText: () => JSON.stringify(document),
+            readTextAsync: (filename, options, callback) => callback(null, JSON.stringify(document)),
             detectDevice: () => {
                 throw new Error("runtime documents must not trigger probing");
             },
             snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
             warningReporter: new FailureBackoff.FailureWarningBackoff({logger: {warn() {}}}),
         });
-        const adapted = gateway.read();
+        const adapted = readSnapshot(gateway);
         assert.equal(adapted.stale, true);
         assert.equal(adapted.device.available, false);
     }

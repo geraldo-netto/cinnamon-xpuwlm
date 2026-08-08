@@ -5,6 +5,7 @@ const test = require("node:test");
 
 const Cinnamon = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/cinnamon-runtime.js");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
+const {readSnapshot} = require("../helpers/fakes.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -24,6 +25,28 @@ class FakeFile {
         return {get_size: () => size};
     }
 
+    load_contents_async(cancellable, callback) {
+        if (cancellable && cancellable.cancelled) {
+            callback(this, {cancelled: true});
+            return;
+        }
+        callback(this, {});
+    }
+
+    load_contents_finish(result) {
+        if (result.cancelled) {
+            throw ioError(this.environment, "CANCELLED");
+        }
+        if (!this.environment.existing.has(this.path)) {
+            throw ioError(this.environment, "NOT_FOUND");
+        }
+        const value = this.environment.files.get(this.path);
+        if (value instanceof Error) {
+            return [false, ""];
+        }
+        return [true, value];
+    }
+
     enumerate_children() {
         const names = this.environment.usbNames.slice();
         let index = 0;
@@ -41,6 +64,11 @@ class FakeFile {
     }
 }
 
+function ioError(env, name) {
+    const code = env.Gio.IOErrorEnum[name];
+    return {matches: (enumeration, candidate) => enumeration === env.Gio.IOErrorEnum && candidate === code};
+}
+
 function environment(files = {}, usbNames = []) {
     const env = {
         files: new Map(Object.entries(files)),
@@ -51,6 +79,8 @@ function environment(files = {}, usbNames = []) {
         Gio: {
             File: {new_for_path: (path) => new FakeFile(path, env)},
             FileQueryInfoFlags: {NOFOLLOW_SYMLINKS: 1},
+            IOErrorEnum: {NOT_FOUND: 1, CANCELLED: 19},
+            Cancellable: class { cancel() { this.cancelled = true; } },
         },
         GLib: {
             get_home_dir: () => "/home/tester",
@@ -366,8 +396,8 @@ test("runtime gateway factory expands home and accepts a supplied detector", () 
             },
         },
     });
-    assert.equal(gateway.read().source, "probe");
-    assert.equal(gateway.read({forceDeviceDetection: true}).source, "probe");
+    assert.equal(readSnapshot(gateway).source, "probe");
+    assert.equal(readSnapshot(gateway, {forceDeviceDetection: true}).source, "probe");
     assert.deepEqual(detections, [false, true]);
 });
 
@@ -384,7 +414,7 @@ test("runtime gateway factory injects a supplied warning reporter port", () => {
         deviceDetector: {detect: () => ({available: false})},
     });
 
-    assert.equal(gateway.read().source, "error");
+    assert.equal(readSnapshot(gateway).source, "error");
     assert.equal(reports.length, 1);
     assert.match(reports[0][1], /Could not read/);
 });
@@ -412,7 +442,7 @@ test("runtime gateway factory composes through an injected snapshot validator po
         },
     });
 
-    assert.equal(gateway.read().source, "runtime");
+    assert.equal(readSnapshot(gateway).source, "runtime");
     assert.equal(candidates.length, 1);
     assert.equal(candidates[0].version, 1);
 });

@@ -22,6 +22,13 @@ function createInertScheduler() {
     return {schedule() { return null; }, cancel() { return false; }};
 }
 
+function requireRuntimeGateway(candidate) {
+    if (!candidate || typeof candidate.read !== "function") {
+        throw new TypeError("A runtime gateway with read is required");
+    }
+    return candidate;
+}
+
 function requireScheduler(candidate) {
     if (!candidate
         || typeof candidate.schedule !== "function"
@@ -44,9 +51,7 @@ class WorkloadManager {
         if (!repository || typeof repository.load !== "function" || typeof repository.save !== "function") {
             throw new TypeError("A profile repository with load/save is required");
         }
-        if (!runtimeGateway || typeof runtimeGateway.read !== "function") {
-            throw new TypeError("A runtime gateway with read is required");
-        }
+        requireRuntimeGateway(runtimeGateway);
         if (!clock || typeof clock.now !== "function") {
             throw new TypeError("A clock with now is required");
         }
@@ -55,6 +60,7 @@ class WorkloadManager {
         this._clock = clock;
         this._logger = logger;
         this._scheduler = requireScheduler(scheduler);
+        this._refreshSequence = 0;
         this._staleAfterMs = Domain.normalizeStaleAfterMs(staleAfterMs);
         this._expiryHandle = null;
         this._errors = FailureReporter.requireFailureReporter(errorReporter, "manager error");
@@ -93,26 +99,44 @@ class WorkloadManager {
         return this._refreshRuntime(true);
     }
 
+    // Refreshes are asynchronous and sequenced: a completion that arrives after
+    // a newer refresh, or after disposal, is discarded instead of publishing
+    // state the applet has already moved past.
     _refreshRuntime(forceDeviceDetection) {
         this._ensureActive();
+        this._refreshSequence += 1;
+        const sequence = this._refreshSequence;
         try {
-            this._snapshot = this._runtimeGateway.read({forceDeviceDetection});
-            this._errors.recover(RUNTIME_READ_FAILURE);
+            this._runtimeGateway.read({forceDeviceDetection}, (snapshot) => {
+                this._acceptSnapshot(sequence, snapshot);
+            });
+            return true;
         } catch (error) {
             this._errors.report(
                 RUNTIME_READ_FAILURE,
                 `Could not read runtime state: ${error}`,
                 this._clock.now(),
             );
-            this._snapshot = Domain.unavailableSnapshot(
+            this._acceptSnapshot(sequence, Domain.unavailableSnapshot(
                 "Runtime state could not be read",
                 this._clock.now(),
                 "error",
-            );
+            ), false);
+            return false;
+        }
+    }
+
+    _acceptSnapshot(sequence, snapshot, recovered = true) {
+        if (this._disposed || sequence !== this._refreshSequence) {
+            return false;
+        }
+        this._snapshot = snapshot;
+        if (recovered) {
+            this._errors.recover(RUNTIME_READ_FAILURE);
         }
         this._scheduleExpiry();
         this._publish();
-        return this.state();
+        return true;
     }
 
     _scheduleExpiry() {
@@ -129,6 +153,15 @@ class WorkloadManager {
             this._expiryHandle = null;
             this._expireSnapshot();
         });
+        return true;
+    }
+
+    _cancelRuntimeRead() {
+        this._refreshSequence += 1;
+        if (typeof this._runtimeGateway.cancel !== "function") {
+            return false;
+        }
+        this._runtimeGateway.cancel();
         return true;
     }
 
@@ -161,9 +194,8 @@ class WorkloadManager {
 
     replaceRuntimeGateway(runtimeGateway) {
         this._ensureActive();
-        if (!runtimeGateway || typeof runtimeGateway.read !== "function") {
-            throw new TypeError("A runtime gateway with read is required");
-        }
+        requireRuntimeGateway(runtimeGateway);
+        this._cancelRuntimeRead();
         this._runtimeGateway = runtimeGateway;
         if (this._started) {
             this.refresh();
@@ -243,6 +275,7 @@ class WorkloadManager {
         }
         this._disposed = true;
         this._cancelExpiry();
+        this._cancelRuntimeRead();
         this._errors.recover(RUNTIME_READ_FAILURE);
         this._errors.recover(STATE_SAVE_FAILURE);
         for (const listener of this._listeners) {
@@ -311,6 +344,7 @@ module.exports = {
     WorkloadManager,
     createInertScheduler,
     createSilentLogger,
+    requireRuntimeGateway,
     requireScheduler,
     sanitizeTab,
 };

@@ -6,6 +6,7 @@ const test = require("node:test");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const Fixtures = require("../helpers/runtime-snapshot-fixtures.js");
+const {readSnapshot} = require("../helpers/fakes.js");
 
 function parse(candidate) {
     return Runtime.parseSnapshotDocument(
@@ -62,7 +63,7 @@ test("regression: a present non-string read result cannot masquerade as a missin
     const gateway = new Runtime.RuntimeSnapshotGateway({
         path: "/run/tpuwm.json",
         clock: {now: () => Fixtures.NOW},
-        readText: () => ({present: true}),
+        readTextAsync: (filename, options, callback) => callback(null, ({present: true})),
         detectDevice() {
             probes += 1;
             return {available: true, name: "Coral USB", kind: "usb"};
@@ -71,7 +72,7 @@ test("regression: a present non-string read result cannot masquerade as a missin
         warningReporter: {report() {}, recover() {}},
     });
 
-    const snapshot = gateway.read();
+    const snapshot = readSnapshot(gateway);
     assert.equal(snapshot.source, "invalid");
     assert.equal(snapshot.device.available, false);
     assert.equal(probes, 0);

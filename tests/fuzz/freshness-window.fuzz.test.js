@@ -7,6 +7,7 @@ const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js")
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const {readSnapshot} = require("../helpers/fakes.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -86,11 +87,11 @@ test("fuzz: non-finite windows expire old snapshots through every adapter path",
             clock: {now: () => NOW},
             staleAfterMs,
             path: "/run/tpuwm.json",
-            readText: () => JSON.stringify(document),
+            readTextAsync: (filename, options, callback) => callback(null, JSON.stringify(document)),
             detectDevice: () => null,
             snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
             warningReporter: new FailureBackoff.FailureWarningBackoff({logger: {warn() {}}}),
         });
-        assert.equal(gateway.read().stale, true);
+        assert.equal(readSnapshot(gateway).stale, true);
     }
 });

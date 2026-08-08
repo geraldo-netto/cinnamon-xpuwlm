@@ -58,18 +58,22 @@ function parseSnapshotDocument(
     return Domain.normalizeSnapshot(candidate, nowMs, staleAfterMs);
 }
 
+// Reads are asynchronous, sequenced, and cancellable: only one read is ever in
+// flight, a completion that arrives after a newer read (or after teardown) is
+// discarded, and teardown cancels whatever is still pending.
 class RuntimeSnapshotGateway {
     constructor({
-        readText,
+        readTextAsync,
         detectDevice,
         path,
         snapshotValidator,
         warningReporter,
         clock = Date,
         staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS,
+        cancellableFactory = () => null,
     }) {
-        if (typeof readText !== "function") {
-            throw new TypeError("A text reader is required");
+        if (typeof readTextAsync !== "function") {
+            throw new TypeError("An asynchronous text reader is required");
         }
         if (typeof detectDevice !== "function") {
             throw new TypeError("A device detector is required");
@@ -77,44 +81,89 @@ class RuntimeSnapshotGateway {
         if (!clock || typeof clock.now !== "function") {
             throw new TypeError("A clock with now is required");
         }
-        this._readText = readText;
+        if (typeof cancellableFactory !== "function") {
+            throw new TypeError("A cancellable factory is required");
+        }
+        this._readTextAsync = readTextAsync;
         this._detectDevice = detectDevice;
+        this._cancellableFactory = cancellableFactory;
         this._path = String(path || "");
         this._clock = clock;
         this._staleAfterMs = Domain.normalizeStaleAfterMs(staleAfterMs);
         this._snapshotValidator = SnapshotValidator.requireSnapshotValidator(snapshotValidator);
         this._warnings = FailureReporter.requireFailureReporter(warningReporter, "runtime warning");
+        this._sequence = 0;
+        this._pending = null;
     }
 
-    read(options = {}) {
+    read(options, callback) {
+        if (typeof callback !== "function") {
+            throw new TypeError("A snapshot callback is required");
+        }
         const forceDeviceDetection = options?.forceDeviceDetection === true;
         const nowMs = this._clock.now();
-        let text;
+        this.cancel();
+        this._sequence += 1;
+        const sequence = this._sequence;
+        const cancellable = this._cancellableFactory();
+        this._pending = {sequence, cancellable};
+
+        let settled = false;
+        const deliver = (snapshot) => {
+            if (settled || sequence !== this._sequence) {
+                return false;
+            }
+            settled = true;
+            this._pending = null;
+            callback(snapshot);
+            return true;
+        };
+
         try {
-            text = this._readText(this._path);
-            this._warnings.recover(SNAPSHOT_READ_FAILURE);
+            this._readTextAsync(
+                this._path,
+                {maximumBytes: MAX_SNAPSHOT_BYTES + 1, cancellable},
+                (error, text) => this._complete(error, text, nowMs, forceDeviceDetection, deliver),
+            );
         } catch (error) {
-            this._warnings.report(
-                SNAPSHOT_READ_FAILURE,
-                `Could not read ${this._path}: ${error}`,
-                nowMs,
-            );
-            return Domain.unavailableSnapshot(
-                "Runtime snapshot could not be read",
-                nowMs,
-                "error",
-            );
+            this._reportReadFailure(error, nowMs, deliver);
         }
+        return true;
+    }
+
+    cancel() {
+        if (this._pending === null) {
+            return false;
+        }
+        const {cancellable} = this._pending;
+        this._pending = null;
+        this._sequence += 1;
+        if (cancellable && typeof cancellable.cancel === "function") {
+            cancellable.cancel();
+        }
+        return true;
+    }
+
+    _complete(error, text, nowMs, forceDeviceDetection, deliver) {
+        if (error) {
+            this._reportReadFailure(error, nowMs, deliver);
+            return false;
+        }
+        this._warnings.recover(SNAPSHOT_READ_FAILURE);
         const snapshotIsMissing = text === null;
         const snapshotIsEmpty = typeof text === "string" && text.trim() === "";
         if (!snapshotIsMissing && !snapshotIsEmpty) {
-            return parseSnapshotDocument(
+            return deliver(parseSnapshotDocument(
                 text,
                 nowMs,
                 this._snapshotValidator,
                 this._staleAfterMs,
-            );
+            ));
         }
+        return deliver(this._probe(nowMs, forceDeviceDetection));
+    }
+
+    _probe(nowMs, forceDeviceDetection) {
         try {
             const snapshot = Domain.probeSnapshot(
                 this._detectDevice(forceDeviceDetection),
@@ -130,6 +179,19 @@ class RuntimeSnapshotGateway {
             );
             return Domain.unavailableSnapshot("TPU device discovery failed", nowMs, "probe");
         }
+    }
+
+    _reportReadFailure(error, nowMs, deliver) {
+        this._warnings.report(
+            SNAPSHOT_READ_FAILURE,
+            `Could not read ${this._path}: ${error}`,
+            nowMs,
+        );
+        return deliver(Domain.unavailableSnapshot(
+            "Runtime snapshot could not be read",
+            nowMs,
+            "error",
+        ));
     }
 }
 

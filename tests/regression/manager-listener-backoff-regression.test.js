@@ -14,7 +14,7 @@ test("regression: a persistent render failure cannot log on every refresh", () =
     const manager = new Manager.WorkloadManager({
         repository: {load: () => ({}), save() {}},
         runtimeGateway: {
-            read: () => Domain.probeSnapshot({available: true, name: "TPU", kind: "usb"}, nowMs),
+            read: (options, callback) => callback(Domain.probeSnapshot({available: true, name: "TPU", kind: "usb"}, nowMs)),
         },
         clock: {now: () => nowMs},
         errorReporter: new FailureBackoff.FailureErrorBackoff({logger}),

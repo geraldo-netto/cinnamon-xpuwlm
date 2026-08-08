@@ -231,7 +231,7 @@ test("manager projections are complete and isolated from listener mutation", () 
     const manager = new Manager.WorkloadManager({
         repository: {load: () => ({}), save() {}},
         runtimeGateway: {
-            read: () => Domain.normalizeSnapshot(connectedDocument({
+            read: (options, callback) => callback(Domain.normalizeSnapshot(connectedDocument({
                 alerts: [{
                     id: "power-risk",
                     profileId: "hardware-health",
@@ -240,7 +240,7 @@ test("manager projections are complete and isolated from listener mutation", () 
                     severity: "warning",
                     timestamp: NOW,
                 }],
-            }), NOW),
+            }), NOW)),
         },
         errorReporter: new FailureBackoff.FailureErrorBackoff({logger: {error() {}}}),
         clock: {now: () => NOW},

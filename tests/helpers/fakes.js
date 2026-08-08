@@ -231,6 +231,41 @@ class FakeSettings {
     }
 }
 
+// The production reader is asynchronous; these fakes complete synchronously so
+// the tests stay deterministic while still exercising the callback contract.
+function textReader(value) {
+    return (path, options, callback) => {
+        const resolved = typeof value === "function" ? value(path, options) : value;
+        if (resolved instanceof Error) {
+            callback(resolved, null);
+            return;
+        }
+        callback(null, resolved);
+    };
+}
+
+function readSnapshot(gateway, options = {}) {
+    let captured = null;
+    gateway.read(options, (snapshot) => { captured = snapshot; });
+    return captured;
+}
+
+function snapshotGateway(snapshot) {
+    return {
+        reads: [],
+        cancelled: 0,
+        read(options, callback) {
+            this.reads.push(options);
+            callback(typeof snapshot === "function" ? snapshot(options) : snapshot);
+            return true;
+        },
+        cancel() {
+            this.cancelled += 1;
+            return true;
+        },
+    };
+}
+
 function createClutter() {
     return {
         ActorAlign: {CENTER: "center"},
@@ -301,4 +336,7 @@ module.exports = {
     createClutter,
     createSt,
     findActors,
+    readSnapshot,
+    snapshotGateway,
+    textReader,
 };

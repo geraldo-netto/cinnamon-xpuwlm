@@ -37,7 +37,7 @@ test("regression: explicit retry bypasses a cached unavailable device result", (
     const gateway = new Runtime.RuntimeSnapshotGateway({
         clock,
         path: "/missing/runtime.json",
-        readText: () => null,
+        readTextAsync: (filename, options, callback) => callback(null, null),
         detectDevice: (forceRefresh) => detector.detect(forceRefresh),
         snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: new FailureBackoff.FailureWarningBackoff({logger}),
@@ -52,7 +52,9 @@ test("regression: explicit retry bypasses a cached unavailable device result", (
     manager.start();
     assert.equal(manager.state().device.available, false);
     device.setConnected(true);
-    assert.equal(manager.refresh().device.available, false);
-    assert.equal(manager.retryDeviceDetection().device.available, true);
+    manager.refresh();
+    assert.equal(manager.state().device.available, false);
+    manager.retryDeviceDetection();
+    assert.equal(manager.state().device.available, true);
     assert.equal(manager.state().device.name, "Coral PCIe Edge TPU");
 });

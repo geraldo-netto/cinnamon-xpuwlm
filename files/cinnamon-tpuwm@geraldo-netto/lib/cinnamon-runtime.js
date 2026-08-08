@@ -54,6 +54,56 @@ function readFileText(path, environment, maximumBytes = null) {
     return decodeBytes(contents, environment.ByteArray);
 }
 
+function isIoError(environment, error, name) {
+    const enumeration = environment.Gio && environment.Gio.IOErrorEnum;
+    if (!enumeration || !error || typeof error.matches !== "function") {
+        return false;
+    }
+    return error.matches(enumeration, enumeration[name]);
+}
+
+// Bounded, cancellable GIO read. An absent file reports no text so the caller
+// can fall back to device discovery; a cancelled read never calls back at all.
+function readFileTextAsync(path, environment, options, callback) {
+    const maximumBytes = options && Number.isFinite(options.maximumBytes)
+        ? options.maximumBytes
+        : null;
+    const cancellable = options ? options.cancellable || null : null;
+    const file = environment.Gio.File.new_for_path(path);
+    file.load_contents_async(cancellable, (source, result) => {
+        let contents;
+        try {
+            const [ok, bytes] = source.load_contents_finish(result);
+            if (!ok) {
+                callback(new Error(`Could not read ${path}`), null);
+                return;
+            }
+            contents = bytes;
+        } catch (error) {
+            if (isIoError(environment, error, "CANCELLED")) {
+                return;
+            }
+            if (isIoError(environment, error, "NOT_FOUND")) {
+                callback(null, null);
+                return;
+            }
+            callback(error, null);
+            return;
+        }
+        if (maximumBytes !== null && contents.length > maximumBytes) {
+            callback(new RangeError("Runtime snapshot exceeds 1 MiB"), null);
+            return;
+        }
+        callback(null, decodeBytes(contents, environment.ByteArray));
+    });
+}
+
+function createCancellableFactory(environment) {
+    return () => (environment.Gio && environment.Gio.Cancellable
+        ? new environment.Gio.Cancellable()
+        : null);
+}
+
 function readTrimmed(path, environment) {
     const text = readFileText(path, environment);
     return text === null ? "" : text.trim().toLowerCase();
@@ -308,7 +358,13 @@ function createRuntimeGateway({
         snapshotValidator: snapshotValidator
             ?? new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: warningReporter || new FailureBackoff.FailureWarningBackoff({logger}),
-        readText: (filename) => readFileText(filename, environment, Runtime.MAX_SNAPSHOT_BYTES),
+        cancellableFactory: createCancellableFactory(environment),
+        readTextAsync: (filename, options, callback) => readFileTextAsync(
+            filename,
+            environment,
+            options,
+            callback,
+        ),
         detectDevice: (forceRefresh) => detector.detect(forceRefresh),
     });
 }
@@ -324,6 +380,7 @@ module.exports = {
     CinnamonPoller,
     CinnamonScheduler,
     CinnamonSettingsRepository,
+    createCancellableFactory,
     createCriticalNotifications,
     createLayoutProvider,
     createLogger,
@@ -334,6 +391,8 @@ module.exports = {
     detectUsbDevice,
     expandHome,
     findCoralUsbIdentity,
+    isIoError,
     readFileText,
+    readFileTextAsync,
     readTrimmed,
 };
