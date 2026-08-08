@@ -17,7 +17,7 @@
 | XTPU-0019 | open | medium | s | XTPU-0004 | Expire displayed runtime state at its freshness deadline independently of polling; the 60-second refresh setting can show a snapshot as online for 45 seconds beyond the 15-second stale threshold. |
 | XTPU-0020 | open | medium | m | — | Exercise object- and array-structure mutations instead of excluding them globally; current exclusions omit core domain and view-state behavior from the reported mutation score. |
 | XTPU-0021 | open | low | s | XTPU-0011 | Bound repeated manager and listener error logging; a persistent render listener failure is logged on every refresh indefinitely. |
-| XTPU-0022 | open | high | s | XTPU-0002 | Reject symlinked and non-regular runtime snapshot inputs using no-follow metadata before reading while retaining the byte limit. |
+| XTPU-0022 | open | high | s | XTPU-0002, XTPU-0003 | Reject symlinked/non-regular snapshots and path-object races using no-follow preflight plus opened-stream identity checks; enforce `MAX + 1` bounded async reads. |
 | XTPU-0023 | open | high | m | XTPU-0003 | Move PCIe and USB discovery plus sysfs reads to bounded cancellable async I/O and cancel pending discovery during teardown. |
 | XTPU-0024 | open | low | s | XTPU-0006 | Make reference prototype layouts demonstrate the production popup’s responsive breakpoints and wrapped-content behavior. |
 | XTPU-0025 | open | medium | s | XTPU-0008 | Add expected arrow, Home, and End keyboard navigation with roving focus across tabs. |
