@@ -31,7 +31,37 @@ The panel prototype covers every primary navigation screen and critical recovery
 5. **All paused:** held-queue behavior, collector behavior, safety-rule continuity, and recovery action.
 6. **TPU unavailable:** preserved jobs, deterministic no-fallback behavior, recovery steps, and diagnostics.
 
-Approval images live in `mockup/screens/`. `all-screens.png` is the review gallery. Individual 1440×1080 images preserve readable detail; `768/` and `900/` contain responsive validation renders.
+Approval images live in `mockup/screens/`. `all-screens.png` is the review gallery. Individual 1440×1080 images preserve readable detail; `768/` and `900/` preserve earlier viewport references.
+
+## Responsive popup references
+
+The maintainable prototype now defines popup-led breakpoints rather than scaling
+a fixed desktop canvas. At 520 CSS pixels and below, metrics become a two-column
+grid, headers and profile descriptions wrap, row metadata moves below its title,
+and primary actions keep 44-pixel targets. At 400 CSS pixels and below, expanded
+profile and alert evidence blocks become single-column. Essential navigation,
+pause/resume, recovery, and manager actions remain visible; the popup body scrolls
+instead of clipping them.
+
+The [responsive approval matrix](mockup/screens/responsive/responsive-matrix.png)
+contains four reproducible references:
+
+- **Wide:** 620-pixel popup in a 900×1080 work area.
+- **Narrow:** 420-pixel popup in a 480×900 work area.
+- **High scale:** 480-CSS-pixel compact popup rendered at 2× device scale.
+- **Large text:** 500-pixel compact popup with enlarged heading, body, label, and action text.
+
+Regenerate the source-derived screenshots with:
+
+```bash
+cd tpu-workloads@local/mockup
+./render-responsive-screens.sh
+```
+
+These references apply [Fitts’s Law](https://lawsofux.com/fittss-law/) through
+stable action targets, chunk related metrics and profiles, and use
+[Tesler’s Law](https://lawsofux.com/teslers-law/) to keep complexity in layout
+reflow instead of forcing users to decode truncated content.
 
 ## Recommended panel design
 

@@ -15,7 +15,6 @@
 | XTPU-0020 | open | medium | xs | XTPU-0031, XTPU-0032 | Enable object- and array-structure mutations globally after their concrete core/UI contract gaps are covered; suppress the single proven-equivalent non-array alert fallback mutant locally. |
 | XTPU-0022 | open | high | s | XTPU-0002, XTPU-0003 | Reject symlinked/non-regular snapshots and path-object races using no-follow preflight plus opened-stream identity checks; enforce `MAX + 1` bounded async reads. |
 | XTPU-0023 | open | high | m | XTPU-0003 | Move PCIe and USB discovery plus sysfs reads to bounded cancellable async I/O and cancel pending discovery during teardown. |
-| XTPU-0024 | open | low | s | XTPU-0006 | Make reference prototype layouts demonstrate the production popup’s responsive breakpoints and wrapped-content behavior. |
 | XTPU-0025 | open | medium | s | XTPU-0008 | Add expected arrow, Home, and End keyboard navigation with roving focus across tabs. |
 | XTPU-0026 | open | medium | s | XTPU-0006, XTPU-0008 | Preserve focus by stable semantic control identity when dynamic menu bodies rebuild, with a predictable fallback target. |
 | XTPU-0027 | open | medium | s | XTPU-0009 | Localize settings and metadata through Cinnamon conventions and include their strings in extraction and catalog validation. |

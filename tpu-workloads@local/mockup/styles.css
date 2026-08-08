@@ -50,8 +50,8 @@ a {
   position: relative;
   width: 100vw;
   height: 100vh;
-  min-width: 1180px;
-  min-height: 680px;
+  min-width: 0;
+  min-height: 0;
   color: var(--text);
   background:
     radial-gradient(circle at 24% 23%, rgba(50, 153, 177, 0.62), transparent 29%),
@@ -124,15 +124,17 @@ a {
   right: 26px;
   bottom: 68px;
   display: flex;
-  width: 620px;
+  width: min(620px, calc(100vw - 52px));
   height: min(918px, calc(100vh - 94px));
-  min-height: 620px;
+  min-height: min(620px, calc(100vh - 94px));
   flex-direction: column;
   padding: 17px;
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 15px;
   background: var(--panel);
   box-shadow: 0 28px 70px rgba(0, 0, 0, 0.5), 0 3px 14px rgba(0, 0, 0, 0.38);
+  container-name: tpu-popup;
+  container-type: inline-size;
 }
 
 .popup-arrow {
@@ -1420,4 +1422,237 @@ body[data-screen="clear"] .tabs b {
   min-width: 38px;
   font-variant-numeric: tabular-nums;
   text-align: center;
+}
+
+/*
+ * Production breakpoint references. Query-string layouts set deterministic
+ * review widths; container rules keep the same reflow behavior viewport-led.
+ */
+body[data-layout="narrow"] .popup {
+  right: 12px;
+  width: min(420px, calc(100vw - 24px));
+}
+
+body[data-layout="high-scale"] .popup {
+  right: 12px;
+  width: min(480px, calc(100vw - 24px));
+}
+
+body[data-layout="large-text"] .popup {
+  right: 12px;
+  width: min(500px, calc(100vw - 24px));
+  line-height: 1.35;
+}
+
+body[data-layout="large-text"] .header-copy h2 {
+  font-size: 22px;
+}
+
+body[data-layout="large-text"] :is(.section-heading h3, .alert-header h3, .state-hero h3) {
+  font-size: 19px;
+}
+
+body[data-layout="large-text"] :is(.profile-title h4, .metric strong, .drive-stat strong) {
+  font-size: 16px;
+}
+
+body[data-layout="large-text"] :is(
+  .header-copy p,
+  .profile-copy p,
+  .section-heading p,
+  .alert-summary,
+  .safety-note span,
+  .state-hero p,
+  .recovery-steps span,
+  .paused-groups article div:nth-child(2) span
+) {
+  font-size: 15px;
+}
+
+body[data-layout="large-text"] :is(button, a, .status, .metric > span, .group-heading, small) {
+  font-size: 13px;
+}
+
+@container tpu-popup (max-width: 520px) {
+  .popup-header {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr);
+    align-items: center;
+    gap: 0 12px;
+  }
+
+  .header-copy {
+    margin-left: 0;
+  }
+
+  .title-row,
+  .profile-title,
+  .section-heading {
+    flex-wrap: wrap;
+  }
+
+  .header-copy p,
+  .profile-title h4,
+  .profile-copy p,
+  .paused-profiles span {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .pause-all {
+    width: 100%;
+    min-width: 0;
+    grid-column: 1 / -1;
+    margin-top: 9px;
+  }
+
+  .device-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric {
+    height: auto;
+    min-height: 70px;
+  }
+
+  .tabs a {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .section-heading {
+    align-items: start;
+    gap: 6px 12px;
+  }
+
+  .section-heading > :first-child {
+    min-width: 220px;
+    flex: 1;
+  }
+
+  .profile-row,
+  .profile-summary {
+    grid-template-columns: 43px minmax(0, 1fr) 44px;
+    grid-template-rows: auto auto;
+    min-height: 76px;
+  }
+
+  .profile-meta {
+    display: flex;
+    align-items: center;
+    grid-column: 2;
+    grid-row: 2;
+    gap: 10px;
+    margin-top: 6px;
+    text-align: left;
+  }
+
+  .profile-meta span {
+    margin-top: 0;
+  }
+
+  .profile-row > .switch,
+  .profile-summary > .switch {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+
+  .expanded-content {
+    grid-template-columns: minmax(96px, 0.7fr) minmax(0, 1.3fr);
+    margin-left: 55px;
+  }
+
+  .expanded-content .details-button {
+    min-height: 44px;
+    grid-column: 1 / -1;
+  }
+
+  .paused-profiles {
+    height: auto;
+    min-height: 44px;
+    padding-block: 8px;
+  }
+
+  .compact-row .weight-control {
+    justify-content: start;
+    grid-column: 2;
+    grid-row: 2;
+    margin-top: 8px;
+  }
+
+  .alert-evidence {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .alert-actions,
+  .recovery-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .compact-primary,
+  .secondary-button {
+    min-height: 44px;
+  }
+
+  .history-preview article {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .history-preview article > b {
+    grid-column: 2;
+    margin-top: 5px;
+  }
+
+  .state-hero {
+    min-height: 240px;
+    padding: 24px 18px;
+  }
+
+  .state-action {
+    width: min(230px, 100%);
+  }
+
+  .paused-stats,
+  .clear-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .paused-stats > div,
+  .clear-summary > div {
+    min-height: 52px;
+  }
+
+  .paused-groups article {
+    grid-template-columns: 45px minmax(0, 1fr);
+  }
+
+  .paused-groups article > b {
+    grid-column: 2;
+    margin-top: 5px;
+  }
+}
+
+@container tpu-popup (max-width: 400px) {
+  .expanded-content,
+  .alert-evidence {
+    grid-template-columns: 1fr;
+  }
+
+  .expanded-content {
+    margin-left: 12px;
+  }
+}
+
+@media (max-width: 760px) {
+  .desktop-copy,
+  .task-pill,
+  .panel-tray > span:not(.clock) {
+    display: none;
+  }
+
+  .popup {
+    right: 12px;
+    width: min(500px, calc(100vw - 24px));
+  }
 }
