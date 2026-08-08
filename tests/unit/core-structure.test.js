@@ -258,7 +258,7 @@ test("manager projections are complete and isolated from listener mutation", () 
     const state = manager.state();
     assert.deepEqual(Object.keys(state), [
         "selectedTab", "paused", "profiles", "device", "health", "metrics", "alerts",
-        "attentionCount", "stale", "source", "generatedAt",
+        "attentionCount", "stale", "source", "generatedAt", "control",
     ]);
     assert.deepEqual(state.device, {
         available: true,
@@ -272,6 +272,7 @@ test("manager projections are complete and isolated from listener mutation", () 
     assert.equal(state.profiles.length, DEFINITIONS.length);
     assert.equal(state.alerts.length, 1);
     assert.equal(state.attentionCount, 1);
+    assert.deepEqual(state.control, {pending: false, message: ""});
 
     state.device.name = "mutated";
     state.metrics.load = 99;

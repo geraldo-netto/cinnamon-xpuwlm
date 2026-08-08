@@ -217,6 +217,13 @@ test("view model groups profiles, separates alerts, and creates stable body key"
     assert.equal(offline.device.status, "No device");
     assert.equal(offline.showTabs, false);
     assert.match(offline.headerSubtitle, /Connect device/);
+
+    const pending = ViewModel.toViewModel(state({
+        control: {pending: true, message: "Applying change in runtime…"},
+    }), NOW);
+    assert.equal(pending.controlPending, true);
+    assert.match(pending.controlMessage, /Applying/u);
+    assert.notEqual(pending.bodyKey, model.bodyKey);
 });
 
 test("body key tracks every rendered field of a same-identity alert", () => {

@@ -6,6 +6,7 @@ const test = require("node:test");
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
+const RuntimeControlService = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-service.js");
 const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
 const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
 const ManifestFixtures = require("../helpers/workload-manifest-fixtures.js");
@@ -68,9 +69,23 @@ function harness(overrides = {}) {
     };
     const clock = overrides.clock || {now: () => NOW};
     const scheduler = overrides.scheduler || fakeScheduler();
+    const runtimePolicy = {revision: 0, portfolio: null};
+    const controlService = new RuntimeControlService.RuntimeControlService({
+        repository: {
+            load: () => structuredClone(runtimePolicy),
+            save: (value) => Object.assign(runtimePolicy, structuredClone(value)),
+        },
+        catalog: BuiltIns.coreCatalog(),
+        clock,
+    });
+    const controlGateway = overrides.controlGateway || {
+        send: (command, callback) => callback(null, controlService.handle(command)),
+        cancel: () => false,
+    };
     const manager = new Manager.WorkloadManager({
         repository,
         runtimeGateway,
+        controlGateway,
         clock,
         errorReporter: new FailureBackoff.FailureErrorBackoff({logger}),
         logger,
@@ -78,7 +93,7 @@ function harness(overrides = {}) {
         staleAfterMs: overrides.staleAfterMs,
         workloadRegistry: overrides.workloadRegistry || BuiltIns.coreRegistry(),
     });
-    return {clock, manager, saves, warnings, errors, scheduler};
+    return {clock, controlGateway, manager, saves, warnings, errors, scheduler};
 }
 
 function connectedSnapshot(generatedAt) {
@@ -166,9 +181,88 @@ test("state changes persist only when effective values change", () => {
     assert.equal(manager.pauseAll(), false);
     assert.equal(manager.resumeAll(), true);
     assert.equal(manager.resumeAll(), false);
+    assert.equal(manager.changeWeight("hardware-health", 0), false);
+    assert.equal(manager.changeWeight("hardware-health", 0.5), false);
     assert.equal(saves.length, 5);
     assert.equal(saves.at(-1).portfolio.paused, false);
     assert.deepEqual(saves.at(-1).portfolio.pluginVersions, CORE_VERSIONS);
+});
+
+test("runtime controls wait for acknowledgement and roll back failures", () => {
+    const requests = [];
+    const controlGateway = {
+        send(command, callback) { requests.push({command, callback}); },
+        cancel() { this.cancelled = true; return true; },
+    };
+    const {manager, saves, errors} = harness({controlGateway});
+    const states = [];
+    manager.subscribe((state) => states.push(state));
+    manager.start();
+
+    assert.equal(manager.toggleProfile("hardware-health"), true);
+    assert.equal(manager.pauseAll(), false, "a second control is blocked while pending");
+    assert.equal(manager.state().profiles.find((profile) => profile.id === "hardware-health").enabled, true);
+    assert.equal(manager.state().control.pending, true);
+    requests[0].callback(new Error("service offline"), null);
+    assert.equal(manager.state().profiles.find((profile) => profile.id === "hardware-health").enabled, true);
+    assert.match(manager.state().control.message, /service offline/u);
+    assert.equal(saves.length, 0);
+
+    assert.equal(manager.toggleProfile("hardware-health"), true);
+    requests[1].callback(null, {
+        version: 1,
+        commandId: requests[1].command.id,
+        status: "rejected",
+        revision: 4,
+        appliedAt: NOW,
+        message: "",
+        portfolio: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).serialize(),
+    });
+    assert.equal(manager.state().control.pending, false);
+    assert.match(manager.state().control.message, /rejected/u);
+    assert.equal(errors.some((message) => message.includes("service offline")), true);
+    assert.equal(states.some((state) => state.control.pending), true);
+});
+
+test("weight control clamps boundaries without sending ineffective commands", () => {
+    const requests = [];
+    const {manager} = harness({
+        controlGateway: {
+            send(command) { requests.push(command); },
+            cancel: () => false,
+        },
+    });
+    manager.start();
+    const desktop = manager.state().profiles.find((profile) => profile.id === "desktop-context");
+    assert.equal(desktop.weight, Domain.MIN_WEIGHT);
+    assert.equal(manager.changeWeight(desktop.id, -1), false);
+    assert.deepEqual(requests, []);
+});
+
+test("runtime control is unavailable safely and teardown cancels pending work", () => {
+    const withoutControl = new Manager.WorkloadManager({
+        repository: {load: () => ({}), save() {}},
+        runtimeGateway: {read: (options, callback) => callback(snapshot())},
+        errorReporter: {report() {}, recover() {}},
+        workloadRegistry: BuiltIns.coreRegistry(),
+    });
+    withoutControl.start();
+    assert.equal(withoutControl.pauseAll(), false);
+    assert.match(withoutControl.state().control.message, /unavailable/u);
+
+    const {manager, controlGateway} = harness({
+        controlGateway: {
+            send(command, callback) { this.command = command; this.callback = callback; },
+            cancel() { this.cancelled = true; return true; },
+        },
+    });
+    manager.start();
+    manager.pauseAll();
+    const pending = manager.state();
+    manager.dispose();
+    assert.equal(controlGateway.cancelled, true);
+    assert.equal(pending.control.pending, true);
+    assert.doesNotThrow(() => controlGateway.callback(new Error("late"), null));
 });
 
 test("explicit device retry requests a fresh probe and publishes its result", () => {

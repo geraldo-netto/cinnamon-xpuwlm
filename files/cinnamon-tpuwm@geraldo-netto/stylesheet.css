@@ -103,6 +103,21 @@
     opacity: 0.5;
 }
 
+.tpuwm-control-feedback {
+    padding: 8px 10px;
+    border-radius: 7px;
+    font-weight: bold;
+}
+
+.tpuwm-control-pending {
+    background-color: rgba(127, 127, 127, 0.16);
+}
+
+.tpuwm-control-error {
+    border: 2px solid symbolic;
+    background-color: rgba(127, 127, 127, 0.16);
+}
+
 .tpuwm-secondary-button:focus,
 .tpuwm-primary-button:focus,
 .tpuwm-weight-button:focus,

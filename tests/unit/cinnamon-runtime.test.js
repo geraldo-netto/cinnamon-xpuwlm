@@ -526,3 +526,59 @@ test("runtime gateway factory composes through an injected snapshot validator po
     assert.equal(candidates.length, 1);
     assert.equal(candidates[0].version, 1);
 });
+
+test("runtime control transport calls the versioned D-Bus endpoint", () => {
+    const calls = [];
+    let replyText = "ack";
+    const env = environment();
+    env.Gio.DBusCallFlags = {NONE: 0};
+    env.Gio.DBus = {session: {
+        call(...args) {
+            calls.push(args);
+            args.at(-1)({call_finish: () => ({deep_unpack: () => [replyText]})}, {});
+        },
+    }};
+    env.GLib.Variant = class { constructor(signature, values) { this.signature = signature; this.values = values; } };
+    env.GLib.VariantType = class { constructor(signature) { this.signature = signature; } };
+    const completions = [];
+    Cinnamon.sendRuntimeCommandText("command", {cancellable: null}, (...args) => completions.push(args), env);
+    assert.deepEqual(calls[0].slice(0, 4), [
+        Cinnamon.CONTROL_BUS_NAME,
+        Cinnamon.CONTROL_OBJECT_PATH,
+        Cinnamon.CONTROL_INTERFACE,
+        Cinnamon.CONTROL_METHOD,
+    ]);
+    assert.equal(calls[0][4].values[0], "command");
+    assert.equal(calls[0][7], Cinnamon.CONTROL_TIMEOUT_MS);
+    assert.deepEqual(completions, [[null, "ack"]]);
+    const command = {
+        version: 1,
+        id: "command-1",
+        issuedAt: NOW,
+        expectedRevision: 0,
+        operation: "set-paused",
+        profileId: null,
+        value: true,
+    };
+    replyText = JSON.stringify({
+        version: 1,
+        commandId: command.id,
+        status: "applied",
+        revision: 1,
+        appliedAt: NOW,
+        message: "",
+        portfolio: {paused: true, profiles: {}},
+    });
+    const gatewayCompletions = [];
+    Cinnamon.createRuntimeControlGateway(env).send(
+        command,
+        (...args) => gatewayCompletions.push(args),
+    );
+    assert.equal(gatewayCompletions[0][1].status, "applied");
+
+    env.Gio.DBus.session.call = (...args) => args.at(-1)({
+        call_finish() { throw new Error("bus unavailable"); },
+    }, {});
+    Cinnamon.sendRuntimeCommandText("command", {cancellable: null}, (...args) => completions.push(args), env);
+    assert.match(completions.at(-1)[0].message, /unavailable/u);
+});

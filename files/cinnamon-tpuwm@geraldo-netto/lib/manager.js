@@ -2,6 +2,7 @@
 
 const Domain = require("./domain.js");
 const FailureReporter = require("./failure-reporter.js");
+const RuntimeControl = require("./runtime-control-contract.js");
 const WorkloadReconciliation = require("./workload-reconciliation.js");
 const WorkloadRegistry = require("./workload-registry.js");
 
@@ -9,6 +10,7 @@ const TABS = Object.freeze(["overview", "profiles", "alerts"]);
 const TAB_SET = new Set(TABS);
 const RUNTIME_READ_FAILURE = "runtime-read";
 const STATE_SAVE_FAILURE = "state-save";
+const RUNTIME_CONTROL_FAILURE = "runtime-control";
 
 function sanitizeTab(value) {
     return TAB_SET.has(value) ? value : "overview";
@@ -58,6 +60,7 @@ class WorkloadManager {
     constructor({
         repository,
         runtimeGateway,
+        controlGateway = null,
         errorReporter,
         clock = Date,
         logger = createSilentLogger(),
@@ -69,10 +72,17 @@ class WorkloadManager {
         requireRuntimeGateway(runtimeGateway);
         requireClock(clock);
         this._runtimeGateway = runtimeGateway;
+        this._controlGateway = controlGateway === null
+            ? null
+            : RuntimeControl.requireControlGateway(controlGateway);
         this._clock = clock;
         this._logger = logger;
         this._scheduler = requireScheduler(scheduler);
         this._refreshSequence = 0;
+        this._controlSequence = 0;
+        this._runtimeRevision = 0;
+        this._controlPending = null;
+        this._controlMessage = "";
         this._staleAfterMs = Domain.normalizeStaleAfterMs(staleAfterMs);
         this._expiryHandle = null;
         this._errors = FailureReporter.requireFailureReporter(errorReporter, "manager error");
@@ -242,22 +252,30 @@ class WorkloadManager {
     toggleProfile(id) {
         this._ensureActive();
         const profile = this._portfolio.profile(id);
-        return this._commitPortfolioChange(() => this._portfolio.setEnabled(id, !profile.enabled));
+        return this._sendControl("set-profile-enabled", id, !profile.enabled);
     }
 
     changeWeight(id, delta) {
         this._ensureActive();
-        return this._commitPortfolioChange(() => this._portfolio.adjustWeight(id, delta));
+        if (!Number.isInteger(delta) || delta === 0) {
+            return false;
+        }
+        const profile = this._portfolio.profile(id);
+        const value = Math.max(Domain.MIN_WEIGHT, Math.min(Domain.MAX_WEIGHT, profile.weight + delta));
+        if (value === profile.weight) {
+            return false;
+        }
+        return this._sendControl("set-profile-weight", id, value);
     }
 
     pauseAll() {
         this._ensureActive();
-        return this._commitPortfolioChange(() => this._portfolio.pauseAll());
+        return this._portfolio.paused ? false : this._sendControl("set-paused", null, true);
     }
 
     resumeAll() {
         this._ensureActive();
-        return this._commitPortfolioChange(() => this._portfolio.resumeAll());
+        return this._portfolio.paused ? this._sendControl("set-paused", null, false) : false;
     }
 
     subscribe(listener) {
@@ -291,6 +309,10 @@ class WorkloadManager {
             stale: snapshot.stale,
             source: snapshot.source,
             generatedAt: snapshot.generatedAt,
+            control: {
+                pending: this._controlPending !== null,
+                message: this._controlMessage,
+            },
         };
     }
 
@@ -301,8 +323,10 @@ class WorkloadManager {
         this._disposed = true;
         this._cancelExpiry();
         this._cancelRuntimeRead();
+        this._cancelRuntimeControl();
         this._errors.recover(RUNTIME_READ_FAILURE);
         this._errors.recover(STATE_SAVE_FAILURE);
+        this._errors.recover(RUNTIME_CONTROL_FAILURE);
         for (const listener of this._listeners) {
             this._errors.recover(listener);
         }
@@ -310,14 +334,69 @@ class WorkloadManager {
         return true;
     }
 
-    _commitPortfolioChange(change) {
-        const changed = change();
-        if (!changed) {
+    _sendControl(operation, profileId, value) {
+        if (this._controlPending !== null) {
             return false;
         }
-        this._persist();
+        if (this._controlGateway === null) {
+            this._controlMessage = "Runtime control service is unavailable; start it and retry";
+            this._errors.report(RUNTIME_CONTROL_FAILURE, this._controlMessage, this._clock.now());
+            this._publish();
+            return false;
+        }
+        this._controlSequence += 1;
+        const sequence = this._controlSequence;
+        const command = {
+            version: RuntimeControl.CONTROL_VERSION,
+            id: `tpuwm-${this._clock.now()}-${sequence}`,
+            issuedAt: this._clock.now(),
+            expectedRevision: this._runtimeRevision,
+            operation,
+            profileId,
+            value,
+        };
+        this._controlPending = {sequence, command};
+        this._controlMessage = "Applying change in runtime…";
         this._publish();
+        try {
+            this._controlGateway.send(command, (error, acknowledgement) => {
+                this._acceptControl(sequence, error, acknowledgement);
+            });
+        } catch (error) {
+            this._acceptControl(sequence, error, null);
+        }
         return true;
+    }
+
+    _acceptControl(sequence, error, acknowledgement) {
+        if (this._disposed || this._controlPending?.sequence !== sequence) {
+            return false;
+        }
+        this._controlPending = null;
+        if (error) {
+            this._controlMessage = `Runtime did not apply the change: ${error}`;
+            this._errors.report(RUNTIME_CONTROL_FAILURE, this._controlMessage, this._clock.now());
+            this._publish();
+            return false;
+        }
+        this._runtimeRevision = acknowledgement.revision;
+        this._portfolio = new Domain.WorkloadPortfolio(acknowledgement.portfolio, this._catalog);
+        if (acknowledgement.status === "rejected") {
+            this._controlMessage = acknowledgement.message || "Runtime rejected the change; retry";
+            this._errors.report(RUNTIME_CONTROL_FAILURE, this._controlMessage, this._clock.now());
+        } else {
+            this._controlMessage = "";
+            this._errors.recover(RUNTIME_CONTROL_FAILURE);
+            this._persist();
+        }
+        this._publish();
+        return acknowledgement.status === "applied";
+    }
+
+    _cancelRuntimeControl() {
+        this._controlSequence += 1;
+        this._controlPending = null;
+        return this._controlGateway === null ? false : this._controlGateway.cancel();
     }
 
     _persist() {
@@ -367,6 +446,7 @@ class WorkloadManager {
 
 module.exports = {
     RUNTIME_READ_FAILURE,
+    RUNTIME_CONTROL_FAILURE,
     STATE_SAVE_FAILURE,
     TABS,
     WorkloadManager,

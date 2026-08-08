@@ -100,6 +100,7 @@ class MenuView {
             openSettings: requireAction(actions, "openSettings"),
         };
         this._policyPaused = false;
+        this._controlPending = false;
         this._bodyKey = null;
         this._model = null;
         this._selectedTab = TAB_NAMES[0];
@@ -135,12 +136,14 @@ class MenuView {
     render(model) {
         this._model = model;
         this._policyPaused = model.policyPaused;
+        this._controlPending = model.controlPending;
         this._statusLabel.set_text(model.device.status);
         this._subtitleLabel.set_text(model.headerSubtitle);
         this._pauseLabel.set_text(this._policyPaused ? "Resume all" : "Pause all");
         this._pauseButton.set_accessible_name(this._policyPaused
             ? "Resume all workloads"
             : "Pause all workloads");
+        this._setButtonEnabled(this._pauseButton, !this._controlPending);
         setStyleClass(this._statusLabel, "tpuwm-status-unavailable", !model.device.available);
         for (let index = 0; index < this._metricValues.length; index += 1) {
             const metric = model.metrics[index];
@@ -338,6 +341,13 @@ class MenuView {
     _renderBody(model) {
         const previous = this._focusedIdentity;
         destroyChildren(this._body);
+        if (model.controlMessage) {
+            this._body.add_child(this._label(
+                model.controlMessage,
+                `tpuwm-control-feedback${model.controlPending ? " tpuwm-control-pending" : " tpuwm-control-error"}`,
+                true,
+            ));
+        }
         this._renderScreen(model);
         return this._restoreBodyFocus(previous);
     }
@@ -456,6 +466,7 @@ class MenuView {
             "resume-all",
         );
         resume.set_child(this._label("Resume all workloads", "tpuwm-button-label"));
+        this._setButtonEnabled(resume, !this._controlPending);
         this._body.add_child(resume);
         this._addGroupHeading("Paused groups", "Safety rules remain active");
         for (const group of model.allGroups) {
@@ -516,7 +527,7 @@ class MenuView {
                 this._button("tpuwm-weight-button", `Decrease ${profile.title} weight`, () => this._actions.changeWeight(profile.id, -1)),
                 `weight-down:${profile.id}`,
             );
-            this._setButtonEnabled(down, profile.weight > 1);
+            this._setButtonEnabled(down, this._policyControlEnabled(profile.weight > 1));
             down.set_child(this._label("−", "tpuwm-button-label"));
             controls.add_child(down);
             controls.add_child(this._label(`${profile.weight}`, "tpuwm-weight-value"));
@@ -524,7 +535,7 @@ class MenuView {
                 this._button("tpuwm-weight-button", `Increase ${profile.title} weight`, () => this._actions.changeWeight(profile.id, 1)),
                 `weight-up:${profile.id}`,
             );
-            this._setButtonEnabled(up, profile.weight < 5);
+            this._setButtonEnabled(up, this._policyControlEnabled(profile.weight < 5));
             up.set_child(this._label("+", "tpuwm-button-label"));
             controls.add_child(up);
             row.add_child(controls);
@@ -541,6 +552,7 @@ class MenuView {
             `toggle:${profile.id}`,
         );
         this._setAccessibleState(toggle, "CHECKED", profile.enabled);
+        this._setButtonEnabled(toggle, !this._controlPending);
         toggle.set_child(this._label(profile.enabled ? "On" : "Off", "tpuwm-toggle-label"));
         row.add_child(toggle);
         return row;
@@ -680,6 +692,10 @@ class MenuView {
         button.can_focus = enabled;
         setStyleClass(button, "tpuwm-button-disabled", !enabled);
         this._setAccessibleState(button, "SENSITIVE", enabled);
+    }
+
+    _policyControlEnabled(enabled = true) {
+        return !this._controlPending && enabled;
     }
 }
 

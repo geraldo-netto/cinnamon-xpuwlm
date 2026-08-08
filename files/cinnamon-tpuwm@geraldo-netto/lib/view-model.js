@@ -340,9 +340,12 @@ function toViewModel(state, nowMs = Date.now()) {
         .filter((alert) => alert.resolved)
         .map((alert) => alertModel(alert, state.profiles, nowMs));
     const deviceStatus = deviceStatusText(state);
+    const control = state.control || {pending: false, message: ""};
     return {
         screen,
         policyPaused: state.paused === true,
+        controlPending: control.pending === true,
+        controlMessage: control.message || "",
         selectedTab: Manager.sanitizeTab(state.selectedTab),
         showTabs: Manager.TABS.includes(screen),
         device: {...state.device, status: deviceStatus},
@@ -371,6 +374,7 @@ function toViewModel(state, nowMs = Date.now()) {
             device: state.device,
             health: healthOf(state),
             paused: state.paused,
+            control,
         }),
     };
 }

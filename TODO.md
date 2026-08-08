@@ -2,7 +2,6 @@
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0001 | open | high | xl | — | Add a versioned runtime service and bidirectional command contract; profile, weight, and pause controls currently change local intent and present it as applied without runtime acknowledgement, failure feedback, or rollback. |
 | XTPU-0005 | open | medium | l | XTPU-0001, XTPU-0002, XTPU-0035, XTPU-0036, XTPU-0037, XTPU-0038, XTPU-0039, XTPU-0040, XTPU-0041 | Replace the hard-coded catalog with a modular workload plug-in architecture; the related items define and deliver the contract, registry, migration, lifecycle, safety boundary, low-light workload, and developer tooling. |
 | XTPU-0009 | open | medium | m | XTPU-0006, XTPU-0008 | Localize runtime UI, status, and accessibility strings through gettext and ngettext; verify plurals and expanded translations. |
 | XTPU-0013 | blocked | low | xs | — | Choose and add an explicit repository license before redistribution; no license currently grants reuse rights. |

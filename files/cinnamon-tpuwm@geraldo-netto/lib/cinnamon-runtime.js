@@ -3,6 +3,7 @@
 const FailureBackoff = require("./failure-log-backoff.js");
 const Domain = require("./domain.js");
 const Runtime = require("./runtime-gateway.js");
+const RuntimeControl = require("./runtime-control-gateway.js");
 const RuntimeSchema = require("./runtime-snapshot-schema-validator.js");
 const WorkloadRegistry = require("./workload-registry.js");
 
@@ -15,6 +16,11 @@ const CORAL_USB_IDENTITIES = Object.freeze([
     Object.freeze({vendor: USB_DFU_VENDOR, product: USB_DFU_PRODUCT, name: "Coral USB Accelerator (DFU)"}),
 ]);
 const DEVICE_CACHE_MS = 10000;
+const CONTROL_BUS_NAME = "org.cinnamon.TpuWorkloadManager1";
+const CONTROL_OBJECT_PATH = "/org/cinnamon/TpuWorkloadManager1";
+const CONTROL_INTERFACE = "org.cinnamon.TpuWorkloadManager1";
+const CONTROL_METHOD = "ApplyCommand";
+const CONTROL_TIMEOUT_MS = 5000;
 
 function expandHome(path, homeDirectory) {
     const text = String(path || "");
@@ -455,8 +461,46 @@ function createRuntimeGateway({
     });
 }
 
+function sendRuntimeCommandText(text, {cancellable}, callback, environment) {
+    const connection = environment.Gio.DBus.session;
+    connection.call(
+        CONTROL_BUS_NAME,
+        CONTROL_OBJECT_PATH,
+        CONTROL_INTERFACE,
+        CONTROL_METHOD,
+        new environment.GLib.Variant("(s)", [text]),
+        new environment.GLib.VariantType("(s)"),
+        environment.Gio.DBusCallFlags.NONE,
+        CONTROL_TIMEOUT_MS,
+        cancellable,
+        (source, result) => {
+            try {
+                callback(null, source.call_finish(result).deep_unpack()[0]);
+            } catch (error) {
+                if (!isIoError(environment, error, "CANCELLED")) {
+                    callback(error, null);
+                }
+            }
+        },
+    );
+}
+
+function createRuntimeControlGateway(environment) {
+    return new RuntimeControl.RuntimeControlGateway({
+        cancellableFactory: createCancellableFactory(environment),
+        sendText: (text, options, callback) => sendRuntimeCommandText(
+            text, options, callback, environment,
+        ),
+    });
+}
+
 module.exports = {
     CORAL_USB_IDENTITIES,
+    CONTROL_BUS_NAME,
+    CONTROL_INTERFACE,
+    CONTROL_METHOD,
+    CONTROL_OBJECT_PATH,
+    CONTROL_TIMEOUT_MS,
     DEVICE_CACHE_MS,
     USB_DFU_PRODUCT,
     USB_DFU_VENDOR,
@@ -471,6 +515,7 @@ module.exports = {
     createLayoutProvider,
     createLogger,
     createRuntimeGateway,
+    createRuntimeControlGateway,
     createWorkloadRegistry,
     decodeBytes,
     detectDevice,
@@ -485,4 +530,5 @@ module.exports = {
     readFileTextAsync,
     readTrimmed,
     sameIdentity,
+    sendRuntimeCommandText,
 };

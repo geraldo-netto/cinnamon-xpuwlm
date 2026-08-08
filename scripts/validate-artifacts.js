@@ -21,6 +21,11 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "manager.js",
     "metadata.json",
     "runtime-gateway.js",
+    "runtime-control-contract.js",
+    "runtime-control-gateway.js",
+    "runtime-control-service.js",
+    "runtime-command.schema.json",
+    "runtime-acknowledgement.schema.json",
     "runtime-snapshot-schema-validator.js",
     "runtime-snapshot.schema.json",
     "settings-schema.json",
@@ -116,6 +121,8 @@ function validateJsonArtifacts() {
     const settings = readJson(appletRoot, "settings-schema.json");
     const schema = readJson(appletRoot, "runtime-snapshot.schema.json");
     const workloadSchema = readJson(appletRoot, "workload-manifest.schema.json");
+    const commandSchema = readJson(appletRoot, "runtime-command.schema.json");
+    const acknowledgementSchema = readJson(appletRoot, "runtime-acknowledgement.schema.json");
     const packageJson = readJson(repositoryRoot, "package.json");
     const stryker = readJson(repositoryRoot, "stryker.config.json");
     const Domain = require(path.join(appletRoot, "lib/domain.js"));
@@ -131,6 +138,8 @@ function validateJsonArtifacts() {
     assert.equal(schema.properties.generatedAt.minimum, Domain.MIN_GENERATED_AT);
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(schema));
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(workloadSchema));
+    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(commandSchema));
+    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(acknowledgementSchema));
     assert.equal(settings["show-panel-label"].default, false);
     assert.deepEqual(settings["profile-state"].default.profiles, {});
     assert.equal(schema.properties.metrics.properties.runningProfiles.maximum, Registry.MAX_WORKLOADS);

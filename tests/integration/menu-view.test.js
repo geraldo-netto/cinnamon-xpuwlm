@@ -140,6 +140,31 @@ test("profiles screen offers weight and enable controls", () => {
     assert.equal(maximum.can_focus, false);
 });
 
+test("pending runtime control is announced and disables policy controls", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        control: {pending: true, message: "Applying change in runtime…"},
+    }), NOW));
+    assert.equal(findActors(root, (actor) => actor.text === "Applying change in runtime…").length, 1);
+    for (const accessibleName of [
+        "Pause all workloads",
+        "Decrease Hardware health weight",
+        "Increase Hardware health weight",
+        "Disable Hardware health",
+    ]) {
+        assert.equal(button(root, accessibleName).reactive, false, accessibleName);
+    }
+
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        control: {pending: false, message: "Runtime rejected the change; retry"},
+    }), NOW));
+    const feedback = findActors(root, (actor) => actor.text === "Runtime rejected the change; retry")[0];
+    assert.equal(feedback.styleClasses.has("tpuwm-control-error"), true);
+    assert.equal(button(root, "Pause all workloads").reactive, true);
+});
+
 test("alerts screen renders empty, active, resolved, and fallback evidence", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW));
