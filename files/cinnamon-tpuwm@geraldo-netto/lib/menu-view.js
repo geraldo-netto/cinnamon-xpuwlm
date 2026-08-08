@@ -1,6 +1,9 @@
 "use strict";
 
+const Layout = require("./layout.js");
 const ViewModel = require("./view-model.js");
+
+const METRIC_NAMES = Object.freeze(["TPU load", "Queue", "Running", "Attention"]);
 
 function requireAction(actions, name) {
     if (!actions || typeof actions[name] !== "function") {
@@ -24,7 +27,7 @@ function destroyChildren(actor) {
 }
 
 class MenuView {
-    constructor({St, Clutter, Atk, menu, actions}) {
+    constructor({St, Clutter, Atk, menu, actions, layout}) {
         if (!St || !Clutter || !menu || typeof menu.addActor !== "function") {
             throw new TypeError("Cinnamon UI dependencies are required");
         }
@@ -42,16 +45,37 @@ class MenuView {
         };
         this._policyPaused = false;
         this._bodyKey = null;
+        this._model = null;
+        this._layout = layout || Layout.defaultLayout();
         this._root = this._box("tpuwm-root", true);
         this._buildHeader();
         this._buildMetrics();
         this._buildTabs();
         this._buildBody();
         this._buildFooter();
+        this._applyLayoutStyles();
         menu.addActor(this._root);
     }
 
+    // Cinnamon stylesheets cannot react to the work area, so a resolved layout
+    // is applied imperatively and forces a body rebuild when it changes.
+    applyLayout(layout) {
+        const next = layout || Layout.defaultLayout();
+        if (Layout.sameLayout(this._layout, next)) {
+            return false;
+        }
+        this._layout = next;
+        this._applyLayoutStyles();
+        this._layoutMetrics();
+        this._bodyKey = null;
+        if (this._model !== null) {
+            this.render(this._model);
+        }
+        return true;
+    }
+
     render(model) {
+        this._model = model;
         this._policyPaused = model.policyPaused;
         this._statusLabel.set_text(model.device.status);
         this._subtitleLabel.set_text(model.headerSubtitle);
@@ -85,7 +109,18 @@ class MenuView {
         this._root.destroy();
         this._root = null;
         this._bodyKey = null;
+        this._model = null;
         return true;
+    }
+
+    _applyLayoutStyles() {
+        this._root.set_style(`min-width: ${this._layout.widthPx}px; max-width: ${this._layout.widthPx}px;`);
+        this._scroll.set_style(`max-height: ${this._layout.scrollHeightPx}px;`);
+        for (const styleClass of Layout.MODE_STYLE_CLASS_LIST) {
+            this._root.remove_style_class_name(styleClass);
+        }
+        this._root.add_style_class_name(this._layout.styleClass);
+        this._setWrap(this._subtitleLabel, true);
     }
 
     _buildHeader() {
@@ -102,7 +137,7 @@ class MenuView {
         this._statusLabel = this._label("Unavailable", "tpuwm-status");
         titleRow.add_child(this._statusLabel);
         copy.add_child(titleRow);
-        this._subtitleLabel = this._label("Starting monitoring…", "tpuwm-subtitle");
+        this._subtitleLabel = this._label("Starting monitoring…", "tpuwm-subtitle", true);
         copy.add_child(this._subtitleLabel);
         header.add_child(copy);
         this._pauseButton = this._button("tpuwm-secondary-button", "Pause all workloads", () => {
@@ -119,18 +154,28 @@ class MenuView {
     }
 
     _buildMetrics() {
-        const labels = ["TPU load", "Queue", "Running", "Attention"];
-        const row = this._box("tpuwm-metrics");
+        this._metrics = this._box("tpuwm-metrics", true);
+        this._layoutMetrics();
+        this._root.add_child(this._metrics);
+    }
+
+    _layoutMetrics() {
+        destroyChildren(this._metrics);
         this._metricValues = [];
-        for (const name of labels) {
+        const columns = this._layout.metricColumns;
+        let row = null;
+        for (let index = 0; index < METRIC_NAMES.length; index += 1) {
+            if (index % columns === 0) {
+                row = this._box("tpuwm-metric-row");
+                this._metrics.add_child(row);
+            }
             const metric = this._box("tpuwm-metric", true, true);
-            metric.add_child(this._label(name, "tpuwm-metric-name"));
+            metric.add_child(this._label(METRIC_NAMES[index], "tpuwm-metric-name"));
             const value = this._label("—", "tpuwm-metric-value");
             metric.add_child(value);
             row.add_child(metric);
             this._metricValues.push(value);
         }
-        this._root.add_child(row);
     }
 
     _buildTabs() {
@@ -245,8 +290,8 @@ class MenuView {
                 const row = this._box("tpuwm-history-row");
                 row.add_child(this._label("✓", "tpuwm-history-mark"));
                 const copy = this._box("tpuwm-profile-copy", true, true);
-                copy.add_child(this._label(alert.title, "tpuwm-profile-title"));
-                copy.add_child(this._label(`${alert.profileTitle} · ${alert.age}`, "tpuwm-profile-description"));
+                copy.add_child(this._label(alert.title, "tpuwm-profile-title", true));
+                copy.add_child(this._label(`${alert.profileTitle} · ${alert.age}`, "tpuwm-profile-description", true));
                 row.add_child(copy);
                 row.add_child(this._label("Resolved", "tpuwm-status tpuwm-status-ok"));
                 this._body.add_child(row);
@@ -269,8 +314,8 @@ class MenuView {
         for (const group of model.allGroups) {
             const row = this._box("tpuwm-state-row");
             const copy = this._box("tpuwm-profile-copy", true, true);
-            copy.add_child(this._label(group.name, "tpuwm-profile-title"));
-            copy.add_child(this._label(`${group.profiles.length} profiles`, "tpuwm-profile-description"));
+            copy.add_child(this._label(group.name, "tpuwm-profile-title", true));
+            copy.add_child(this._label(`${group.profiles.length} profiles`, "tpuwm-profile-description", true));
             row.add_child(copy);
             row.add_child(this._label("Paused", "tpuwm-status tpuwm-status-watching"));
             this._body.add_child(row);
@@ -294,8 +339,8 @@ class MenuView {
             const row = this._box("tpuwm-recovery-row");
             row.add_child(this._label(number, "tpuwm-step-number"));
             const copy = this._box("tpuwm-profile-copy", true, true);
-            copy.add_child(this._label(title, "tpuwm-profile-title"));
-            copy.add_child(this._label(description, "tpuwm-profile-description"));
+            copy.add_child(this._label(title, "tpuwm-profile-title", true));
+            copy.add_child(this._label(description, "tpuwm-profile-description", true));
             row.add_child(copy);
             this._body.add_child(row);
         }
@@ -314,11 +359,11 @@ class MenuView {
         }));
         const copy = this._box("tpuwm-profile-copy", true, true);
         const titleRow = this._box("tpuwm-profile-title-row");
-        titleRow.add_child(this._label(profile.title, "tpuwm-profile-title"));
+        titleRow.add_child(this._label(profile.title, "tpuwm-profile-title", true));
         titleRow.add_child(this._label(ViewModel.STATUS_LABELS[profile.status], `tpuwm-status tpuwm-status-${profile.status}`));
         copy.add_child(titleRow);
         const detail = profile.detail || profile.description;
-        copy.add_child(this._label(`${detail} · ${profile.queued} queued`, "tpuwm-profile-description"));
+        copy.add_child(this._label(`${detail} · ${profile.queued} queued`, "tpuwm-profile-description", true));
         row.add_child(copy);
         if (editableWeight) {
             const controls = this._box("tpuwm-weight-control");
@@ -350,12 +395,13 @@ class MenuView {
         const heading = this._box("tpuwm-alert-heading");
         const copy = this._box("tpuwm-profile-copy", true, true);
         copy.add_child(this._label(`${alert.profileTitle} · ${alert.age}`, "tpuwm-alert-kicker"));
-        copy.add_child(this._label(alert.title, "tpuwm-alert-title"));
+        copy.add_child(this._label(alert.title, "tpuwm-alert-title", true));
         heading.add_child(copy);
         heading.add_child(this._label(alert.severity, "tpuwm-status tpuwm-status-watching"));
         card.add_child(heading);
-        card.add_child(this._label(alert.summary || "No additional detail was supplied.", "tpuwm-alert-summary"));
-        const evidence = this._box("tpuwm-evidence");
+        card.add_child(this._label(alert.summary || "No additional detail was supplied.", "tpuwm-alert-summary", true));
+        const singleColumn = this._layout.evidenceColumns === 1;
+        const evidence = this._box("tpuwm-evidence", singleColumn);
         for (const [label, value] of [["Risk", alert.riskText], ["Confidence", alert.confidenceText]]) {
             const metric = this._box("tpuwm-evidence-item", true, true);
             metric.add_child(this._label(label, "tpuwm-metric-name"));
@@ -373,8 +419,8 @@ class MenuView {
     _addSectionHeading(title, description) {
         const heading = this._box("tpuwm-section-heading");
         const copy = this._box("tpuwm-profile-copy", true, true);
-        copy.add_child(this._label(title, "tpuwm-section-title"));
-        copy.add_child(this._label(description, "tpuwm-section-description"));
+        copy.add_child(this._label(title, "tpuwm-section-title", true));
+        copy.add_child(this._label(description, "tpuwm-section-description", true));
         heading.add_child(copy);
         this._body.add_child(heading);
     }
@@ -395,8 +441,8 @@ class MenuView {
             style_class: "tpuwm-hero-icon",
         }));
         hero.add_child(this._label(kicker, "tpuwm-hero-kicker"));
-        hero.add_child(this._label(title, "tpuwm-hero-title"));
-        hero.add_child(this._label(description, "tpuwm-hero-description"));
+        hero.add_child(this._label(title, "tpuwm-hero-title", true));
+        hero.add_child(this._label(description, "tpuwm-hero-description", true));
         return hero;
     }
 
@@ -404,17 +450,26 @@ class MenuView {
         return new this._St.BoxLayout({vertical, style_class: styleClass, x_expand: expand});
     }
 
-    _label(text, styleClass) {
+    _label(text, styleClass, wrap = false) {
         const label = new this._St.Label({
             text: String(text || ""),
             style_class: styleClass,
             y_align: this._Clutter.ActorAlign.CENTER,
         });
-        if (label.clutter_text) {
-            label.clutter_text.line_wrap = false;
-            label.clutter_text.ellipsize = 3;
-        }
+        this._setWrap(label, wrap);
         return label;
+    }
+
+    // Narrow, high-scale, and large-text popups wrap descriptive text instead of
+    // clipping it; the wide layout keeps one-line ellipsized rows.
+    _setWrap(label, wrap) {
+        if (!label || !label.clutter_text) {
+            return false;
+        }
+        const wrapping = wrap === true && this._layout.wrapText;
+        label.clutter_text.line_wrap = wrapping;
+        label.clutter_text.ellipsize = wrapping ? 0 : 3;
+        return wrapping;
     }
 
     _button(styleClass, accessibleName, callback) {

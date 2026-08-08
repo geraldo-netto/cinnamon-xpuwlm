@@ -56,6 +56,10 @@ class FakeActor {
         this.accessibleRole = role;
     }
 
+    set_style(style) {
+        this.style = style;
+    }
+
     connect(signal, callback) {
         const id = this._nextSignalId;
         this._nextSignalId += 1;
@@ -122,10 +126,27 @@ class FakeMenu {
         this.actors = [];
         this.toggleCount = 0;
         this.destroyed = false;
+        this.signals = new Map();
+        this.nextSignalId = 1;
     }
 
     addActor(actor) {
         this.actors.push(actor);
+    }
+
+    connect(signal, callback) {
+        const id = this.nextSignalId;
+        this.nextSignalId += 1;
+        this.signals.set(id, {signal, callback});
+        return id;
+    }
+
+    emit(signal, ...args) {
+        for (const entry of this.signals.values()) {
+            if (entry.signal === signal) {
+                entry.callback(this, ...args);
+            }
+        }
     }
 
     toggle() {

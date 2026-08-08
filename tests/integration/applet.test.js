@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Layout = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/layout.js");
 const {
     FakeActor,
     FakeMenu,
@@ -82,7 +83,10 @@ global.imports = {
                 }),
             },
         },
-        St: createSt(),
+        St: {
+            ...createSt(),
+            ThemeContext: {get_for_stage: () => ({scale_factor: 1})},
+        },
     },
     mainloop: {
         timeout_add_seconds(seconds, callback) {
@@ -102,6 +106,12 @@ global.imports = {
     misc: {util: {spawnCommandLineAsync: (command) => spawned.push(command)}},
     ui: {
         applet: {TextIconApplet: FakeTextIconApplet, AppletPopupMenu: FakeMenu},
+        main: {
+            layoutManager: {
+                primaryMonitor: {width: 1920, height: 1080},
+                findMonitorForActor: () => ({width: 1920, height: 1080}),
+            },
+        },
         popupMenu: {PopupMenuManager: FakeMenuManager},
         settings: {AppletSettings: BoundSettings},
     },
@@ -195,12 +205,15 @@ function appletHarness() {
                 menuManagers.push(menuManager);
                 return menuManager;
             },
-            viewFactory(menu) {
+            viewFactory(menu, layout) {
                 const view = {
                     menu,
+                    layout,
+                    layouts: [],
                     models: [],
                     destroyed: false,
                     render(model) { this.models.push(model); },
+                    applyLayout(next) { this.layouts.push(next); return true; },
                     destroy() { this.destroyed = true; },
                 };
                 views.push(view);
@@ -369,6 +382,58 @@ test("menu destruction and panel rendering tolerate missing transient state", ()
     assert.doesNotThrow(() => applet._renderPanel());
     applet.menu = null;
     applet.on_applet_removed_from_panel();
+});
+
+test("the popup layout is measured at construction and again on every open", () => {
+    const {applet, menus, views} = appletHarness();
+    assert.equal(views[0].layout.mode, "wide");
+    assert.equal(views[0].layout.widthPx, Layout.PREFERRED_WIDTH);
+    assert.deepEqual(views[0].layouts, []);
+
+    global.imports.ui.main.layoutManager.findMonitorForActor = () => ({width: 480, height: 900});
+    menus[0].emit("open-state-changed", true);
+    assert.equal(views[0].layouts.length, 1);
+    assert.equal(views[0].layouts[0].mode, "compact");
+    assert.equal(applet._layout.mode, "compact");
+
+    menus[0].emit("open-state-changed", false);
+    assert.equal(views[0].layouts.length, 1, "closing the popup must not re-measure");
+
+    global.imports.ui.main.layoutManager.findMonitorForActor = () => ({width: 1920, height: 1080});
+});
+
+test("an unusable layout measurement falls back to the default popup layout", () => {
+    const warnings = [];
+    const applet = new AppletModule.TpuWorkloadApplet(
+        {uuid: AppletModule.UUID, path: "/tmp/tpuwm"},
+        "top",
+        40,
+        12,
+        {
+            logger: {warn: (message) => warnings.push(message), error() {}},
+            environment: {},
+            settingsFactory: (owner) => new BoundSettings(owner),
+            repository: {load: () => ({}), save() {}},
+            runtimeGateway: {read: () => Domain.unavailableSnapshot("none", 1, "error")},
+            layoutProvider: {measure() { throw new Error("no monitor"); }},
+            poller: {start() {}, stop() {}},
+            menuFactory: () => new FakeMenu(),
+            menuManagerFactory: () => new FakeMenuManager(),
+            viewFactory: (menu, layout) => ({layout, render() {}, applyLayout() {}, destroy() {}}),
+        },
+    );
+    assert.deepEqual(applet._layout, Layout.defaultLayout());
+    assert.match(warnings[0], /Could not measure the popup layout/u);
+    applet.on_applet_removed_from_panel();
+});
+
+test("layout work stops without a view and after teardown", () => {
+    const {applet, views} = appletHarness();
+    applet._destroyMenu();
+    assert.equal(applet._applyLayout(), false);
+    applet._teardown();
+    assert.equal(applet._applyLayout(), false);
+    assert.deepEqual(views[0].layouts, []);
 });
 
 test("applet wires a scheduler so connected state expires without a poll", () => {

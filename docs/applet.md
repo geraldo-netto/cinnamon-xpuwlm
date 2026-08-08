@@ -19,6 +19,25 @@ in text, so meaning never depends on color alone.
 
 [Review the actual-size 16/20/24-pixel light and dark status montage](../design/prototype/mockup/tpuwm-panel-status-montage.png).
 
+## Responsive popup
+
+St stylesheets have no media queries, so the popup resolves its own breakpoints
+in `lib/layout.js` from the monitor work area, the display scale factor, and the
+text scale factor. The result is pure data — width, scroll height, metric
+columns, evidence columns, and a wrap flag — applied imperatively by the menu
+view and re-measured every time the popup opens.
+
+| Mode | Content width | Layout |
+| --- | --- | --- |
+| Wide | above 520 px | Four metric tiles in one row, single-line rows |
+| Compact | 401–520 px | Two metric columns, wrapped descriptive text, 44 px targets |
+| Dense | 400 px and below | Compact rules plus single-column alert evidence |
+
+The popup never claims more width than the work area offers, its scroll region
+is bounded to the work-area height so the footer actions stay visible, and
+navigation, pause/resume, recovery, and manager actions remain present in every
+mode. An unusable measurement falls back to the default desktop layout.
+
 ## Runtime boundary
 
 A trusted local workload service may atomically publish

@@ -7,6 +7,7 @@ const Clutter = imports.gi.Clutter;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
 const Gtk = imports.gi.Gtk;
+const Main = imports.ui.main;
 const Mainloop = imports.mainloop;
 const PopupMenu = imports.ui.popupMenu;
 const Settings = imports.ui.settings;
@@ -15,6 +16,7 @@ const Util = imports.misc.util;
 
 const CinnamonRuntime = require("./lib/cinnamon-runtime.js");
 const FailureBackoff = require("./lib/failure-log-backoff.js");
+const Layout = require("./lib/layout.js");
 const Manager = require("./lib/manager.js");
 const Menu = require("./lib/menu-view.js");
 const ViewModel = require("./lib/view-model.js");
@@ -83,12 +85,16 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             || ((applet, menuOrientation) => new Applet.AppletPopupMenu(applet, menuOrientation));
         this._menuManagerFactory = overrides.menuManagerFactory
             || ((applet) => new PopupMenu.PopupMenuManager(applet));
+        this._layoutProvider = overrides.layoutProvider
+            || CinnamonRuntime.createLayoutProvider({Main, St});
+        this._layout = this._measureLayout();
         this._viewFactory = overrides.viewFactory
-            || ((menu) => new Menu.MenuView({
+            || ((menu, layout) => new Menu.MenuView({
                 St,
                 Clutter,
                 Atk,
                 menu,
+                layout,
                 actions: this._menuActions(),
             }));
         this.menuManager = this._menuManagerFactory(this);
@@ -152,7 +158,33 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
     _createMenu(orientation) {
         this.menu = this._menuFactory(this, orientation);
         this.menuManager.addMenu(this.menu);
-        this._view = this._viewFactory(this.menu);
+        this._view = this._viewFactory(this.menu, this._layout);
+        if (typeof this.menu.connect === "function") {
+            this.menu.connect("open-state-changed", (_menu, open) => {
+                if (open) {
+                    this._applyLayout();
+                }
+            });
+        }
+    }
+
+    // The work area, display scale, and text scale can all change while the
+    // applet lives, so the popup layout is re-resolved every time it opens.
+    _measureLayout() {
+        try {
+            return Layout.popupLayout(this._layoutProvider.measure(this.actor));
+        } catch (error) {
+            this._logger.warn(`Could not measure the popup layout: ${error}`);
+            return Layout.defaultLayout();
+        }
+    }
+
+    _applyLayout() {
+        if (this._destroyed) {
+            return false;
+        }
+        this._layout = this._measureLayout();
+        return this._view ? this._view.applyLayout(this._layout) : false;
     }
 
     _destroyMenu() {

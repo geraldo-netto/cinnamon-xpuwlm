@@ -243,6 +243,31 @@ class CinnamonScheduler {
     }
 }
 
+// Reads the raw measurements the pure layout module needs. Everything that can
+// be absent on an older Cinnamon stays optional; the layout module sanitizes.
+function createLayoutProvider({Main, St, cinnamonGlobal = global}) {
+    if (!Main || !Main.layoutManager) {
+        throw new TypeError("Cinnamon layout manager is required");
+    }
+    const layoutManager = Main.layoutManager;
+    return {
+        measure(actor) {
+            const monitor = (actor && typeof layoutManager.findMonitorForActor === "function"
+                ? layoutManager.findMonitorForActor(actor)
+                : null) || layoutManager.primaryMonitor || {};
+            const themeContext = St && St.ThemeContext
+                ? St.ThemeContext.get_for_stage(cinnamonGlobal.stage)
+                : null;
+            return {
+                workAreaWidth: monitor.width,
+                workAreaHeight: monitor.height,
+                scaleFactor: themeContext ? themeContext.scale_factor : 1,
+                textScaleFactor: cinnamonGlobal.ui_scale,
+            };
+        },
+    };
+}
+
 function createLogger(prefix, cinnamonGlobal = global) {
     const name = String(prefix || "TPU Workload Manager");
     return {
@@ -288,6 +313,7 @@ module.exports = {
     CinnamonPoller,
     CinnamonScheduler,
     CinnamonSettingsRepository,
+    createLayoutProvider,
     createLogger,
     createRuntimeGateway,
     decodeBytes,

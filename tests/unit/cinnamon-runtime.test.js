@@ -276,6 +276,53 @@ test("scheduler arms single-shot millisecond timers and cancels them", () => {
     assert.deepEqual(removed, [handle]);
 });
 
+test("layout provider reports the monitor, display scale, and text scale", () => {
+    const actor = {name: "panel"};
+    const requested = [];
+    const Main = {
+        layoutManager: {
+            primaryMonitor: {width: 1920, height: 1080},
+            findMonitorForActor(candidate) {
+                requested.push(candidate);
+                return {width: 1280, height: 800};
+            },
+        },
+    };
+    const St = {ThemeContext: {get_for_stage: (stage) => ({scale_factor: stage === "stage" ? 2 : 1})}};
+    const cinnamonGlobal = {stage: "stage", ui_scale: 1.25};
+
+    assert.throws(() => Cinnamon.createLayoutProvider({}), /layout manager/);
+    const provider = Cinnamon.createLayoutProvider({Main, St, cinnamonGlobal});
+    assert.deepEqual(provider.measure(actor), {
+        workAreaWidth: 1280,
+        workAreaHeight: 800,
+        scaleFactor: 2,
+        textScaleFactor: 1.25,
+    });
+    assert.deepEqual(requested, [actor]);
+
+    assert.deepEqual(provider.measure(), {
+        workAreaWidth: 1920,
+        workAreaHeight: 1080,
+        scaleFactor: 2,
+        textScaleFactor: 1.25,
+    });
+});
+
+test("layout provider degrades to defaults on an older Cinnamon", () => {
+    const provider = Cinnamon.createLayoutProvider({
+        Main: {layoutManager: {}},
+        St: {},
+        cinnamonGlobal: {},
+    });
+    assert.deepEqual(provider.measure({}), {
+        workAreaWidth: undefined,
+        workAreaHeight: undefined,
+        scaleFactor: 1,
+        textScaleFactor: undefined,
+    });
+});
+
 test("logger prefixes Cinnamon warnings and errors", () => {
     const calls = [];
     const logger = Cinnamon.createLogger("Test", {

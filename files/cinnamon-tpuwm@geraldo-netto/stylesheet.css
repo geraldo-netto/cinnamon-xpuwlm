@@ -1,5 +1,7 @@
+/* Width, scroll height, and the mode class below are set from lib/layout.js;
+   St has no media queries, so the popup resolves its own breakpoints. */
 .tpuwm-root {
-    min-width: 560px;
+    min-width: 280px;
     padding: 12px;
     spacing: 8px;
 }
@@ -120,6 +122,11 @@
     border: 1px solid rgba(127, 127, 127, 0.25);
     border-radius: 9px;
     background-color: rgba(127, 127, 127, 0.16);
+    spacing: 1px;
+}
+
+.tpuwm-metric-row {
+    spacing: 1px;
 }
 
 .tpuwm-metric {
@@ -341,4 +348,56 @@
 .tpuwm-footer {
     min-height: 40px;
     padding-top: 2px;
+}
+
+/* Compact and dense popups: release fixed minimum widths, wrap instead of
+   clipping, and keep primary targets at least 44 pixels high. */
+.tpuwm-mode-compact .tpuwm-metric,
+.tpuwm-mode-dense .tpuwm-metric,
+.tpuwm-mode-compact .tpuwm-tab,
+.tpuwm-mode-dense .tpuwm-tab,
+.tpuwm-mode-compact .tpuwm-group-title,
+.tpuwm-mode-dense .tpuwm-group-title,
+.tpuwm-mode-compact .tpuwm-evidence-item,
+.tpuwm-mode-dense .tpuwm-evidence-item,
+.tpuwm-mode-compact .tpuwm-weight-summary,
+.tpuwm-mode-dense .tpuwm-weight-summary {
+    min-width: 0;
+}
+
+.tpuwm-mode-compact .tpuwm-primary-button,
+.tpuwm-mode-dense .tpuwm-primary-button,
+.tpuwm-mode-compact .tpuwm-secondary-button,
+.tpuwm-mode-dense .tpuwm-secondary-button,
+.tpuwm-mode-compact .tpuwm-toggle,
+.tpuwm-mode-dense .tpuwm-toggle,
+.tpuwm-mode-compact .tpuwm-weight-button,
+.tpuwm-mode-dense .tpuwm-weight-button {
+    min-height: 44px;
+}
+
+.tpuwm-mode-compact .tpuwm-profile-row,
+.tpuwm-mode-dense .tpuwm-profile-row,
+.tpuwm-mode-compact .tpuwm-state-row,
+.tpuwm-mode-dense .tpuwm-state-row,
+.tpuwm-mode-compact .tpuwm-recovery-row,
+.tpuwm-mode-dense .tpuwm-recovery-row {
+    min-height: 76px;
+}
+
+.tpuwm-mode-compact .tpuwm-hero {
+    padding: 24px 24px;
+}
+
+.tpuwm-mode-dense .tpuwm-hero {
+    padding: 20px 14px;
+}
+
+.tpuwm-mode-compact .tpuwm-state-action,
+.tpuwm-mode-dense .tpuwm-state-action {
+    margin: 0 0 12px 0;
+}
+
+.tpuwm-mode-dense .tpuwm-evidence {
+    spacing: 1px;
 }
