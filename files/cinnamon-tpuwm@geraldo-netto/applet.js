@@ -14,6 +14,7 @@ const Settings = imports.ui.settings;
 const St = imports.gi.St;
 const Util = imports.misc.util;
 
+const AlertNotifier = require("./lib/alert-notifier.js");
 const CinnamonRuntime = require("./lib/cinnamon-runtime.js");
 const FailureBackoff = require("./lib/failure-log-backoff.js");
 const Layout = require("./lib/layout.js");
@@ -78,6 +79,13 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             logger: this._logger,
             clock: this._clock,
             scheduler: this._scheduler,
+        });
+        this._notifier = overrides.notifier || new AlertNotifier.CriticalAlertNotifier({
+            notifications: overrides.notifications
+                || CinnamonRuntime.createCriticalNotifications(Main),
+            errorReporter: overrides.notificationReporter
+                || new FailureBackoff.FailureErrorBackoff({logger: this._logger}),
+            clock: this._clock,
         });
         this._poller = overrides.poller
             || new CinnamonRuntime.CinnamonPoller(Mainloop, () => this._refresh());
@@ -211,6 +219,7 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             this._view.render(model);
         }
         this._renderPanel(model);
+        this._notifier.observe(state.alerts, state.profiles);
     }
 
     _renderPanel(model = null) {
@@ -276,6 +285,9 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
         this._destroyMenu();
         if (this._manager) {
             this._manager.dispose();
+        }
+        if (this._notifier) {
+            this._notifier.dispose();
         }
         if (this.settings) {
             this.settings.finalize();

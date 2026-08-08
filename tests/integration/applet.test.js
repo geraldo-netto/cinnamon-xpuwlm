@@ -53,6 +53,7 @@ class BoundSettings extends FakeSettings {
 }
 
 const iconPaths = [];
+const notifications = [];
 const spawned = [];
 const timers = new Map();
 let nextTimerId = 1;
@@ -108,6 +109,7 @@ global.imports = {
     ui: {
         applet: {TextIconApplet: FakeTextIconApplet, AppletPopupMenu: FakeMenu},
         main: {
+            criticalNotify: (summary, body) => notifications.push({summary, body}),
             layoutManager: {
                 primaryMonitor: {width: 1920, height: 1080},
                 findMonitorForActor: () => ({width: 1920, height: 1080}),
@@ -164,7 +166,7 @@ function managerFake(initial = liveState()) {
     };
 }
 
-function appletHarness() {
+function appletHarness(extraOverrides = {}) {
     const manager = managerFake();
     const poller = {
         calls: [],
@@ -221,6 +223,7 @@ function appletHarness() {
                 views.push(view);
                 return view;
             },
+            ...extraOverrides,
         },
     );
     return {applet, gateways, manager, menuManagers, menus, poller, settings: settingsInstances[0], views};
@@ -337,6 +340,63 @@ test("panel uses cached symbolic state icons and explicit accessible status", ()
     assert.equal(applet._setPanelIcon("future-status"), false);
     assert.equal(AppletModule.panelIconFilename("future-status"), "tpuwm-status-unavailable-symbolic.svg");
     assert.equal(AppletModule.panelIconFilename("online"), "tpuwm-status-online-symbolic.svg");
+});
+
+test("critical alerts notify once per occurrence through the applet", () => {
+    const delivered = [];
+    const {applet, manager} = appletHarness({
+        notifications: {notify: (message) => delivered.push(message)},
+    });
+    const critical = {
+        id: "power-risk",
+        profileId: "hardware-health",
+        title: "Voltage drift",
+        summary: "Review the supply",
+        severity: "critical",
+        timestamp: Date.now(),
+        confidence: null,
+        riskScore: null,
+        resolved: false,
+    };
+
+    manager.callback(liveState({source: "runtime", alerts: [critical], attentionCount: 1}));
+    manager.callback(liveState({source: "runtime", alerts: [critical], attentionCount: 1}));
+    assert.equal(delivered.length, 1);
+    assert.equal(delivered[0].summary, "TPU critical alert — Hardware health");
+
+    manager.callback(liveState({
+        source: "runtime",
+        alerts: [{...critical, resolved: true}],
+        attentionCount: 0,
+    }));
+    manager.callback(liveState({source: "runtime", alerts: [critical], attentionCount: 1}));
+    assert.equal(delivered.length, 2);
+
+    applet._teardown();
+    manager.callback(liveState({source: "runtime", alerts: [critical], attentionCount: 1}));
+    assert.equal(delivered.length, 2);
+});
+
+test("the default applet reaches Cinnamon's critical notification tray", () => {
+    const {manager} = appletHarness();
+    const before = notifications.length;
+    manager.callback(liveState({
+        source: "runtime",
+        alerts: [{
+            id: "tray-alert",
+            profileId: "hardware-health",
+            title: "Voltage drift",
+            summary: "",
+            severity: "critical",
+            timestamp: Date.now(),
+            confidence: null,
+            riskScore: null,
+            resolved: false,
+        }],
+        attentionCount: 1,
+    }));
+    assert.equal(notifications.length, before + 1);
+    assert.equal(notifications.at(-1).body, "Voltage drift");
 });
 
 test("panel state classes are a closed set that is fully cleaned between renders", () => {

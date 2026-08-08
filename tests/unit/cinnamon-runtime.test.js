@@ -323,6 +323,17 @@ test("layout provider degrades to defaults on an older Cinnamon", () => {
     });
 });
 
+test("critical notifications reach Cinnamon's message tray", () => {
+    const shown = [];
+    assert.throws(() => Cinnamon.createCriticalNotifications(null), /criticalNotify/);
+    assert.throws(() => Cinnamon.createCriticalNotifications({}), /criticalNotify/);
+    const notifications = Cinnamon.createCriticalNotifications({
+        criticalNotify: (summary, body) => shown.push([summary, body]),
+    });
+    notifications.notify({summary: "TPU critical alert", body: "Voltage drift"});
+    assert.deepEqual(shown, [["TPU critical alert", "Voltage drift"]]);
+});
+
 test("logger prefixes Cinnamon warnings and errors", () => {
     const calls = [];
     const logger = Cinnamon.createLogger("Test", {

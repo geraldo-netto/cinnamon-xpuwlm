@@ -268,6 +268,17 @@ function createLayoutProvider({Main, St, cinnamonGlobal = global}) {
     };
 }
 
+function createCriticalNotifications(Main) {
+    if (!Main || typeof Main.criticalNotify !== "function") {
+        throw new TypeError("Cinnamon criticalNotify is required");
+    }
+    return {
+        notify(message) {
+            Main.criticalNotify(message.summary, message.body);
+        },
+    };
+}
+
 function createLogger(prefix, cinnamonGlobal = global) {
     const name = String(prefix || "TPU Workload Manager");
     return {
@@ -313,6 +324,7 @@ module.exports = {
     CinnamonPoller,
     CinnamonScheduler,
     CinnamonSettingsRepository,
+    createCriticalNotifications,
     createLayoutProvider,
     createLogger,
     createRuntimeGateway,

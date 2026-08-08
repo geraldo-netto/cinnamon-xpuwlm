@@ -24,6 +24,14 @@ panel label, tooltip, and accessible name, in the attention metric tile, and in
 the alerts section heading. Resolved alerts and unknown severities never raise
 it. The alert card border colour is a second cue, never the only one.
 
+## Critical notifications
+
+Each unresolved critical alert raises exactly one desktop notification per
+occurrence. An alert that stays active is never repeated, and an alert that
+resolves or disappears is forgotten, so the same identity notifies again if it
+reappears. A notification that cannot be shown is reported once and retried on
+the next observation rather than dropped.
+
 ## Responsive popup
 
 St stylesheets have no media queries, so the popup resolves its own breakpoints
