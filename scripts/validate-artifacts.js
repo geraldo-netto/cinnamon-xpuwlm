@@ -132,6 +132,7 @@ function validateJsonArtifacts() {
     assert.equal(packageJson.devDependencies.ajv, "8.18.0");
     assert.equal(packageJson.scripts["test:visual"], "node --test tests/visual/*.test.js");
     assert.equal(packageJson.scripts["test:mutation-target"].includes("tests/visual"), false);
+    assert.equal(packageJson.scripts["test:local"], "TPUWM_SKIP_HOST_GATES=1 npm test");
     assert.equal(stryker.thresholds.break >= 80, true);
 }
 
@@ -150,6 +151,7 @@ function validateWorkflows() {
         "Development-only advisories must not gate the applet build",
     );
     assert.match(quality, /run: npm test/);
+    assert.doesNotMatch(quality, /TPUWM_SKIP_HOST_GATES/);
 
     assert.match(audit, /^ {2}schedule:$/mu);
     assert.match(audit, /^ {2}workflow_dispatch:$/mu);

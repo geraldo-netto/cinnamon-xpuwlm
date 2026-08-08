@@ -11,6 +11,10 @@ const ROOT = path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto")
 const stylesheetPath = path.join(ROOT, "stylesheet.css");
 const stylesheet = fs.readFileSync(stylesheetPath, "utf8");
 const RGB_COLOR = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)/giu;
+const SKIP_HOST_GATES = process.env.TPUWM_SKIP_HOST_GATES === "1" && !process.env.CI;
+const HOST_GATE_OPTIONS = SKIP_HOST_GATES
+    ? {skip: "TPUWM_SKIP_HOST_GATES=1: Cinnamon runtime gate skipped locally"}
+    : {};
 
 const ST_MATRIX_SCRIPT = String.raw`
 const St = imports.gi.St;
@@ -184,7 +188,7 @@ function renderThemeMatrix(themeStylesheet) {
     return JSON.parse(output);
 }
 
-test("regression: theme harness finds the mandatory Cinnamon runtime without host architecture tools", () => {
+test("regression: theme harness finds the mandatory Cinnamon runtime without host architecture tools", HOST_GATE_OPTIONS, () => {
     const runtime = findCinnamonRuntime();
     assert.ok(isExecutable(runtime.executable));
     assert.ok(
@@ -231,7 +235,7 @@ test("regression: semantic and interaction states explicitly use the symbolic fo
     assert.doesNotMatch(stylesheet, /\.tpuwm-panel-/u);
 });
 
-test("regression: St resolves visible cues in light, dark, and high-contrast palettes", () => {
+test("regression: St resolves visible cues in light, dark, and high-contrast palettes", HOST_GATE_OPTIONS, () => {
     const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "tpuwm-theme-"));
     const palettes = [
         ["light", "#202020", "#ffffff"],

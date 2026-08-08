@@ -28,6 +28,30 @@ Power and heat depend on model, inference rate, and operating frequency. The PCI
 
 ## Software setup
 
+### Development quality-gate dependencies
+
+Complete local quality gates need Cinnamon's `cjs` runtime and `St-1.0.typelib`,
+ImageMagick, and either librsvg or Inkscape. On Debian or Ubuntu:
+
+```bash
+sudo apt-get update
+sudo apt-get install cinnamon cjs imagemagick librsvg2-bin
+npm ci
+npm test
+```
+
+On a host where Cinnamon and raster tools cannot be installed, use
+`npm run test:local`. This explicit local-only mode skips theme-runtime and icon
+raster checks while keeping lint, syntax, coverage, fuzz, and mutation gates.
+Any `CI` environment ignores `TPUWM_SKIP_HOST_GATES`; CI always enforces every
+host-backed test.
+
+Mutation runs allocate half the host's logical CPUs to Stryker and at most two
+Node test workers inside each process. This bounds nested parallelism near the
+available CPU count. Successful results are cached under the ignored
+`mutation-report/` directory and reused when source remains unchanged; use
+`npx stryker run --force` for a deliberate clean mutation audit.
+
 ### Compatibility warning
 
 Coral's public setup pages document older operating-system and Python ranges, while the relevant public software repositories are now archived. Before changing a host, verify that the target distribution, kernel, Python version, TensorFlow Lite runtime, Edge TPU runtime, PCIe driver, and compiler/runtime pair are mutually compatible. Prefer a reproducible environment whose versions are known to work. [USB setup requirements](https://coral.ai/docs/accelerator/get-started/#requirements) · [M.2 setup requirements](https://coral.ai/docs/m2/get-started/#requirements)

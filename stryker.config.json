@@ -5,6 +5,8 @@
     "command": "npm run test:mutation-target"
   },
   "coverageAnalysis": "off",
+  "incremental": true,
+  "incrementalFile": "mutation-report/incremental.json",
   "mutate": [
     "files/cinnamon-tpuwm@geraldo-netto/applet.js",
     "files/cinnamon-tpuwm@geraldo-netto/lib/**/*.js"
@@ -21,7 +23,7 @@
     "low": 80,
     "break": 80
   },
-  "concurrency": 2,
+  "concurrency": "50%",
   "timeoutMS": 10000,
   "timeoutFactor": 2.5,
   "tempDirName": ".stryker-tmp"

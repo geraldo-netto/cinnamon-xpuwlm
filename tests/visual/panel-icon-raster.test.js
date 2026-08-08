@@ -10,6 +10,10 @@ const test = require("node:test");
 const ICON_DIRECTORY = path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto/icons");
 const STATUSES = Object.freeze(["online", "detected", "attention", "paused", "unavailable"]);
 const SIZES = Object.freeze([16, 20, 24]);
+const SKIP_HOST_GATES = process.env.TPUWM_SKIP_HOST_GATES === "1" && !process.env.CI;
+const HOST_GATE_OPTIONS = SKIP_HOST_GATES
+    ? {skip: "TPUWM_SKIP_HOST_GATES=1: icon raster gate skipped locally"}
+    : {};
 const THEMES = Object.freeze([
     {
         name: "light",
@@ -129,7 +133,7 @@ function maskDifference(first, second) {
     return difference;
 }
 
-test("regression: real 16, 20, and 24 pixel renders retain bounds and distinct landmarks", () => {
+test("regression: real 16, 20, and 24 pixel renders retain bounds and distinct landmarks", HOST_GATE_OPTIONS, () => {
     const renderer = svgRenderer();
     const convert = executable([process.env.TPUWM_CONVERT, "convert"].filter(Boolean));
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "tpuwm-icon-raster-"));
