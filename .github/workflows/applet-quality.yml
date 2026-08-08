@@ -38,8 +38,10 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Audit dependencies
-        run: npm audit --audit-level=low
+      # Only shipped dependencies gate the applet build. Development tooling
+      # advisories are reported by the independent dependency-audit workflow.
+      - name: Audit shipped dependencies
+        run: npm audit --omit=dev --audit-level=low
 
       - name: Run complete quality gates
         run: npm test

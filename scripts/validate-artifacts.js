@@ -135,6 +135,28 @@ function validateJsonArtifacts() {
     assert.equal(stryker.thresholds.break >= 80, true);
 }
 
+function readWorkflow(name) {
+    return fs.readFileSync(path.join(repositoryRoot, ".github/workflows", name), "utf8");
+}
+
+function validateWorkflows() {
+    const quality = readWorkflow("applet-quality.yml");
+    const audit = readWorkflow("dependency-audit.yml");
+
+    assert.match(quality, /npm audit --omit=dev --audit-level=low/);
+    assert.doesNotMatch(
+        quality,
+        /npm audit(?! --omit=dev)/,
+        "Development-only advisories must not gate the applet build",
+    );
+    assert.match(quality, /run: npm test/);
+
+    assert.match(audit, /^ {2}schedule:$/mu);
+    assert.match(audit, /^ {2}workflow_dispatch:$/mu);
+    assert.match(audit, /run: npm audit --audit-level=low$/mu);
+    assert.doesNotMatch(audit, /run: npm test/);
+}
+
 function validateJavaScriptSyntax() {
     for (const filename of productionJavaScriptFiles()) {
         childProcess.execFileSync(process.execPath, ["--check", filename], {stdio: "pipe"});
@@ -170,6 +192,7 @@ function validateStaticAssets() {
 
 validatePayloadStructure();
 validateJsonArtifacts();
+validateWorkflows();
 validateJavaScriptSyntax();
 validateStaticAssets();
 console.log("artifact validation: pass");
