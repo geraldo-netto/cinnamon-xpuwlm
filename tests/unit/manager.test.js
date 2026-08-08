@@ -6,6 +6,9 @@ const test = require("node:test");
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
+const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
+const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
+const ManifestFixtures = require("../helpers/workload-manifest-fixtures.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -63,6 +66,7 @@ function harness(overrides = {}) {
         logger,
         scheduler,
         staleAfterMs: overrides.staleAfterMs,
+        workloadRegistry: overrides.workloadRegistry,
     });
     return {clock, manager, saves, warnings, errors, scheduler};
 }
@@ -95,6 +99,17 @@ test("manager validates collaborators", () => {
     assert.throws(() => new Manager.WorkloadManager({...base, runtimeGateway: null}), /gateway/);
     assert.throws(() => new Manager.WorkloadManager({...base, clock: {}}), /clock/);
     assert.throws(() => new Manager.WorkloadManager({...base, errorReporter: {}}), /reporter/);
+    assert.throws(() => new Manager.WorkloadManager({...base, workloadRegistry: {}}), /registry/);
+});
+
+test("manager builds portfolio from injected workload registry", () => {
+    const descriptor = new Manifest.WorkloadDescriptor(ManifestFixtures.validWorkloadManifest({
+        id: "custom-workload",
+    }));
+    const workloadRegistry = new Registry.StaticWorkloadRegistry([descriptor]);
+    const {manager} = harness({workloadRegistry});
+    manager.start();
+    assert.deepEqual(manager.state().profiles.map((profile) => profile.id), ["custom-workload"]);
 });
 
 test("start loads state once, refreshes, and publishes immutable projections", () => {

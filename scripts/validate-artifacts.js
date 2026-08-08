@@ -29,6 +29,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "view-model.js",
     "workload-manifest.js",
     "workload-manifest.schema.json",
+    "workload-registry.js",
 ]);
 const FORBIDDEN_PAYLOAD_SEGMENTS = new Set([
     ".cache",

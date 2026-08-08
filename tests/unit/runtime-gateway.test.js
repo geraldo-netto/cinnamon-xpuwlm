@@ -75,6 +75,42 @@ test("snapshot document parser rejects non-text, oversized, and malformed data",
     ).device.reason, /validation failed/u);
 });
 
+test("snapshot parser applies injected workload catalog", () => {
+    const catalog = new Domain.WorkloadCatalog([{
+        id: "custom-workload",
+        title: "Custom",
+        group: "Custom",
+        description: "Injected workload",
+        icon: "applications-science-symbolic",
+        order: 10,
+        defaultEnabled: true,
+        defaultWeight: 2,
+    }]);
+    const candidate = validSnapshot();
+    candidate.metrics.runningProfiles = 8;
+    candidate.profiles["custom-workload"] = {status: "running", queued: 1, detail: "active"};
+    const parsed = Runtime.parseSnapshotDocument(
+        JSON.stringify(candidate),
+        NOW,
+        snapshotValidator(),
+        Domain.DEFAULT_STALE_AFTER_MS,
+        catalog,
+    );
+    assert.equal(parsed.metrics.runningProfiles, 1);
+    assert.deepEqual(Object.keys(parsed.profiles), ["custom-workload"]);
+    assert.throws(
+        () => new Runtime.RuntimeSnapshotGateway({
+            readTextAsync() {},
+            detectDevice() {},
+            path: "/tmp/state",
+            snapshotValidator: snapshotValidator(),
+            warningReporter: warningReporter(),
+            workloadCatalog: {},
+        }),
+        /catalog/u,
+    );
+});
+
 test("gateway validates dependencies", () => {
     const base = {
         readTextAsync() {},

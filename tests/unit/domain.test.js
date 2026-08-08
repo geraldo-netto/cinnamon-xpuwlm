@@ -102,6 +102,70 @@ test("profile definitions use unique, verified symbolic icon names", () => {
     assert.match(visualLibrary.description, /low-light/u);
 });
 
+test("workload catalog injects profile identity and bounds into domain behavior", () => {
+    const definition = {
+        id: "custom-workload",
+        title: "Custom workload",
+        group: "Custom",
+        description: "Injected domain profile",
+        icon: "applications-science-symbolic",
+        order: 10,
+        defaultEnabled: false,
+        defaultWeight: 4,
+    };
+    const catalog = new Domain.WorkloadCatalog([definition]);
+    definition.title = "Mutated";
+
+    assert.equal(catalog.size, 1);
+    assert.equal(catalog.has("custom-workload"), true);
+    assert.equal(catalog.has("hardware-health"), false);
+    assert.equal(catalog.definitions()[0].title, "Custom workload");
+    assert.equal(Object.isFrozen(catalog.definitions()), true);
+    assert.equal(Object.isFrozen(catalog.definitions()[0]), true);
+    assert.deepEqual(Domain.defaultProfileState(catalog), {
+        paused: false,
+        profiles: {"custom-workload": {enabled: false, weight: 4}},
+    });
+    assert.deepEqual(
+        Domain.normalizeMetrics({runningProfiles: 9}, catalog).runningProfiles,
+        1,
+    );
+    assert.equal(Domain.normalizeAlert({
+        id: "custom-alert",
+        profileId: "custom-workload",
+        title: "Custom alert",
+    }, NOW, catalog).profileId, "custom-workload");
+    assert.equal(Domain.normalizeAlert({
+        id: "legacy-alert",
+        profileId: "hardware-health",
+        title: "Legacy alert",
+    }, NOW, catalog), null);
+
+    const portfolio = new Domain.WorkloadPortfolio(null, catalog);
+    assert.equal(portfolio.list().length, 1);
+    assert.equal(portfolio.profile("custom-workload").weight, 4);
+    assert.throws(() => portfolio.profile("hardware-health"), /Unknown workload/u);
+});
+
+test("workload catalog rejects malformed and duplicate definitions", () => {
+    const valid = {...Domain.PROFILE_DEFINITIONS[0]};
+    assert.equal(Domain.isProfileDefinition(valid), true);
+    assert.equal(Domain.hasProfileDefinitionShape(valid), true);
+    assert.equal(Domain.hasProfileDefinitionIdentity(valid), true);
+    assert.equal(Domain.hasProfileDefinitionText(valid), true);
+    assert.equal(Domain.hasProfileDefinitionDefaults(valid), true);
+    assert.equal(Domain.hasProfileDefinitionShape({...valid, extra: true}), false);
+    assert.equal(Domain.hasProfileDefinitionIdentity({...valid, icon: "bad"}), false);
+    assert.equal(Domain.hasProfileDefinitionText({...valid, title: ""}), false);
+    assert.equal(Domain.hasProfileDefinitionDefaults({...valid, defaultWeight: 9}), false);
+    assert.equal(Domain.isProfileDefinition(null), false);
+    assert.throws(() => new Domain.WorkloadCatalog(null), /valid profile/u);
+    assert.throws(() => new Domain.WorkloadCatalog([{}]), /valid profile/u);
+    assert.throws(() => new Domain.WorkloadCatalog([valid, valid]), /unique/u);
+    assert.equal(Domain.requireWorkloadCatalog(Domain.DEFAULT_WORKLOAD_CATALOG), Domain.DEFAULT_WORKLOAD_CATALOG);
+    assert.throws(() => Domain.requireWorkloadCatalog({}), /catalog/u);
+});
+
 test("runtime fields preserve unknown measurements and reject unsafe content", () => {
     assert.deepEqual(Domain.normalizeProfileRuntime(null), {status: "idle", queued: 0, detail: ""});
     assert.deepEqual(Domain.normalizeProfileRuntime({status: "wrong", queued: -4, detail: 3}), {

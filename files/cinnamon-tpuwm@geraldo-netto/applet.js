@@ -16,11 +16,13 @@ const Util = imports.misc.util;
 
 const AlertNotifier = require("./lib/alert-notifier.js");
 const CinnamonRuntime = require("./lib/cinnamon-runtime.js");
+const Domain = require("./lib/domain.js");
 const FailureBackoff = require("./lib/failure-log-backoff.js");
 const Layout = require("./lib/layout.js");
 const Manager = require("./lib/manager.js");
 const Menu = require("./lib/menu-view.js");
 const ViewModel = require("./lib/view-model.js");
+const WorkloadRegistry = require("./lib/workload-registry.js");
 
 const UUID = "cinnamon-tpuwm@geraldo-netto";
 const PANEL_STATUSES = Object.freeze(["online", "attention", "detected", "paused", "unavailable"]);
@@ -36,6 +38,12 @@ function defaultEnvironment() {
 
 function defaultLogger() {
     return CinnamonRuntime.createLogger("TPU Workload Manager");
+}
+
+function resolveWorkloadCatalog(workloadRegistry) {
+    return workloadRegistry === null
+        ? Domain.DEFAULT_WORKLOAD_CATALOG
+        : new Domain.WorkloadCatalog(WorkloadRegistry.profileDefinitions(workloadRegistry));
 }
 
 class TpuWorkloadApplet extends Applet.TextIconApplet {
@@ -88,11 +96,14 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
     }
 
     _createServices(overrides) {
+        this._workloadRegistry = overrides.workloadRegistry || null;
+        this._workloadCatalog = resolveWorkloadCatalog(this._workloadRegistry);
         this._runtimeGatewayFactory = overrides.runtimeGatewayFactory
             || ((path) => CinnamonRuntime.createRuntimeGateway({
                 path,
                 environment: this._environment,
                 logger: this._logger,
+                workloadCatalog: this._workloadCatalog,
             }));
         this._repository = overrides.repository
             || new CinnamonRuntime.CinnamonSettingsRepository(this.settings);
@@ -115,6 +126,7 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             logger: this._logger,
             clock: this._clock,
             scheduler: this._scheduler,
+            workloadRegistry: this._workloadRegistry,
         });
     }
 
@@ -364,5 +376,6 @@ if (typeof module !== "undefined") {
         defaultLogger,
         main,
         panelIconFilename,
+        resolveWorkloadCatalog,
     };
 }

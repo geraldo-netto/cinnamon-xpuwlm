@@ -16,6 +16,7 @@ const PROFILE_DEFINITIONS = Object.freeze([
         group: "System health",
         description: "Power · UPS · memory faults",
         icon: "applications-system-symbolic",
+        order: 10,
         defaultEnabled: true,
         defaultWeight: 2,
     }),
@@ -25,6 +26,7 @@ const PROFILE_DEFINITIONS = Object.freeze([
         group: "System health",
         description: "SMART · I/O · cache · storage tiers",
         icon: "drive-harddisk-symbolic",
+        order: 20,
         defaultEnabled: true,
         defaultWeight: 3,
     }),
@@ -34,6 +36,7 @@ const PROFILE_DEFINITIONS = Object.freeze([
         group: "Orchestration",
         description: "Placement · queues · background jobs",
         icon: "view-grid-symbolic",
+        order: 30,
         defaultEnabled: true,
         defaultWeight: 3,
     }),
@@ -43,6 +46,7 @@ const PROFILE_DEFINITIONS = Object.freeze([
         group: "Orchestration",
         description: "Compiler profiles · regressions",
         icon: "applications-engineering-symbolic",
+        order: 40,
         defaultEnabled: true,
         defaultWeight: 2,
     }),
@@ -52,6 +56,7 @@ const PROFILE_DEFINITIONS = Object.freeze([
         group: "Local workflows",
         description: "Search · tagging · scenes · low-light",
         icon: "image-x-generic-symbolic",
+        order: 50,
         defaultEnabled: true,
         defaultWeight: 2,
     }),
@@ -61,6 +66,7 @@ const PROFILE_DEFINITIONS = Object.freeze([
         group: "Local workflows",
         description: "Wi-Fi · USB anomaly scoring",
         icon: "network-wireless-symbolic",
+        order: 60,
         defaultEnabled: false,
         defaultWeight: 2,
     }),
@@ -70,6 +76,7 @@ const PROFILE_DEFINITIONS = Object.freeze([
         group: "Local workflows",
         description: "Window-layout suggestions",
         icon: "view-dual-symbolic",
+        order: 70,
         defaultEnabled: false,
         defaultWeight: 1,
     }),
@@ -79,12 +86,12 @@ const PROFILE_DEFINITIONS = Object.freeze([
         group: "Local workflows",
         description: "Categories · duplicates · layout",
         icon: "x-office-document-symbolic",
+        order: 80,
         defaultEnabled: false,
         defaultWeight: 2,
     }),
 ]);
 
-const PROFILE_IDS = new Set(PROFILE_DEFINITIONS.map((profile) => profile.id));
 const PROFILE_STATUSES = new Set([
     "healthy",
     "running",
@@ -169,6 +176,85 @@ function safeText(value, maximumLength, fallback = "") {
     return characters.join("");
 }
 
+const PROFILE_DEFINITION_PROPERTIES = new Set([
+    "id", "title", "group", "description", "icon", "order", "defaultEnabled", "defaultWeight",
+]);
+
+function hasProfileDefinitionShape(value) {
+    return isPlainObject(value)
+        && Object.keys(value).length === PROFILE_DEFINITION_PROPERTIES.size
+        && Object.keys(value).every((name) => PROFILE_DEFINITION_PROPERTIES.has(name));
+}
+
+function hasProfileDefinitionIdentity(value) {
+    return safeText(value.id, 80) === value.id
+        && value.id.length > 0
+        && safeText(value.icon, 120) === value.icon
+        && value.icon.endsWith("-symbolic");
+}
+
+function hasProfileDefinitionText(value) {
+    return safeText(value.title, 120) === value.title
+        && value.title.length > 0
+        && safeText(value.group, 120) === value.group
+        && value.group.length > 0
+        && safeText(value.description, 240) === value.description
+        && value.description.length > 0;
+}
+
+function hasProfileDefinitionDefaults(value) {
+    return Number.isInteger(value.order)
+        && value.order >= 0
+        && value.order <= 1000
+        && typeof value.defaultEnabled === "boolean"
+        && Number.isInteger(value.defaultWeight)
+        && value.defaultWeight >= MIN_WEIGHT
+        && value.defaultWeight <= MAX_WEIGHT;
+}
+
+function isProfileDefinition(value) {
+    return hasProfileDefinitionShape(value)
+        && hasProfileDefinitionIdentity(value)
+        && hasProfileDefinitionText(value)
+        && hasProfileDefinitionDefaults(value);
+}
+
+class WorkloadCatalog {
+    constructor(definitions) {
+        if (!Array.isArray(definitions) || !definitions.every(isProfileDefinition)) {
+            throw new TypeError("A workload catalog requires valid profile definitions");
+        }
+        const identifiers = definitions.map((definition) => definition.id);
+        if (new Set(identifiers).size !== identifiers.length) {
+            throw new RangeError("Workload catalog identifiers must be unique");
+        }
+        this._definitions = Object.freeze(definitions.map((definition) => Object.freeze({...definition})));
+        this._ids = new Set(identifiers);
+    }
+
+    get size() {
+        return this._definitions.length;
+    }
+
+    has(id) {
+        return this._ids.has(id);
+    }
+
+    definitions() {
+        return this._definitions;
+    }
+}
+
+const DEFAULT_WORKLOAD_CATALOG = new WorkloadCatalog(PROFILE_DEFINITIONS);
+const PROFILE_IDS = new Set(PROFILE_DEFINITIONS.map((profile) => profile.id));
+
+function requireWorkloadCatalog(candidate) {
+    if (!(candidate instanceof WorkloadCatalog)) {
+        throw new TypeError("A workload catalog is required");
+    }
+    return candidate;
+}
+
 // The single `generatedAt` rule shared by the JSON schema, the handwritten
 // schema validator, and this normalization step. The clock-skew bound is
 // domain-only because a static schema cannot know the current time.
@@ -182,9 +268,10 @@ function clampWeight(value) {
     return boundedInteger(value, MIN_WEIGHT, MAX_WEIGHT, MIN_WEIGHT);
 }
 
-function defaultProfileState() {
+function defaultProfileState(catalog = DEFAULT_WORKLOAD_CATALOG) {
+    const definitions = requireWorkloadCatalog(catalog).definitions();
     const profiles = {};
-    for (const definition of PROFILE_DEFINITIONS) {
+    for (const definition of definitions) {
         profiles[definition.id] = {
             enabled: definition.defaultEnabled,
             weight: definition.defaultWeight,
@@ -193,13 +280,14 @@ function defaultProfileState() {
     return {paused: false, profiles};
 }
 
-function sanitizeProfileState(candidate) {
-    const defaults = defaultProfileState();
+function sanitizeProfileState(candidate, catalog = DEFAULT_WORKLOAD_CATALOG) {
+    const definitions = requireWorkloadCatalog(catalog).definitions();
+    const defaults = defaultProfileState(catalog);
     if (!isPlainObject(candidate)) {
         return defaults;
     }
     const suppliedProfiles = isPlainObject(candidate.profiles) ? candidate.profiles : {};
-    for (const definition of PROFILE_DEFINITIONS) {
+    for (const definition of definitions) {
         const supplied = suppliedProfiles[definition.id];
         if (!isPlainObject(supplied)) {
             continue;
@@ -264,24 +352,24 @@ function health(device, runtime, detail) {
     };
 }
 
-function normalizeMetrics(candidate) {
+function normalizeMetrics(candidate, catalog = DEFAULT_WORKLOAD_CATALOG) {
     const source = isPlainObject(candidate) ? candidate : {};
     const load = nullableBoundedNumber(source.load, 0, 100);
     return {
         load,
         queueDepth: boundedInteger(source.queueDepth, 0, MAX_QUEUE_DEPTH, 0),
-        runningProfiles: boundedInteger(source.runningProfiles, 0, PROFILE_DEFINITIONS.length, 0),
+        runningProfiles: boundedInteger(source.runningProfiles, 0, requireWorkloadCatalog(catalog).size, 0),
     };
 }
 
-function normalizeAlert(candidate, nowMs) {
+function normalizeAlert(candidate, nowMs, catalog = DEFAULT_WORKLOAD_CATALOG) {
     if (!isPlainObject(candidate)) {
         return null;
     }
     const id = safeText(candidate.id, 120);
     const profileId = safeText(candidate.profileId, 80);
     const title = safeText(candidate.title, 160);
-    if (!id || !PROFILE_IDS.has(profileId) || !title) {
+    if (!id || !requireWorkloadCatalog(catalog).has(profileId) || !title) {
         return null;
     }
     return {
@@ -381,10 +469,10 @@ function rejectSnapshot(candidate, nowMs, staleAfterMs) {
     return null;
 }
 
-function normalizeProfiles(candidate) {
+function normalizeProfiles(candidate, catalog = DEFAULT_WORKLOAD_CATALOG) {
     const profiles = {};
     const supplied = isPlainObject(candidate) ? candidate : {};
-    for (const definition of PROFILE_DEFINITIONS) {
+    for (const definition of requireWorkloadCatalog(catalog).definitions()) {
         if (Object.hasOwn(supplied, definition.id)) {
             profiles[definition.id] = normalizeProfileRuntime(supplied[definition.id]);
         }
@@ -392,13 +480,13 @@ function normalizeProfiles(candidate) {
     return profiles;
 }
 
-function normalizeAlerts(candidate, nowMs) {
+function normalizeAlerts(candidate, nowMs, catalog = DEFAULT_WORKLOAD_CATALOG) {
     // Stryker disable next-line ArrayDeclaration: a seeded element is not a plain
     // object, so normalizeAlert discards it and the fallback stays observably empty.
     const supplied = Array.isArray(candidate) ? candidate : [];
     const alerts = [];
     for (const suppliedAlert of supplied.slice(0, MAX_ALERTS)) {
-        const alert = normalizeAlert(suppliedAlert, nowMs);
+        const alert = normalizeAlert(suppliedAlert, nowMs, catalog);
         if (alert !== null) {
             alerts.push(alert);
         }
@@ -406,14 +494,19 @@ function normalizeAlerts(candidate, nowMs) {
     return alerts;
 }
 
-function normalizeSnapshot(candidate, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_MS) {
+function normalizeSnapshot(
+    candidate,
+    nowMs,
+    staleAfterMs = DEFAULT_STALE_AFTER_MS,
+    catalog = DEFAULT_WORKLOAD_CATALOG,
+) {
     const rejected = rejectSnapshot(candidate, nowMs, staleAfterMs);
     if (rejected !== null) {
         return rejected;
     }
     const generatedAt = candidate.generatedAt;
-    const profiles = normalizeProfiles(candidate.profiles);
-    const alerts = normalizeAlerts(candidate.alerts, nowMs);
+    const profiles = normalizeProfiles(candidate.profiles, catalog);
+    const alerts = normalizeAlerts(candidate.alerts, nowMs, catalog);
 
     const device = normalizeDevice(candidate.device);
     return {
@@ -423,15 +516,16 @@ function normalizeSnapshot(candidate, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_
         source: "runtime",
         health: health(device.state, "connected", device.available ? "" : device.reason),
         device,
-        metrics: normalizeMetrics(candidate.metrics),
+        metrics: normalizeMetrics(candidate.metrics, catalog),
         profiles,
         alerts,
     };
 }
 
 class WorkloadPortfolio {
-    constructor(candidate) {
-        const state = sanitizeProfileState(candidate);
+    constructor(candidate, catalog = DEFAULT_WORKLOAD_CATALOG) {
+        this._catalog = requireWorkloadCatalog(catalog);
+        const state = sanitizeProfileState(candidate, catalog);
         this._paused = state.paused;
         this._profiles = state.profiles;
     }
@@ -481,14 +575,14 @@ class WorkloadPortfolio {
 
     serialize() {
         const profiles = {};
-        for (const definition of PROFILE_DEFINITIONS) {
+        for (const definition of this._catalog.definitions()) {
             profiles[definition.id] = {...this._profiles[definition.id]};
         }
         return {paused: this._paused, profiles};
     }
 
     list(runtimeProfiles = {}) {
-        return PROFILE_DEFINITIONS.map((definition) => {
+        return this._catalog.definitions().map((definition) => {
             const configured = this._profiles[definition.id];
             const runtime = normalizeProfileRuntime(runtimeProfiles[definition.id]);
             const status = this._paused || !configured.enabled ? "paused" : runtime.status;
@@ -497,7 +591,7 @@ class WorkloadPortfolio {
     }
 
     _assertProfile(id) {
-        if (!PROFILE_IDS.has(id)) {
+        if (!this._catalog.has(id)) {
             throw new RangeError(`Unknown workload profile: ${id}`);
         }
     }
@@ -506,6 +600,7 @@ class WorkloadPortfolio {
 module.exports = {
     ALERT_SEVERITIES,
     DEFAULT_STALE_AFTER_MS,
+    DEFAULT_WORKLOAD_CATALOG,
     DEVICE_STATES,
     MAX_ALERTS,
     MAX_CLOCK_SKEW_MS,
@@ -517,6 +612,7 @@ module.exports = {
     PROFILE_STATUSES,
     RUNTIME_STATES,
     SNAPSHOT_VERSION,
+    WorkloadCatalog,
     WorkloadPortfolio,
     boundedInteger,
     boundedNumber,
@@ -525,7 +621,12 @@ module.exports = {
     expireSnapshot,
     finiteNumber,
     health,
+    hasProfileDefinitionDefaults,
+    hasProfileDefinitionIdentity,
+    hasProfileDefinitionShape,
+    hasProfileDefinitionText,
     isPlainObject,
+    isProfileDefinition,
     isSnapshotExpired,
     isValidGeneratedAt,
     normalizeAlert,
@@ -539,6 +640,7 @@ module.exports = {
     nullableBoundedNumber,
     probeSnapshot,
     rejectSnapshot,
+    requireWorkloadCatalog,
     safeText,
     sanitizeProfileState,
     snapshotExpiryDelayMs,

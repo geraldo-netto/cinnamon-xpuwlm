@@ -64,7 +64,10 @@ class FakeFile {
     }
 
     enumerate_children() {
-        const names = this.environment.usbNames.slice();
+        const fileEnvironment = this.environment;
+        const names = (this.path === "/workloads"
+            ? this.environment.workloadNames
+            : this.environment.usbNames).slice();
         let index = 0;
         return {
             next_file() {
@@ -73,7 +76,10 @@ class FakeFile {
                 }
                 const name = names[index];
                 index += 1;
-                return {get_name: () => name};
+                return {
+                    get_name: () => name,
+                    get_file_type: () => fileEnvironment.Gio.FileType.DIRECTORY,
+                };
             },
             close: () => { this.environment.closed = true; },
         };
@@ -85,18 +91,19 @@ function ioError(env, name) {
     return {matches: (enumeration, candidate) => enumeration === env.Gio.IOErrorEnum && candidate === code};
 }
 
-function environment(files = {}, usbNames = []) {
+function environment(files = {}, usbNames = [], workloadNames = []) {
     const env = {
         files: new Map(Object.entries(files)),
         existing: new Set(Object.keys(files)),
         usbNames,
+        workloadNames,
         closed: false,
         ByteArray: {toString: (bytes) => String(bytes)},
         Gio: {
             File: {new_for_path: (path) => new FakeFile(path, env)},
             FileQueryInfoFlags: {NOFOLLOW_SYMLINKS: 1},
             IOErrorEnum: {NOT_FOUND: 1, CANCELLED: 19},
-            FileType: {REGULAR: 1},
+            FileType: {REGULAR: 1, DIRECTORY: 2},
             Cancellable: class { cancel() { this.cancelled = true; } },
         },
         GLib: {
@@ -131,8 +138,64 @@ test("file reading distinguishes absent, valid, and failed files", () => {
     const oversized = environment({"/large": "x".repeat(Runtime.MAX_SNAPSHOT_BYTES + 1)});
     assert.throws(
         () => Cinnamon.readFileText("/large", oversized, Runtime.MAX_SNAPSHOT_BYTES),
-        /exceeds 1 MiB/,
+        /configured maximum/u,
     );
+});
+
+test("workload registry adapter discovers bounded validated manifests", () => {
+    const manifest = {
+        manifestVersion: 1,
+        id: "sample-workload",
+        version: "1.0.0",
+        capabilities: ["classify"],
+        requirements: {
+            runtimeApi: 1,
+            accelerator: "edge-tpu",
+            minimumDevices: 1,
+            model: null,
+        },
+        ui: {
+            title: "Sample",
+            group: "Examples",
+            description: "Sample workload",
+            icon: "applications-science-symbolic",
+            order: 10,
+        },
+        defaults: {enabled: false, weight: 2},
+        pipeline: {hostResponsibilities: []},
+        acceptance: [],
+    };
+    const manifestPath = "/workloads/sample-workload/manifest.json";
+    const env = environment({
+        "/workloads": "",
+        [manifestPath]: JSON.stringify(manifest),
+    }, [], ["ignored-file", "sample-workload"]);
+    const original = env.Gio.File.new_for_path;
+    env.Gio.File.new_for_path = (path) => {
+        const file = original(path);
+        if (path === "/workloads") {
+            const originalEnumerator = file.enumerate_children.bind(file);
+            file.enumerate_children = () => {
+                const enumerator = originalEnumerator();
+                const originalNext = enumerator.next_file.bind(enumerator);
+                enumerator.next_file = () => {
+                    const info = originalNext();
+                    if (info && info.get_name() === "ignored-file") {
+                        return {...info, get_file_type: () => env.Gio.FileType.REGULAR};
+                    }
+                    return info;
+                };
+                return enumerator;
+            };
+        }
+        return file;
+    };
+
+    assert.deepEqual(Cinnamon.listWorkloadDirectories("/missing", env), []);
+    assert.deepEqual(Cinnamon.listWorkloadDirectories("/workloads", env), ["sample-workload"]);
+    assert.equal(env.closed, true);
+    const registry = Cinnamon.createWorkloadRegistry("/workloads", env);
+    assert.deepEqual(registry.descriptors().map((entry) => entry.id), ["sample-workload"]);
 });
 
 test("PCIe detection uses the first available accelerator", () => {

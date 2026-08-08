@@ -1,8 +1,10 @@
 "use strict";
 
 const FailureBackoff = require("./failure-log-backoff.js");
+const Domain = require("./domain.js");
 const Runtime = require("./runtime-gateway.js");
 const RuntimeSchema = require("./runtime-snapshot-schema-validator.js");
+const WorkloadRegistry = require("./workload-registry.js");
 
 const USB_VENDOR = "18d1";
 const USB_PRODUCT = "9302";
@@ -44,7 +46,7 @@ function readFileText(path, environment, maximumBytes = null) {
             null,
         );
         if (info.get_size() > maximumBytes) {
-            throw new RangeError("Runtime snapshot exceeds 1 MiB");
+            throw new RangeError("File exceeds configured maximum size");
         }
     }
     const [ok, contents] = environment.GLib.file_get_contents(path);
@@ -156,6 +158,39 @@ function createCancellableFactory(environment) {
 function readTrimmed(path, environment) {
     const text = readFileText(path, environment);
     return text === null ? "" : text.trim().toLowerCase();
+}
+
+function listWorkloadDirectories(path, environment) {
+    const root = environment.Gio.File.new_for_path(path);
+    if (!root.query_exists(null)) {
+        return [];
+    }
+    const enumerator = root.enumerate_children(
+        "standard::name,standard::type",
+        environment.Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
+        null,
+    );
+    const names = [];
+    try {
+        let info = enumerator.next_file(null);
+        while (info !== null && names.length <= WorkloadRegistry.MAX_WORKLOADS) {
+            if (info.get_file_type() === environment.Gio.FileType.DIRECTORY) {
+                names.push(info.get_name());
+            }
+            info = enumerator.next_file(null);
+        }
+    } finally {
+        enumerator.close(null);
+    }
+    return names;
+}
+
+function createWorkloadRegistry(path, environment) {
+    return new WorkloadRegistry.ManifestDirectoryRegistry({
+        root: path,
+        listDirectories: (root) => listWorkloadDirectories(root, environment),
+        readText: (source, maximumBytes) => readFileText(source, environment, maximumBytes),
+    });
 }
 
 function findCoralUsbIdentity(vendor, product) {
@@ -398,6 +433,7 @@ function createRuntimeGateway({
     deviceDetector,
     snapshotValidator,
     warningReporter,
+    workloadCatalog = Domain.DEFAULT_WORKLOAD_CATALOG,
 }) {
     const expandedPath = expandHome(path, environment.GLib.get_home_dir());
     const detector = deviceDetector || new CachedDeviceDetector(environment, clock);
@@ -407,6 +443,7 @@ function createRuntimeGateway({
         snapshotValidator: snapshotValidator
             ?? new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: warningReporter || new FailureBackoff.FailureWarningBackoff({logger}),
+        workloadCatalog,
         cancellableFactory: createCancellableFactory(environment),
         readTextAsync: (filename, options, callback) => readFileTextAsync(
             filename,
@@ -434,6 +471,7 @@ module.exports = {
     createLayoutProvider,
     createLogger,
     createRuntimeGateway,
+    createWorkloadRegistry,
     decodeBytes,
     detectDevice,
     detectPcieDevice,
@@ -442,6 +480,7 @@ module.exports = {
     findCoralUsbIdentity,
     fileIdentity,
     isIoError,
+    listWorkloadDirectories,
     readFileText,
     readFileTextAsync,
     readTrimmed,

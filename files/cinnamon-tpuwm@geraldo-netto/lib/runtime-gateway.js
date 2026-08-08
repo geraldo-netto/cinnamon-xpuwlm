@@ -30,6 +30,7 @@ function parseSnapshotDocument(
     nowMs,
     snapshotValidator,
     staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS,
+    workloadCatalog = Domain.DEFAULT_WORKLOAD_CATALOG,
 ) {
     if (typeof text !== "string") {
         return Domain.unavailableSnapshot("Runtime snapshot is not text", nowMs, "invalid");
@@ -55,7 +56,7 @@ function parseSnapshotDocument(
     } catch {
         return Domain.unavailableSnapshot("Runtime snapshot validation failed", nowMs, "invalid");
     }
-    return Domain.normalizeSnapshot(candidate, nowMs, staleAfterMs);
+    return Domain.normalizeSnapshot(candidate, nowMs, staleAfterMs, workloadCatalog);
 }
 
 // Reads are asynchronous, sequenced, and cancellable: only one read is ever in
@@ -87,6 +88,7 @@ class RuntimeSnapshotGateway {
         clock = Date,
         staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS,
         cancellableFactory = () => null,
+        workloadCatalog = Domain.DEFAULT_WORKLOAD_CATALOG,
     }) {
         requirePorts({readTextAsync, detectDevice, clock, cancellableFactory});
         this._readTextAsync = readTextAsync;
@@ -96,6 +98,7 @@ class RuntimeSnapshotGateway {
         this._clock = clock;
         this._staleAfterMs = Domain.normalizeStaleAfterMs(staleAfterMs);
         this._snapshotValidator = SnapshotValidator.requireSnapshotValidator(snapshotValidator);
+        this._workloadCatalog = Domain.requireWorkloadCatalog(workloadCatalog);
         this._warnings = FailureReporter.requireFailureReporter(warningReporter, "runtime warning");
         this._sequence = 0;
         this._pending = null;
@@ -163,6 +166,7 @@ class RuntimeSnapshotGateway {
                 nowMs,
                 this._snapshotValidator,
                 this._staleAfterMs,
+                this._workloadCatalog,
             ));
         }
         return deliver(this._probe(nowMs, forceDeviceDetection));

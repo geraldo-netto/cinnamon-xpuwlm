@@ -8,7 +8,6 @@
 | XTPU-0013 | blocked | low | xs | — | Choose and add an explicit repository license before redistribution; no license currently grants reuse rights. |
 | XTPU-0023 | open | high | m | XTPU-0003 | Move PCIe and USB discovery plus sysfs reads to bounded cancellable async I/O and cancel pending discovery during teardown. |
 | XTPU-0027 | open | medium | s | XTPU-0009 | Localize settings and metadata through Cinnamon conventions and include their strings in extraction and catalog validation. |
-| XTPU-0036 | open | medium | m | XTPU-0005, XTPU-0035 | Inject a workload registry port into the domain and application layers, with a Cinnamon adapter that discovers validated descriptors without coupling domain logic to files or framework APIs. |
 | XTPU-0037 | open | medium | m | XTPU-0005, XTPU-0035, XTPU-0036 | Migrate all eight built-in workload profiles into independent plug-in descriptors and remove hard-coded catalog knowledge and fixed profile-count limits from the domain. |
 | XTPU-0038 | open | medium | s | XTPU-0005, XTPU-0035, XTPU-0036 | Add low-light image enhancement as a normal Visual Library workload plug-in with replaceable model metadata, host-pipeline responsibilities, and measurable quality/performance acceptance criteria. |
 | XTPU-0039 | open | medium | m | XTPU-0001, XTPU-0005, XTPU-0036 | Implement deterministic install, enable, disable, upgrade, and removal reconciliation so unknown or removed plug-ins do not corrupt persisted preferences or runtime state. |

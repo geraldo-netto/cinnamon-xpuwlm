@@ -5,6 +5,9 @@ const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
 const Layout = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/layout.js");
+const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
+const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
+const ManifestFixtures = require("../helpers/workload-manifest-fixtures.js");
 const {
     FakeActor,
     FakeMenu,
@@ -121,6 +124,16 @@ global.imports = {
 };
 
 const AppletModule = require("../../files/cinnamon-tpuwm@geraldo-netto/applet.js");
+
+test("workload catalog resolver keeps default and injected registries separate", () => {
+    assert.equal(AppletModule.resolveWorkloadCatalog(null), Domain.DEFAULT_WORKLOAD_CATALOG);
+    const descriptor = new Manifest.WorkloadDescriptor(ManifestFixtures.validWorkloadManifest({
+        id: "custom-workload",
+    }));
+    const registry = new Registry.StaticWorkloadRegistry([descriptor]);
+    const catalog = AppletModule.resolveWorkloadCatalog(registry);
+    assert.deepEqual(catalog.definitions().map((definition) => definition.id), ["custom-workload"]);
+});
 
 function liveState(overrides = {}) {
     return {

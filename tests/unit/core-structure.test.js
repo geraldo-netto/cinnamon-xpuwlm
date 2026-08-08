@@ -207,7 +207,7 @@ test("default state and portfolio serialization cover every declared profile", (
             weight: definition.defaultWeight,
         });
         assert.deepEqual(Object.keys(definition), [
-            "id", "title", "group", "description", "icon", "defaultEnabled", "defaultWeight",
+            "id", "title", "group", "description", "icon", "order", "defaultEnabled", "defaultWeight",
         ]);
     }
 
@@ -220,7 +220,7 @@ test("default state and portfolio serialization cover every declared profile", (
 
     const listed = portfolio.list();
     assert.deepEqual(Object.keys(listed[0]), [
-        "id", "title", "group", "description", "icon", "defaultEnabled", "defaultWeight",
+        "id", "title", "group", "description", "icon", "order", "defaultEnabled", "defaultWeight",
         "enabled", "weight", "status", "queued", "detail",
     ]);
     listed[0].title = "mutated";

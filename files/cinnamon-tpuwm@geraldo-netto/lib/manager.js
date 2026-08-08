@@ -2,6 +2,7 @@
 
 const Domain = require("./domain.js");
 const FailureReporter = require("./failure-reporter.js");
+const WorkloadRegistry = require("./workload-registry.js");
 
 const TABS = Object.freeze(["overview", "profiles", "alerts"]);
 const TAB_SET = new Set(TABS);
@@ -61,6 +62,7 @@ class WorkloadManager {
         logger = createSilentLogger(),
         scheduler = createInertScheduler(),
         staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS,
+        workloadRegistry = null,
     }) {
         this._repository = requireRepository(repository);
         requireRuntimeGateway(runtimeGateway);
@@ -73,7 +75,10 @@ class WorkloadManager {
         this._staleAfterMs = Domain.normalizeStaleAfterMs(staleAfterMs);
         this._expiryHandle = null;
         this._errors = FailureReporter.requireFailureReporter(errorReporter, "manager error");
-        this._portfolio = new Domain.WorkloadPortfolio();
+        this._catalog = workloadRegistry === null
+            ? Domain.DEFAULT_WORKLOAD_CATALOG
+            : new Domain.WorkloadCatalog(WorkloadRegistry.profileDefinitions(workloadRegistry));
+        this._portfolio = new Domain.WorkloadPortfolio(null, this._catalog);
         this._selectedTab = "overview";
         this._snapshot = Domain.unavailableSnapshot("Monitoring has not started", this._clock.now());
         this._listeners = new Set();
@@ -88,11 +93,11 @@ class WorkloadManager {
         }
         try {
             const saved = this._repository.load();
-            this._portfolio = new Domain.WorkloadPortfolio(saved?.portfolio);
+            this._portfolio = new Domain.WorkloadPortfolio(saved?.portfolio, this._catalog);
             this._selectedTab = sanitizeTab(saved?.selectedTab);
         } catch (error) {
             this._logger.warn(`Could not load applet state: ${error}`);
-            this._portfolio = new Domain.WorkloadPortfolio();
+            this._portfolio = new Domain.WorkloadPortfolio(null, this._catalog);
             this._selectedTab = "overview";
         }
         this._started = true;
