@@ -28,6 +28,7 @@
 | XTPU-0039 | open | medium | m | XTPU-0001, XTPU-0005, XTPU-0036 | Implement deterministic install, enable, disable, upgrade, and removal reconciliation so unknown or removed plug-ins do not corrupt persisted preferences or runtime state. |
 | XTPU-0040 | open | high | m | XTPU-0001, XTPU-0002, XTPU-0005, XTPU-0035, XTPU-0036 | Keep applet plug-ins declarative and non-executable, validate all discovered data and paths at the trust boundary, and leave model execution and privileged actions behind the runtime service contract. |
 | XTPU-0041 | open | low | s | XTPU-0005, XTPU-0035, XTPU-0036 | Provide a workload plug-in template, authoring guide, schema/compatibility checker, and contract-test fixture so workloads can be added or removed independently. |
+| XTPU-0042 | open | low | s | XTPU-0038 | Review the interim low-light catalog and profile draft committed in `828a261` after the plug-in is implemented; reconcile wording, model metadata, host-pipeline responsibilities, and measurable acceptance criteria with test results, then revise or remove the feature if warranted. |
 
 # Rejected / Won't fix
 
