@@ -7,6 +7,8 @@ These rules apply to the entire repository.
 - Whenever any finding is discovered, add or update an entry in the root `TODO.md` before reporting or acting on it.
 - Findings include bugs, security concerns, UX/UI issues, performance problems, missing tests, regressions, compatibility risks, and technical debt.
 - Do not create duplicate entries. Update the existing row when the same finding changes.
+- Once a finding is fully resolved and verified, remove its row automatically instead of retaining completed work in `TODO.md`. Include the removal in the same scoped commit as the resolution; when no companion changes remain, commit the removal as a scoped documentation change.
+- The `done` status is transitional only; no completed row should remain after its resolution is committed.
 - Use stable sequential IDs in the form `XTPU-0001`.
 - Use only these status values: `open`, `in_progress`, `blocked`, `done`, `wont_fix`.
 - Use only these severity values: `critical`, `high`, `medium`, `low`.
