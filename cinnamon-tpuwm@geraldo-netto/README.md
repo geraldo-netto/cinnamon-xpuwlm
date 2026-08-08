@@ -19,6 +19,13 @@ npm test
 
 `npm test` runs ESLint, artifact validation, unit/integration/regression tests, per-function coverage checks, deterministic fuzz tests, and Stryker mutation tests.
 
+## Module loading
+
+Cinnamon resolves `require()` calls from the applet root, including calls made
+inside nested modules. Thin root bridge modules preserve that platform behavior
+while domain and adapter implementations stay under `lib/` for Node-based
+quality gates.
+
 ## Install
 
 Install the directory at:

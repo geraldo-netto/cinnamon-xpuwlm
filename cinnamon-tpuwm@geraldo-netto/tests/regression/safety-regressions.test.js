@@ -18,6 +18,14 @@ test("regression: shared runtime modules contain no Node-only Buffer dependency"
     }
 });
 
+test("regression: Cinnamon root-resolution bridges export every nested dependency", () => {
+    for (const moduleName of ["domain", "manager", "runtime-gateway", "view-model"]) {
+        const bridge = require(path.join(ROOT, `${moduleName}.js`));
+        const implementation = require(path.join(ROOT, "lib", `${moduleName}.js`));
+        assert.equal(bridge, implementation);
+    }
+});
+
 test("regression: malformed nullable measurements remain unknown rather than zero", () => {
     const snapshot = Domain.normalizeSnapshot({
         version: 1,

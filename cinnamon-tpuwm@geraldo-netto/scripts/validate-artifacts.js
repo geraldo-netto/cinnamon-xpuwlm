@@ -12,11 +12,14 @@ function readJson(relativePath) {
 }
 
 function productionJavaScriptFiles() {
+    const rootModules = fs.readdirSync(root)
+        .filter((name) => name.endsWith(".js"))
+        .map((name) => path.join(root, name));
     const libraryDirectory = path.join(root, "lib");
     const libraries = fs.readdirSync(libraryDirectory)
         .filter((name) => name.endsWith(".js"))
         .map((name) => path.join(libraryDirectory, name));
-    return [path.join(root, "applet.js"), ...libraries];
+    return [...rootModules, ...libraries];
 }
 
 function validateJsonArtifacts() {
