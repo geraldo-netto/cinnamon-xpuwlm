@@ -25,6 +25,7 @@ These rules apply to the entire repository.
 
 - All new and materially changed code must follow SOLID principles, domain-driven design (DDD), and idiomatic best practices for its language, framework, and ecosystem.
 - Keep domain logic independent from UI, persistence, transport, infrastructure, and framework concerns. Dependencies must point toward the domain and application core.
+- Keep contracts and interfaces separate from concrete implementations at every architectural boundary. Consumers must depend on injected abstractions, never implementation details; if the correct boundary or degree of decoupling is ambiguous, stop and ask the user before introducing coupling.
 - Define bounded contexts and use consistent domain language. Apply entities, value objects, aggregates, repositories, domain services, and domain events where the domain requires them.
 - Keep modules cohesive, responsibilities narrow, interfaces explicit, dependencies injected at boundaries, and side effects isolated.
 - Follow language-native conventions for formatting, static analysis, typing, error handling, resource management, concurrency, security, testing, packaging, and public APIs.
