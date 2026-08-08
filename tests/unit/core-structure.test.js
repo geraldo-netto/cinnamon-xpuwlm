@@ -10,21 +10,11 @@ const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/fai
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
 const SchemaValidator = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const {createAsyncDeviceEnvironment, detectAsync} = require("../helpers/async-device-environment.js");
 
 const NOW = 1_700_000_000_000;
 const CATALOG = BuiltIns.coreCatalog();
 const DEFINITIONS = CATALOG.definitions();
-
-function absentEnvironment() {
-    return {
-        Gio: {
-            File: {new_for_path: () => ({query_exists: () => false})},
-            FileQueryInfoFlags: {NOFOLLOW_SYMLINKS: 1},
-        },
-        GLib: {get_home_dir: () => "/home/tester", file_get_contents: () => [false, ""]},
-        ByteArray: {toString: (value) => String(value)},
-    };
-}
 
 function connectedDocument(overrides = {}) {
     return {
@@ -38,24 +28,19 @@ function connectedDocument(overrides = {}) {
     };
 }
 
-test("device detection reports a complete structure in every branch", () => {
-    assert.deepEqual(Cinnamon.detectDevice(absentEnvironment()), {
+test("device detection reports a complete structure in every branch", async () => {
+    const absent = createAsyncDeviceEnvironment().environment;
+    assert.deepEqual(await detectAsync(Cinnamon.detectDeviceAsync, absent), {
         available: false,
         name: "No TPU detected",
         kind: "unknown",
         reason: "Connect a Coral USB or PCIe Edge TPU",
     });
-    assert.equal(Cinnamon.detectPcieDevice(absentEnvironment()), null);
-    assert.equal(Cinnamon.detectUsbDevice(absentEnvironment()), null);
+    assert.equal(await detectAsync(Cinnamon.detectPcieDeviceAsync, absent), null);
+    assert.equal(await detectAsync(Cinnamon.detectUsbDeviceAsync, absent), null);
 
-    const pcie = {
-        ...absentEnvironment(),
-        Gio: {
-            File: {new_for_path: (path) => ({query_exists: () => path === "/dev/apex_0"})},
-            FileQueryInfoFlags: {NOFOLLOW_SYMLINKS: 1},
-        },
-    };
-    assert.deepEqual(Cinnamon.detectPcieDevice(pcie), {
+    const pcie = createAsyncDeviceEnvironment({pcie: [0]}).environment;
+    assert.deepEqual(await detectAsync(Cinnamon.detectPcieDeviceAsync, pcie), {
         available: true,
         name: "Coral PCIe Edge TPU",
         kind: "pcie",
@@ -73,12 +58,18 @@ test("device detection reports a complete structure in every branch", () => {
     assert.equal(Cinnamon.findCoralUsbIdentity("18d1", "089a"), null);
 });
 
-test("cached detection returns an isolated copy of the shared device record", () => {
-    const detector = new Cinnamon.CachedDeviceDetector(absentEnvironment(), {now: () => NOW});
-    const first = detector.detect();
+test("cached detection returns an isolated copy of the shared device record", async () => {
+    const detector = new Cinnamon.CachedDeviceDetector(
+        createAsyncDeviceEnvironment().environment,
+        {now: () => NOW},
+    );
+    const read = () => new Promise((resolve, reject) => detector.detect(false, {}, (error, device) => {
+        if (error) { reject(error); } else { resolve(device); }
+    }));
+    const first = await read();
     first.name = "mutated";
     first.available = true;
-    const second = detector.detect();
+    const second = await read();
     assert.equal(second.name, "No TPU detected");
     assert.equal(second.available, false);
     assert.notEqual(first, second);

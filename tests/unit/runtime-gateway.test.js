@@ -312,6 +312,25 @@ test("gateway fails closed when device probing throws", () => {
     assert.equal(Domain.DEFAULT_STALE_AFTER_MS > 1000, true);
 });
 
+test("gateway fails closed when asynchronous device probing reports an error", () => {
+    const reports = [];
+    const subject = new Runtime.RuntimeSnapshotGateway({
+        path: "/missing",
+        clock: {now: () => NOW},
+        readTextAsync: (path, options, callback) => callback(null, null),
+        detectDevice: (forceRefresh, options, callback) => callback(new Error("async denied"), null),
+        snapshotValidator: snapshotValidator(),
+        warningReporter: {
+            report: (key, message) => reports.push([key, message]),
+            recover() {},
+        },
+    });
+    const snapshot = readSnapshot(subject);
+    assert.equal(snapshot.source, "probe");
+    assert.match(snapshot.device.reason, /failed/u);
+    assert.match(reports[0][1], /async denied/u);
+});
+
 test("gateway backs off read and probe warnings independently", () => {
     let nowMs = NOW;
     let readFails = true;

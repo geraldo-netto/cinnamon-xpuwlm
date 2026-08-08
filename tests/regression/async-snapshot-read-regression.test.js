@@ -180,6 +180,25 @@ test("regression: teardown cancels a pending read and ignores its completion", (
     assert.deepEqual(names, []);
 });
 
+test("regression: teardown cancels discovery and ignores its late completion", () => {
+    const cancellable = {cancelled: false, cancel() { this.cancelled = true; }};
+    let detection;
+    const snapshots = [];
+    const subject = gateway((path, options, callback) => callback(null, null), {
+        cancellableFactory: () => cancellable,
+        detectDevice(forceRefresh, options, callback) {
+            detection = {forceRefresh, options, callback};
+            return true;
+        },
+    });
+    subject.read({}, (snapshot) => snapshots.push(snapshot));
+    assert.equal(detection.options.cancellable, cancellable);
+    assert.equal(subject.cancel(), true);
+    assert.equal(cancellable.cancelled, true);
+    detection.callback(null, {available: true, name: "Too late", kind: "usb"});
+    assert.deepEqual(snapshots, []);
+});
+
 test("regression: replacing the gateway cancels the read still in flight", () => {
     const reader = deferredReader();
     const subject = gateway(reader);

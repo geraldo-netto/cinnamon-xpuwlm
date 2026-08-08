@@ -9,23 +9,18 @@ const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/fai
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const {createAsyncDeviceEnvironment} = require("../helpers/async-device-environment.js");
 
 function mutableDeviceEnvironment() {
-    let connected = false;
+    const harness = createAsyncDeviceEnvironment();
     return {
-        environment: {
-            Gio: {
-                File: {
-                    new_for_path(path) {
-                        return {
-                            query_exists: () => connected && path === "/dev/apex_0",
-                        };
-                    },
-                },
-            },
-        },
+        environment: harness.environment,
         setConnected(value) {
-            connected = value;
+            if (value) {
+                harness.pciePaths.add("/dev/apex_0");
+            } else {
+                harness.pciePaths.delete("/dev/apex_0");
+            }
         },
     };
 }
@@ -39,7 +34,9 @@ test("regression: explicit retry bypasses a cached unavailable device result", (
         clock,
         path: "/missing/runtime.json",
         readTextAsync: (filename, options, callback) => callback(null, null),
-        detectDevice: (forceRefresh) => detector.detect(forceRefresh),
+        detectDevice: (forceRefresh, options, callback) => detector.detect(
+            forceRefresh, options, callback,
+        ),
         snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: new FailureBackoff.FailureWarningBackoff({logger}),
     });

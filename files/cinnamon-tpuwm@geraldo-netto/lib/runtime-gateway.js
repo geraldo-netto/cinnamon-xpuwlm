@@ -131,7 +131,14 @@ class RuntimeSnapshotGateway {
             this._readTextAsync(
                 this._path,
                 {maximumBytes: MAX_SNAPSHOT_BYTES + 1, cancellable},
-                (error, text) => this._complete(error, text, nowMs, forceDeviceDetection, deliver),
+                (error, text) => this._complete(
+                    error,
+                    text,
+                    nowMs,
+                    forceDeviceDetection,
+                    cancellable,
+                    deliver,
+                ),
             );
         } catch (error) {
             this._reportReadFailure(error, nowMs, deliver);
@@ -152,7 +159,7 @@ class RuntimeSnapshotGateway {
         return true;
     }
 
-    _complete(error, text, nowMs, forceDeviceDetection, deliver) {
+    _complete(error, text, nowMs, forceDeviceDetection, cancellable, deliver) {
         if (error) {
             this._reportReadFailure(error, nowMs, deliver);
             return false;
@@ -169,25 +176,36 @@ class RuntimeSnapshotGateway {
                 this._workloadCatalog,
             ));
         }
-        return deliver(this._probe(nowMs, forceDeviceDetection));
+        return this._probe(nowMs, forceDeviceDetection, cancellable, deliver);
     }
 
-    _probe(nowMs, forceDeviceDetection) {
+    _probe(nowMs, forceDeviceDetection, cancellable, deliver) {
         try {
-            const snapshot = Domain.probeSnapshot(
-                this._detectDevice(forceDeviceDetection),
-                nowMs,
-            );
-            this._warnings.recover(DEVICE_PROBE_FAILURE);
-            return snapshot;
+            const accept = (error, device) => {
+                if (error) {
+                    this._reportProbeFailure(error, nowMs, deliver);
+                    return;
+                }
+                this._warnings.recover(DEVICE_PROBE_FAILURE);
+                deliver(Domain.probeSnapshot(device, nowMs));
+            };
+            const result = this._detectDevice(forceDeviceDetection, {cancellable}, accept);
+            if (result && typeof result === "object") {
+                accept(null, result);
+            }
+            return true;
         } catch (error) {
-            this._warnings.report(
-                DEVICE_PROBE_FAILURE,
-                `Could not probe TPU devices: ${error}`,
-                nowMs,
-            );
-            return Domain.unavailableSnapshot("TPU device discovery failed", nowMs, "probe");
+            return this._reportProbeFailure(error, nowMs, deliver);
         }
+    }
+
+    _reportProbeFailure(error, nowMs, deliver) {
+        this._warnings.report(
+            DEVICE_PROBE_FAILURE,
+            `Could not probe TPU devices: ${error}`,
+            nowMs,
+        );
+        return deliver(Domain.unavailableSnapshot("TPU device discovery failed", nowMs, "probe"));
     }
 
     _reportReadFailure(error, nowMs, deliver) {

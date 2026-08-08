@@ -84,6 +84,31 @@ class FakeFile {
             close: () => { this.environment.closed = true; },
         };
     }
+
+    enumerate_children_async(attributes, flags, priority, cancellable, callback) {
+        callback(this, {});
+    }
+
+    enumerate_children_finish() {
+        const synchronous = this.enumerate_children();
+        const entries = [];
+        let info = synchronous.next_file();
+        while (info !== null) {
+            entries.push(info);
+            info = synchronous.next_file();
+        }
+        let index = 0;
+        return {
+            next_files_async(count, priority, cancellable, callback) { callback(this, {count}); },
+            next_files_finish(result) {
+                const batch = entries.slice(index, index + result.count);
+                index += batch.length;
+                return batch;
+            },
+            close_async(priority, cancellable, callback) { callback(this, {}); },
+            close_finish: () => { this.environment.closed = true; },
+        };
+    }
 }
 
 function ioError(env, name) {
@@ -118,6 +143,24 @@ function environment(files = {}, usbNames = [], workloadNames = []) {
         },
     };
     return env;
+}
+
+function detectWith(fn, env) {
+    return new Promise((resolve, reject) => fn(env, null, (error, device) => {
+        if (error) {
+            reject(error);
+        } else {
+            resolve(device);
+        }
+    }));
+}
+
+function cachedDetection(detector, forceRefresh = false) {
+    return new Promise((resolve, reject) => detector.detect(
+        forceRefresh,
+        {},
+        (error, device) => error ? reject(error) : resolve(device),
+    ));
 }
 
 test("path and byte helpers support Cinnamon values", () => {
@@ -198,11 +241,11 @@ test("workload registry adapter discovers bounded validated manifests", () => {
     assert.deepEqual(registry.descriptors().map((entry) => entry.id), ["sample-workload"]);
 });
 
-test("PCIe detection uses the first available accelerator", () => {
-    assert.equal(Cinnamon.detectPcieDevice(environment()), null);
-    const first = Cinnamon.detectPcieDevice(environment({"/dev/apex_0": ""}));
+test("PCIe detection uses the first available accelerator", async () => {
+    assert.equal(await detectWith(Cinnamon.detectPcieDeviceAsync, environment()), null);
+    const first = await detectWith(Cinnamon.detectPcieDeviceAsync, environment({"/dev/apex_0": ""}));
     assert.equal(first.name, "Coral PCIe Edge TPU");
-    const second = Cinnamon.detectPcieDevice(environment({"/dev/apex_1": ""}));
+    const second = await detectWith(Cinnamon.detectPcieDeviceAsync, environment({"/dev/apex_1": ""}));
     assert.equal(second.name, "Coral PCIe Edge TPU 2");
     assert.equal(second.kind, "pcie");
 });
@@ -221,14 +264,14 @@ test("USB identity policy accepts only exact runtime and DFU pairs", () => {
     assert.equal(Cinnamon.findCoralUsbIdentity("ffff", "ffff"), null);
 });
 
-test("USB detection normalizes Coral identifiers and always closes enumeration", () => {
+test("USB detection normalizes Coral identifiers and always closes enumeration", async () => {
     const root = "/sys/bus/usb/devices";
     const foundEnv = environment({
         [root]: "",
         [`${root}/1/idVendor`]: "18D1\n",
         [`${root}/1/idProduct`]: "9302\n",
     }, ["1"]);
-    const runtimeDevice = Cinnamon.detectUsbDevice(foundEnv);
+    const runtimeDevice = await detectWith(Cinnamon.detectUsbDeviceAsync, foundEnv);
     assert.equal(runtimeDevice.available, true);
     assert.equal(runtimeDevice.kind, "usb");
     assert.equal(foundEnv.closed, true);
@@ -238,7 +281,7 @@ test("USB detection normalizes Coral identifiers and always closes enumeration",
         [`${root}/2/idVendor`]: "  1A6E\n",
         [`${root}/2/idProduct`]: "089A\n",
     }, ["2"]);
-    const dfuDevice = Cinnamon.detectUsbDevice(dfuEnv);
+    const dfuDevice = await detectWith(Cinnamon.detectUsbDeviceAsync, dfuEnv);
     assert.equal(dfuDevice.available, true);
     assert.equal(dfuDevice.name, "Coral USB Accelerator (DFU)");
     assert.equal(dfuEnv.closed, true);
@@ -248,27 +291,89 @@ test("USB detection normalizes Coral identifiers and always closes enumeration",
         [`${root}/3/idVendor`]: "ffff",
         [`${root}/3/idProduct`]: "9302",
     }, ["3"]);
-    assert.equal(Cinnamon.detectUsbDevice(otherEnv), null);
+    assert.equal(await detectWith(Cinnamon.detectUsbDeviceAsync, otherEnv), null);
     assert.equal(otherEnv.closed, true);
-    assert.equal(Cinnamon.detectUsbDevice(environment()), null);
+    assert.equal(await detectWith(Cinnamon.detectUsbDeviceAsync, environment()), null);
 });
 
-test("combined detection prioritizes PCIe, then USB, then an actionable fallback", () => {
-    const pcie = Cinnamon.detectDevice(environment({"/dev/apex_0": ""}));
+test("USB discovery inspects only the bounded device prefix", async () => {
+    const names = Array.from({length: Cinnamon.MAX_USB_DEVICES + 44}, (_, index) => `${index}`);
+    const env = environment({"/sys/bus/usb/devices": ""}, names);
+    const original = env.Gio.File.new_for_path;
+    const inspected = new Set();
+    env.Gio.File.new_for_path = (path) => {
+        const match = path.match(/devices\/(\d+)\/idVendor$/u);
+        if (match) {
+            inspected.add(Number(match[1]));
+        }
+        return original(path);
+    };
+    assert.equal(await detectWith(Cinnamon.detectUsbDeviceAsync, env), null);
+    assert.equal(inspected.size, Cinnamon.MAX_USB_DEVICES);
+    assert.equal(Math.max(...inspected), Cinnamon.MAX_USB_DEVICES - 1);
+    assert.equal(env.closed, true);
+});
+
+test("combined detection prioritizes PCIe, then USB, then an actionable fallback", async () => {
+    const pcie = await detectWith(Cinnamon.detectDeviceAsync, environment({"/dev/apex_0": ""}));
     assert.equal(pcie.kind, "pcie");
     const root = "/sys/bus/usb/devices";
-    const usb = Cinnamon.detectDevice(environment({
+    const usb = await detectWith(Cinnamon.detectDeviceAsync, environment({
         [root]: "",
         [`${root}/1/idVendor`]: Cinnamon.USB_VENDOR,
         [`${root}/1/idProduct`]: Cinnamon.USB_PRODUCT,
     }, ["1"]));
     assert.equal(usb.kind, "usb");
-    const absent = Cinnamon.detectDevice(environment());
+    const absent = await detectWith(Cinnamon.detectDeviceAsync, environment());
     assert.equal(absent.available, false);
     assert.match(absent.reason, /Connect/);
 });
 
-test("cached detector respects TTL and supports invalidation", () => {
+test("asynchronous discovery adapters report IO failures and cancellation", () => {
+    const env = environment({"/failed": new Error("read failed")});
+    const calls = [];
+    assert.equal(Cinnamon.finishIo(env, ioError(env, "CANCELLED"), () => calls.push("cancelled")), false);
+    assert.equal(Cinnamon.finishIo(env, ioError(env, "NOT_FOUND"), (...args) => calls.push(args), false), true);
+    const denied = new Error("denied");
+    assert.equal(Cinnamon.finishIo(env, denied, (...args) => calls.push(args)), true);
+    assert.deepEqual(calls, [[null, false], [denied, null]]);
+
+    const immediate = environment();
+    immediate.Gio.File.new_for_path = () => ({query_info_async() { throw denied; }});
+    Cinnamon.queryExistsAsync("/device", immediate, null, (error, exists) => {
+        assert.equal(error, denied);
+        assert.equal(exists, false);
+    });
+
+    Cinnamon.closeEnumeratorAsync({close_async() { throw denied; }}, env, null, (error) => {
+        assert.equal(error, denied);
+    });
+    Cinnamon.closeEnumeratorAsync({
+        close_async(priority, cancellable, callback) { callback(this, {}); },
+        close_finish() { throw denied; },
+    }, env, null, (error) => assert.equal(error, denied));
+
+    const closable = {
+        next_files_async() { throw denied; },
+        close_async(priority, cancellable, callback) { callback(this, {}); },
+        close_finish() {},
+    };
+    Cinnamon.collectUsbNames(closable, env, null, [], (error) => assert.equal(error, denied));
+    const failingBatch = {
+        next_files_async(count, priority, cancellable, callback) { callback(this, {}); },
+        next_files_finish() { throw denied; },
+        close_async(priority, cancellable, callback) { callback(this, {}); },
+        close_finish() {},
+    };
+    Cinnamon.collectUsbNames(failingBatch, env, null, [], (error) => assert.equal(error, denied));
+
+    Cinnamon.readTrimmedAsync("/failed", env, null, (error, text) => {
+        assert.equal(error.message, "read failed");
+        assert.equal(text, "");
+    });
+});
+
+test("cached detector respects TTL and supports invalidation", async () => {
     let now = NOW;
     let probes = 0;
     const env = environment();
@@ -281,24 +386,37 @@ test("cached detector respects TTL and supports invalidation", () => {
         return original(path);
     };
     const detector = new Cinnamon.CachedDeviceDetector(env, {now: () => now}, 100);
-    const first = detector.detect();
+    assert.throws(() => detector.detect(false, {}, null), /callback/u);
+    const first = await cachedDetection(detector);
     first.name = "mutated";
-    assert.equal(detector.detect().name, "Coral PCIe Edge TPU");
+    assert.equal((await cachedDetection(detector)).name, "Coral PCIe Edge TPU");
     assert.equal(probes, 1);
     now += 100;
-    detector.detect();
+    await cachedDetection(detector);
     assert.equal(probes, 2);
     detector.invalidate();
-    detector.detect();
+    await cachedDetection(detector);
     assert.equal(probes, 3);
-    detector.detect(true);
+    await cachedDetection(detector, true);
     assert.equal(probes, 4);
-    detector.detect(false);
+    await cachedDetection(detector, false);
     assert.equal(probes, 4);
     const uncached = new Cinnamon.CachedDeviceDetector(env, {now: () => now}, "invalid");
-    uncached.detect();
-    uncached.detect();
+    await cachedDetection(uncached);
+    await cachedDetection(uncached);
     assert.equal(probes, 6);
+});
+
+test("cached detector forwards asynchronous discovery failures without caching", async () => {
+    const denied = new Error("device denied");
+    const env = environment();
+    env.Gio.File.new_for_path = () => ({
+        query_info_async(attributes, flags, priority, cancellable, callback) { callback(this, {}); },
+        query_info_finish() { throw denied; },
+    });
+    const detector = new Cinnamon.CachedDeviceDetector(env);
+    await assert.rejects(() => cachedDetection(detector), /device denied/u);
+    await assert.rejects(() => cachedDetection(detector), /device denied/u);
 });
 
 test("settings repository avoids redundant writes", () => {

@@ -21,6 +21,10 @@ const CONTROL_OBJECT_PATH = "/org/cinnamon/TpuWorkloadManager1";
 const CONTROL_INTERFACE = "org.cinnamon.TpuWorkloadManager1";
 const CONTROL_METHOD = "ApplyCommand";
 const CONTROL_TIMEOUT_MS = 5000;
+const MAX_PCIE_DEVICES = 8;
+const MAX_USB_DEVICES = 256;
+const MAX_USB_ID_BYTES = 32;
+const USB_BATCH_SIZE = 32;
 
 function expandHome(path, homeDirectory) {
     const text = String(path || "");
@@ -205,63 +209,199 @@ function findCoralUsbIdentity(vendor, product) {
     ) || null;
 }
 
-function detectPcieDevice(environment) {
-    for (let index = 0; index < 8; index += 1) {
-        if (environment.Gio.File.new_for_path(`/dev/apex_${index}`).query_exists(null)) {
-            return {
+function finishIo(environment, error, callback, fallback = null) {
+    if (isIoError(environment, error, "CANCELLED")) {
+        return false;
+    }
+    if (isIoError(environment, error, "NOT_FOUND")) {
+        callback(null, fallback);
+        return true;
+    }
+    callback(error, fallback);
+    return true;
+}
+
+function queryExistsAsync(path, environment, cancellable, callback) {
+    const file = environment.Gio.File.new_for_path(path);
+    try {
+        file.query_info_async(
+            "standard::type",
+            environment.Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
+            0,
+            cancellable,
+            (source, result) => {
+                try {
+                    source.query_info_finish(result);
+                    callback(null, true);
+                } catch (error) {
+                    finishIo(environment, error, callback, false);
+                }
+            },
+        );
+    } catch (error) {
+        finishIo(environment, error, callback, false);
+    }
+}
+
+function detectPcieDeviceAsync(environment, cancellable, callback, index = 0) {
+    if (index >= MAX_PCIE_DEVICES) {
+        callback(null, null);
+        return;
+    }
+    queryExistsAsync(`/dev/apex_${index}`, environment, cancellable, (error, exists) => {
+        if (error || exists) {
+            callback(error, exists ? {
                 available: true,
                 name: index === 0 ? "Coral PCIe Edge TPU" : `Coral PCIe Edge TPU ${index + 1}`,
                 kind: "pcie",
                 reason: "",
-            };
+            } : null);
+            return;
         }
-    }
-    return null;
+        detectPcieDeviceAsync(environment, cancellable, callback, index + 1);
+    });
 }
 
-function detectUsbDevice(environment) {
-    const root = environment.Gio.File.new_for_path("/sys/bus/usb/devices");
-    if (!root.query_exists(null)) {
-        return null;
-    }
-    const enumerator = root.enumerate_children(
-        "standard::name",
-        environment.Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
-        null,
-    );
+function closeEnumeratorAsync(enumerator, environment, cancellable, callback) {
     try {
-        let info = enumerator.next_file(null);
-        while (info !== null) {
-            const base = `/sys/bus/usb/devices/${info.get_name()}`;
-            const identity = findCoralUsbIdentity(
-                readTrimmed(`${base}/idVendor`, environment),
-                readTrimmed(`${base}/idProduct`, environment),
-            );
-            if (identity !== null) {
-                return {
-                    available: true,
-                    name: identity.name,
-                    kind: "usb",
-                    reason: "",
-                };
+        enumerator.close_async(0, cancellable, (source, result) => {
+            try {
+                source.close_finish(result);
+                callback(null);
+            } catch (error) {
+                finishIo(environment, error, callback);
             }
-            info = enumerator.next_file(null);
-        }
-        return null;
-    } finally {
-        enumerator.close(null);
+        });
+    } catch (error) {
+        finishIo(environment, error, callback);
     }
 }
 
-function detectDevice(environment) {
-    return detectPcieDevice(environment)
-        || detectUsbDevice(environment)
-        || {
-            available: false,
-            name: "No TPU detected",
-            kind: "unknown",
-            reason: "Connect a Coral USB or PCIe Edge TPU",
-        };
+function collectUsbNames(enumerator, environment, cancellable, names, callback, scanned = 0) {
+    const remaining = MAX_USB_DEVICES - scanned;
+    if (remaining <= 0) {
+        closeEnumeratorAsync(enumerator, environment, null, (error) => callback(error, names));
+        return;
+    }
+    const acceptBatch = (source, result) => {
+        let batch;
+        try {
+            batch = source.next_files_finish(result);
+        } catch (error) {
+            closeEnumeratorAsync(enumerator, environment, null, () => {
+                finishIo(environment, error, callback);
+            });
+            return;
+        }
+        for (const info of batch.slice(0, remaining)) {
+            if (info.get_file_type() === environment.Gio.FileType.DIRECTORY) {
+                names.push(info.get_name());
+            }
+        }
+        const inspected = scanned + batch.length;
+        if (batch.length > 0 && inspected < MAX_USB_DEVICES) {
+            collectUsbNames(enumerator, environment, cancellable, names, callback, inspected);
+            return;
+        }
+        closeEnumeratorAsync(enumerator, environment, null, (error) => callback(error, names));
+    };
+    try {
+        enumerator.next_files_async(Math.min(USB_BATCH_SIZE, remaining), 0, cancellable, acceptBatch);
+    } catch (error) {
+        closeEnumeratorAsync(enumerator, environment, null, () => {
+            finishIo(environment, error, callback);
+        });
+    }
+}
+
+function listUsbDeviceNamesAsync(environment, cancellable, callback) {
+    const root = environment.Gio.File.new_for_path("/sys/bus/usb/devices");
+    try {
+        root.enumerate_children_async(
+            "standard::name,standard::type",
+            environment.Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
+            0,
+            cancellable,
+            (source, result) => {
+                let enumerator;
+                try {
+                    enumerator = source.enumerate_children_finish(result);
+                } catch (error) {
+                    finishIo(environment, error, callback, []);
+                    return;
+                }
+                collectUsbNames(enumerator, environment, cancellable, [], callback);
+            },
+        );
+    } catch (error) {
+        finishIo(environment, error, callback, []);
+    }
+}
+
+function readTrimmedAsync(path, environment, cancellable, callback) {
+    readFileTextAsync(path, environment, {maximumBytes: MAX_USB_ID_BYTES, cancellable}, (error, text) => {
+        if (error) {
+            callback(error, "");
+            return;
+        }
+        callback(error, text === null ? "" : text.trim().toLowerCase());
+    });
+}
+
+function detectUsbNameAsync(names, index, environment, cancellable, callback) {
+    if (index >= names.length) {
+        callback(null, null);
+        return;
+    }
+    const base = `/sys/bus/usb/devices/${names[index]}`;
+    readTrimmedAsync(`${base}/idVendor`, environment, cancellable, (vendorError, vendor) => {
+        if (vendorError) {
+            callback(vendorError, null);
+            return;
+        }
+        readTrimmedAsync(`${base}/idProduct`, environment, cancellable, (productError, product) => {
+            const identity = productError ? null : findCoralUsbIdentity(vendor, product);
+            if (productError || identity !== null) {
+                callback(productError, identity);
+                return;
+            }
+            detectUsbNameAsync(names, index + 1, environment, cancellable, callback);
+        });
+    });
+}
+
+function detectUsbDeviceAsync(environment, cancellable, callback) {
+    listUsbDeviceNamesAsync(environment, cancellable, (error, names) => {
+        if (error) {
+            callback(error, null);
+            return;
+        }
+        detectUsbNameAsync(names, 0, environment, cancellable, (identityError, identity) => {
+            callback(identityError, identity === null ? null : {
+                available: true,
+                name: identity.name,
+                kind: "usb",
+                reason: "",
+            });
+        });
+    });
+}
+
+function detectDeviceAsync(environment, cancellable, callback) {
+    detectPcieDeviceAsync(environment, cancellable, (pcieError, pcie) => {
+        if (pcieError || pcie !== null) {
+            callback(pcieError, pcie);
+            return;
+        }
+        detectUsbDeviceAsync(environment, cancellable, (usbError, usb) => {
+            callback(usbError, usb || {
+                available: false,
+                name: "No TPU detected",
+                kind: "unknown",
+                reason: "Connect a Coral USB or PCIe Edge TPU",
+            });
+        });
+    });
 }
 
 class CachedDeviceDetector {
@@ -273,17 +413,26 @@ class CachedDeviceDetector {
         this._cached = null;
     }
 
-    detect(forceRefresh = false) {
+    detect(forceRefresh = false, options = {}, callback) {
+        if (typeof callback !== "function") {
+            throw new TypeError("A device detection callback is required");
+        }
         if (forceRefresh === true) {
             this.invalidate();
         }
         const nowMs = this._clock.now();
         if (this._cached !== null && nowMs - this._cachedAt < this._cacheMs) {
-            return {...this._cached};
+            callback(null, {...this._cached});
+            return true;
         }
-        this._cached = detectDevice(this._environment);
-        this._cachedAt = nowMs;
-        return {...this._cached};
+        detectDeviceAsync(this._environment, options.cancellable || null, (error, device) => {
+            if (!error) {
+                this._cached = {...device};
+                this._cachedAt = this._clock.now();
+            }
+            callback(error, device === null ? null : {...device});
+        });
+        return true;
     }
 
     invalidate() {
@@ -457,7 +606,11 @@ function createRuntimeGateway({
             options,
             callback,
         ),
-        detectDevice: (forceRefresh) => detector.detect(forceRefresh),
+        detectDevice: (forceRefresh, options, callback) => detector.detect(
+            forceRefresh,
+            options,
+            callback,
+        ),
     });
 }
 
@@ -502,6 +655,10 @@ module.exports = {
     CONTROL_OBJECT_PATH,
     CONTROL_TIMEOUT_MS,
     DEVICE_CACHE_MS,
+    MAX_PCIE_DEVICES,
+    MAX_USB_DEVICES,
+    MAX_USB_ID_BYTES,
+    USB_BATCH_SIZE,
     USB_DFU_PRODUCT,
     USB_DFU_VENDOR,
     USB_PRODUCT,
@@ -518,17 +675,24 @@ module.exports = {
     createRuntimeControlGateway,
     createWorkloadRegistry,
     decodeBytes,
-    detectDevice,
-    detectPcieDevice,
-    detectUsbDevice,
+    closeEnumeratorAsync,
+    collectUsbNames,
+    detectDeviceAsync,
+    detectPcieDeviceAsync,
+    detectUsbDeviceAsync,
+    detectUsbNameAsync,
     expandHome,
     findCoralUsbIdentity,
     fileIdentity,
     isIoError,
     listWorkloadDirectories,
+    listUsbDeviceNamesAsync,
+    queryExistsAsync,
     readFileText,
     readFileTextAsync,
     readTrimmed,
+    readTrimmedAsync,
+    finishIo,
     sameIdentity,
     sendRuntimeCommandText,
 };
