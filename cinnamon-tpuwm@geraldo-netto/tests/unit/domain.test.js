@@ -71,6 +71,15 @@ test("profile state defaults are complete and sanitization is allow-listed", () 
     assert.equal(Object.hasOwn(result.profiles, "unexpected"), false);
 });
 
+test("profile definitions use unique, verified symbolic icon names", () => {
+    const icons = Domain.PROFILE_DEFINITIONS.map((profile) => profile.icon);
+    assert.equal(icons.every((icon) => icon.endsWith("-symbolic")), true);
+    assert.equal(new Set(icons).size, icons.length);
+    assert.equal(icons.includes("applications-system-symbolic"), true);
+    assert.equal(icons.includes("applications-engineering-symbolic"), true);
+    assert.equal(icons.includes("view-dual-symbolic"), true);
+});
+
 test("runtime fields preserve unknown measurements and reject unsafe content", () => {
     assert.deepEqual(Domain.normalizeProfileRuntime(null), {status: "idle", queued: 0, detail: ""});
     assert.deepEqual(Domain.normalizeProfileRuntime({status: "wrong", queued: -4, detail: 3}), {
