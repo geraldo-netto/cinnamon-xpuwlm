@@ -1,6 +1,8 @@
 "use strict";
 
 const SNAPSHOT_VERSION = 1;
+const MIN_GENERATED_AT = 1;
+const MAX_CLOCK_SKEW_MS = 60000;
 const DEFAULT_STALE_AFTER_MS = 15000;
 const MIN_WEIGHT = 1;
 const MAX_WEIGHT = 5;
@@ -146,6 +148,15 @@ function safeText(value, maximumLength, fallback = "") {
     return characters.join("");
 }
 
+// The single `generatedAt` rule shared by the JSON schema, the handwritten
+// schema validator, and this normalization step. The clock-skew bound is
+// domain-only because a static schema cannot know the current time.
+function isValidGeneratedAt(value, nowMs) {
+    return Number.isInteger(value)
+        && value >= MIN_GENERATED_AT
+        && value <= nowMs + MAX_CLOCK_SKEW_MS;
+}
+
 function clampWeight(value) {
     return boundedInteger(value, MIN_WEIGHT, MAX_WEIGHT, MIN_WEIGHT);
 }
@@ -233,7 +244,7 @@ function normalizeAlert(candidate, nowMs) {
         title,
         summary: safeText(candidate.summary, 500),
         severity: ALERT_SEVERITIES.has(candidate.severity) ? candidate.severity : "advisory",
-        timestamp: boundedInteger(candidate.timestamp, 0, nowMs + 60000, nowMs),
+        timestamp: boundedInteger(candidate.timestamp, 0, nowMs + MAX_CLOCK_SKEW_MS, nowMs),
         confidence: nullableBoundedNumber(candidate.confidence, 0, 1),
         riskScore: nullableBoundedNumber(candidate.riskScore, 0, 1),
         resolved: candidate.resolved === true,
@@ -279,13 +290,10 @@ function normalizeSnapshot(candidate, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_
     if (candidate.version !== SNAPSHOT_VERSION) {
         return unavailableSnapshot("Unsupported runtime snapshot version", nowMs, "invalid");
     }
-    if (typeof candidate.generatedAt !== "number"
-        || !Number.isFinite(candidate.generatedAt)
-        || candidate.generatedAt <= 0
-        || candidate.generatedAt > nowMs + 60000) {
+    if (!isValidGeneratedAt(candidate.generatedAt, nowMs)) {
         return unavailableSnapshot("Runtime snapshot timestamp is invalid", nowMs, "invalid");
     }
-    const generatedAt = Math.trunc(candidate.generatedAt);
+    const generatedAt = candidate.generatedAt;
     const age = Math.max(0, nowMs - generatedAt);
     if (age > normalizeStaleAfterMs(staleAfterMs)) {
         const snapshot = unavailableSnapshot("Runtime snapshot is stale", generatedAt, "runtime");
@@ -400,7 +408,9 @@ module.exports = {
     ALERT_SEVERITIES,
     DEFAULT_STALE_AFTER_MS,
     MAX_ALERTS,
+    MAX_CLOCK_SKEW_MS,
     MAX_WEIGHT,
+    MIN_GENERATED_AT,
     MIN_WEIGHT,
     PROFILE_DEFINITIONS,
     PROFILE_IDS,
@@ -413,6 +423,7 @@ module.exports = {
     defaultProfileState,
     finiteNumber,
     isPlainObject,
+    isValidGeneratedAt,
     normalizeAlert,
     normalizeDevice,
     normalizeMetrics,

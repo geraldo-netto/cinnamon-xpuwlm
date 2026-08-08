@@ -120,6 +120,7 @@ function validateJsonArtifacts() {
     assert.equal(metadata["max-instances"], 1);
     assert.ok(metadata["cinnamon-version"].includes("6.6"));
     assert.equal(schema.properties.version.const, Domain.SNAPSHOT_VERSION);
+    assert.equal(schema.properties.generatedAt.minimum, Domain.MIN_GENERATED_AT);
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(schema));
     assert.equal(settings["show-panel-label"].default, false);
     assert.deepEqual(

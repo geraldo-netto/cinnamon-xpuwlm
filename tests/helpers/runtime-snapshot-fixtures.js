@@ -38,6 +38,20 @@ function validRuntimeSnapshot() {
     };
 }
 
+// Time-independent `generatedAt` values: the JSON schema, the handwritten
+// validator, and domain normalization must agree on every one of them.
+function generatedAtParityCases() {
+    return [
+        {name: "negative", value: -1, accepted: false},
+        {name: "epoch zero", value: 0, accepted: false},
+        {name: "smallest accepted", value: 1, accepted: true},
+        {name: "fractional", value: 1.5, accepted: false},
+        {name: "non-finite", value: Number.NaN, accepted: false},
+        {name: "non-numeric", value: "1700000000000", accepted: false},
+        {name: "recent", value: NOW - 500, accepted: true},
+    ];
+}
+
 function snapshotCase(name, expected, change) {
     const value = validRuntimeSnapshot();
     change(value);
@@ -60,12 +74,14 @@ function runtimeSnapshotSchemaCases() {
             value.alerts[0].riskScore = null;
         }),
         snapshotCase("zero minima", true, (value) => {
-            value.generatedAt = 0;
             value.metrics = {load: 0, queueDepth: 0, runningProfiles: 0};
             value.profiles.future = {queued: 0};
             value.alerts[0].timestamp = 0;
             value.alerts[0].confidence = 0;
             value.alerts[0].riskScore = 0;
+        }),
+        snapshotCase("smallest accepted generatedAt", true, (value) => {
+            value.generatedAt = 1;
         }),
         snapshotCase("numeric maxima", true, (value) => {
             value.metrics = {load: 100, queueDepth: 1_000_000, runningProfiles: 8};
@@ -119,6 +135,7 @@ function runtimeSnapshotSchemaCases() {
         ["root array", (value) => value, []],
         ["wrong version", (value) => value, {version: 2}],
         ["fractional generatedAt", (value) => value, {generatedAt: 1.5}],
+        ["zero generatedAt", (value) => value, {generatedAt: 0}],
         ["negative generatedAt", (value) => value, {generatedAt: -1}],
         ["device scalar", (value) => value, {device: "usb"}],
         ["available non-boolean", (value) => value.device, {available: 1}],
@@ -201,6 +218,7 @@ function runtimeSnapshotSchemaCases() {
 
 module.exports = {
     NOW,
+    generatedAtParityCases,
     runtimeSnapshotSchemaCases,
     snapshotCase,
     validRuntimeSnapshot,

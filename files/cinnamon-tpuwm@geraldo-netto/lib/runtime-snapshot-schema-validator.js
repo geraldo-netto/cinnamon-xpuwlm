@@ -1,5 +1,6 @@
 "use strict";
 
+const Domain = require("./domain.js");
 const SnapshotValidator = require("./snapshot-validator.js");
 
 const ROOT_PROPERTIES = new Set(["version", "generatedAt", "device", "metrics", "profiles", "alerts"]);
@@ -113,8 +114,8 @@ function isAlerts(value) {
 function isRuntimeSnapshot(value) {
     return isRecord(value)
         && hasContractProperties(value, ROOT_REQUIRED, ROOT_PROPERTIES)
-        && value.version === 1
-        && isIntegerAtLeast(value.generatedAt, 0)
+        && value.version === Domain.SNAPSHOT_VERSION
+        && isIntegerAtLeast(value.generatedAt, Domain.MIN_GENERATED_AT)
         && isDevice(value.device)
         && isMetrics(value.metrics)
         && isProfiles(value.profiles)

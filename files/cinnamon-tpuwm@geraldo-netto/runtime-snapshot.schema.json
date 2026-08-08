@@ -7,7 +7,7 @@
   "required": ["version", "generatedAt", "device", "metrics", "profiles", "alerts"],
   "properties": {
     "version": {"const": 1},
-    "generatedAt": {"type": "integer", "minimum": 0},
+    "generatedAt": {"type": "integer", "minimum": 1},
     "device": {
       "type": "object",
       "additionalProperties": false,
