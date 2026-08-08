@@ -11,6 +11,7 @@ const {
     FakeButton,
     FakeMenu,
     FakeScrollView,
+    createAtk,
     createSt,
     findActors,
 } = require("../helpers/fakes.js");
@@ -65,7 +66,7 @@ function harness(layout) {
     const view = new Menu.MenuView({
         St: createSt(),
         Clutter: {ActorAlign: {CENTER: "center"}},
-        Atk: {Role: {PUSH_BUTTON: "push-button"}},
+        Atk: createAtk(),
         menu,
         actions,
         layout,

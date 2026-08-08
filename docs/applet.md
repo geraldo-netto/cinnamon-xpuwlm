@@ -38,6 +38,15 @@ is bounded to the work-area height so the footer actions stay visible, and
 navigation, pause/resume, recovery, and manager actions remain present in every
 mode. An unusable measurement falls back to the default desktop layout.
 
+## Accessible semantics
+
+Controls expose their ATK role and state, not only an accessible name: the tab
+strip is a page tab list, each tab is a page tab that carries the selected
+state, profile switches are toggle buttons that carry the checked state, and an
+unavailable weight control drops its sensitive state. Names still spell the
+state out in text, so nothing depends on role support alone, and a Cinnamon
+build that does not expose a role or state simply renders without it.
+
 ## Runtime boundary
 
 A trusted local workload service may atomically publish

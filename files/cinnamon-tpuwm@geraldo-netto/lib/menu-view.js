@@ -93,8 +93,10 @@ class MenuView {
         this._tabs.actor.visible = model.showTabs;
         this._manageButton.visible = model.showTabs;
         for (const [tab, button] of this._tabButtons) {
-            setStyleClass(button, "tpuwm-tab-active", model.selectedTab === tab);
-            button.set_accessible_name(`${tab} tab${model.selectedTab === tab ? ", selected" : ""}`);
+            const selected = model.selectedTab === tab;
+            setStyleClass(button, "tpuwm-tab-active", selected);
+            button.set_accessible_name(`${tab} tab${selected ? ", selected" : ""}`);
+            this._setAccessibleState(button, "SELECTED", selected);
         }
         if (this._bodyKey !== model.bodyKey) {
             this._bodyKey = model.bodyKey;
@@ -180,10 +182,16 @@ class MenuView {
 
     _buildTabs() {
         const row = this._box("tpuwm-tabs");
+        this._setAccessibleRole(row, "PAGE_TAB_LIST");
         this._tabButtons = new Map();
         for (const tab of ["overview", "profiles", "alerts"]) {
             const label = tab[0].toUpperCase() + tab.slice(1);
-            const button = this._button("tpuwm-tab", `${label} tab`, () => this._actions.selectTab(tab));
+            const button = this._button(
+                "tpuwm-tab",
+                `${label} tab`,
+                () => this._actions.selectTab(tab),
+                "PAGE_TAB",
+            );
             button.set_child(this._label(label, "tpuwm-tab-label"));
             row.add_child(button);
             this._tabButtons.set(tab, button);
@@ -384,7 +392,9 @@ class MenuView {
             `tpuwm-toggle${profile.enabled ? " tpuwm-toggle-on" : ""}`,
             `${profile.enabled ? "Disable" : "Enable"} ${profile.title}`,
             () => this._actions.toggleProfile(profile.id),
+            "TOGGLE_BUTTON",
         );
+        this._setAccessibleState(toggle, "CHECKED", profile.enabled);
         toggle.set_child(this._label(profile.enabled ? "On" : "Off", "tpuwm-toggle-label"));
         row.add_child(toggle);
         return row;
@@ -472,7 +482,7 @@ class MenuView {
         return wrapping;
     }
 
-    _button(styleClass, accessibleName, callback) {
+    _button(styleClass, accessibleName, callback, role = "PUSH_BUTTON") {
         const button = new this._St.Button({
             style_class: styleClass,
             can_focus: true,
@@ -480,17 +490,40 @@ class MenuView {
             track_hover: true,
         });
         button.set_accessible_name(accessibleName);
-        if (this._Atk && this._Atk.Role) {
-            button.set_accessible_role(this._Atk.Role.PUSH_BUTTON);
-        }
+        this._setAccessibleRole(button, role);
         button.connect("clicked", () => callback());
         return button;
+    }
+
+    // Assistive technology needs the semantic role and state, not only the
+    // accessible name; both are set here so the two never disagree.
+    _setAccessibleRole(actor, role) {
+        const value = this._Atk && this._Atk.Role ? this._Atk.Role[role] : undefined;
+        if (value === undefined || typeof actor.set_accessible_role !== "function") {
+            return false;
+        }
+        actor.set_accessible_role(value);
+        return true;
+    }
+
+    _setAccessibleState(actor, state, enabled) {
+        const value = this._Atk && this._Atk.StateType ? this._Atk.StateType[state] : undefined;
+        if (value === undefined) {
+            return false;
+        }
+        const method = enabled ? "add_accessible_state" : "remove_accessible_state";
+        if (typeof actor[method] !== "function") {
+            return false;
+        }
+        actor[method](value);
+        return true;
     }
 
     _setButtonEnabled(button, enabled) {
         button.reactive = enabled;
         button.can_focus = enabled;
         setStyleClass(button, "tpuwm-button-disabled", !enabled);
+        this._setAccessibleState(button, "SENSITIVE", enabled);
     }
 }
 

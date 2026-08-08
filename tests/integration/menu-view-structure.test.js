@@ -10,6 +10,7 @@ const {
     FakeButton,
     FakeMenu,
     FakeScrollView,
+    createAtk,
     createSt,
     findActors,
 } = require("../helpers/fakes.js");
@@ -46,7 +47,7 @@ function harness() {
     const view = new Menu.MenuView({
         St: createSt(),
         Clutter: {ActorAlign: {CENTER: "center"}},
-        Atk: {Role: {PUSH_BUTTON: "push-button"}},
+        Atk: createAtk(),
         menu,
         actions,
     });
@@ -181,7 +182,11 @@ test("every interactive control is focusable, reactive, and role-labelled", () =
     assert.equal(buttons.length > 0, true);
     for (const button of buttons) {
         assert.equal(button.track_hover, true, button.accessibleName);
-        assert.equal(button.accessibleRole, "push-button", button.accessibleName);
+        assert.equal(
+            ["push-button", "page-tab", "toggle-button"].includes(button.accessibleRole),
+            true,
+            button.accessibleName,
+        );
         assert.equal(typeof button.accessibleName, "string");
         assert.notEqual(button.accessibleName, "");
         assert.equal(button.styleClasses.size > 0, true, button.accessibleName);

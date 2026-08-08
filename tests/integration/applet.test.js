@@ -10,6 +10,7 @@ const {
     FakeMenu,
     FakeMenuManager,
     FakeSettings,
+    createAtk,
     createSt,
 } = require("../helpers/fakes.js");
 
@@ -61,7 +62,7 @@ global.logError = () => {};
 global.imports = {
     byteArray: {toString: (value) => String(value)},
     gi: {
-        Atk: {Role: {PUSH_BUTTON: "push-button"}},
+        Atk: createAtk(),
         Clutter: {ActorAlign: {CENTER: "center"}},
         Gio: {
             File: {

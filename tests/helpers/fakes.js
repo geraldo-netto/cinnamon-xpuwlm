@@ -9,6 +9,7 @@ class FakeActor {
         this.destroyed = false;
         this.accessibleName = "";
         this.accessibleRole = null;
+        this.accessibleStates = new Set();
         this._signals = new Map();
         this._nextSignalId = 1;
     }
@@ -58,6 +59,14 @@ class FakeActor {
 
     set_style(style) {
         this.style = style;
+    }
+
+    add_accessible_state(state) {
+        this.accessibleStates.add(state);
+    }
+
+    remove_accessible_state(state) {
+        this.accessibleStates.delete(state);
     }
 
     connect(signal, callback) {
@@ -207,6 +216,22 @@ class FakeSettings {
     }
 }
 
+function createAtk() {
+    return {
+        Role: {
+            PUSH_BUTTON: "push-button",
+            PAGE_TAB: "page-tab",
+            PAGE_TAB_LIST: "page-tab-list",
+            TOGGLE_BUTTON: "toggle-button",
+        },
+        StateType: {
+            SELECTED: "selected",
+            CHECKED: "checked",
+            SENSITIVE: "sensitive",
+        },
+    };
+}
+
 function createSt() {
     return {
         Align: {START: "start"},
@@ -242,6 +267,7 @@ module.exports = {
     FakeMenuManager,
     FakeScrollView,
     FakeSettings,
+    createAtk,
     createSt,
     findActors,
 };
