@@ -48,7 +48,7 @@ const PROFILE_DEFINITIONS = Object.freeze([
         id: "visual-library",
         title: "Visual library",
         group: "Local workflows",
-        description: "Search · curation · tagging · scenes",
+        description: "Search · tagging · scenes · low-light",
         icon: "image-x-generic-symbolic",
         defaultEnabled: true,
         defaultWeight: 2,

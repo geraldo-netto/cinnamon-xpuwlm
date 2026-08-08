@@ -98,6 +98,8 @@ test("profile definitions use unique, verified symbolic icon names", () => {
     assert.equal(icons.includes("applications-system-symbolic"), true);
     assert.equal(icons.includes("applications-engineering-symbolic"), true);
     assert.equal(icons.includes("view-dual-symbolic"), true);
+    const visualLibrary = Domain.PROFILE_DEFINITIONS.find((profile) => profile.id === "visual-library");
+    assert.match(visualLibrary.description, /low-light/u);
 });
 
 test("runtime fields preserve unknown measurements and reject unsafe content", () => {

@@ -66,6 +66,7 @@ Only predefined layouts and allowlisted actions may be selected.
 - Semantic image search
 - Image tagging
 - Scene classification
+- Low-light image enhancement
 - Suggested: image-quality triage
 
 Screenshot semantic search and general semantic image search share one embedding and vector-index service with separate collections and retention policies.
