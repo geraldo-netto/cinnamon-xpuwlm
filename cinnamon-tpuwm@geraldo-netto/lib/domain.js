@@ -131,7 +131,19 @@ function safeText(value, maximumLength, fallback = "") {
     if (typeof value !== "string") {
         return fallback;
     }
-    return value.trim().slice(0, maximumLength);
+    const numericMaximum = Number(maximumLength);
+    const limit = Number.isFinite(numericMaximum)
+        ? Math.max(0, Math.trunc(numericMaximum))
+        : 0;
+    const characters = [];
+    for (const character of value.trim()) {
+        if (characters.length >= limit) {
+            break;
+        }
+        const codePoint = character.codePointAt(0);
+        characters.push(codePoint >= 0xd800 && codePoint <= 0xdfff ? "\ufffd" : character);
+    }
+    return characters.join("");
 }
 
 function clampWeight(value) {

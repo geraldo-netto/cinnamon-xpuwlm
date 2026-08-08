@@ -46,6 +46,10 @@ test("numeric and object helpers reject malformed values and clamp bounds", () =
     assert.equal(Domain.nullableBoundedNumber("0.7", 0, 1), null);
     assert.equal(Domain.nullableBoundedNumber(Number.POSITIVE_INFINITY, 0, 1), null);
     assert.equal(Domain.safeText("  hello  ", 3), "hel");
+    assert.equal(Domain.safeText("a💡b", 2), "a💡");
+    assert.equal(Domain.safeText("\ud800x", 2), "\ufffdx");
+    assert.equal(Domain.safeText("bounded", Number.NaN), "");
+    assert.equal(Domain.safeText("bounded", -1), "");
     assert.equal(Domain.safeText(9, 3, "fallback"), "fallback");
     assert.equal(Domain.clampWeight(99), Domain.MAX_WEIGHT);
     assert.equal(Domain.clampWeight(-99), Domain.MIN_WEIGHT);
