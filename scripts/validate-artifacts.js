@@ -30,6 +30,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "workload-manifest.js",
     "workload-manifest.schema.json",
     "workload-registry.js",
+    "workload-reconciliation.js",
     "workloads",
 ]);
 const FORBIDDEN_PAYLOAD_SEGMENTS = new Set([

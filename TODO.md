@@ -8,13 +8,11 @@
 | XTPU-0013 | blocked | low | xs | — | Choose and add an explicit repository license before redistribution; no license currently grants reuse rights. |
 | XTPU-0023 | open | high | m | XTPU-0003 | Move PCIe and USB discovery plus sysfs reads to bounded cancellable async I/O and cancel pending discovery during teardown. |
 | XTPU-0027 | open | medium | s | XTPU-0009 | Localize settings and metadata through Cinnamon conventions and include their strings in extraction and catalog validation. |
-| XTPU-0039 | open | medium | m | XTPU-0001, XTPU-0005, XTPU-0036 | Implement deterministic install, enable, disable, upgrade, and removal reconciliation so unknown or removed plug-ins do not corrupt persisted preferences or runtime state. |
 | XTPU-0040 | open | high | m | XTPU-0001, XTPU-0002, XTPU-0005, XTPU-0035, XTPU-0036 | Keep applet plug-ins declarative and non-executable, validate all discovered data and paths at the trust boundary, and leave model execution and privileged actions behind the runtime service contract. |
 | XTPU-0041 | open | low | s | XTPU-0005, XTPU-0035, XTPU-0036 | Provide a workload plug-in template, authoring guide, schema/compatibility checker, and contract-test fixture so workloads can be added or removed independently. |
 | XTPU-0042 | open | low | s | XTPU-0038 | Review the interim low-light catalog and profile draft committed in `828a261` after the plug-in is implemented; reconcile wording, model metadata, host-pipeline responsibilities, and measurable acceptance criteria with test results, then revise or remove the feature if warranted. |
 | XTPU-0046 | open | medium | s | — | Add an explicit CJS production-source syntax and import smoke gate for the declared Cinnamon 6.0 floor and the current supported release; the workflow does not visibly enforce the runtime floor. |
 | XTPU-0047 | open | low | m | XTPU-0013 | Add deterministic staging, packaging, install and uninstall verification, and checksums; after licensing, add Spices release metadata and a real applet screenshot if public distribution is intended. |
-| XTPU-0055 | in_progress | low | xs | XTPU-0039 | Split lifecycle change detection to meet the production complexity budget. |
 
 # Rejected / Won't fix
 

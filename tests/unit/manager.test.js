@@ -12,6 +12,11 @@ const ManifestFixtures = require("../helpers/workload-manifest-fixtures.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
 
 const NOW = 1_700_000_000_000;
+const CORE_DESCRIPTORS = BuiltIns.coreDescriptors();
+const CORE_VERSIONS = Object.fromEntries(BuiltIns.coreCatalog().definitions().map((definition) => [
+    definition.id,
+    CORE_DESCRIPTORS.find((descriptor) => descriptor.id === definition.id).version,
+]));
 
 function snapshot() {
     return Domain.probeSnapshot({available: true, name: "Coral", kind: "usb"}, NOW);
@@ -47,7 +52,11 @@ function harness(overrides = {}) {
     const repository = overrides.repository || {
         load: () => ({
             selectedTab: "alerts",
-            portfolio: {paused: false, profiles: {"hardware-health": {enabled: true, weight: 2}}},
+            portfolio: {
+                paused: false,
+                profiles: Domain.defaultProfileState(BuiltIns.coreCatalog()).profiles,
+                pluginVersions: CORE_VERSIONS,
+            },
         }),
         save: (value) => saves.push(value),
     };
@@ -159,6 +168,7 @@ test("state changes persist only when effective values change", () => {
     assert.equal(manager.resumeAll(), false);
     assert.equal(saves.length, 5);
     assert.equal(saves.at(-1).portfolio.paused, false);
+    assert.deepEqual(saves.at(-1).portfolio.pluginVersions, CORE_VERSIONS);
 });
 
 test("explicit device retry requests a fresh probe and publishes its result", () => {

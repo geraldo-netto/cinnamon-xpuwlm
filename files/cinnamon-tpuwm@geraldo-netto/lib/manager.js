@@ -2,6 +2,7 @@
 
 const Domain = require("./domain.js");
 const FailureReporter = require("./failure-reporter.js");
+const WorkloadReconciliation = require("./workload-reconciliation.js");
 const WorkloadRegistry = require("./workload-registry.js");
 
 const TABS = Object.freeze(["overview", "profiles", "alerts"]);
@@ -75,9 +76,10 @@ class WorkloadManager {
         this._staleAfterMs = Domain.normalizeStaleAfterMs(staleAfterMs);
         this._expiryHandle = null;
         this._errors = FailureReporter.requireFailureReporter(errorReporter, "manager error");
-        this._catalog = new Domain.WorkloadCatalog(WorkloadRegistry.profileDefinitions(
-            WorkloadRegistry.requireWorkloadRegistry(workloadRegistry),
-        ));
+        this._workloadRegistry = WorkloadRegistry.requireWorkloadRegistry(workloadRegistry);
+        const initial = WorkloadReconciliation.reconcilePortfolioState(null, this._workloadRegistry);
+        this._catalog = initial.catalog;
+        this._pluginVersions = initial.state.pluginVersions;
         this._portfolio = new Domain.WorkloadPortfolio(null, this._catalog);
         this._selectedTab = "overview";
         this._snapshot = Domain.unavailableSnapshot("Monitoring has not started", this._clock.now());
@@ -93,8 +95,17 @@ class WorkloadManager {
         }
         try {
             const saved = this._repository.load();
-            this._portfolio = new Domain.WorkloadPortfolio(saved?.portfolio, this._catalog);
+            const reconciled = WorkloadReconciliation.reconcilePortfolioState(
+                saved?.portfolio,
+                this._workloadRegistry,
+            );
+            this._catalog = reconciled.catalog;
+            this._pluginVersions = reconciled.state.pluginVersions;
+            this._portfolio = new Domain.WorkloadPortfolio(reconciled.state, this._catalog);
             this._selectedTab = sanitizeTab(saved?.selectedTab);
+            if (reconciled.changed) {
+                this._persist();
+            }
         } catch (error) {
             this._logger.warn(`Could not load applet state: ${error}`);
             this._portfolio = new Domain.WorkloadPortfolio(null, this._catalog);
@@ -312,7 +323,10 @@ class WorkloadManager {
     _persist() {
         try {
             this._repository.save({
-                portfolio: this._portfolio.serialize(),
+                portfolio: {
+                    ...this._portfolio.serialize(),
+                    pluginVersions: {...this._pluginVersions},
+                },
                 selectedTab: this._selectedTab,
             });
             this._errors.recover(STATE_SAVE_FAILURE);

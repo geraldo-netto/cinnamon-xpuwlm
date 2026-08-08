@@ -25,6 +25,7 @@ test("regression: shared runtime modules contain no Node-only Buffer dependency"
         "lib/cinnamon-runtime.js",
         "lib/workload-manifest.js",
         "lib/workload-registry.js",
+        "lib/workload-reconciliation.js",
     ]) {
         const source = fs.readFileSync(path.join(ROOT, relativePath), "utf8");
         assert.equal(/\bBuffer\b/u.test(source), false, `${relativePath} must remain CJS-compatible`);
@@ -41,6 +42,7 @@ test("regression: Cinnamon root-resolution bridges export every nested dependenc
         "view-model",
         "workload-manifest",
         "workload-registry",
+        "workload-reconciliation",
     ]) {
         const bridge = require(path.join(ROOT, `${moduleName}.js`));
         const implementation = require(path.join(ROOT, "lib", `${moduleName}.js`));
