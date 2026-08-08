@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../lib/domain.js");
+const FailureBackoff = require("../../lib/failure-log-backoff.js");
 const Manager = require("../../lib/manager.js");
 
 const NOW = 1_700_000_000_000;
@@ -24,14 +25,16 @@ function harness(overrides = {}) {
         save: (value) => saves.push(value),
     };
     const runtimeGateway = overrides.runtimeGateway || {read: snapshot};
+    const logger = {
+        warn: (message) => warnings.push(message),
+        error: (message) => errors.push(message),
+    };
     const manager = new Manager.WorkloadManager({
         repository,
         runtimeGateway,
         clock: {now: () => NOW},
-        logger: {
-            warn: (message) => warnings.push(message),
-            error: (message) => errors.push(message),
-        },
+        errorReporter: new FailureBackoff.FailureErrorBackoff({logger}),
+        logger,
     });
     return {manager, saves, warnings, errors};
 }
@@ -44,10 +47,15 @@ test("tab sanitization and silent logger are safe defaults", () => {
 });
 
 test("manager validates collaborators", () => {
-    const base = {repository: {load() {}, save() {}}, runtimeGateway: {read() {}}};
+    const base = {
+        repository: {load() {}, save() {}},
+        runtimeGateway: {read() {}},
+        errorReporter: {report() {}, recover() {}},
+    };
     assert.throws(() => new Manager.WorkloadManager({...base, repository: null}), /repository/);
     assert.throws(() => new Manager.WorkloadManager({...base, runtimeGateway: null}), /gateway/);
     assert.throws(() => new Manager.WorkloadManager({...base, clock: {}}), /clock/);
+    assert.throws(() => new Manager.WorkloadManager({...base, errorReporter: {}}), /reporter/);
 });
 
 test("start loads state once, refreshes, and publishes immutable projections", () => {

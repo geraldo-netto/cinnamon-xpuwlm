@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../lib/domain.js");
+const FailureBackoff = require("../../lib/failure-log-backoff.js");
 const Runtime = require("../../lib/runtime-gateway.js");
 
 function generator(seed) {
@@ -92,7 +93,7 @@ test("fuzz: warning backoff follows bounded exponential state transitions", () =
     const warnings = [];
     const initialDelayMs = 4;
     const maximumDelayMs = 32;
-    const backoff = new Runtime.FailureWarningBackoff({
+    const backoff = new FailureBackoff.FailureWarningBackoff({
         logger: {warn: (message) => warnings.push(message)},
         initialDelayMs,
         maximumDelayMs,
@@ -122,21 +123,21 @@ test("fuzz: non-finite delays and backward clocks remain bounded", () => {
     const warnings = [];
 
     for (let cycle = 0; cycle < 500; cycle += 1) {
-        const backoff = new Runtime.FailureWarningBackoff({
+        const backoff = new FailureBackoff.FailureWarningBackoff({
             logger: {warn: (message) => warnings.push(message)},
             initialDelayMs: nonFiniteValues[Math.floor(random() * nonFiniteValues.length)],
             maximumDelayMs: nonFiniteValues[Math.floor(random() * nonFiniteValues.length)],
         });
         const key = `channel-${cycle}`;
-        const start = Math.floor(random() * 1_000_000) + Runtime.WARNING_INITIAL_DELAY_MS;
+        const start = Math.floor(random() * 1_000_000) + FailureBackoff.FAILURE_INITIAL_DELAY_MS;
         assert.equal(backoff.warn(key, "first", start), true);
-        assert.equal(backoff.warn(key, "before-default-delay", start + Runtime.WARNING_INITIAL_DELAY_MS - 1), false);
-        assert.equal(backoff.warn(key, "at-default-delay", start + Runtime.WARNING_INITIAL_DELAY_MS), true);
+        assert.equal(backoff.warn(key, "before-default-delay", start + FailureBackoff.FAILURE_INITIAL_DELAY_MS - 1), false);
+        assert.equal(backoff.warn(key, "at-default-delay", start + FailureBackoff.FAILURE_INITIAL_DELAY_MS), true);
 
-        const rolledBackAt = start - Math.floor(random() * Runtime.WARNING_MAX_DELAY_MS) - 1;
+        const rolledBackAt = start - Math.floor(random() * FailureBackoff.FAILURE_MAX_DELAY_MS) - 1;
         assert.equal(backoff.warn(key, "after-rollback", rolledBackAt), true);
-        assert.equal(backoff.warn(key, "bounded-suppression", rolledBackAt + Runtime.WARNING_INITIAL_DELAY_MS - 1), false);
-        assert.equal(backoff.warn(key, "bounded-emission", rolledBackAt + Runtime.WARNING_INITIAL_DELAY_MS), true);
+        assert.equal(backoff.warn(key, "bounded-suppression", rolledBackAt + FailureBackoff.FAILURE_INITIAL_DELAY_MS - 1), false);
+        assert.equal(backoff.warn(key, "bounded-emission", rolledBackAt + FailureBackoff.FAILURE_INITIAL_DELAY_MS), true);
     }
     assert.equal(warnings.length, 2000);
 });

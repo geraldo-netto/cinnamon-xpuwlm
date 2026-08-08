@@ -1,18 +1,11 @@
 "use strict";
 
 const Domain = require("./domain.js");
+const FailureReporter = require("./failure-reporter.js");
 
 const MAX_SNAPSHOT_BYTES = 1024 * 1024;
-const WARNING_INITIAL_DELAY_MS = 30 * 1000;
-const WARNING_MAX_DELAY_MS = 15 * 60 * 1000;
 const SNAPSHOT_READ_FAILURE = "snapshot-read";
 const DEVICE_PROBE_FAILURE = "device-probe";
-
-function normalizeDelay(value, fallback) {
-    const numeric = Number(value);
-    const finite = Number.isFinite(numeric) ? numeric : fallback;
-    return Math.max(1, Math.trunc(finite || fallback));
-}
 
 function byteLength(text) {
     let length = 0;
@@ -45,61 +38,14 @@ function parseSnapshotDocument(text, nowMs, staleAfterMs = Domain.DEFAULT_STALE_
     }
 }
 
-class FailureWarningBackoff {
-    constructor({
-        logger,
-        initialDelayMs = WARNING_INITIAL_DELAY_MS,
-        maximumDelayMs = WARNING_MAX_DELAY_MS,
-    }) {
-        if (!logger || typeof logger.warn !== "function") {
-            throw new TypeError("A warning logger is required");
-        }
-        this._logger = logger;
-        this._initialDelayMs = normalizeDelay(initialDelayMs, WARNING_INITIAL_DELAY_MS);
-        this._maximumDelayMs = Math.max(
-            this._initialDelayMs,
-            normalizeDelay(maximumDelayMs, WARNING_MAX_DELAY_MS),
-        );
-        this._failures = new Map();
-    }
-
-    warn(failureKey, message, nowMs) {
-        const key = String(failureKey);
-        const numericNow = Number(nowMs);
-        const observedAt = Number.isFinite(numericNow) ? numericNow : 0;
-        let previous = this._failures.get(key);
-        if (previous && observedAt < previous.lastObservedAt) {
-            previous = undefined;
-        }
-        if (previous && observedAt < previous.nextWarningAt) {
-            previous.lastObservedAt = observedAt;
-            return false;
-        }
-        this._logger.warn(message);
-        const delayMs = previous
-            ? Math.min(previous.delayMs * 2, this._maximumDelayMs)
-            : this._initialDelayMs;
-        this._failures.set(key, {
-            delayMs,
-            lastObservedAt: observedAt,
-            nextWarningAt: observedAt + delayMs,
-        });
-        return true;
-    }
-
-    recover(failureKey) {
-        return this._failures.delete(String(failureKey));
-    }
-}
-
 class RuntimeSnapshotGateway {
     constructor({
         readText,
         detectDevice,
         path,
+        warningReporter,
         clock = Date,
         staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS,
-        logger = {warn() {}},
     }) {
         if (typeof readText !== "function") {
             throw new TypeError("A text reader is required");
@@ -115,7 +61,7 @@ class RuntimeSnapshotGateway {
         this._path = String(path || "");
         this._clock = clock;
         this._staleAfterMs = Domain.normalizeStaleAfterMs(staleAfterMs);
-        this._warnings = new FailureWarningBackoff({logger});
+        this._warnings = FailureReporter.requireFailureReporter(warningReporter, "runtime warning");
     }
 
     read(options = {}) {
@@ -126,7 +72,7 @@ class RuntimeSnapshotGateway {
             text = this._readText(this._path);
             this._warnings.recover(SNAPSHOT_READ_FAILURE);
         } catch (error) {
-            this._warnings.warn(
+            this._warnings.report(
                 SNAPSHOT_READ_FAILURE,
                 `Could not read ${this._path}: ${error}`,
                 nowMs,
@@ -148,7 +94,7 @@ class RuntimeSnapshotGateway {
             this._warnings.recover(DEVICE_PROBE_FAILURE);
             return snapshot;
         } catch (error) {
-            this._warnings.warn(
+            this._warnings.report(
                 DEVICE_PROBE_FAILURE,
                 `Could not probe TPU devices: ${error}`,
                 nowMs,
@@ -160,13 +106,9 @@ class RuntimeSnapshotGateway {
 
 module.exports = {
     DEVICE_PROBE_FAILURE,
-    FailureWarningBackoff,
     MAX_SNAPSHOT_BYTES,
     RuntimeSnapshotGateway,
     SNAPSHOT_READ_FAILURE,
-    WARNING_INITIAL_DELAY_MS,
-    WARNING_MAX_DELAY_MS,
     byteLength,
-    normalizeDelay,
     parseSnapshotDocument,
 };

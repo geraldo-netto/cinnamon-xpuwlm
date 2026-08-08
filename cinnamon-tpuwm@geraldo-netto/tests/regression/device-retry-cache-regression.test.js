@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Cinnamon = require("../../lib/cinnamon-runtime.js");
+const FailureBackoff = require("../../lib/failure-log-backoff.js");
 const Manager = require("../../lib/manager.js");
 const Runtime = require("../../lib/runtime-gateway.js");
 
@@ -31,16 +32,19 @@ test("regression: explicit retry bypasses a cached unavailable device result", (
     const clock = {now: () => 1_700_000_000_000};
     const device = mutableDeviceEnvironment();
     const detector = new Cinnamon.CachedDeviceDetector(device.environment, clock, 10_000);
+    const logger = {warn() {}, error() {}};
     const gateway = new Runtime.RuntimeSnapshotGateway({
         clock,
         path: "/missing/runtime.json",
         readText: () => null,
         detectDevice: (forceRefresh) => detector.detect(forceRefresh),
+        warningReporter: new FailureBackoff.FailureWarningBackoff({logger}),
     });
     const manager = new Manager.WorkloadManager({
         clock,
         repository: {load: () => ({}), save() {}},
         runtimeGateway: gateway,
+        errorReporter: new FailureBackoff.FailureErrorBackoff({logger}),
     });
 
     manager.start();

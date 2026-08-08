@@ -6,6 +6,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const Domain = require("../../lib/domain.js");
+const FailureBackoff = require("../../lib/failure-log-backoff.js");
 const Runtime = require("../../lib/runtime-gateway.js");
 const ViewModel = require("../../lib/view-model.js");
 
@@ -88,7 +89,9 @@ test("regression: warning backoff never hides failure state or overruns after cl
         detectDevice() {
             throw new Error("must not probe after read failure");
         },
-        logger: {warn: (message) => warnings.push(message)},
+        warningReporter: new FailureBackoff.FailureWarningBackoff({
+            logger: {warn: (message) => warnings.push(message)},
+        }),
     });
 
     for (let poll = 0; poll < 20; poll += 1) {

@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Cinnamon = require("../../lib/cinnamon-runtime.js");
+const FailureBackoff = require("../../lib/failure-log-backoff.js");
 const Manager = require("../../lib/manager.js");
 const Runtime = require("../../lib/runtime-gateway.js");
 
@@ -44,16 +45,19 @@ test("fuzz: explicit retries observe current hardware across cached state transi
     const clock = {now: () => nowMs};
     const device = mutableDeviceEnvironment();
     const detector = new Cinnamon.CachedDeviceDetector(device.environment, clock, CACHE_MS);
+    const logger = {warn() {}, error() {}};
     const gateway = new Runtime.RuntimeSnapshotGateway({
         clock,
         path: "/missing/runtime.json",
         readText: () => null,
         detectDevice: (forceRefresh) => detector.detect(forceRefresh),
+        warningReporter: new FailureBackoff.FailureWarningBackoff({logger}),
     });
     const manager = new Manager.WorkloadManager({
         clock,
         repository: {load: () => ({}), save() {}},
         runtimeGateway: gateway,
+        errorReporter: new FailureBackoff.FailureErrorBackoff({logger}),
     });
     const generator = {value: 0x1a2b3c4d};
     let expectedCached = false;

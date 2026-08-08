@@ -1,9 +1,12 @@
 "use strict";
 
 const Domain = require("./domain.js");
+const FailureReporter = require("./failure-reporter.js");
 
 const TABS = Object.freeze(["overview", "profiles", "alerts"]);
 const TAB_SET = new Set(TABS);
+const RUNTIME_READ_FAILURE = "runtime-read";
+const STATE_SAVE_FAILURE = "state-save";
 
 function sanitizeTab(value) {
     return TAB_SET.has(value) ? value : "overview";
@@ -14,7 +17,13 @@ function createSilentLogger() {
 }
 
 class WorkloadManager {
-    constructor({repository, runtimeGateway, clock = Date, logger = createSilentLogger()}) {
+    constructor({
+        repository,
+        runtimeGateway,
+        errorReporter,
+        clock = Date,
+        logger = createSilentLogger(),
+    }) {
         if (!repository || typeof repository.load !== "function" || typeof repository.save !== "function") {
             throw new TypeError("A profile repository with load/save is required");
         }
@@ -28,6 +37,7 @@ class WorkloadManager {
         this._runtimeGateway = runtimeGateway;
         this._clock = clock;
         this._logger = logger;
+        this._errors = FailureReporter.requireFailureReporter(errorReporter, "manager error");
         this._portfolio = new Domain.WorkloadPortfolio();
         this._selectedTab = "overview";
         this._snapshot = Domain.unavailableSnapshot("Monitoring has not started", this._clock.now());
@@ -67,8 +77,13 @@ class WorkloadManager {
         this._ensureActive();
         try {
             this._snapshot = this._runtimeGateway.read({forceDeviceDetection});
+            this._errors.recover(RUNTIME_READ_FAILURE);
         } catch (error) {
-            this._logger.error(`Could not read runtime state: ${error}`);
+            this._errors.report(
+                RUNTIME_READ_FAILURE,
+                `Could not read runtime state: ${error}`,
+                this._clock.now(),
+            );
             this._snapshot = Domain.unavailableSnapshot(
                 "Runtime state could not be read",
                 this._clock.now(),
@@ -130,9 +145,13 @@ class WorkloadManager {
         }
         this._listeners.add(listener);
         if (this._started) {
-            listener(this.state());
+            this._notifyListener(listener);
         }
-        return () => this._listeners.delete(listener);
+        return () => {
+            const removed = this._listeners.delete(listener);
+            this._errors.recover(listener);
+            return removed;
+        };
     }
 
     state() {
@@ -156,6 +175,11 @@ class WorkloadManager {
             return false;
         }
         this._disposed = true;
+        this._errors.recover(RUNTIME_READ_FAILURE);
+        this._errors.recover(STATE_SAVE_FAILURE);
+        for (const listener of this._listeners) {
+            this._errors.recover(listener);
+        }
         this._listeners.clear();
         return true;
     }
@@ -176,18 +200,32 @@ class WorkloadManager {
                 portfolio: this._portfolio.serialize(),
                 selectedTab: this._selectedTab,
             });
+            this._errors.recover(STATE_SAVE_FAILURE);
         } catch (error) {
-            this._logger.error(`Could not save applet state: ${error}`);
+            this._errors.report(
+                STATE_SAVE_FAILURE,
+                `Could not save applet state: ${error}`,
+                this._clock.now(),
+            );
         }
     }
 
     _publish() {
         for (const listener of this._listeners) {
-            try {
-                listener(this.state());
-            } catch (error) {
-                this._logger.error(`State listener failed: ${error}`);
-            }
+            this._notifyListener(listener);
+        }
+    }
+
+    _notifyListener(listener) {
+        try {
+            listener(this.state());
+            this._errors.recover(listener);
+        } catch (error) {
+            this._errors.report(
+                listener,
+                `State listener failed: ${error}`,
+                this._clock.now(),
+            );
         }
     }
 
@@ -199,6 +237,8 @@ class WorkloadManager {
 }
 
 module.exports = {
+    RUNTIME_READ_FAILURE,
+    STATE_SAVE_FAILURE,
     TABS,
     WorkloadManager,
     createSilentLogger,

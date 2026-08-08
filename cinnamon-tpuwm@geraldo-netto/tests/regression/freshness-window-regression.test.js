@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../lib/domain.js");
+const FailureBackoff = require("../../lib/failure-log-backoff.js");
 const Runtime = require("../../lib/runtime-gateway.js");
 
 const NOW = 1_700_000_000_000;
@@ -38,6 +39,7 @@ test("regression: non-finite freshness windows cannot keep runtime state connect
             detectDevice: () => {
                 throw new Error("runtime documents must not trigger probing");
             },
+            warningReporter: new FailureBackoff.FailureWarningBackoff({logger: {warn() {}}}),
         });
         const adapted = gateway.read();
         assert.equal(adapted.stale, true);

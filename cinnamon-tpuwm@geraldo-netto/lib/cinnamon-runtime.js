@@ -1,5 +1,6 @@
 "use strict";
 
+const FailureBackoff = require("./failure-log-backoff.js");
 const Runtime = require("./runtime-gateway.js");
 
 const USB_VENDOR = "18d1";
@@ -224,13 +225,20 @@ function createLogger(prefix, cinnamonGlobal = global) {
     };
 }
 
-function createRuntimeGateway({path, environment, clock = Date, logger, deviceDetector}) {
+function createRuntimeGateway({
+    path,
+    environment,
+    clock = Date,
+    logger,
+    deviceDetector,
+    warningReporter,
+}) {
     const expandedPath = expandHome(path, environment.GLib.get_home_dir());
     const detector = deviceDetector || new CachedDeviceDetector(environment, clock);
     return new Runtime.RuntimeSnapshotGateway({
         path: expandedPath,
         clock,
-        logger,
+        warningReporter: warningReporter || new FailureBackoff.FailureWarningBackoff({logger}),
         readText: (filename) => readFileText(filename, environment, Runtime.MAX_SNAPSHOT_BYTES),
         detectDevice: (forceRefresh) => detector.detect(forceRefresh),
     });

@@ -14,6 +14,7 @@ const St = imports.gi.St;
 const Util = imports.misc.util;
 
 const CinnamonRuntime = require("./lib/cinnamon-runtime.js");
+const FailureBackoff = require("./lib/failure-log-backoff.js");
 const Manager = require("./lib/manager.js");
 const Menu = require("./lib/menu-view.js");
 const ViewModel = require("./lib/view-model.js");
@@ -59,6 +60,9 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
         this._manager = overrides.manager || new Manager.WorkloadManager({
             repository: this._repository,
             runtimeGateway: this._runtimeGateway,
+            errorReporter: overrides.errorReporter || new FailureBackoff.FailureErrorBackoff({
+                logger: this._logger,
+            }),
             logger: this._logger,
         });
         this._poller = overrides.poller

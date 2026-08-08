@@ -277,3 +277,21 @@ test("runtime gateway factory expands home and accepts a supplied detector", () 
     assert.equal(gateway.read({forceDeviceDetection: true}).source, "probe");
     assert.deepEqual(detections, [false, true]);
 });
+
+test("runtime gateway factory injects a supplied warning reporter port", () => {
+    const reports = [];
+    const gateway = Cinnamon.createRuntimeGateway({
+        path: "~/failed.json",
+        environment: environment({"/home/tester/failed.json": new Error("denied")}),
+        clock: {now: () => NOW},
+        warningReporter: {
+            report: (key, message) => reports.push([key, message]),
+            recover() {},
+        },
+        deviceDetector: {detect: () => ({available: false})},
+    });
+
+    assert.equal(gateway.read().source, "invalid");
+    assert.equal(reports.length, 1);
+    assert.match(reports[0][1], /Could not read/);
+});

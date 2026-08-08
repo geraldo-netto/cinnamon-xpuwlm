@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../lib/domain.js");
+const FailureBackoff = require("../../lib/failure-log-backoff.js");
 const Runtime = require("../../lib/runtime-gateway.js");
 
 const NOW = 1_700_000_000_000;
@@ -63,6 +64,7 @@ test("fuzz: non-finite windows expire old snapshots through every adapter path",
             path: "/run/tpuwm.json",
             readText: () => JSON.stringify(document),
             detectDevice: () => null,
+            warningReporter: new FailureBackoff.FailureWarningBackoff({logger: {warn() {}}}),
         });
         assert.equal(gateway.read().stale, true);
     }
