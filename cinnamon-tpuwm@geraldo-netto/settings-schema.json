@@ -1,0 +1,84 @@
+{
+  "layout": {
+    "type": "layout",
+    "pages": ["general-page", "runtime-page"],
+    "general-page": {
+      "type": "page",
+      "title": "General",
+      "sections": ["panel-section", "polling-section"]
+    },
+    "runtime-page": {
+      "type": "page",
+      "title": "Runtime integration",
+      "sections": ["runtime-section", "safety-section"]
+    },
+    "panel-section": {
+      "type": "section",
+      "title": "Panel",
+      "keys": ["show-panel-label"]
+    },
+    "polling-section": {
+      "type": "section",
+      "title": "Monitoring",
+      "keys": ["refresh-interval"]
+    },
+    "runtime-section": {
+      "type": "section",
+      "title": "Workload runtime",
+      "keys": ["runtime-state-path", "runtime-help"]
+    },
+    "safety-section": {
+      "type": "section",
+      "title": "Safety boundary",
+      "keys": ["safety-help"]
+    }
+  },
+  "show-panel-label": {
+    "type": "switch",
+    "default": true,
+    "description": "Show TPU status beside the panel icon"
+  },
+  "refresh-interval": {
+    "type": "scale",
+    "default": 2,
+    "min": 1,
+    "max": 60,
+    "step": 1,
+    "units": "seconds",
+    "description": "Refresh interval"
+  },
+  "runtime-state-path": {
+    "type": "entry",
+    "default": "~/.local/state/tpu-workload-manager/state.json",
+    "description": "Runtime snapshot file",
+    "tooltip": "A trusted local service may atomically publish the versioned JSON contract documented by this applet."
+  },
+  "runtime-help": {
+    "type": "label",
+    "description": "The applet reads this file but never executes content from it. If it is absent, hardware discovery provides a safe device-only status."
+  },
+  "safety-help": {
+    "type": "label",
+    "description": "Model output remains advisory. Device authorization, backups, shutdown thresholds, firmware limits, and access control stay deterministic and outside this applet."
+  },
+  "profile-state": {
+    "type": "generic",
+    "default": {
+      "paused": false,
+      "profiles": {
+        "hardware-health": {"enabled": true, "weight": 2},
+        "storage-intelligence": {"enabled": true, "weight": 3},
+        "resource-scheduler": {"enabled": true, "weight": 3},
+        "build-advisor": {"enabled": true, "weight": 2},
+        "visual-library": {"enabled": true, "weight": 2},
+        "network-peripherals": {"enabled": false, "weight": 2},
+        "desktop-context": {"enabled": false, "weight": 1},
+        "document-intelligence": {"enabled": false, "weight": 2}
+      }
+    }
+  },
+  "selected-tab": {
+    "type": "generic",
+    "default": "overview"
+  }
+}
