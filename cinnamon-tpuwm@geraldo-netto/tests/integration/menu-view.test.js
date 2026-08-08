@@ -177,6 +177,25 @@ test("alerts screen renders empty, active, resolved, and fallback evidence", () 
     assert.equal(findActors(root, (actor) => actor.styleClasses.has("tpuwm-alert-critical")).length, 1);
 });
 
+test("alerts screen renders critical and newer alerts before lower priorities", () => {
+    const {view, root} = harness();
+    const alerts = [
+        {id: "advisory", profileId: "hardware-health", title: "Advisory", summary: "", severity: "advisory", timestamp: NOW, confidence: null, riskScore: null, resolved: false},
+        {id: "warning-old", profileId: "hardware-health", title: "Warning old", summary: "", severity: "warning", timestamp: NOW - 1000, confidence: null, riskScore: null, resolved: false},
+        {id: "critical", profileId: "hardware-health", title: "Critical", summary: "", severity: "critical", timestamp: NOW - 5000, confidence: null, riskScore: null, resolved: false},
+        {id: "warning-new", profileId: "hardware-health", title: "Warning new", summary: "", severity: "warning", timestamp: NOW, confidence: null, riskScore: null, resolved: false},
+    ];
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "alerts",
+        alerts,
+        attentionCount: alerts.length,
+    }), NOW));
+
+    const titles = findActors(root, (actor) => actor.styleClasses.has("tpuwm-alert-title"))
+        .map((actor) => actor.text);
+    assert.deepEqual(titles, ["Critical", "Warning new", "Warning old", "Advisory"]);
+});
+
 test("paused screen invokes resume independently of button presentation text", () => {
     const {calls, view, root} = harness();
     view.render(ViewModel.toViewModel(baseState({paused: true}), NOW));

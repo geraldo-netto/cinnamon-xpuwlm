@@ -62,3 +62,33 @@ test("fuzz: every rendered alert mutation invalidates a stable identity", () => 
         assert.notEqual(changedKey, initialKey, `${field} iteration ${index}`);
     }
 });
+
+test("fuzz: active alert order is deterministic across input permutations", () => {
+    const random = generator(0x534f5254);
+    const profiles = new Domain.WorkloadPortfolio().list();
+    const severities = ["advisory", "warning", "critical"];
+
+    for (let iteration = 0; iteration < 1000; iteration += 1) {
+        const alerts = Array.from({length: 12}, (_, index) => ({
+            id: `alert-${String(index).padStart(2, "0")}`,
+            profileId: "hardware-health",
+            title: `Alert ${index}`,
+            severity: severities[Math.floor(random() * severities.length)],
+            timestamp: NOW - Math.floor(random() * 5),
+            resolved: index % 5 === 0,
+        }));
+        const expected = ViewModel.toViewModel({
+            ...viewState(profiles, alerts[0]),
+            alerts,
+            attentionCount: alerts.filter((alert) => !alert.resolved).length,
+        }, NOW).activeAlerts.map((alert) => alert.id);
+        const shuffled = alerts.slice().sort(() => random() - 0.5);
+        const actual = ViewModel.toViewModel({
+            ...viewState(profiles, shuffled[0]),
+            alerts: shuffled,
+            attentionCount: expected.length,
+        }, NOW).activeAlerts.map((alert) => alert.id);
+
+        assert.deepEqual(actual, expected, `iteration ${iteration}`);
+    }
+});

@@ -114,6 +114,50 @@ test("alert model resolves profile titles and evidence", () => {
     assert.equal(ViewModel.alertModel({profileId: "missing"}, profiles, NOW).profileTitle, "Unknown profile");
 });
 
+test("active alert comparator prioritizes severity, recency, then stable ID", () => {
+    const base = {id: "beta", severity: "warning", timestamp: NOW};
+    assert.ok(ViewModel.compareActiveAlerts(
+        {...base, severity: "critical"},
+        {...base, severity: "warning"},
+    ) < 0);
+    assert.ok(ViewModel.compareActiveAlerts(
+        {...base, timestamp: NOW},
+        {...base, timestamp: NOW - 1},
+    ) < 0);
+    assert.ok(ViewModel.compareActiveAlerts(
+        {...base, id: "alpha"},
+        {...base, id: "beta"},
+    ) < 0);
+    assert.ok(ViewModel.compareActiveAlerts(
+        {...base, id: "beta"},
+        {...base, id: "alpha"},
+    ) > 0);
+    assert.equal(ViewModel.compareActiveAlerts(base, {...base}), 0);
+});
+
+test("view model sorts only active alerts without mutating runtime order", () => {
+    const alerts = [
+        {id: "resolved", profileId: "hardware-health", title: "Resolved", severity: "critical", timestamp: NOW, resolved: true},
+        {id: "warning-old", profileId: "hardware-health", title: "Warning old", severity: "warning", timestamp: NOW - 2000, resolved: false},
+        {id: "advisory", profileId: "hardware-health", title: "Advisory", severity: "advisory", timestamp: NOW, resolved: false},
+        {id: "critical", profileId: "hardware-health", title: "Critical", severity: "critical", timestamp: NOW - 5000, resolved: false},
+        {id: "warning-z", profileId: "hardware-health", title: "Warning Z", severity: "warning", timestamp: NOW - 1000, resolved: false},
+        {id: "warning-a", profileId: "hardware-health", title: "Warning A", severity: "warning", timestamp: NOW - 1000, resolved: false},
+    ];
+    const runtimeOrder = alerts.map((alert) => alert.id);
+    const model = ViewModel.toViewModel(state({alerts, attentionCount: 5}), NOW);
+
+    assert.deepEqual(model.activeAlerts.map((alert) => alert.id), [
+        "critical",
+        "warning-a",
+        "warning-z",
+        "warning-old",
+        "advisory",
+    ]);
+    assert.deepEqual(model.resolvedAlerts.map((alert) => alert.id), ["resolved"]);
+    assert.deepEqual(alerts.map((alert) => alert.id), runtimeOrder);
+});
+
 test("view model groups profiles, separates alerts, and creates stable body key", () => {
     const alerts = [
         {id: "a", profileId: "hardware-health", title: "Review", timestamp: NOW, confidence: 0.5, riskScore: 0.4, resolved: false},

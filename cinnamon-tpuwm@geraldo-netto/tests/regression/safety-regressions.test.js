@@ -150,3 +150,29 @@ test("regression: same-identity alert content invalidates before its age changes
         assert.notEqual(ViewModel.toViewModel(changedState, NOW).bodyKey, initialKey, field);
     }
 });
+
+test("regression: critical active alerts cannot be buried by runtime array order", () => {
+    const profiles = new Domain.WorkloadPortfolio().list();
+    const alert = (id, severity) => ({
+        id,
+        profileId: "hardware-health",
+        title: id,
+        severity,
+        timestamp: NOW,
+        resolved: false,
+    });
+    const model = ViewModel.toViewModel({
+        selectedTab: "alerts",
+        paused: false,
+        profiles,
+        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
+        metrics: {load: 42, queueDepth: 0, runningProfiles: 1},
+        alerts: [alert("advisory", "advisory"), alert("critical", "critical")],
+        attentionCount: 2,
+        stale: false,
+        source: "runtime",
+        generatedAt: NOW,
+    }, NOW);
+
+    assert.deepEqual(model.activeAlerts.map((item) => item.id), ["critical", "advisory"]);
+});

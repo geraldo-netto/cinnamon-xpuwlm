@@ -11,6 +11,12 @@ const STATUS_LABELS = Object.freeze({
     unavailable: "Unavailable",
 });
 
+const ALERT_SEVERITY_PRIORITY = Object.freeze({
+    advisory: 0,
+    warning: 1,
+    critical: 2,
+});
+
 function formatLoad(value) {
     return typeof value === "number" && Number.isFinite(value)
         ? `${Math.round(value)}%`
@@ -120,12 +126,32 @@ function alertModel(alert, profiles, nowMs) {
     };
 }
 
+function compareActiveAlerts(left, right) {
+    const severityDifference = ALERT_SEVERITY_PRIORITY[right.severity]
+        - ALERT_SEVERITY_PRIORITY[left.severity];
+    if (severityDifference !== 0) {
+        return severityDifference;
+    }
+    const timestampDifference = right.timestamp - left.timestamp;
+    if (timestampDifference !== 0) {
+        return timestampDifference;
+    }
+    if (left.id < right.id) {
+        return -1;
+    }
+    if (left.id > right.id) {
+        return 1;
+    }
+    return 0;
+}
+
 function toViewModel(state, nowMs = Date.now()) {
     const screen = effectiveScreen(state);
     const enabledProfiles = state.profiles.filter((profile) => profile.enabled);
     const pausedProfiles = state.profiles.filter((profile) => !profile.enabled);
     const activeAlerts = state.alerts
         .filter((alert) => !alert.resolved)
+        .sort(compareActiveAlerts)
         .map((alert) => alertModel(alert, state.profiles, nowMs));
     const resolvedAlerts = state.alerts
         .filter((alert) => alert.resolved)
@@ -163,8 +189,10 @@ function toViewModel(state, nowMs = Date.now()) {
 }
 
 module.exports = {
+    ALERT_SEVERITY_PRIORITY,
     STATUS_LABELS,
     alertModel,
+    compareActiveAlerts,
     effectiveScreen,
     formatFraction,
     formatLoad,
