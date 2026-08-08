@@ -194,7 +194,17 @@ test("every interactive control is focusable, reactive, and role-labelled", () =
 
     const enabled = buttons.filter((button) => !button.styleClasses.has("tpuwm-button-disabled"));
     assert.equal(enabled.every((button) => button.reactive === true), true);
-    assert.equal(enabled.every((button) => button.can_focus === true), true);
+    // The tab strip uses roving focus, so only its selected tab is reachable.
+    assert.equal(
+        enabled
+            .filter((button) => !button.styleClasses.has("tpuwm-tab"))
+            .every((button) => button.can_focus === true),
+        true,
+    );
+    assert.equal(
+        enabled.filter((button) => button.styleClasses.has("tpuwm-tab") && button.can_focus).length,
+        1,
+    );
 
     const disabled = buttons.filter((button) => button.styleClasses.has("tpuwm-button-disabled"));
     assert.equal(disabled.length > 0, true);

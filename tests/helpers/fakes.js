@@ -61,6 +61,11 @@ class FakeActor {
         this.style = style;
     }
 
+    grab_key_focus() {
+        this.focused = true;
+        this.emit("key-focus-in");
+    }
+
     add_accessible_state(state) {
         this.accessibleStates.add(state);
     }
@@ -117,6 +122,16 @@ class FakeLabel extends FakeActor {
 class FakeButton extends FakeActor {
     click() {
         this.emit("clicked");
+    }
+
+    pressKey(keySymbol) {
+        const results = [];
+        for (const entry of this._signals.values()) {
+            if (entry.signal === "key-press-event") {
+                results.push(entry.callback(this, {get_key_symbol: () => keySymbol}));
+            }
+        }
+        return results;
     }
 }
 
@@ -216,6 +231,21 @@ class FakeSettings {
     }
 }
 
+function createClutter() {
+    return {
+        ActorAlign: {CENTER: "center"},
+        EVENT_STOP: true,
+        EVENT_PROPAGATE: false,
+        KEY_Left: 0xff51,
+        KEY_Up: 0xff52,
+        KEY_Right: 0xff53,
+        KEY_Down: 0xff54,
+        KEY_Home: 0xff50,
+        KEY_End: 0xff57,
+        KEY_Return: 0xff0d,
+    };
+}
+
 function createAtk() {
     return {
         Role: {
@@ -268,6 +298,7 @@ module.exports = {
     FakeScrollView,
     FakeSettings,
     createAtk,
+    createClutter,
     createSt,
     findActors,
 };

@@ -47,6 +47,11 @@ unavailable weight control drops its sensitive state. Names still spell the
 state out in text, so nothing depends on role support alone, and a Cinnamon
 build that does not expose a role or state simply renders without it.
 
+The tab strip uses roving focus: only the selected tab is reachable with Tab,
+Left/Up and Right/Down move to the neighbouring tab and wrap, and Home and End
+jump to the first and last tab. Every movement selects and focuses together, and
+any other key propagates so Cinnamon keeps its own shortcuts.
+
 ## Runtime boundary
 
 A trusted local workload service may atomically publish

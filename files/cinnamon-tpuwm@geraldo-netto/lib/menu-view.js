@@ -4,6 +4,50 @@ const Layout = require("./layout.js");
 const ViewModel = require("./view-model.js");
 
 const METRIC_NAMES = Object.freeze(["TPU load", "Queue", "Running", "Attention"]);
+const TAB_NAMES = Object.freeze(["overview", "profiles", "alerts"]);
+
+// Tab-strip key handling, kept pure so the expected arrow, Home, and End
+// behaviour can be verified without a Clutter stage.
+const TAB_KEY_MOVES = Object.freeze({
+    KEY_Left: "previous",
+    KEY_Up: "previous",
+    KEY_Right: "next",
+    KEY_Down: "next",
+    KEY_Home: "first",
+    KEY_End: "last",
+});
+
+function tabKeyMove(Clutter, keySymbol) {
+    if (!Clutter) {
+        return null;
+    }
+    for (const [name, move] of Object.entries(TAB_KEY_MOVES)) {
+        if (Clutter[name] !== undefined && Clutter[name] === keySymbol) {
+            return move;
+        }
+    }
+    return null;
+}
+
+function movedTabIndex(move, currentIndex, count) {
+    if (count <= 0) {
+        return -1;
+    }
+    const current = currentIndex >= 0 && currentIndex < count ? currentIndex : 0;
+    if (move === "first") {
+        return 0;
+    }
+    if (move === "last") {
+        return count - 1;
+    }
+    if (move === "previous") {
+        return (current - 1 + count) % count;
+    }
+    if (move === "next") {
+        return (current + 1) % count;
+    }
+    return current;
+}
 
 function requireAction(actions, name) {
     if (!actions || typeof actions[name] !== "function") {
@@ -46,6 +90,7 @@ class MenuView {
         this._policyPaused = false;
         this._bodyKey = null;
         this._model = null;
+        this._selectedTab = TAB_NAMES[0];
         this._layout = layout || Layout.defaultLayout();
         this._root = this._box("tpuwm-root", true);
         this._buildHeader();
@@ -92,11 +137,13 @@ class MenuView {
         }
         this._tabs.actor.visible = model.showTabs;
         this._manageButton.visible = model.showTabs;
+        this._selectedTab = model.selectedTab;
         for (const [tab, button] of this._tabButtons) {
             const selected = model.selectedTab === tab;
             setStyleClass(button, "tpuwm-tab-active", selected);
             button.set_accessible_name(`${tab} tab${selected ? ", selected" : ""}`);
             this._setAccessibleState(button, "SELECTED", selected);
+            button.can_focus = selected;
         }
         if (this._bodyKey !== model.bodyKey) {
             this._bodyKey = model.bodyKey;
@@ -184,7 +231,7 @@ class MenuView {
         const row = this._box("tpuwm-tabs");
         this._setAccessibleRole(row, "PAGE_TAB_LIST");
         this._tabButtons = new Map();
-        for (const tab of ["overview", "profiles", "alerts"]) {
+        for (const tab of TAB_NAMES) {
             const label = tab[0].toUpperCase() + tab.slice(1);
             const button = this._button(
                 "tpuwm-tab",
@@ -193,11 +240,52 @@ class MenuView {
                 "PAGE_TAB",
             );
             button.set_child(this._label(label, "tpuwm-tab-label"));
+            button.connect("key-press-event", (_actor, event) => this._onTabKeyPress(event));
             row.add_child(button);
             this._tabButtons.set(tab, button);
         }
         this._tabs = {actor: row};
         this._root.add_child(row);
+    }
+
+    _onTabKeyPress(event) {
+        const stop = this._Clutter.EVENT_STOP === undefined ? true : this._Clutter.EVENT_STOP;
+        const propagate = this._Clutter.EVENT_PROPAGATE === undefined
+            ? false
+            : this._Clutter.EVENT_PROPAGATE;
+        if (!event || typeof event.get_key_symbol !== "function") {
+            return propagate;
+        }
+        const move = tabKeyMove(this._Clutter, event.get_key_symbol());
+        if (move === null) {
+            return propagate;
+        }
+        const current = TAB_NAMES.indexOf(this._selectedTab);
+        const target = TAB_NAMES[movedTabIndex(move, current, TAB_NAMES.length)];
+        if (target !== this._selectedTab) {
+            this._actions.selectTab(target);
+        }
+        this._focusTab(target);
+        return stop;
+    }
+
+    // Roving focus: only the selected tab is reachable with Tab, and arrow,
+    // Home, and End keys move both the selection and the keyboard focus.
+    _focusTab(tab) {
+        const button = this._tabButtons.get(tab);
+        if (!button) {
+            return false;
+        }
+        button.can_focus = true;
+        if (typeof button.grab_key_focus === "function") {
+            button.grab_key_focus();
+        }
+        for (const [name, candidate] of this._tabButtons) {
+            if (name !== tab) {
+                candidate.can_focus = false;
+            }
+        }
+        return true;
     }
 
     _buildBody() {
@@ -529,7 +617,10 @@ class MenuView {
 
 module.exports = {
     MenuView,
+    TAB_NAMES,
     destroyChildren,
+    movedTabIndex,
     requireAction,
     setStyleClass,
+    tabKeyMove,
 };
