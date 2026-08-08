@@ -135,6 +135,7 @@ function toViewModel(state, nowMs = Date.now()) {
         : "Unavailable";
     return {
         screen,
+        policyPaused: state.paused === true,
         selectedTab: Manager.sanitizeTab(state.selectedTab),
         showTabs: Manager.TABS.includes(screen),
         device: {...state.device, status: deviceStatus},

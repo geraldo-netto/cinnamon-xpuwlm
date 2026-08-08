@@ -77,6 +77,14 @@ test("effective screen gives safety states precedence over tabs", () => {
     assert.equal(ViewModel.effectiveScreen(state({selectedTab: "alerts"})), "alerts");
     assert.equal(ViewModel.effectiveScreen(state({selectedTab: "future"})), "overview");
     assert.equal(ViewModel.toViewModel(state({paused: true}), NOW).showTabs, false);
+
+    const unavailablePaused = ViewModel.toViewModel(state({
+        paused: true,
+        device: {available: false, name: "No TPU", kind: "unknown", reason: "Disconnected"},
+    }), NOW);
+    assert.equal(unavailablePaused.screen, "unavailable");
+    assert.equal(unavailablePaused.policyPaused, true);
+    assert.equal(ViewModel.toViewModel(state(), NOW).policyPaused, false);
 });
 
 test("metrics explain normal and held workload state", () => {

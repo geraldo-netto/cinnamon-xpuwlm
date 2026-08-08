@@ -86,6 +86,12 @@ test("style and child helpers make updates idempotent", () => {
     assert.equal(actor.children.length, 0);
 });
 
+test("pause control defaults to local pause intent before first render", () => {
+    const {calls, root} = harness();
+    button(root, "Pause all workloads").click();
+    assert.deepEqual(calls, [["pauseAll"]]);
+});
+
 test("overview exposes grouped profiles and all primary actions", () => {
     const {calls, view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
@@ -171,6 +177,19 @@ test("unavailable screen hides tabs and offers recovery", () => {
     assert.equal(findActors(root, (actor) => actor.text === "Reconnect device").length, 1);
     button(root, "Retry TPU detection").click();
     assert.deepEqual(calls, [["refresh"]]);
+});
+
+test("unavailable screen keeps pause control aligned with policy intent", () => {
+    const {calls, view, root} = harness();
+    const device = {available: false, name: "No TPU", kind: "unknown", reason: "Reconnect device"};
+    view.render(ViewModel.toViewModel(baseState({paused: true, device}), NOW));
+
+    assert.equal(findActors(root, (actor) => actor.text === "Reconnect device").length, 1);
+    button(root, "Resume all workloads").click();
+
+    view.render(ViewModel.toViewModel(baseState({paused: false, device}), NOW));
+    button(root, "Pause all workloads").click();
+    assert.deepEqual(calls, [["resumeAll"], ["pauseAll"]]);
 });
 
 test("body rendering skips unchanged content and destroy is idempotent", () => {

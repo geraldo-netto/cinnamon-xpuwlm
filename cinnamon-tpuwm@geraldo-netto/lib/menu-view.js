@@ -40,7 +40,7 @@ class MenuView {
             refresh: requireAction(actions, "refresh"),
             openSettings: requireAction(actions, "openSettings"),
         };
-        this._paused = false;
+        this._policyPaused = false;
         this._bodyKey = null;
         this._root = this._box("tpuwm-root", true);
         this._buildHeader();
@@ -52,11 +52,11 @@ class MenuView {
     }
 
     render(model) {
-        this._paused = model.screen === "paused";
+        this._policyPaused = model.policyPaused;
         this._statusLabel.set_text(model.device.status);
         this._subtitleLabel.set_text(model.headerSubtitle);
-        this._pauseLabel.set_text(this._paused ? "Resume all" : "Pause all");
-        this._pauseButton.set_accessible_name(this._paused
+        this._pauseLabel.set_text(this._policyPaused ? "Resume all" : "Pause all");
+        this._pauseButton.set_accessible_name(this._policyPaused
             ? "Resume all workloads"
             : "Pause all workloads");
         setStyleClass(this._statusLabel, "tpuwm-status-unavailable", !model.device.available);
@@ -106,7 +106,7 @@ class MenuView {
         copy.add_child(this._subtitleLabel);
         header.add_child(copy);
         this._pauseButton = this._button("tpuwm-secondary-button", "Pause all workloads", () => {
-            if (this._paused) {
+            if (this._policyPaused) {
                 this._actions.resumeAll();
             } else {
                 this._actions.pauseAll();
