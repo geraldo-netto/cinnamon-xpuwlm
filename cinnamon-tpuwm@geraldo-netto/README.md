@@ -2,7 +2,12 @@
 
 `cinnamon-tpuwm@geraldo-netto` is the production applet corresponding to the approved visual prototype in `../tpu-workloads@local/`.
 
-The applet owns panel presentation, profile enablement, contention weights, pause/resume state, local device discovery, and alert/recovery UX. It does not make model scores authoritative and does not bypass deterministic device authorization, backup, shutdown, firmware, or access-control policy.
+The applet owns panel presentation, persisted local profile intent, contention
+weights, pause/resume intent, local device discovery, and alert/recovery UX. A
+separate workload runtime must consume and enforce that policy; the applet does
+not claim job enforcement from hardware discovery alone. It does not make model
+scores authoritative or bypass deterministic device authorization, backup,
+shutdown, firmware, or access-control policy.
 
 ## Runtime boundary
 

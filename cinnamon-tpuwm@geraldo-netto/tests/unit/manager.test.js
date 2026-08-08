@@ -111,6 +111,20 @@ test("save and listener failures do not stop other observers", () => {
     assert.equal(errors.some((message) => message.includes("save")), true);
 });
 
+test("listeners receive isolated state projections", () => {
+    const {manager} = harness();
+    let observedName = null;
+    manager.subscribe((state) => {
+        state.device.name = "mutated by first listener";
+        state.profiles[0].title = "mutated";
+    });
+    manager.subscribe((state) => {
+        observedName = `${state.device.name}:${state.profiles[0].title}`;
+    });
+    manager.start();
+    assert.equal(observedName, "Coral:Hardware health");
+});
+
 test("runtime gateway replacement validates input and refreshes after start", () => {
     const {manager} = harness();
     assert.throws(() => manager.replaceRuntimeGateway({}), /gateway/);

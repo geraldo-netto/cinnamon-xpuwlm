@@ -118,6 +118,17 @@ test("profiles screen offers weight and enable controls", () => {
         ["changeWeight", "hardware-health", 1],
         ["toggleProfile", "network-peripherals"],
     ]);
+    const minimum = button(root, "Decrease Desktop context weight");
+    assert.equal(minimum.reactive, false);
+    assert.equal(minimum.can_focus, false);
+    assert.equal(minimum.styleClasses.has("tpuwm-button-disabled"), true);
+
+    const maximumState = baseState({selectedTab: "profiles"});
+    maximumState.profiles[0].weight = 5;
+    view.render(ViewModel.toViewModel(maximumState, NOW));
+    const maximum = button(root, "Increase Hardware health weight");
+    assert.equal(maximum.reactive, false);
+    assert.equal(maximum.can_focus, false);
 });
 
 test("alerts screen renders empty, active, resolved, and fallback evidence", () => {
@@ -145,7 +156,9 @@ test("paused screen invokes resume independently of button presentation text", (
     const bodyResume = findActors(root, (actor) => actor instanceof FakeButton && actor.accessibleName === "Resume all workloads")[1];
     bodyResume.click();
     assert.deepEqual(calls, [["resumeAll"], ["resumeAll"]]);
-    assert.equal(findActors(root, (actor) => actor.text === "Workloads held safely").length, 1);
+    assert.equal(findActors(root, (actor) => actor.text === "Local policy paused").length, 1);
+    assert.equal(findActors(root, (actor) => actor.styleClasses.has("tpuwm-tabs"))[0].visible, false);
+    assert.equal(button(root, "Manage workload profiles").visible, false);
 });
 
 test("unavailable screen hides tabs and offers recovery", () => {
@@ -154,6 +167,7 @@ test("unavailable screen hides tabs and offers recovery", () => {
         device: {available: false, name: "No TPU", kind: "unknown", reason: "Reconnect device"},
     }), NOW));
     assert.equal(findActors(root, (actor) => actor.styleClasses.has("tpuwm-tabs"))[0].visible, false);
+    assert.equal(button(root, "Manage workload profiles").visible, false);
     assert.equal(findActors(root, (actor) => actor.text === "Reconnect device").length, 1);
     button(root, "Retry TPU detection").click();
     assert.deepEqual(calls, [["refresh"]]);

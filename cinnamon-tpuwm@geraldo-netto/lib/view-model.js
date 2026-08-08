@@ -71,6 +71,13 @@ function panelModel(state) {
             tooltip: "TPU Workload Manager — all workloads paused",
         };
     }
+    if (state.source === "probe") {
+        return {
+            label: "TPU Detected",
+            status: "detected",
+            tooltip: "TPU Workload Manager — hardware detected; runtime not connected",
+        };
+    }
     const load = formatLoad(state.metrics.load);
     return {
         label: `TPU ${load}`,
@@ -123,14 +130,16 @@ function toViewModel(state, nowMs = Date.now()) {
     const resolvedAlerts = state.alerts
         .filter((alert) => alert.resolved)
         .map((alert) => alertModel(alert, state.profiles, nowMs));
-    const deviceStatus = state.device.available ? "Online" : "Unavailable";
+    const deviceStatus = state.device.available
+        ? (state.source === "probe" ? "Device detected" : "Online")
+        : "Unavailable";
     return {
         screen,
         selectedTab: Manager.sanitizeTab(state.selectedTab),
-        showTabs: screen !== "unavailable",
+        showTabs: Manager.TABS.includes(screen),
         device: {...state.device, status: deviceStatus},
         headerSubtitle: state.device.available
-            ? `${state.device.name} · Balanced · Updated ${formatRelativeTime(state.generatedAt, nowMs)}`
+            ? `${state.device.name} · ${state.source === "probe" ? "Device-only monitoring" : "Runtime connected"} · Updated ${formatRelativeTime(state.generatedAt, nowMs)}`
             : `${state.device.reason} · Last update ${formatRelativeTime(state.generatedAt, nowMs)}`,
         panel: panelModel(state),
         metrics: metricModels(state),
@@ -145,7 +154,11 @@ function toViewModel(state, nowMs = Date.now()) {
         bodyKey: JSON.stringify({
             screen,
             profiles: state.profiles,
-            alerts: state.alerts,
+            alerts: [...activeAlerts, ...resolvedAlerts].map((alert) => ({
+                id: alert.id,
+                age: alert.age,
+                resolved: alert.resolved,
+            })),
             device: state.device,
             paused: state.paused,
         }),

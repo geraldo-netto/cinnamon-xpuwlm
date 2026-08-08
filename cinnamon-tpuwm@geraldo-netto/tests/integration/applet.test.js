@@ -204,9 +204,9 @@ test("constructor binds settings, registers icon, renders, and starts polling", 
     assert.deepEqual(applet.baseArguments, {orientation: "top", panelHeight: 40, instanceId: 7});
     assert.equal(applet.iconPath, "/tmp/tpuwm/icons/tpuwm-symbolic.svg");
     assert.equal(iconPaths.includes("/tmp/tpuwm/icons"), true);
-    assert.equal(applet.label, "TPU 55%");
-    assert.match(applet.tooltip, /online/);
-    assert.equal(applet.actor.styleClasses.has("tpuwm-panel-online"), true);
+    assert.equal(applet.label, "TPU Detected");
+    assert.match(applet.tooltip, /hardware detected/);
+    assert.equal(applet.actor.styleClasses.has("tpuwm-panel-detected"), true);
     assert.deepEqual(manager.calls[0], ["start"]);
     assert.deepEqual(poller.calls, [["start", 5]]);
     assert.equal(menus.length, 1);
@@ -261,7 +261,7 @@ test("runtime setting changes replace gateway and restart poller", () => {
 
 test("render updates safety styling and ignores work after teardown", () => {
     const {applet, manager, poller, settings} = appletHarness();
-    manager.callback(liveState({attentionCount: 1}));
+    manager.callback(liveState({source: "runtime", attentionCount: 1}));
     assert.equal(applet.actor.styleClasses.has("tpuwm-panel-attention"), true);
     assert.equal(applet.actor.styleClasses.has("tpuwm-panel-online"), false);
     assert.equal(applet._teardown(), true);

@@ -110,6 +110,10 @@
     background-color: rgba(127, 127, 127, 0.22);
 }
 
+.tpuwm-button-disabled {
+    opacity: 0.5;
+}
+
 .tpuwm-secondary-button:focus,
 .tpuwm-primary-button:focus,
 .tpuwm-weight-button:focus,
@@ -373,4 +377,8 @@
 .tpuwm-panel-paused,
 .tpuwm-panel-unavailable {
     color: #f2b75d;
+}
+
+.tpuwm-panel-detected {
+    color: #6cb8f3;
 }

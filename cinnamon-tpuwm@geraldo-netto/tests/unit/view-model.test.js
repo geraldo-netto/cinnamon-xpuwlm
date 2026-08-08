@@ -62,6 +62,11 @@ test("panel state communicates offline, paused, attention, and online modes", ()
         tooltip: "TPU Workload Manager — Disconnected",
     });
     assert.equal(ViewModel.panelModel(state({paused: true})).status, "paused");
+    assert.deepEqual(ViewModel.panelModel(state({source: "probe"})), {
+        label: "TPU Detected",
+        status: "detected",
+        tooltip: "TPU Workload Manager — hardware detected; runtime not connected",
+    });
     assert.match(ViewModel.panelModel(state({attentionCount: 2})).tooltip, /2 items? needs? review/);
     assert.equal(ViewModel.panelModel(state()).label, "TPU 41%");
 });
@@ -71,6 +76,7 @@ test("effective screen gives safety states precedence over tabs", () => {
     assert.equal(ViewModel.effectiveScreen(state({paused: true})), "paused");
     assert.equal(ViewModel.effectiveScreen(state({selectedTab: "alerts"})), "alerts");
     assert.equal(ViewModel.effectiveScreen(state({selectedTab: "future"})), "overview");
+    assert.equal(ViewModel.toViewModel(state({paused: true}), NOW).showTabs, false);
 });
 
 test("metrics explain normal and held workload state", () => {
@@ -115,7 +121,10 @@ test("view model groups profiles, separates alerts, and creates stable body key"
     assert.equal(model.activeAlerts.length, 1);
     assert.equal(model.resolvedAlerts.length, 1);
     assert.match(model.headerSubtitle, /Updated just now/);
+    assert.match(ViewModel.toViewModel(state({source: "probe"}), NOW).headerSubtitle, /Device-only monitoring/);
     assert.doesNotThrow(() => JSON.parse(model.bodyKey));
+    const agedModel = ViewModel.toViewModel(state({alerts, attentionCount: 1}), NOW + 10_000);
+    assert.notEqual(agedModel.bodyKey, model.bodyKey);
 
     const offline = ViewModel.toViewModel(state({
         device: {available: false, name: "No TPU", kind: "unknown", reason: "Connect device"},

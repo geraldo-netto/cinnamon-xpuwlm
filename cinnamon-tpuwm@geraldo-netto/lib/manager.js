@@ -174,10 +174,9 @@ class WorkloadManager {
     }
 
     _publish() {
-        const state = this.state();
         for (const listener of this._listeners) {
             try {
-                listener(state);
+                listener(this.state());
             } catch (error) {
                 this._logger.error(`State listener failed: ${error}`);
             }

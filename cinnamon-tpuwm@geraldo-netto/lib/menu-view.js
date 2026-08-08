@@ -67,6 +67,7 @@ class MenuView {
             setStyleClass(this._metricValues[index], "tpuwm-attention", metric.tone === "attention");
         }
         this._tabs.actor.visible = model.showTabs;
+        this._manageButton.visible = model.showTabs;
         for (const [tab, button] of this._tabButtons) {
             setStyleClass(button, "tpuwm-tab-active", model.selectedTab === tab);
             button.set_accessible_name(`${tab} tab${model.selectedTab === tab ? ", selected" : ""}`);
@@ -162,10 +163,10 @@ class MenuView {
 
     _buildFooter() {
         const footer = this._box("tpuwm-footer");
-        const manage = this._button("tpuwm-primary-button", "Manage workload profiles", () => this._actions.selectTab("profiles"));
-        manage.x_expand = true;
-        manage.set_child(this._label("Manage profiles", "tpuwm-button-label"));
-        footer.add_child(manage);
+        this._manageButton = this._button("tpuwm-primary-button", "Manage workload profiles", () => this._actions.selectTab("profiles"));
+        this._manageButton.x_expand = true;
+        this._manageButton.set_child(this._label("Manage profiles", "tpuwm-button-label"));
+        footer.add_child(this._manageButton);
         const refresh = this._button("tpuwm-secondary-button", "Refresh TPU status", this._actions.refresh);
         refresh.set_child(this._label("Refresh", "tpuwm-button-label"));
         footer.add_child(refresh);
@@ -256,9 +257,9 @@ class MenuView {
     _renderPaused(model) {
         this._body.add_child(this._hero(
             "media-playback-pause-symbolic",
-            "Workloads held safely",
-            "All profiles are paused",
-            "No new inference jobs will start. Queued jobs remain saved and signal collectors continue.",
+            "Local policy paused",
+            "All local profiles are paused",
+            "A connected runtime must apply this policy before accepting new jobs. The applet does not modify queued jobs.",
             "tpuwm-hero-paused",
         ));
         const resume = this._button("tpuwm-primary-button tpuwm-state-action", "Resume all workloads", this._actions.resumeAll);
@@ -281,7 +282,7 @@ class MenuView {
             "dialog-warning-symbolic",
             "Connection required",
             "TPU accelerator unavailable",
-            "Jobs are held locally. No data was discarded and CPU fallback remains disabled.",
+            "Profiles remain saved locally. No data, authorization, backup, or CPU-fallback policy is changed.",
             "tpuwm-hero-unavailable",
         ));
         const steps = [
@@ -322,10 +323,12 @@ class MenuView {
         if (editableWeight) {
             const controls = this._box("tpuwm-weight-control");
             const down = this._button("tpuwm-weight-button", `Decrease ${profile.title} weight`, () => this._actions.changeWeight(profile.id, -1));
+            this._setButtonEnabled(down, profile.weight > 1);
             down.set_child(this._label("−", "tpuwm-button-label"));
             controls.add_child(down);
             controls.add_child(this._label(`${profile.weight}`, "tpuwm-weight-value"));
             const up = this._button("tpuwm-weight-button", `Increase ${profile.title} weight`, () => this._actions.changeWeight(profile.id, 1));
+            this._setButtonEnabled(up, profile.weight < 5);
             up.set_child(this._label("+", "tpuwm-button-label"));
             controls.add_child(up);
             row.add_child(controls);
@@ -427,6 +430,12 @@ class MenuView {
         }
         button.connect("clicked", () => callback());
         return button;
+    }
+
+    _setButtonEnabled(button, enabled) {
+        button.reactive = enabled;
+        button.can_focus = enabled;
+        setStyleClass(button, "tpuwm-button-disabled", !enabled);
     }
 }
 

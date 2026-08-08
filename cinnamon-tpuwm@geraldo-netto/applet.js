@@ -172,7 +172,7 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
         const viewModel = model || ViewModel.toViewModel(this._latestState);
         this.set_applet_label(this.showPanelLabel ? viewModel.panel.label : "");
         this.set_applet_tooltip(viewModel.panel.tooltip);
-        for (const status of ["online", "attention", "paused", "unavailable"]) {
+        for (const status of ["online", "attention", "detected", "paused", "unavailable"]) {
             this.actor.remove_style_class_name(`tpuwm-panel-${status}`);
         }
         this.actor.add_style_class_name(`tpuwm-panel-${viewModel.panel.status}`);
