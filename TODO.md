@@ -8,7 +8,6 @@
 | XTPU-0004 | open | medium | m | XTPU-0002, XTPU-0003, XTPU-0023 | Model device and runtime health independently; render specific absent, stale, malformed, read-error, and probe-error telemetry and recovery guidance instead of fabricated operational values. |
 | XTPU-0005 | open | medium | l | XTPU-0001, XTPU-0002 | Replace the hard-coded eight-profile catalog and limits with a versioned, validated profile registry or descriptor contract so additional workloads are discoverable instead of silently discarded. |
 | XTPU-0006 | open | medium | m | XTPU-0004 | Make the Cinnamon popup responsive at narrow work areas, high scale factors, and large text sizes while preserving essential content and controls. |
-| XTPU-0007 | open | medium | m | XTPU-0006 | Use Cinnamon theme-derived semantic colors and verify contrast in light, dark, and high-contrast themes; hard-coded foreground and accent colors do not guarantee readable states. |
 | XTPU-0008 | open | medium | s | XTPU-0006 | Apply tab-list, tab, and toggle ATK roles plus selected and checked states so assistive technology receives semantic control state. |
 | XTPU-0009 | open | medium | m | XTPU-0006, XTPU-0008 | Localize runtime UI, status, and accessibility strings through gettext and ngettext; verify plurals and expanded translations. |
 | XTPU-0010 | open | medium | xs | XTPU-0002 | Sort active alerts deterministically by severity, newest timestamp, and stable ID so critical items cannot be buried by runtime array order. |
@@ -26,4 +25,4 @@
 | XTPU-0029 | open | medium | m | XTPU-0004, XTPU-0010 | Emit each critical desktop notification once per alert occurrence while allowing notification after resolution and reappearance. |
 | XTPU-0031 | open | low | s | XTPU-0020 | Add structural contract and clone-isolation coverage for device detection, profile statuses, fallback/probe snapshots, portfolio serialization, manager projections, and status labels. |
 | XTPU-0032 | open | medium | s | XTPU-0008, XTPU-0020 | Add structural UI contract coverage for panel-state cleanup, metrics, icons, recovery steps, scroll layout, and interactive button properties. |
-| XTPU-0033 | open | medium | s | XTPU-0007, XTPU-0028 | Replace the default long panel label with a compact status icon using theme-derived color plus a non-color shape/badge and an accessible tooltip; status must not depend on color alone. |
+| XTPU-0033 | open | medium | s | XTPU-0028 | Replace the default long panel label with a compact status icon using theme-derived color plus a non-color shape/badge and an accessible tooltip; status must not depend on color alone. |

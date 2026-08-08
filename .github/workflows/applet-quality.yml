@@ -33,6 +33,11 @@ jobs:
           cache: npm
           cache-dependency-path: cinnamon-tpuwm@geraldo-netto/package-lock.json
 
+      - name: Install Cinnamon theme test runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cinnamon cjs
+
       - name: Install locked dependencies
         run: npm ci
 
