@@ -8,7 +8,6 @@
 | XTPU-0013 | blocked | low | xs | — | Choose and add an explicit repository license before redistribution; no license currently grants reuse rights. |
 | XTPU-0023 | open | high | m | XTPU-0003 | Move PCIe and USB discovery plus sysfs reads to bounded cancellable async I/O and cancel pending discovery during teardown. |
 | XTPU-0027 | open | medium | s | XTPU-0009 | Localize settings and metadata through Cinnamon conventions and include their strings in extraction and catalog validation. |
-| XTPU-0035 | open | medium | m | XTPU-0001, XTPU-0002, XTPU-0005 | Define a versioned declarative workload plug-in manifest and domain contract with stable identity, capabilities, model/runtime requirements, UI metadata, defaults, and strict schema validation. |
 | XTPU-0036 | open | medium | m | XTPU-0005, XTPU-0035 | Inject a workload registry port into the domain and application layers, with a Cinnamon adapter that discovers validated descriptors without coupling domain logic to files or framework APIs. |
 | XTPU-0037 | open | medium | m | XTPU-0005, XTPU-0035, XTPU-0036 | Migrate all eight built-in workload profiles into independent plug-in descriptors and remove hard-coded catalog knowledge and fixed profile-count limits from the domain. |
 | XTPU-0038 | open | medium | s | XTPU-0005, XTPU-0035, XTPU-0036 | Add low-light image enhancement as a normal Visual Library workload plug-in with replaceable model metadata, host-pipeline responsibilities, and measurable quality/performance acceptance criteria. |
@@ -18,6 +17,8 @@
 | XTPU-0042 | open | low | s | XTPU-0038 | Review the interim low-light catalog and profile draft committed in `828a261` after the plug-in is implemented; reconcile wording, model metadata, host-pipeline responsibilities, and measurable acceptance criteria with test results, then revise or remove the feature if warranted. |
 | XTPU-0046 | open | medium | s | — | Add an explicit CJS production-source syntax and import smoke gate for the declared Cinnamon 6.0 floor and the current supported release; the workflow does not visibly enforce the runtime floor. |
 | XTPU-0047 | open | low | m | XTPU-0013 | Add deterministic staging, packaging, install and uninstall verification, and checksums; after licensing, add Spices release metadata and a real applet screenshot if public distribution is intended. |
+| XTPU-0054 | in_progress | medium | xs | XTPU-0035, XTPU-0036, XTPU-0037 | Preserve intentional workload and group hierarchy with declarative UI order instead of filesystem order. |
+| XTPU-0055 | in_progress | low | xs | XTPU-0039 | Split lifecycle change detection to meet the production complexity budget. |
 
 # Rejected / Won't fix
 

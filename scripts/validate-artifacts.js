@@ -27,6 +27,8 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "snapshot-validator.js",
     "stylesheet.css",
     "view-model.js",
+    "workload-manifest.js",
+    "workload-manifest.schema.json",
 ]);
 const FORBIDDEN_PAYLOAD_SEGMENTS = new Set([
     ".cache",
@@ -110,6 +112,7 @@ function validateJsonArtifacts() {
     const metadata = readJson(appletRoot, "metadata.json");
     const settings = readJson(appletRoot, "settings-schema.json");
     const schema = readJson(appletRoot, "runtime-snapshot.schema.json");
+    const workloadSchema = readJson(appletRoot, "workload-manifest.schema.json");
     const packageJson = readJson(repositoryRoot, "package.json");
     const stryker = readJson(repositoryRoot, "stryker.config.json");
     const Domain = require(path.join(appletRoot, "lib/domain.js"));
@@ -122,6 +125,7 @@ function validateJsonArtifacts() {
     assert.equal(schema.properties.version.const, Domain.SNAPSHOT_VERSION);
     assert.equal(schema.properties.generatedAt.minimum, Domain.MIN_GENERATED_AT);
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(schema));
+    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(workloadSchema));
     assert.equal(settings["show-panel-label"].default, false);
     assert.deepEqual(
         Object.keys(settings["profile-state"].default.profiles),
