@@ -26,3 +26,4 @@
 | XTPU-0027 | open | medium | s | XTPU-0009 | Localize settings and metadata through Cinnamon conventions and include their strings in extraction and catalog validation. |
 | XTPU-0028 | open | medium | s | XTPU-0004, XTPU-0010 | Expose highest active alert severity in panel and popup summaries using text and accessible semantics rather than color alone. |
 | XTPU-0029 | open | medium | m | XTPU-0004, XTPU-0010 | Emit each critical desktop notification once per alert occurrence while allowing notification after resolution and reappearance. |
+| XTPU-0030 | open | medium | xs | XTPU-0019 | Normalize non-finite freshness windows; injected `Infinity` or `NaN` values can disable stale-state expiration. |
