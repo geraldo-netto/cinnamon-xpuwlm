@@ -52,6 +52,13 @@ Left/Up and Right/Down move to the neighbouring tab and wrap, and Home and End
 jump to the first and last tab. Every movement selects and focuses together, and
 any other key propagates so Cinnamon keeps its own shortcuts.
 
+Popup bodies are rebuilt whenever their content changes. Every body control
+carries a stable semantic identity (`toggle:<profile>`, `weight-up:<profile>`,
+`retry-detection`, and so on), so keyboard focus returns to the same control
+across a rebuild. When that control no longer exists the first control in the
+rebuilt body takes focus, and when the body has no control the selected tab
+does. Focus on a control outside the body is never disturbed.
+
 ## Runtime boundary
 
 A trusted local workload service may atomically publish

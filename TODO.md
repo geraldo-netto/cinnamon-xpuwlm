@@ -10,7 +10,6 @@
 | XTPU-0013 | blocked | low | xs | — | Choose and add an explicit repository license before redistribution; no license currently grants reuse rights. |
 | XTPU-0022 | open | high | s | XTPU-0002, XTPU-0003 | Reject symlinked/non-regular snapshots and path-object races using no-follow preflight plus opened-stream identity checks; enforce `MAX + 1` bounded async reads. |
 | XTPU-0023 | open | high | m | XTPU-0003 | Move PCIe and USB discovery plus sysfs reads to bounded cancellable async I/O and cancel pending discovery during teardown. |
-| XTPU-0026 | open | medium | s | XTPU-0006, XTPU-0008 | Preserve focus by stable semantic control identity when dynamic menu bodies rebuild, with a predictable fallback target. |
 | XTPU-0027 | open | medium | s | XTPU-0009 | Localize settings and metadata through Cinnamon conventions and include their strings in extraction and catalog validation. |
 | XTPU-0028 | open | medium | s | XTPU-0004, XTPU-0010 | Expose highest active alert severity in panel and popup summaries using text and accessible semantics rather than color alone. |
 | XTPU-0029 | open | medium | m | XTPU-0004, XTPU-0010 | Emit each critical desktop notification once per alert occurrence while allowing notification after resolution and reappearance. |

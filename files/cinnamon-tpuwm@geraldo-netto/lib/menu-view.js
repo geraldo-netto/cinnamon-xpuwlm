@@ -70,6 +70,18 @@ function destroyChildren(actor) {
     }
 }
 
+// Body controls carry a semantic identity that survives a rebuild, so keyboard
+// focus can return to the same control rather than to whatever landed first.
+function focusableControls(actor, found = []) {
+    for (const child of actor.get_children()) {
+        if (child.tpuwmIdentity !== undefined && child.can_focus !== false) {
+            found.push(child);
+        }
+        focusableControls(child, found);
+    }
+    return found;
+}
+
 class MenuView {
     constructor({St, Clutter, Atk, menu, actions, layout}) {
         if (!St || !Clutter || !menu || typeof menu.addActor !== "function") {
@@ -91,6 +103,7 @@ class MenuView {
         this._bodyKey = null;
         this._model = null;
         this._selectedTab = TAB_NAMES[0];
+        this._focusedIdentity = null;
         this._layout = layout || Layout.defaultLayout();
         this._root = this._box("tpuwm-root", true);
         this._buildHeader();
@@ -159,6 +172,7 @@ class MenuView {
         this._root = null;
         this._bodyKey = null;
         this._model = null;
+        this._focusedIdentity = null;
         return true;
     }
 
@@ -322,7 +336,35 @@ class MenuView {
     }
 
     _renderBody(model) {
+        const previous = this._focusedIdentity;
         destroyChildren(this._body);
+        this._renderScreen(model);
+        return this._restoreBodyFocus(previous);
+    }
+
+    // A rebuilt body keeps the caret on the same semantic control; when that
+    // control is gone the first body control takes it, and when the body has no
+    // control at all the selected tab does.
+    _restoreBodyFocus(identity) {
+        if (identity === null || identity === undefined) {
+            return null;
+        }
+        const controls = focusableControls(this._body);
+        const target = controls.find((control) => control.tpuwmIdentity === identity)
+            || controls[0]
+            || this._tabButtons.get(this._selectedTab)
+            || null;
+        if (target === null) {
+            this._focusedIdentity = null;
+            return null;
+        }
+        if (typeof target.grab_key_focus === "function") {
+            target.grab_key_focus();
+        }
+        return this._focusedIdentity;
+    }
+
+    _renderScreen(model) {
         if (model.screen === "unavailable") {
             this._renderUnavailable(model);
         } else if (model.screen === "paused") {
@@ -345,7 +387,10 @@ class MenuView {
             }
         }
         if (model.pausedProfiles.length > 0) {
-            const paused = this._button("tpuwm-paused-summary", "Manage paused profiles", () => this._actions.selectTab("profiles"));
+            const paused = this._identify(
+                this._button("tpuwm-paused-summary", "Manage paused profiles", () => this._actions.selectTab("profiles")),
+                "paused-summary",
+            );
             paused.set_child(this._label(`${model.pausedProfiles.length} paused profiles  ›`, "tpuwm-button-label"));
             this._body.add_child(paused);
         }
@@ -403,7 +448,10 @@ class MenuView {
             "A connected runtime must apply this policy before accepting new jobs. The applet does not modify queued jobs.",
             "tpuwm-hero-paused",
         ));
-        const resume = this._button("tpuwm-primary-button tpuwm-state-action", "Resume all workloads", this._actions.resumeAll);
+        const resume = this._identify(
+            this._button("tpuwm-primary-button tpuwm-state-action", "Resume all workloads", this._actions.resumeAll),
+            "resume-all",
+        );
         resume.set_child(this._label("Resume all workloads", "tpuwm-button-label"));
         this._body.add_child(resume);
         this._addGroupHeading("Paused groups", "Safety rules remain active");
@@ -440,7 +488,10 @@ class MenuView {
             row.add_child(copy);
             this._body.add_child(row);
         }
-        const retry = this._button("tpuwm-primary-button tpuwm-state-action", "Retry TPU detection", this._actions.refresh);
+        const retry = this._identify(
+            this._button("tpuwm-primary-button tpuwm-state-action", "Retry TPU detection", this._actions.refresh),
+            "retry-detection",
+        );
         retry.set_child(this._label("Retry detection", "tpuwm-button-label"));
         this._body.add_child(retry);
     }
@@ -463,12 +514,18 @@ class MenuView {
         row.add_child(copy);
         if (editableWeight) {
             const controls = this._box("tpuwm-weight-control");
-            const down = this._button("tpuwm-weight-button", `Decrease ${profile.title} weight`, () => this._actions.changeWeight(profile.id, -1));
+            const down = this._identify(
+                this._button("tpuwm-weight-button", `Decrease ${profile.title} weight`, () => this._actions.changeWeight(profile.id, -1)),
+                `weight-down:${profile.id}`,
+            );
             this._setButtonEnabled(down, profile.weight > 1);
             down.set_child(this._label("−", "tpuwm-button-label"));
             controls.add_child(down);
             controls.add_child(this._label(`${profile.weight}`, "tpuwm-weight-value"));
-            const up = this._button("tpuwm-weight-button", `Increase ${profile.title} weight`, () => this._actions.changeWeight(profile.id, 1));
+            const up = this._identify(
+                this._button("tpuwm-weight-button", `Increase ${profile.title} weight`, () => this._actions.changeWeight(profile.id, 1)),
+                `weight-up:${profile.id}`,
+            );
             this._setButtonEnabled(up, profile.weight < 5);
             up.set_child(this._label("+", "tpuwm-button-label"));
             controls.add_child(up);
@@ -476,11 +533,14 @@ class MenuView {
         } else {
             row.add_child(this._label(`Weight ${profile.weight}`, "tpuwm-weight-summary"));
         }
-        const toggle = this._button(
-            `tpuwm-toggle${profile.enabled ? " tpuwm-toggle-on" : ""}`,
-            `${profile.enabled ? "Disable" : "Enable"} ${profile.title}`,
-            () => this._actions.toggleProfile(profile.id),
-            "TOGGLE_BUTTON",
+        const toggle = this._identify(
+            this._button(
+                `tpuwm-toggle${profile.enabled ? " tpuwm-toggle-on" : ""}`,
+                `${profile.enabled ? "Disable" : "Enable"} ${profile.title}`,
+                () => this._actions.toggleProfile(profile.id),
+                "TOGGLE_BUTTON",
+            ),
+            `toggle:${profile.id}`,
         );
         this._setAccessibleState(toggle, "CHECKED", profile.enabled);
         toggle.set_child(this._label(profile.enabled ? "On" : "Off", "tpuwm-toggle-label"));
@@ -580,7 +640,17 @@ class MenuView {
         button.set_accessible_name(accessibleName);
         this._setAccessibleRole(button, role);
         button.connect("clicked", () => callback());
+        button.connect("key-focus-in", () => {
+            this._focusedIdentity = button.tpuwmIdentity === undefined
+                ? null
+                : button.tpuwmIdentity;
+        });
         return button;
+    }
+
+    _identify(actor, identity) {
+        actor.tpuwmIdentity = identity;
+        return actor;
     }
 
     // Assistive technology needs the semantic role and state, not only the
@@ -619,6 +689,7 @@ module.exports = {
     MenuView,
     TAB_NAMES,
     destroyChildren,
+    focusableControls,
     movedTabIndex,
     requireAction,
     setStyleClass,
