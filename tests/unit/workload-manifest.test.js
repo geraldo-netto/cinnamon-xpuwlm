@@ -65,6 +65,11 @@ test("version 1 workload manifest matches authoritative schema boundaries", () =
             accelerator: "npu",
             model: {...valid.requirements.model, format: "openvino"},
         }}), true],
+        ["gpu accepts ncnn", nested({requirements: {
+            accelerator: "gpu",
+            model: {...valid.requirements.model, format: "ncnn", fullyQuantized: false},
+        }}), true],
+        ["tpu rejects ncnn", nested({requirements: {model: {...valid.requirements.model, format: "ncnn"}}}), false],
         ["model quantization", nested({requirements: {model: {...valid.requirements.model, fullyQuantized: false}}}), false],
         ["model compiler", nested({requirements: {model: {...valid.requirements.model, minimumCompilerVersion: ""}}}), false],
         ["model runtime", nested({requirements: {model: {...valid.requirements.model, minimumRuntimeVersion: ""}}}), false],

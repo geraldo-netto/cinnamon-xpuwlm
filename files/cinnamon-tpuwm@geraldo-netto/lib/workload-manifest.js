@@ -14,7 +14,7 @@ const ROOT_PROPERTIES = new Set([
 const REQUIRED_REQUIREMENT_PROPERTIES = Object.freeze(["runtimeApi", "accelerator", "minimumDevices", "model"]);
 const REQUIREMENT_PROPERTIES = new Set([...REQUIRED_REQUIREMENT_PROPERTIES, "acceleratorPreference"]);
 const ACCELERATORS = new Set(["tpu", "npu", "gpu"]);
-const MODEL_FORMATS = new Set(["tflite-edgetpu", "tflite", "onnx", "openvino"]);
+const MODEL_FORMATS = new Set(["tflite-edgetpu", "tflite", "onnx", "openvino", "ncnn"]);
 const MODEL_PROPERTIES = new Set([
     "id", "version", "format", "fullyQuantized", "minimumCompilerVersion",
     "minimumRuntimeVersion",
