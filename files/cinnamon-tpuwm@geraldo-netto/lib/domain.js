@@ -18,7 +18,13 @@ const PROFILE_STATUSES = new Set([
     "unavailable",
 ]);
 const ALERT_SEVERITIES = new Set(["advisory", "warning", "critical"]);
-const DEVICE_KINDS = new Set(["usb", "pcie", "unknown"]);
+const DEVICE_KINDS = new Set(["usb", "pcie", "accel", "dri", "unknown"]);
+
+// Fallback priority and primary-selection order. The CPU is deliberately not a
+// backend: inference never falls back onto the host's scarcest shared resource.
+const BACKENDS = Object.freeze(["tpu", "npu", "gpu"]);
+const BACKEND_SET = new Set(BACKENDS);
+const MAX_DEVICES = 16;
 
 // Device presence and runtime availability are independent facts. A snapshot
 // that cannot be read says nothing about the accelerator, so device health
@@ -247,6 +253,76 @@ function normalizeDevice(candidate) {
         name: safeText(candidate.name, 120, available ? "TPU accelerator" : "No TPU detected"),
         kind: DEVICE_KINDS.has(candidate.kind) ? candidate.kind : "unknown",
         reason: safeText(candidate.reason, 240, available ? "" : "Device unavailable"),
+    };
+}
+
+function normalizeDeviceEntry(candidate, index = 0) {
+    if (!isPlainObject(candidate) || !BACKEND_SET.has(candidate.backend)) {
+        return null;
+    }
+    const available = candidate.available === true;
+    const backend = candidate.backend;
+    return {
+        id: safeText(candidate.id, 80) || `device-${boundedInteger(index, 0, MAX_DEVICES, 0)}`,
+        backend,
+        available,
+        state: available ? "present" : "absent",
+        name: safeText(candidate.name, 120, `${backend.toUpperCase()} accelerator`),
+        kind: DEVICE_KINDS.has(candidate.kind) ? candidate.kind : "unknown",
+        vendor: safeText(candidate.vendor, 80),
+        load: nullableBoundedNumber(candidate.load, 0, 100),
+        reason: safeText(candidate.reason, 240, available ? "" : "Device unavailable"),
+    };
+}
+
+function normalizeDevices(candidate) {
+    const supplied = Array.isArray(candidate) ? candidate : [];
+    const devices = [];
+    const seen = new Set();
+    for (const [index, entry] of supplied.entries()) {
+        if (devices.length >= MAX_DEVICES) {
+            break;
+        }
+        const normalized = normalizeDeviceEntry(entry, index);
+        if (normalized === null || seen.has(normalized.id)) {
+            continue;
+        }
+        seen.add(normalized.id);
+        devices.push(normalized);
+    }
+    return devices;
+}
+
+function primaryDevice(devices) {
+    for (const backend of BACKENDS) {
+        const match = devices.find((device) => device.backend === backend && device.available);
+        if (match) {
+            return match;
+        }
+    }
+    return null;
+}
+
+// Collapses the device list to the single most relevant entry: the first
+// available device in `BACKENDS` order. An all-absent list reports an absent
+// aggregate; an empty list reports unknown because nothing was probed.
+function aggregateDevice(devices, detail = "") {
+    const list = Array.isArray(devices) ? devices : [];
+    const primary = primaryDevice(list);
+    if (primary !== null) {
+        return {...primary};
+    }
+    const empty = list.length === 0;
+    return {
+        id: null,
+        backend: null,
+        available: false,
+        state: empty ? "unknown" : "absent",
+        name: empty ? "Accelerator state unknown" : "No accelerator detected",
+        kind: "unknown",
+        vendor: "",
+        load: null,
+        reason: safeText(detail, 240) || (empty ? "" : list[0].reason),
     };
 }
 
@@ -515,9 +591,11 @@ class WorkloadPortfolio {
 
 module.exports = {
     ALERT_SEVERITIES,
+    BACKENDS,
     DEFAULT_STALE_AFTER_MS,
     EMPTY_WORKLOAD_CATALOG,
     DEVICE_STATES,
+    MAX_DEVICES,
     MAX_ALERTS,
     MAX_CLOCK_SKEW_MS,
     MAX_WEIGHT,
@@ -543,9 +621,12 @@ module.exports = {
     isProfileDefinition,
     isSnapshotExpired,
     isValidGeneratedAt,
+    aggregateDevice,
     normalizeAlert,
     normalizeAlerts,
     normalizeDevice,
+    normalizeDeviceEntry,
+    normalizeDevices,
     normalizeMetrics,
     normalizeProfileRuntime,
     normalizeProfiles,

@@ -9,6 +9,7 @@
 | XTPU-0040 | open | high | m | XTPU-0001, XTPU-0002, XTPU-0005, XTPU-0035, XTPU-0036 | Keep applet plug-ins declarative and non-executable, validate all discovered data and paths at the trust boundary, and leave model execution and privileged actions behind the runtime service contract. |
 | XTPU-0042 | open | low | s | XTPU-0038 | Review the interim low-light catalog and profile draft committed in `828a261` after the plug-in is implemented; reconcile wording, model metadata, host-pipeline responsibilities, and measurable acceptance criteria with test results, then revise or remove the feature if warranted. |
 | XTPU-0047 | open | low | m | XTPU-0013 | Add deterministic staging, packaging, install and uninstall verification, and checksums; after licensing, add Spices release metadata and a real applet screenshot if public distribution is intended. |
+| XTPU-0048 | in_progress | high | xl | XTPU-0005, XTPU-0040 | Add multi-accelerator support with a tpu > npu > gpu hierarchy and no CPU backend: reshape the snapshot contract in place (version stays 1) to a devices[] array with per-device load, extend the manifest contract with an accelerator enum and ordered acceleratorPreference routing hints, add applet-side NPU (/dev/accel) and GPU (/dev/dri) fallback probing with vendor-aware labels, present accelerators in the panel and menu, rename the control bus to org.cinnamon.OmniTensor1, and consume the new OmniTensor Python service (sibling repo) that owns discovery, executors, scheduling, snapshot publishing, and command handling. |
 
 # Rejected / Won't fix
 
