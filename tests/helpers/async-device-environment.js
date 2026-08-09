@@ -5,8 +5,13 @@ function ioError(environment, name) {
     return {matches: (enumeration, candidate) => enumeration === environment.Gio.IOErrorEnum && candidate === code};
 }
 
-function createAsyncDeviceEnvironment({pcie = [], usb = []} = {}) {
+function createAsyncDeviceEnvironment({pcie = [], usb = [], accel = [], dri = [], sysfsVendors = {}} = {}) {
     const pciePaths = new Set(pcie.map((index) => `/dev/apex_${index}`));
+    const nodePaths = new Set([
+        ...accel.map((index) => `/dev/accel/accel${index}`),
+        ...dri.map((node) => `/dev/dri/renderD${node}`),
+    ]);
+    const nodeExists = (path) => pciePaths.has(path) || nodePaths.has(path);
     const usbByName = new Map(usb.map((device, index) => [device.name || `${index + 1}`, device]));
     const environment = {
         closed: false,
@@ -19,6 +24,9 @@ function createAsyncDeviceEnvironment({pcie = [], usb = []} = {}) {
     };
 
     function textAt(path) {
+        if (Object.hasOwn(sysfsVendors, path)) {
+            return sysfsVendors[path];
+        }
         const match = path.match(/^\/sys\/bus\/usb\/devices\/([^/]+)\/(idVendor|idProduct)$/u);
         if (!match) {
             return null;
@@ -34,7 +42,7 @@ function createAsyncDeviceEnvironment({pcie = [], usb = []} = {}) {
 
         query_info_finish() {
             const text = textAt(this.path);
-            if (!pciePaths.has(this.path) && text === null) {
+            if (!nodeExists(this.path) && text === null) {
                 throw ioError(environment, "NOT_FOUND");
             }
             return {

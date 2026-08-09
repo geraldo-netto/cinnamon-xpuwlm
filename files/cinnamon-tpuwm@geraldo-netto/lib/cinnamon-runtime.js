@@ -16,15 +16,28 @@ const CORAL_USB_IDENTITIES = Object.freeze([
     Object.freeze({vendor: USB_DFU_VENDOR, product: USB_DFU_PRODUCT, name: "Coral USB Accelerator (DFU)"}),
 ]);
 const DEVICE_CACHE_MS = 10000;
-const CONTROL_BUS_NAME = "org.cinnamon.TpuWorkloadManager1";
-const CONTROL_OBJECT_PATH = "/org/cinnamon/TpuWorkloadManager1";
-const CONTROL_INTERFACE = "org.cinnamon.TpuWorkloadManager1";
+const CONTROL_BUS_NAME = "org.cinnamon.OmniTensor1";
+const CONTROL_OBJECT_PATH = "/org/cinnamon/OmniTensor1";
+const CONTROL_INTERFACE = "org.cinnamon.OmniTensor1";
 const CONTROL_METHOD = "ApplyCommand";
 const CONTROL_TIMEOUT_MS = 5000;
 const MAX_PCIE_DEVICES = 8;
 const MAX_USB_DEVICES = 256;
 const MAX_USB_ID_BYTES = 32;
 const USB_BATCH_SIZE = 32;
+const MAX_ACCEL_DEVICES = 8;
+const MAX_RENDER_DEVICES = 8;
+const RENDER_NODE_BASE = 128;
+const NPU_VENDOR_NAMES = Object.freeze({
+    "0x8086": "Intel NPU",
+    "0x1002": "AMD NPU",
+    "0x1022": "AMD NPU",
+});
+const GPU_VENDOR_NAMES = Object.freeze({
+    "0x10de": "NVIDIA GPU",
+    "0x1002": "AMD GPU",
+    "0x8086": "Intel GPU",
+});
 
 function expandHome(path, homeDirectory) {
     const text = String(path || "");
@@ -403,13 +416,93 @@ function detectTpuDeviceAsync(environment, cancellable, callback) {
     });
 }
 
-function detectDevicesAsync(environment, cancellable, callback) {
-    detectTpuDeviceAsync(environment, cancellable, (error, tpu) => {
+// Vendor identification is best-effort: an unreadable sysfs vendor file must
+// never fail detection of a present device node.
+function describeAcceleratorAsync(vendorPath, vendorNames, fallbackName, environment, cancellable, callback) {
+    readTrimmedAsync(vendorPath, environment, cancellable, (error, vendor) => {
+        const identity = error ? "" : vendor;
+        callback({name: vendorNames[identity] || fallbackName, vendor: identity});
+    });
+}
+
+function detectNodeDeviceAsync(probe, environment, cancellable, callback, index = 0) {
+    if (index >= probe.maxDevices) {
+        callback(null, null);
+        return;
+    }
+    queryExistsAsync(probe.nodePath(index), environment, cancellable, (error, exists) => {
         if (error) {
             callback(error, null);
             return;
         }
-        callback(null, tpu === null ? [] : [tpu]);
+        if (!exists) {
+            detectNodeDeviceAsync(probe, environment, cancellable, callback, index + 1);
+            return;
+        }
+        describeAcceleratorAsync(
+            probe.vendorPath(index),
+            probe.vendorNames,
+            probe.fallbackName,
+            environment,
+            cancellable,
+            (described) => callback(null, {
+                id: probe.id(index),
+                backend: probe.backend,
+                available: true,
+                name: described.name,
+                kind: probe.kind,
+                vendor: described.vendor,
+                reason: "",
+            }),
+        );
+    });
+}
+
+function detectNpuDeviceAsync(environment, cancellable, callback) {
+    detectNodeDeviceAsync({
+        maxDevices: MAX_ACCEL_DEVICES,
+        nodePath: (index) => `/dev/accel/accel${index}`,
+        vendorPath: (index) => `/sys/class/accel/accel${index}/device/vendor`,
+        vendorNames: NPU_VENDOR_NAMES,
+        fallbackName: "NPU accelerator",
+        backend: "npu",
+        kind: "accel",
+        id: (index) => `npu-accel${index}`,
+    }, environment, cancellable, callback);
+}
+
+function detectGpuDeviceAsync(environment, cancellable, callback) {
+    detectNodeDeviceAsync({
+        maxDevices: MAX_RENDER_DEVICES,
+        nodePath: (index) => `/dev/dri/renderD${RENDER_NODE_BASE + index}`,
+        vendorPath: (index) => `/sys/class/drm/renderD${RENDER_NODE_BASE + index}/device/vendor`,
+        vendorNames: GPU_VENDOR_NAMES,
+        fallbackName: "GPU (render node)",
+        backend: "gpu",
+        kind: "dri",
+        id: (index) => `gpu-renderD${RENDER_NODE_BASE + index}`,
+    }, environment, cancellable, callback);
+}
+
+function detectDevicesAsync(environment, cancellable, callback) {
+    detectTpuDeviceAsync(environment, cancellable, (tpuError, tpu) => {
+        if (tpuError) {
+            callback(tpuError, null);
+            return;
+        }
+        detectNpuDeviceAsync(environment, cancellable, (npuError, npu) => {
+            if (npuError) {
+                callback(npuError, null);
+                return;
+            }
+            detectGpuDeviceAsync(environment, cancellable, (gpuError, gpu) => {
+                if (gpuError) {
+                    callback(gpuError, null);
+                    return;
+                }
+                callback(null, [tpu, npu, gpu].filter((device) => device !== null));
+            });
+        });
     });
 }
 
@@ -687,6 +780,8 @@ module.exports = {
     closeEnumeratorAsync,
     collectUsbNames,
     detectDevicesAsync,
+    detectGpuDeviceAsync,
+    detectNpuDeviceAsync,
     detectPcieDeviceAsync,
     detectTpuDeviceAsync,
     detectUsbDeviceAsync,
