@@ -152,6 +152,15 @@ function validateJsonArtifacts() {
         assert.equal(new Manifest.WorkloadDescriptor(manifest).id, entry.name);
     }
     assert.equal(packageJson.scripts.test.includes("test:mutation"), true);
+    assert.equal(packageJson.scripts["test:ci"], [
+        "npm run lint",
+        "npm run test:syntax",
+        "npm run check:workloads",
+        "npm run test:coverage",
+        "npm run test:fuzz",
+        "npm run test:visual",
+    ].join(" && "));
+    assert.equal(packageJson.scripts["test:ci"].includes("test:mutation"), false);
     assert.equal(packageJson.scripts.test.includes("test:visual"), true);
     assert.equal(packageJson.scripts.test.includes("check:workloads"), true);
     assert.equal(packageJson.scripts["test:contract"], "node --test tests/contract/*.test.js");
@@ -176,7 +185,8 @@ function validateWorkflows() {
         /npm audit(?! --omit=dev)/,
         "Development-only advisories must not gate the applet build",
     );
-    assert.match(quality, /run: npm test/);
+    assert.match(quality, /run: npm run test:ci/);
+    assert.doesNotMatch(quality, /run: npm test(?:\s|$)/mu);
     assert.doesNotMatch(quality, /TPUWM_SKIP_HOST_GATES/);
 
     assert.match(audit, /^ {2}schedule:$/mu);

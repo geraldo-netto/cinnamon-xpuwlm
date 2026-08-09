@@ -52,6 +52,11 @@ available CPU count. Successful results are cached under the ignored
 `mutation-report/` directory and reused when source remains unchanged; use
 `npx stryker run --force` for a deliberate clean mutation audit.
 
+GitHub Actions runs `npm run test:ci`, which preserves lint, artifact,
+workload-contract, coverage, fuzz, and visual gates but deliberately excludes
+Stryker so mutation runtime cannot block pull-request and push pipelines.
+`npm test` remains the complete local gate and still includes mutation testing.
+
 ### Compatibility warning
 
 Coral's public setup pages document older operating-system and Python ranges, while the relevant public software repositories are now archived. Before changing a host, verify that the target distribution, kernel, Python version, TensorFlow Lite runtime, Edge TPU runtime, PCIe driver, and compiler/runtime pair are mutually compatible. Prefer a reproducible environment whose versions are known to work. [USB setup requirements](https://coral.ai/docs/accelerator/get-started/#requirements) · [M.2 setup requirements](https://coral.ai/docs/m2/get-started/#requirements)

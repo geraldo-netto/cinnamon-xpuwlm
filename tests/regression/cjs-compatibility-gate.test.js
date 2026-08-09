@@ -36,3 +36,20 @@ test("compatibility matrix pins the declared runtime floor and current line", ()
     assert.match(workflow, /3b376cb554a8d3a559b1d34b6cd244554422e099c7708242de2fe94648838e79/u);
     assert.match(workflow, /run: npm run test:cjs/u);
 });
+
+test("CI keeps quality gates without running mutation tests", () => {
+    for (const command of [
+        "lint",
+        "test:syntax",
+        "check:workloads",
+        "test:coverage",
+        "test:fuzz",
+        "test:visual",
+    ]) {
+        assert.match(packageJson.scripts["test:ci"], new RegExp(`npm run ${command}`));
+    }
+    assert.doesNotMatch(packageJson.scripts["test:ci"], /test:mutation/u);
+    assert.match(packageJson.scripts.test, /test:mutation/u);
+    assert.match(workflow, /run: npm run test:ci/u);
+    assert.doesNotMatch(workflow, /run: npm test(?:\s|$)/mu);
+});

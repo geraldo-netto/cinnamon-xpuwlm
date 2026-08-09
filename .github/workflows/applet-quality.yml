@@ -101,5 +101,5 @@ jobs:
       - name: Audit shipped dependencies
         run: npm audit --omit=dev --audit-level=low
 
-      - name: Run complete quality gates
-        run: npm test
+      - name: Run CI quality gates
+        run: npm run test:ci
