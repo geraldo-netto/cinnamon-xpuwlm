@@ -37,7 +37,7 @@ backend. The OmniTensor service uses the matching runtime stack per backend:
 | --- | --- | --- | --- |
 | `tpu` | PCIe `/dev/apex_0`–`/dev/apex_7`; USB runtime `18d1:9302`; USB DFU `1a6e:089a` | Fixed Coral vendor/product IDs | `tflite-runtime` with the `libedgetpu.so.1` delegate |
 | `npu` | `/dev/accel/accel0`–`/dev/accel/accel7` | `/sys/class/accel/accelN/device/vendor` (`0x8086` Intel NPU, `0x1002`/`0x1022` AMD NPU, otherwise generic "NPU accelerator") | OpenVINO NPU plugin |
-| `gpu` | `/dev/dri/renderD128`–`/dev/dri/renderD135` | `/sys/class/drm/renderDN/device/vendor` (`0x10de` NVIDIA, `0x1002` AMD, `0x8086` Intel, otherwise generic) | ONNX Runtime CUDA/ROCm execution providers only; the CPU provider is deliberately never used |
+| `gpu` | `/dev/dri/renderD128`–`/dev/dri/renderD135` | `/sys/class/drm/renderDN/device/vendor` (`0x10de` NVIDIA, `0x1002` AMD, `0x8086` Intel, otherwise generic) | ncnn Vulkan compute first (any Vulkan driver; software llvmpipe devices are never selected), then ONNX Runtime CUDA/ROCm execution providers; the CPU provider is deliberately never used |
 
 Node presence is not a working runtime. Probing reports only that a device
 node exists; it does not verify that the driver is usable or that the runtime

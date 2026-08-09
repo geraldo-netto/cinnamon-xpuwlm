@@ -41,7 +41,7 @@ do when the count is unmet.
 
 ### Model requirements
 
-`model.format` is one of `tflite-edgetpu`, `tflite`, `onnx`, or `openvino`,
+`model.format` is one of `tflite-edgetpu`, `tflite`, `onnx`, `openvino`, or `ncnn`,
 with a `fullyQuantized` boolean. A tpu-designed workload must keep `model`
 null or declare `tflite-edgetpu` with `fullyQuantized: true`, because the Edge
 TPU only executes fully quantized, edgetpu-compiled TensorFlow Lite models.
