@@ -53,7 +53,7 @@ These rules apply to the entire repository.
 
 ## Git
 
-- Never push to any remote.
+- Never push automatically. Push only when the user explicitly requests it.
 - After an implementation or fix passes every applicable local test, regression, fuzz, mutation, and per-function coverage gate, commit the scoped changes automatically.
 - Do not commit a failing, incomplete, or blocked implementation or fix.
 - Do not stage or commit unrelated user changes.
