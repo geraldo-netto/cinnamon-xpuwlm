@@ -150,7 +150,13 @@ function readFileTextAsync(path, environment, options, callback) {
                 const stream = readSource.read_finish(readResult);
                 const opened = fileIdentity(stream.query_info(IDENTITY_ATTRIBUTES, cancellable));
                 if (!sameIdentity(expected, opened)) {
-                    fail(new Error(`Runtime snapshot path changed while opening: ${path}`));
+                    // A publisher that atomically replaces the snapshot between
+                    // the preflight and the open trips this check benignly, so
+                    // the error is marked transient and the gateway retries once
+                    // with a fresh preflight instead of failing the poll.
+                    const raced = new Error(`Runtime snapshot path changed while opening: ${path}`);
+                    raced.transientRace = true;
+                    fail(raced);
                     return;
                 }
                 stream.read_bytes_async(

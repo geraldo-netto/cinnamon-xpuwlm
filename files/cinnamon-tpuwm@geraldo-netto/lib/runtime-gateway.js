@@ -5,6 +5,7 @@ const FailureReporter = require("./failure-reporter.js");
 const SnapshotValidator = require("./snapshot-validator.js");
 
 const MAX_SNAPSHOT_BYTES = 1024 * 1024;
+const RETRYABLE_READS = 1;
 const SNAPSHOT_READ_FAILURE = "snapshot-read";
 const DEVICE_PROBE_FAILURE = "device-probe";
 
@@ -127,6 +128,11 @@ class RuntimeSnapshotGateway {
             return true;
         };
 
+        this._issueRead(nowMs, forceDeviceDetection, cancellable, deliver, RETRYABLE_READS);
+        return true;
+    }
+
+    _issueRead(nowMs, forceDeviceDetection, cancellable, deliver, retriesLeft) {
         try {
             this._readTextAsync(
                 this._path,
@@ -138,12 +144,12 @@ class RuntimeSnapshotGateway {
                     forceDeviceDetection,
                     cancellable,
                     deliver,
+                    retriesLeft,
                 ),
             );
         } catch (error) {
             this._reportReadFailure(error, nowMs, deliver);
         }
-        return true;
     }
 
     cancel() {
@@ -159,8 +165,14 @@ class RuntimeSnapshotGateway {
         return true;
     }
 
-    _complete(error, text, nowMs, forceDeviceDetection, cancellable, deliver) {
+    _complete(error, text, nowMs, forceDeviceDetection, cancellable, deliver, retriesLeft = 0) {
         if (error) {
+            // A concurrent atomic replace of the snapshot is benign: retry with
+            // a fresh preflight instead of flashing an error state for one poll.
+            if (error.transientRace === true && retriesLeft > 0) {
+                this._issueRead(nowMs, forceDeviceDetection, cancellable, deliver, retriesLeft - 1);
+                return false;
+            }
             this._reportReadFailure(error, nowMs, deliver);
             return false;
         }
