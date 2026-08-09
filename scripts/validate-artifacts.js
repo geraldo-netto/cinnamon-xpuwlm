@@ -21,6 +21,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "layout.js",
     "manager.js",
     "metadata.json",
+    "po",
     "runtime-gateway.js",
     "runtime-control-contract.js",
     "runtime-control-gateway.js",
@@ -151,6 +152,9 @@ function validateJsonArtifacts() {
         const manifest = readJson(appletRoot, `workloads/${entry.name}/manifest.json`);
         assert.equal(new Manifest.WorkloadDescriptor(manifest).id, entry.name);
     }
+    const potFile = fs.readFileSync(path.join(appletRoot, "po", `${UUID}.pot`), "utf8");
+    assert.match(potFile, /"Content-Type: text\/plain; charset=UTF-8\\n"/u);
+    assert.equal(potFile.includes(`Project-Id-Version: ${UUID}`), true);
     assert.equal(packageJson.scripts.test.includes("test:mutation"), true);
     assert.equal(packageJson.scripts["test:ci"], [
         "npm run lint",

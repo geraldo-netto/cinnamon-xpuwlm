@@ -41,6 +41,18 @@ The earlier idle-window use case can be evaluated without making it the document
 5. Run in observation mode and measure false-idle and missed-idle rates.
 6. If the Edge TPU provides a net benefit, map predictions only to safe, predefined actions.
 
+## Localization
+
+The applet ships a gettext template at
+`files/cinnamon-tpuwm@geraldo-netto/po/cinnamon-tpuwm@geraldo-netto.pot`,
+generated deterministically by `npm run generate:pot`. Cinnamon translates
+`settings-schema.json` (titles, descriptions, tooltips, units) and
+`metadata.json` (name, description) through the applet UUID text domain, so
+those strings are harvested into the template and a unit test fails whenever
+the committed template drifts from the sources. Translators add
+`po/<language>.po` files against the template; Cinnamon compiles and installs
+them under `~/.local/share/locale` when the applet is installed from Spices.
+
 ## Safety and operational limits
 
 - Only compiler-delegated operations are accelerated.
