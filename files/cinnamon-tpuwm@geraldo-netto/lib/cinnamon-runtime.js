@@ -183,6 +183,77 @@ function readFileTextAsync(path, environment, options, callback) {
     );
 }
 
+// Trust-boundary read for declarative plug-in manifests: the no-follow
+// preflight rejects symlinks and anything that is not a regular file (a fifo
+// would block the main loop forever), the declared size is checked before the
+// open, the identity of the opened stream must match the preflight so a path
+// object swapped in between is rejected, and the bytes actually read are
+// bounded rather than trusted from the declared size. An absent file reports
+// null so discovery can distinguish "missing" from "invalid".
+function readBoundedRegularFileText(path, environment, maximumBytes) {
+    const Gio = environment.Gio;
+    const file = Gio.File.new_for_path(path);
+    let info;
+    try {
+        info = file.query_info(IDENTITY_ATTRIBUTES, Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null);
+    } catch (error) {
+        if (isIoError(environment, error, "NOT_FOUND")) {
+            return null;
+        }
+        throw error;
+    }
+    if (info.get_file_type() !== Gio.FileType.REGULAR) {
+        throw new Error(`Not a regular file: ${path}`);
+    }
+    if (info.get_size() > maximumBytes) {
+        throw new RangeError(`File exceeds configured maximum size: ${path}`);
+    }
+    const stream = file.read(null);
+    try {
+        const opened = fileIdentity(stream.query_info(IDENTITY_ATTRIBUTES, null));
+        if (!sameIdentity(fileIdentity(info), opened)) {
+            throw new Error(`File changed while opening: ${path}`);
+        }
+        return decodeBytes(readBoundedStreamBytes(stream, maximumBytes, path), environment.ByteArray);
+    } finally {
+        stream.close(null);
+    }
+}
+
+function readBoundedStreamBytes(stream, maximumBytes, path) {
+    const chunks = [];
+    let total = 0;
+    for (;;) {
+        const bytes = stream.read_bytes(maximumBytes + 1, null);
+        const data = typeof bytes.get_data === "function" ? bytes.get_data() : bytes;
+        const length = data === null ? 0 : data.length;
+        if (length === 0) {
+            return joinChunks(chunks, total);
+        }
+        total += length;
+        if (total > maximumBytes) {
+            throw new RangeError(`File exceeds configured maximum size: ${path}`);
+        }
+        chunks.push(data);
+    }
+}
+
+function joinChunks(chunks, total) {
+    if (chunks.length === 1) {
+        return chunks[0];
+    }
+    if (chunks.every((chunk) => typeof chunk === "string")) {
+        return chunks.join("");
+    }
+    const merged = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+        merged.set(chunk, offset);
+        offset += chunk.length;
+    }
+    return merged;
+}
+
 function createCancellableFactory(environment) {
     return () => (environment.Gio && environment.Gio.Cancellable
         ? new environment.Gio.Cancellable()
@@ -223,7 +294,7 @@ function createWorkloadRegistry(path, environment) {
     return new WorkloadRegistry.ManifestDirectoryRegistry({
         root: path,
         listDirectories: (root) => listWorkloadDirectories(root, environment),
-        readText: (source, maximumBytes) => readFileText(source, environment, maximumBytes),
+        readText: (source, maximumBytes) => readBoundedRegularFileText(source, environment, maximumBytes),
     });
 }
 
@@ -883,7 +954,10 @@ module.exports = {
     isIoError,
     listWorkloadDirectories,
     listUsbDeviceNamesAsync,
+    joinChunks,
     queryExistsAsync,
+    readBoundedRegularFileText,
+    readBoundedStreamBytes,
     readFileText,
     readFileTextAsync,
     readTrimmed,

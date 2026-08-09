@@ -41,6 +41,9 @@ function validateDescriptors(candidates) {
 }
 
 function parseManifest(text, source) {
+    if (text === null) {
+        throw new RangeError(`Workload manifest is missing: ${source}`);
+    }
     if (typeof text !== "string") {
         throw new TypeError(`Workload manifest is not text: ${source}`);
     }

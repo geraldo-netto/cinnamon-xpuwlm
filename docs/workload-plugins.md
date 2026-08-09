@@ -56,6 +56,25 @@ quantization, capture, post-processing, policy, persistence, display, and result
 routing do not become accelerator work merely because a model is accelerated,
 regardless of whether the workload routes to a TPU, NPU, or GPU backend.
 
+## Trust boundary
+
+Plug-ins are declarative data, never code: the applet parses `manifest.json`
+with a strict version 1 validator and executes nothing from a plug-in
+directory. Discovery validates everything it touches:
+
+- directory names must match the workload identifier grammar before any path
+  is built from them, and discovery is bounded to the registry maximum;
+- manifest reads never follow symlinks, only accept regular files (a fifo or
+  device node fails loudly instead of blocking the desktop), re-verify the
+  opened file's identity, and bound the bytes actually read to 64 KiB rather
+  than trusting the declared size;
+- a manifest whose `id` differs from its directory name is rejected, and
+  duplicate identifiers fail registration.
+
+Model execution, device authorization, and every privileged action stay behind
+the runtime service contract (see [runtime-control.md](runtime-control.md));
+the applet only publishes intent and renders published state.
+
 ## Check and test
 
 ```bash

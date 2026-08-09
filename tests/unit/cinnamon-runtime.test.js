@@ -19,10 +19,58 @@ class FakeFile {
         return this.environment.existing.has(this.path);
     }
 
-    query_info() {
+    fileEntry() {
         const value = this.environment.files.get(this.path);
-        const size = typeof value === "string" ? new TextEncoder().encode(value).byteLength : 0;
-        return {get_size: () => size};
+        if (value !== null && typeof value === "object" && !(value instanceof Error)) {
+            return value;
+        }
+        return {contents: value};
+    }
+
+    query_info(_attributes, _flags, _cancellable) {
+        if (!this.environment.existing.has(this.path)) {
+            throw ioError(this.environment, "NOT_FOUND");
+        }
+        const entry = this.fileEntry();
+        if (entry.queryError) {
+            throw entry.queryError;
+        }
+        const text = typeof entry.contents === "string" ? entry.contents : (entry.chunks || []).join("");
+        return {
+            get_file_type: () => entry.type ?? this.environment.Gio.FileType.REGULAR,
+            get_size: () => entry.size ?? new TextEncoder().encode(text).byteLength,
+            get_attribute_uint64: () => entry.inode ?? 1,
+            get_attribute_uint32: () => entry.device ?? 1,
+        };
+    }
+
+    read(_cancellable) {
+        const entry = this.fileEntry();
+        if (entry.contents instanceof Error) {
+            throw entry.contents;
+        }
+        const pending = entry.chunks
+            ? entry.chunks.slice()
+            : [typeof entry.contents === "string" ? entry.contents : ""];
+        const state = {closed: false};
+        this.environment.streams.push(state);
+        return {
+            query_info: () => ({
+                get_file_type: () => entry.type ?? this.environment.Gio.FileType.REGULAR,
+                get_size: () => 0,
+                get_attribute_uint64: () => entry.openedInode ?? entry.inode ?? 1,
+                get_attribute_uint32: () => entry.openedDevice ?? entry.device ?? 1,
+            }),
+            read_bytes: (count) => {
+                let chunk = pending.length === 0 ? "" : String(pending.shift());
+                if (chunk.length > count) {
+                    pending.unshift(chunk.slice(count));
+                    chunk = chunk.slice(0, count);
+                }
+                return {get_data: () => chunk};
+            },
+            close: () => { state.closed = true; },
+        };
     }
 
     query_info_async(attributes, flags, priority, cancellable, callback) {
@@ -123,12 +171,13 @@ function environment(files = {}, usbNames = [], workloadNames = []) {
         usbNames,
         workloadNames,
         closed: false,
+        streams: [],
         ByteArray: {toString: (bytes) => String(bytes)},
         Gio: {
             File: {new_for_path: (path) => new FakeFile(path, env)},
             FileQueryInfoFlags: {NOFOLLOW_SYMLINKS: 1},
             IOErrorEnum: {NOT_FOUND: 1, CANCELLED: 19},
-            FileType: {REGULAR: 1, DIRECTORY: 2},
+            FileType: {REGULAR: 1, DIRECTORY: 2, SYMBOLIC_LINK: 3, SPECIAL: 4},
             Cancellable: class { cancel() { this.cancelled = true; } },
         },
         GLib: {
@@ -239,6 +288,76 @@ test("workload registry adapter discovers bounded validated manifests", () => {
     assert.equal(env.closed, true);
     const registry = Cinnamon.createWorkloadRegistry("/workloads", env);
     assert.deepEqual(registry.descriptors().map((entry) => entry.id), ["sample-workload"]);
+});
+
+test("bounded regular-file reader enforces the plug-in trust boundary", () => {
+    const env = environment({
+        "/plugins/ok/manifest.json": "{\"a\":1}",
+        "/plugins/link/manifest.json": {contents: "{}", type: 3},
+        "/plugins/fifo/manifest.json": {contents: "{}", type: 4},
+        "/plugins/big/manifest.json": {contents: "x".repeat(65), size: 65},
+        "/plugins/liar/manifest.json": {contents: "x".repeat(65), size: 8},
+        "/plugins/swap/manifest.json": {contents: "{}", openedInode: 2},
+        "/plugins/chunked/manifest.json": {chunks: ["ab", "cd"]},
+        "/plugins/empty/manifest.json": "",
+        "/plugins/denied/manifest.json": {queryError: new Error("denied")},
+        "/plugins/exact/manifest.json": {contents: "y".repeat(64), size: 64},
+        "/plugins/sysfs/manifest.json": {contents: "ok", size: 100},
+    });
+    const read = (path) => Cinnamon.readBoundedRegularFileText(path, env, 64);
+    assert.equal(read("/absent"), null);
+    assert.equal(read("/plugins/ok/manifest.json"), "{\"a\":1}");
+    assert.equal(read("/plugins/chunked/manifest.json"), "abcd");
+    assert.equal(read("/plugins/empty/manifest.json"), "");
+    assert.throws(() => read("/plugins/link/manifest.json"), /regular file/u);
+    assert.throws(() => read("/plugins/fifo/manifest.json"), /regular file/u);
+    assert.throws(() => read("/plugins/big/manifest.json"), /maximum size/u);
+    assert.throws(() => read("/plugins/liar/manifest.json"), /maximum size/u);
+    assert.throws(() => read("/plugins/swap/manifest.json"), /changed while opening/u);
+    assert.throws(() => read("/plugins/denied/manifest.json"), /denied/u);
+    assert.equal(read("/plugins/exact/manifest.json"), "y".repeat(64));
+    // A declared size beyond the budget is rejected before opening the file,
+    // even when the actual content would fit (sysfs-style page-sized st_size).
+    assert.throws(() => read("/plugins/sysfs/manifest.json"), /maximum size/u);
+    assert.equal(env.streams.length > 0, true);
+    assert.equal(env.streams.every((stream) => stream.closed), true);
+});
+
+test("chunk joining preserves text and binary content", () => {
+    assert.equal(Cinnamon.joinChunks([], 0), "");
+    assert.equal(Cinnamon.joinChunks(["only"], 4), "only");
+    assert.equal(Cinnamon.joinChunks(["ab", "cd"], 4), "abcd");
+    const merged = Cinnamon.joinChunks([new Uint8Array([104]), new Uint8Array([105])], 2);
+    assert.deepEqual([...merged], [104, 105]);
+    const single = new Uint8Array([1, 2]);
+    assert.equal(Cinnamon.joinChunks([single], 2), single);
+});
+
+test("bounded stream reads reject overflow past the byte budget", () => {
+    const chunks = ["abcd", "efgh", "i"];
+    let reads = 0;
+    const stream = {
+        read_bytes(count) {
+            const chunk = (chunks[reads] ?? "").slice(0, count);
+            reads += 1;
+            return {get_data: () => chunk};
+        },
+    };
+    assert.throws(
+        () => Cinnamon.readBoundedStreamBytes(stream, 8, "/stream"),
+        /maximum size/u,
+    );
+    assert.equal(Cinnamon.readBoundedStreamBytes({
+        read_bytes: () => ({get_data: () => null}),
+    }, 8, "/null"), "");
+    let rawDelivered = false;
+    assert.equal(Cinnamon.readBoundedStreamBytes({
+        read_bytes: () => {
+            const text = rawDelivered ? "" : "raw";
+            rawDelivered = true;
+            return text;
+        },
+    }, 8, "/raw"), "raw");
 });
 
 test("PCIe detection uses the first available accelerator", async () => {
