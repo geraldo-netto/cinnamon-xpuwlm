@@ -44,7 +44,7 @@ test("regression: epoch zero is rejected by every snapshot timestamp gate", () =
     assert.equal(new SchemaValidator.RuntimeSnapshotSchemaValidator().validate(candidate).valid, false);
     const snapshot = Domain.normalizeSnapshot(candidate, Fixtures.NOW);
     assert.equal(snapshot.source, "invalid");
-    assert.match(snapshot.device.reason, /timestamp is invalid/u);
+    assert.match(snapshot.health.detail, /timestamp is invalid/u);
 });
 
 test("regression: the clock-skew bound stays a domain-only rule", () => {

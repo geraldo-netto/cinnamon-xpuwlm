@@ -83,14 +83,14 @@ test("fuzz: every present non-text reader value fails without probing", () => {
             readTextAsync: (filename, options, callback) => callback(null, value),
             detectDevice() {
                 probes += 1;
-                return {available: true, name: "Coral USB", kind: "usb"};
+                return [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral USB", kind: "usb"}];
             },
             snapshotValidator: validator,
             warningReporter: {report() {}, recover() {}},
         });
         const snapshot = readSnapshot(gateway);
         assert.equal(snapshot.source, "invalid", `iteration ${iteration}`);
-        assert.equal(snapshot.device.available, false, `iteration ${iteration}`);
+        assert.deepEqual(snapshot.devices, [], `iteration ${iteration}`);
     }
     assert.equal(probes, 0);
 });

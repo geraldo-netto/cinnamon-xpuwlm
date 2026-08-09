@@ -19,7 +19,7 @@ test("manager polling integrates runtime state with bounded render failures", ()
         path: "/run/tpuwm.json",
         clock: {now: () => nowMs},
         readTextAsync: (filename, options, callback) => callback(null, ""),
-        detectDevice: () => ({available: true, name: "TPU", kind: "usb"}),
+        detectDevice: () => [{id: "tpu-usb", backend: "tpu", available: true, name: "TPU", kind: "usb"}],
         snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter,
     });

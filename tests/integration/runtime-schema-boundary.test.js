@@ -15,7 +15,10 @@ function silentReporter() {
 test("schema validator and gateway reject present invalid snapshots without probing", () => {
     const invalidDocuments = Fixtures.runtimeSnapshotSchemaCases()
         .filter((candidate) => !candidate.expected)
-        .filter((candidate) => Number.isFinite(candidate.value?.metrics?.load ?? 0));
+        .filter((candidate) => {
+            const load = candidate.value?.devices?.[0]?.load ?? 0;
+            return load === null || Number.isFinite(load);
+        });
     let probes = 0;
     let index = 0;
     const gateway = new Runtime.RuntimeSnapshotGateway({
@@ -24,7 +27,7 @@ test("schema validator and gateway reject present invalid snapshots without prob
         readTextAsync: (filename, options, callback) => callback(null, JSON.stringify(invalidDocuments[index].value)),
         detectDevice() {
             probes += 1;
-            return {available: true, name: "TPU", kind: "usb"};
+            return [{id: "tpu-usb", backend: "tpu", available: true, name: "TPU", kind: "usb"}];
         },
         snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: silentReporter(),
@@ -33,7 +36,7 @@ test("schema validator and gateway reject present invalid snapshots without prob
     for (index = 0; index < invalidDocuments.length; index += 1) {
         const snapshot = readSnapshot(gateway);
         assert.equal(snapshot.source, "invalid", invalidDocuments[index].name);
-        assert.equal(snapshot.device.available, false, invalidDocuments[index].name);
+        assert.deepEqual(snapshot.devices, [], invalidDocuments[index].name);
     }
     assert.equal(probes, 0);
 });
@@ -48,7 +51,7 @@ test("gateway reserves trusted device probing for absent or empty documents", ()
         readTextAsync: (filename, options, callback) => callback(null, documents[index]),
         detectDevice() {
             probes += 1;
-            return {available: true, name: "Coral USB", kind: "usb"};
+            return [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral USB", kind: "usb"}];
         },
         snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: silentReporter(),
@@ -57,7 +60,7 @@ test("gateway reserves trusted device probing for absent or empty documents", ()
     for (index = 0; index < documents.length; index += 1) {
         const snapshot = readSnapshot(gateway);
         assert.equal(snapshot.source, "probe");
-        assert.equal(snapshot.device.available, true);
+        assert.equal(snapshot.devices[0].available, true);
     }
     assert.equal(probes, documents.length);
 });
@@ -72,7 +75,7 @@ test("reader and parser integration rejects non-text present values before probi
         readTextAsync: (filename, options, callback) => callback(null, documents[index]),
         detectDevice() {
             probes += 1;
-            return {available: true, name: "Coral USB", kind: "usb"};
+            return [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral USB", kind: "usb"}];
         },
         snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: silentReporter(),

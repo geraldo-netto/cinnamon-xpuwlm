@@ -23,8 +23,16 @@ function validSnapshot() {
     return {
         version: Domain.SNAPSHOT_VERSION,
         generatedAt: NOW - 500,
-        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
-        metrics: {load: 37.5, queueDepth: 4, runningProfiles: 2},
+        devices: [{
+            id: "tpu-usb",
+            backend: "tpu",
+            available: true,
+            name: "Coral USB",
+            kind: "usb",
+            load: 37.5,
+            reason: "",
+        }],
+        metrics: {queueDepth: 4, runningProfiles: 2},
         profiles: {},
         alerts: [],
     };
@@ -42,18 +50,18 @@ test("UTF-8 byte counting is runtime-neutral", () => {
 
 test("snapshot document parser rejects non-text, oversized, and malformed data", () => {
     const validator = snapshotValidator();
-    assert.match(Runtime.parseSnapshotDocument(null, NOW, validator).device.reason, /not text/);
+    assert.match(Runtime.parseSnapshotDocument(null, NOW, validator).health.detail, /not text/);
     assert.match(Runtime.parseSnapshotDocument(
         "x".repeat(Runtime.MAX_SNAPSHOT_BYTES + 1),
         NOW,
         validator,
-    ).device.reason, /exceeds/);
+    ).health.detail, /exceeds/);
     assert.match(Runtime.parseSnapshotDocument(
         "x".repeat(Runtime.MAX_SNAPSHOT_BYTES),
         NOW,
         validator,
-    ).device.reason, /invalid JSON/u);
-    assert.match(Runtime.parseSnapshotDocument("{", NOW, validator).device.reason, /invalid JSON/);
+    ).health.detail, /invalid JSON/u);
+    assert.match(Runtime.parseSnapshotDocument("{", NOW, validator).health.detail, /invalid JSON/);
     const parsed = Runtime.parseSnapshotDocument(JSON.stringify(validSnapshot()), NOW, validator);
     assert.equal(parsed.source, "runtime");
     assert.equal(parsed.metrics.queueDepth, 4);
@@ -62,17 +70,17 @@ test("snapshot document parser rejects non-text, oversized, and malformed data",
         JSON.stringify({...validSnapshot(), extra: true}),
         NOW,
         validator,
-    ).device.reason, /does not match/u);
+    ).health.detail, /does not match/u);
     assert.match(Runtime.parseSnapshotDocument(
         JSON.stringify(validSnapshot()),
         NOW,
         {validate() { throw new Error("validator unavailable"); }},
-    ).device.reason, /validation failed/u);
+    ).health.detail, /validation failed/u);
     assert.match(Runtime.parseSnapshotDocument(
         JSON.stringify(validSnapshot()),
         NOW,
         {validate: () => true},
-    ).device.reason, /validation failed/u);
+    ).health.detail, /validation failed/u);
 });
 
 test("snapshot parser applies injected workload catalog", () => {
@@ -234,7 +242,7 @@ test("gateway probes only when documents are absent", () => {
         readTextAsync: (filename, options, callback) => callback(null, null),
         detectDevice(forceDeviceDetection) {
             probes.push(forceDeviceDetection);
-            return {available: true, name: "Coral", kind: "usb"};
+            return [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral", kind: "usb"}];
         },
         snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter(),
@@ -256,7 +264,7 @@ test("gateway rejects present non-text documents without probing", () => {
         readTextAsync: (filename, options, callback) => callback(null, documents[index]),
         detectDevice() {
             probes += 1;
-            return {available: true, name: "Coral", kind: "usb"};
+            return [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral", kind: "usb"}];
         },
         snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter(),
@@ -265,8 +273,8 @@ test("gateway rejects present non-text documents without probing", () => {
     for (index = 0; index < documents.length; index += 1) {
         const snapshot = readSnapshot(gateway);
         assert.equal(snapshot.source, "invalid");
-        assert.equal(snapshot.device.available, false);
-        assert.match(snapshot.device.reason, /not text/u);
+        assert.deepEqual(snapshot.devices, []);
+        assert.match(snapshot.health.detail, /not text/u);
     }
     assert.equal(probes, 0);
 });
@@ -280,14 +288,14 @@ test("gateway fails closed and logs runtime read failures", () => {
         readTextAsync(filename, options, callback) { callback(new Error("missing"), null); },
         detectDevice() {
             probes += 1;
-            return {available: true, name: "Coral", kind: "usb"};
+            return [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral", kind: "usb"}];
         },
         snapshotValidator: snapshotValidator(),
         warningReporter: warningReporter({warn: (message) => warnings.push(message)}),
     });
     const result = readSnapshot(gateway);
     assert.equal(result.source, "error");
-    assert.equal(result.device.available, false);
+    assert.deepEqual(result.devices, []);
     assert.equal(probes, 0);
     assert.match(warnings[0], /Could not read/);
 });
@@ -306,8 +314,8 @@ test("gateway fails closed when device probing throws", () => {
     });
     const result = readSnapshot(gateway);
     assert.equal(result.source, "probe");
-    assert.equal(result.device.available, false);
-    assert.match(result.device.reason, /discovery failed/);
+    assert.deepEqual(result.devices, []);
+    assert.match(result.health.detail, /discovery failed/);
     assert.equal(warnings.length, 1);
     assert.equal(Domain.DEFAULT_STALE_AFTER_MS > 1000, true);
 });
@@ -327,7 +335,7 @@ test("gateway fails closed when asynchronous device probing reports an error", (
     });
     const snapshot = readSnapshot(subject);
     assert.equal(snapshot.source, "probe");
-    assert.match(snapshot.device.reason, /failed/u);
+    assert.match(snapshot.health.detail, /failed/u);
     assert.match(reports[0][1], /async denied/u);
 });
 
@@ -389,6 +397,6 @@ test("gateway silent reporter safely absorbs fallback failures", () => {
         warningReporter: warningReporter(),
     });
     const result = readSnapshot(gateway);
-    assert.equal(result.device.available, false);
+    assert.deepEqual(result.devices, []);
     assert.equal(result.source, "error");
 });

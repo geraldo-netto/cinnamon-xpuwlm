@@ -314,19 +314,24 @@ test("USB discovery inspects only the bounded device prefix", async () => {
     assert.equal(env.closed, true);
 });
 
-test("combined detection prioritizes PCIe, then USB, then an actionable fallback", async () => {
-    const pcie = await detectWith(Cinnamon.detectDeviceAsync, environment({"/dev/apex_0": ""}));
-    assert.equal(pcie.kind, "pcie");
+test("combined detection prioritizes PCIe, then USB, then reports absence by omission", async () => {
+    const pcie = await detectWith(Cinnamon.detectDevicesAsync, environment({"/dev/apex_0": ""}));
+    assert.equal(pcie.length, 1);
+    assert.equal(pcie[0].kind, "pcie");
+    assert.equal(pcie[0].backend, "tpu");
+    assert.equal(pcie[0].id, "tpu-pcie-0");
     const root = "/sys/bus/usb/devices";
-    const usb = await detectWith(Cinnamon.detectDeviceAsync, environment({
+    const usb = await detectWith(Cinnamon.detectDevicesAsync, environment({
         [root]: "",
         [`${root}/1/idVendor`]: Cinnamon.USB_VENDOR,
         [`${root}/1/idProduct`]: Cinnamon.USB_PRODUCT,
     }, ["1"]));
-    assert.equal(usb.kind, "usb");
-    const absent = await detectWith(Cinnamon.detectDeviceAsync, environment());
-    assert.equal(absent.available, false);
-    assert.match(absent.reason, /Connect/);
+    assert.equal(usb.length, 1);
+    assert.equal(usb[0].kind, "usb");
+    assert.equal(usb[0].backend, "tpu");
+    assert.equal(usb[0].id, "tpu-usb");
+    const absent = await detectWith(Cinnamon.detectDevicesAsync, environment());
+    assert.deepEqual(absent, []);
 });
 
 test("asynchronous discovery adapters report IO failures and cancellation", () => {
@@ -388,8 +393,8 @@ test("cached detector respects TTL and supports invalidation", async () => {
     const detector = new Cinnamon.CachedDeviceDetector(env, {now: () => now}, 100);
     assert.throws(() => detector.detect(false, {}, null), /callback/u);
     const first = await cachedDetection(detector);
-    first.name = "mutated";
-    assert.equal((await cachedDetection(detector)).name, "Coral PCIe Edge TPU");
+    first[0].name = "mutated";
+    assert.equal((await cachedDetection(detector))[0].name, "Coral PCIe Edge TPU");
     assert.equal(probes, 1);
     now += 100;
     await cachedDetection(detector);

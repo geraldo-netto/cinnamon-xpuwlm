@@ -18,8 +18,8 @@ function expiredDocument() {
     return {
         version: Domain.SNAPSHOT_VERSION,
         generatedAt: NOW - Domain.DEFAULT_STALE_AFTER_MS - 1,
-        device: {available: true, name: "Coral USB", kind: "usb"},
-        metrics: {load: null, queueDepth: 0, runningProfiles: 0},
+        devices: [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral USB", kind: "usb"}],
+        metrics: {queueDepth: 0, runningProfiles: 0},
         profiles: {},
         alerts: [],
     };
@@ -39,8 +39,8 @@ test("regression: a slow poll interval cannot present expired state as online", 
             read: (options, callback) => callback(Domain.normalizeSnapshot({
                 version: Domain.SNAPSHOT_VERSION,
                 generatedAt: nowMs,
-                device: {available: true, name: "Coral USB", kind: "usb"},
-                metrics: {load: 40, queueDepth: 0, runningProfiles: 0},
+                devices: [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral USB", kind: "usb"}],
+                metrics: {queueDepth: 0, runningProfiles: 0},
                 profiles: {},
                 alerts: [],
             }, nowMs)),
@@ -85,7 +85,7 @@ test("regression: non-finite freshness windows cannot keep runtime state connect
     ]) {
         const direct = Domain.normalizeSnapshot(document, NOW, staleAfterMs);
         assert.equal(direct.stale, true);
-        assert.equal(direct.device.available, false);
+        assert.deepEqual(direct.devices, []);
 
         const gateway = new Runtime.RuntimeSnapshotGateway({
             path: "/run/tpuwm.json",
@@ -100,6 +100,6 @@ test("regression: non-finite freshness windows cannot keep runtime state connect
         });
         const adapted = readSnapshot(gateway);
         assert.equal(adapted.stale, true);
-        assert.equal(adapted.device.available, false);
+        assert.deepEqual(adapted.devices, []);
     }
 });

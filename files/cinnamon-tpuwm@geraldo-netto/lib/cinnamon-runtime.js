@@ -251,6 +251,8 @@ function detectPcieDeviceAsync(environment, cancellable, callback, index = 0) {
     queryExistsAsync(`/dev/apex_${index}`, environment, cancellable, (error, exists) => {
         if (error || exists) {
             callback(error, exists ? {
+                id: `tpu-pcie-${index}`,
+                backend: "tpu",
                 available: true,
                 name: index === 0 ? "Coral PCIe Edge TPU" : `Coral PCIe Edge TPU ${index + 1}`,
                 kind: "pcie",
@@ -378,6 +380,8 @@ function detectUsbDeviceAsync(environment, cancellable, callback) {
         }
         detectUsbNameAsync(names, 0, environment, cancellable, (identityError, identity) => {
             callback(identityError, identity === null ? null : {
+                id: "tpu-usb",
+                backend: "tpu",
                 available: true,
                 name: identity.name,
                 kind: "usb",
@@ -387,20 +391,25 @@ function detectUsbDeviceAsync(environment, cancellable, callback) {
     });
 }
 
-function detectDeviceAsync(environment, cancellable, callback) {
+// Detection reports found devices only; absence is expressed by omission and
+// aggregated by the domain, so an empty array means "probe ran, nothing found".
+function detectTpuDeviceAsync(environment, cancellable, callback) {
     detectPcieDeviceAsync(environment, cancellable, (pcieError, pcie) => {
         if (pcieError || pcie !== null) {
             callback(pcieError, pcie);
             return;
         }
-        detectUsbDeviceAsync(environment, cancellable, (usbError, usb) => {
-            callback(usbError, usb || {
-                available: false,
-                name: "No TPU detected",
-                kind: "unknown",
-                reason: "Connect a Coral USB or PCIe Edge TPU",
-            });
-        });
+        detectUsbDeviceAsync(environment, cancellable, callback);
+    });
+}
+
+function detectDevicesAsync(environment, cancellable, callback) {
+    detectTpuDeviceAsync(environment, cancellable, (error, tpu) => {
+        if (error) {
+            callback(error, null);
+            return;
+        }
+        callback(null, tpu === null ? [] : [tpu]);
     });
 }
 
@@ -422,15 +431,15 @@ class CachedDeviceDetector {
         }
         const nowMs = this._clock.now();
         if (this._cached !== null && nowMs - this._cachedAt < this._cacheMs) {
-            callback(null, {...this._cached});
+            callback(null, this._cached.map((device) => ({...device})));
             return true;
         }
-        detectDeviceAsync(this._environment, options.cancellable || null, (error, device) => {
+        detectDevicesAsync(this._environment, options.cancellable || null, (error, devices) => {
             if (!error) {
-                this._cached = {...device};
+                this._cached = devices.map((device) => ({...device}));
                 this._cachedAt = this._clock.now();
             }
-            callback(error, device === null ? null : {...device});
+            callback(error, error ? null : devices.map((device) => ({...device})));
         });
         return true;
     }
@@ -677,8 +686,9 @@ module.exports = {
     decodeBytes,
     closeEnumeratorAsync,
     collectUsbNames,
-    detectDeviceAsync,
+    detectDevicesAsync,
     detectPcieDeviceAsync,
+    detectTpuDeviceAsync,
     detectUsbDeviceAsync,
     detectUsbNameAsync,
     expandHome,

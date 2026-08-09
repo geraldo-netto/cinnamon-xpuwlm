@@ -14,8 +14,16 @@ function validSnapshot(overrides = {}) {
     return {
         version: Domain.SNAPSHOT_VERSION,
         generatedAt: NOW - 500,
-        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
-        metrics: {load: 37.5, queueDepth: 4, runningProfiles: 2},
+        devices: [{
+            id: "tpu-usb",
+            backend: "tpu",
+            available: true,
+            name: "Coral USB",
+            kind: "usb",
+            load: 37.5,
+            reason: "",
+        }],
+        metrics: {queueDepth: 4, runningProfiles: 2},
         profiles: {
             "hardware-health": {status: "running", queued: 3, detail: "sampling"},
         },
@@ -176,26 +184,26 @@ test("runtime fields preserve unknown measurements and reject unsafe content", (
         queued: 0,
         detail: "",
     });
-    assert.deepEqual(Domain.normalizeDevice(null), {
-        available: false,
-        state: "absent",
-        name: "No TPU detected",
-        kind: "unknown",
-        reason: "Device state is missing",
-    });
-    assert.deepEqual(Domain.normalizeDevice({available: true, name: 4, kind: "future", reason: 7}), {
-        available: true,
-        state: "present",
-        name: "TPU accelerator",
-        kind: "unknown",
-        reason: "",
-    });
-    assert.deepEqual(Domain.normalizeMetrics({load: "invalid", queueDepth: 1.9, runningProfiles: 99}, CATALOG), {
-        load: null,
+    assert.equal(Domain.normalizeDeviceEntry(null), null);
+    assert.deepEqual(
+        Domain.normalizeDeviceEntry({backend: "tpu", available: true, name: 4, kind: "future", reason: 7}),
+        {
+            id: "device-0",
+            backend: "tpu",
+            available: true,
+            state: "present",
+            name: "TPU accelerator",
+            kind: "unknown",
+            vendor: "",
+            load: null,
+            reason: "",
+        },
+    );
+    assert.deepEqual(Domain.normalizeMetrics({queueDepth: 1.9, runningProfiles: 99}, CATALOG), {
         queueDepth: 1,
         runningProfiles: DEFINITIONS.length,
     });
-    assert.deepEqual(Domain.normalizeMetrics(null), {load: null, queueDepth: 0, runningProfiles: 0});
+    assert.deepEqual(Domain.normalizeMetrics(null), {queueDepth: 0, runningProfiles: 0});
 });
 
 test("alerts require stable identities and normalize evidence", () => {
@@ -226,14 +234,15 @@ test("alerts require stable identities and normalize evidence", () => {
 
 test("snapshot normalization fails closed for invalid, unsupported, and stale input", () => {
     assert.equal(Domain.normalizeSnapshot(null, NOW).source, "invalid");
-    assert.match(Domain.normalizeSnapshot({version: 2}, NOW).device.reason, /Unsupported/);
-    assert.match(Domain.normalizeSnapshot({version: 1, generatedAt: 0}, NOW).device.reason, /timestamp/);
-    assert.match(Domain.normalizeSnapshot({version: 1, generatedAt: NOW + 60_001}, NOW).device.reason, /timestamp/);
+    assert.match(Domain.normalizeSnapshot({version: 2}, NOW).health.detail, /Unsupported/);
+    assert.match(Domain.normalizeSnapshot({version: 1, generatedAt: 0}, NOW).health.detail, /timestamp/);
+    assert.match(Domain.normalizeSnapshot({version: 1, generatedAt: NOW + 60_001}, NOW).health.detail, /timestamp/);
     assert.equal(Domain.normalizeSnapshot(validSnapshot({generatedAt: NOW + 60_000}), NOW).source, "runtime");
     const stale = Domain.normalizeSnapshot(validSnapshot({generatedAt: NOW - 3000}), NOW, 1000);
     assert.equal(stale.stale, true);
     assert.equal(stale.source, "runtime");
-    assert.equal(stale.device.available, false);
+    assert.deepEqual(stale.devices, []);
+    assert.equal(stale.health.device, "unknown");
     assert.equal(stale.generatedAt, NOW - 3000);
 });
 
@@ -247,8 +256,8 @@ test("snapshot normalization accepts only known profiles and valid alerts", () =
         alerts,
     }), NOW, Domain.DEFAULT_STALE_AFTER_MS, CATALOG);
     assert.equal(result.source, "runtime");
-    assert.equal(result.device.available, true);
-    assert.equal(result.metrics.load, 37.5);
+    assert.equal(result.devices[0].available, true);
+    assert.equal(result.devices[0].load, 37.5);
     assert.deepEqual(Object.keys(result.profiles), ["hardware-health"]);
     assert.equal(result.alerts.length, 1);
     assert.equal(result.alerts[0].severity, "warning");
@@ -272,16 +281,16 @@ test("connected snapshots expire on the clock independently of any reader", () =
     const expired = Domain.expireSnapshot(connected, deadline + 1);
     assert.equal(expired.stale, true);
     assert.equal(expired.source, "runtime");
-    assert.equal(expired.device.available, false);
+    assert.deepEqual(expired.devices, []);
     assert.equal(expired.generatedAt, NOW);
-    assert.match(expired.device.reason, /stale/u);
+    assert.match(expired.health.detail, /stale/u);
     assert.deepEqual(expired, Domain.normalizeSnapshot(validSnapshot({generatedAt: NOW}), deadline + 1));
 });
 
 test("snapshots without a live freshness deadline never expire on the clock", () => {
     const later = NOW + 10_000_000;
     for (const snapshot of [
-        Domain.probeSnapshot({available: true, name: "PCIe", kind: "pcie"}, NOW),
+        Domain.probeSnapshot([{id: "tpu-pcie-0", backend: "tpu", available: true, name: "PCIe", kind: "pcie"}], NOW),
         Domain.unavailableSnapshot("disconnected", NOW, "error"),
         Domain.staleSnapshot(NOW),
         null,
@@ -312,14 +321,18 @@ test("snapshot normalization bounds the accepted alert list", () => {
 
 test("probe and unavailable snapshots carry explicit safe fallback state", () => {
     const unavailable = Domain.unavailableSnapshot(" disconnected ", NOW, "error");
-    assert.equal(unavailable.device.reason, "disconnected");
-    assert.equal(unavailable.metrics.load, null);
+    assert.equal(unavailable.health.detail, "disconnected");
+    assert.equal(unavailable.metrics.queueDepth, null);
+    assert.deepEqual(unavailable.devices, []);
     assert.equal(unavailable.source, "error");
 
-    const probe = Domain.probeSnapshot({available: true, name: "PCIe", kind: "pcie"}, NOW);
+    const probe = Domain.probeSnapshot(
+        [{id: "tpu-pcie-0", backend: "tpu", available: true, name: "PCIe", kind: "pcie"}],
+        NOW,
+    );
     assert.equal(probe.source, "probe");
-    assert.equal(probe.device.available, true);
-    assert.equal(probe.device.kind, "pcie");
+    assert.equal(probe.devices[0].available, true);
+    assert.equal(probe.devices[0].kind, "pcie");
 });
 
 test("portfolio applies idempotent profile, weight, and global pause changes", () => {

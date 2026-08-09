@@ -17,8 +17,8 @@ function document(name) {
     return JSON.stringify({
         version: Domain.SNAPSHOT_VERSION,
         generatedAt: NOW,
-        device: {available: true, name, kind: "usb", reason: ""},
-        metrics: {load: 10, queueDepth: 0, runningProfiles: 0},
+        devices: [{id: "tpu-usb", backend: "tpu", available: true, name, kind: "usb", reason: ""}],
+        metrics: {queueDepth: 0, runningProfiles: 0},
         profiles: {},
         alerts: [],
     });
@@ -52,8 +52,8 @@ test("regression: only the newest read is delivered when refreshes overlap", () 
     const subject = gateway(reader);
     const delivered = [];
 
-    subject.read({}, (snapshot) => delivered.push(["first", snapshot.device.name]));
-    subject.read({}, (snapshot) => delivered.push(["second", snapshot.device.name]));
+    subject.read({}, (snapshot) => delivered.push(["first", snapshot.devices[0].name]));
+    subject.read({}, (snapshot) => delivered.push(["second", snapshot.devices[0].name]));
     assert.equal(reader.pending.length, 2);
 
     reader.pending[1].callback(null, document("Newest"));
@@ -154,8 +154,8 @@ test("regression: the manager guards sequencing even when the gateway does not",
     manager.refresh();
     assert.equal(callbacks.length, 2);
 
-    callbacks[1](Domain.probeSnapshot({available: true, name: "Newest", kind: "usb"}, NOW));
-    callbacks[0](Domain.probeSnapshot({available: true, name: "Stale", kind: "usb"}, NOW));
+    callbacks[1](Domain.probeSnapshot([{id: "tpu-usb", backend: "tpu", available: true, name: "Newest", kind: "usb"}], NOW));
+    callbacks[0](Domain.probeSnapshot([{id: "tpu-usb", backend: "tpu", available: true, name: "Stale", kind: "usb"}], NOW));
 
     assert.deepEqual(names, ["Newest"]);
     manager.dispose();
@@ -226,14 +226,14 @@ test("regression: a gateway without cancellation support is still replaceable", 
     const manager = new Manager.WorkloadManager({
         workloadRegistry: BuiltIns.coreRegistry(),
         repository: {load: () => ({}), save() {}},
-        runtimeGateway: {read: (options, callback) => callback(Domain.probeSnapshot({available: true, name: "First", kind: "usb"}, NOW))},
+        runtimeGateway: {read: (options, callback) => callback(Domain.probeSnapshot([{id: "tpu-usb", backend: "tpu", available: true, name: "First", kind: "usb"}], NOW))},
         errorReporter: {report() {}, recover() {}},
         clock: {now: () => NOW},
     });
     manager.start();
     assert.equal(manager.state().device.name, "First");
     manager.replaceRuntimeGateway({
-        read: (options, callback) => callback(Domain.probeSnapshot({available: true, name: "Second", kind: "usb"}, NOW)),
+        read: (options, callback) => callback(Domain.probeSnapshot([{id: "tpu-usb", backend: "tpu", available: true, name: "Second", kind: "usb"}], NOW)),
     });
     assert.equal(manager.state().device.name, "Second");
     manager.dispose();

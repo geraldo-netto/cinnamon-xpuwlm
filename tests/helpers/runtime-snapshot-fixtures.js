@@ -6,14 +6,29 @@ function validRuntimeSnapshot() {
     return {
         version: 1,
         generatedAt: NOW - 500,
-        device: {
-            available: true,
-            name: "Coral USB",
-            kind: "usb",
-            reason: "",
-        },
+        devices: [
+            {
+                id: "tpu-usb",
+                backend: "tpu",
+                available: true,
+                name: "Coral USB",
+                kind: "usb",
+                vendor: "18d1:9302",
+                load: 37.5,
+                reason: "",
+            },
+            {
+                id: "gpu-renderD128",
+                backend: "gpu",
+                available: false,
+                name: "NVIDIA GPU",
+                kind: "dri",
+                vendor: "0x10de",
+                load: null,
+                reason: "Runtime not installed",
+            },
+        ],
         metrics: {
-            load: 37.5,
             queueDepth: 4,
             runningProfiles: 2,
         },
@@ -58,23 +73,35 @@ function snapshotCase(name, expected, change) {
     return {name, expected, value};
 }
 
+function deviceEntry(overrides = {}) {
+    return {
+        id: "npu-accel0",
+        backend: "npu",
+        available: true,
+        name: "Intel NPU",
+        kind: "accel",
+        ...overrides,
+    };
+}
+
 function runtimeSnapshotSchemaCases() {
     const cases = [
         {name: "complete snapshot", expected: true, value: validRuntimeSnapshot()},
         snapshotCase("optional fields absent", true, (value) => {
-            delete value.device.reason;
+            value.devices = [deviceEntry()];
             value.profiles = {future: {}};
             delete value.alerts[0].confidence;
             delete value.alerts[0].riskScore;
             delete value.alerts[0].resolved;
         }),
         snapshotCase("nullable measurements", true, (value) => {
-            value.metrics.load = null;
+            value.devices[0].load = null;
             value.alerts[0].confidence = null;
             value.alerts[0].riskScore = null;
         }),
         snapshotCase("zero minima", true, (value) => {
-            value.metrics = {load: 0, queueDepth: 0, runningProfiles: 0};
+            value.devices[0].load = 0;
+            value.metrics = {queueDepth: 0, runningProfiles: 0};
             value.profiles.future = {queued: 0};
             value.alerts[0].timestamp = 0;
             value.alerts[0].confidence = 0;
@@ -84,14 +111,35 @@ function runtimeSnapshotSchemaCases() {
             value.generatedAt = 1;
         }),
         snapshotCase("numeric maxima", true, (value) => {
-            value.metrics = {load: 100, queueDepth: 1_000_000, runningProfiles: 128};
+            value.devices[0].load = 100;
+            value.metrics = {queueDepth: 1_000_000, runningProfiles: 128};
             value.profiles["hardware-health"].queued = 1_000_000;
             value.alerts[0].confidence = 1;
             value.alerts[0].riskScore = 1;
         }),
+        snapshotCase("every backend and kind", true, (value) => {
+            value.devices = [
+                deviceEntry({id: "tpu-pcie-0", backend: "tpu", kind: "pcie"}),
+                deviceEntry({id: "npu-accel0", backend: "npu", kind: "accel"}),
+                deviceEntry({id: "gpu-renderD128", backend: "gpu", kind: "dri"}),
+                deviceEntry({id: "tpu-usb", backend: "tpu", kind: "usb"}),
+                deviceEntry({id: "mystery", backend: "gpu", kind: "unknown"}),
+            ];
+        }),
+        snapshotCase("sixteen devices", true, (value) => {
+            value.devices = Array.from({length: 16}, (_, index) =>
+                deviceEntry({id: `npu-accel${index}`}));
+        }),
+        // Neither JSON Schema 2020-12 nor the handwritten mirror rejects
+        // duplicate ids; domain normalization dedupes first-wins instead.
+        snapshotCase("duplicate device ids accepted", true, (value) => {
+            value.devices = [deviceEntry(), deviceEntry({name: "Impostor"})];
+        }),
         snapshotCase("Unicode code-point limits", true, (value) => {
-            value.device.name = "💡".repeat(120);
-            value.device.reason = "💡".repeat(240);
+            value.devices[0].id = "💡".repeat(80);
+            value.devices[0].name = "💡".repeat(120);
+            value.devices[0].vendor = "💡".repeat(80);
+            value.devices[0].reason = "💡".repeat(240);
             value.profiles["hardware-health"].detail = "💡".repeat(240);
             value.alerts[0].id = "💡".repeat(120);
             value.alerts[0].profileId = "💡".repeat(80);
@@ -106,13 +154,13 @@ function runtimeSnapshotSchemaCases() {
         }),
     ];
 
-    for (const key of ["version", "generatedAt", "device", "metrics", "profiles", "alerts"]) {
+    for (const key of ["version", "generatedAt", "devices", "metrics", "profiles", "alerts"]) {
         cases.push(snapshotCase(`missing root ${key}`, false, (value) => { delete value[key]; }));
     }
-    for (const key of ["available", "name", "kind"]) {
-        cases.push(snapshotCase(`missing device ${key}`, false, (value) => { delete value.device[key]; }));
+    for (const key of ["id", "backend", "available", "name", "kind"]) {
+        cases.push(snapshotCase(`missing device ${key}`, false, (value) => { delete value.devices[0][key]; }));
     }
-    for (const key of ["load", "queueDepth", "runningProfiles"]) {
+    for (const key of ["queueDepth", "runningProfiles"]) {
         cases.push(snapshotCase(`missing metrics ${key}`, false, (value) => { delete value.metrics[key]; }));
     }
     for (const key of ["id", "profileId", "title", "summary", "severity", "timestamp"]) {
@@ -120,7 +168,7 @@ function runtimeSnapshotSchemaCases() {
     }
     for (const [name, target] of [
         ["root", (value) => value],
-        ["device", (value) => value.device],
+        ["device", (value) => value.devices[0]],
         ["metrics", (value) => value.metrics],
         ["profile", (value) => value.profiles["hardware-health"]],
         ["alert", (value) => value.alerts[0]],
@@ -137,16 +185,26 @@ function runtimeSnapshotSchemaCases() {
         ["fractional generatedAt", (value) => value, {generatedAt: 1.5}],
         ["zero generatedAt", (value) => value, {generatedAt: 0}],
         ["negative generatedAt", (value) => value, {generatedAt: -1}],
-        ["device scalar", (value) => value, {device: "usb"}],
-        ["available non-boolean", (value) => value.device, {available: 1}],
-        ["device name non-string", (value) => value.device, {name: 7}],
-        ["device kind unknown", (value) => value.device, {kind: "future"}],
-        ["device reason non-string", (value) => value.device, {reason: null}],
+        ["devices scalar", (value) => value, {devices: "usb"}],
+        ["devices object", (value) => value, {devices: {}}],
+        ["devices empty", (value) => value, {devices: []}],
+        ["device entry scalar", (value) => value.devices, {0: "usb"}],
+        ["device id empty", (value) => value.devices[0], {id: ""}],
+        ["device id non-string", (value) => value.devices[0], {id: 7}],
+        ["device backend unknown", (value) => value.devices[0], {backend: "future"}],
+        ["device backend cpu rejected", (value) => value.devices[0], {backend: "cpu"}],
+        ["device backend legacy edge-tpu", (value) => value.devices[0], {backend: "edge-tpu"}],
+        ["available non-boolean", (value) => value.devices[0], {available: 1}],
+        ["device name non-string", (value) => value.devices[0], {name: 7}],
+        ["device kind unknown", (value) => value.devices[0], {kind: "future"}],
+        ["device vendor non-string", (value) => value.devices[0], {vendor: 7}],
+        ["device load non-number", (value) => value.devices[0], {load: "37"}],
+        ["device load below minimum", (value) => value.devices[0], {load: -0.1}],
+        ["device load above maximum", (value) => value.devices[0], {load: 100.1}],
+        ["device load non-finite", (value) => value.devices[0], {load: Number.NaN}],
+        ["device reason non-string", (value) => value.devices[0], {reason: null}],
         ["metrics scalar", (value) => value, {metrics: []}],
-        ["load non-number", (value) => value.metrics, {load: "37"}],
-        ["load below minimum", (value) => value.metrics, {load: -0.1}],
-        ["load above maximum", (value) => value.metrics, {load: 100.1}],
-        ["load non-finite", (value) => value.metrics, {load: Number.NaN}],
+        ["metrics legacy load property", (value) => value.metrics, {load: 37.5}],
         ["fractional queue", (value) => value.metrics, {queueDepth: 1.5}],
         ["negative queue", (value) => value.metrics, {queueDepth: -1}],
         ["queue above maximum", (value) => value.metrics, {queueDepth: 1_000_001}],
@@ -186,8 +244,10 @@ function runtimeSnapshotSchemaCases() {
     }
 
     for (const [name, target, maximum] of [
-        ["device name", (value) => value.device, 120],
-        ["device reason", (value) => value.device, 240],
+        ["device id", (value) => value.devices[0], 80],
+        ["device name", (value) => value.devices[0], 120],
+        ["device vendor", (value) => value.devices[0], 80],
+        ["device reason", (value) => value.devices[0], 240],
         ["profile detail", (value) => value.profiles["hardware-health"], 240],
         ["alert id", (value) => value.alerts[0], 120],
         ["alert profile", (value) => value.alerts[0], 80],
@@ -195,7 +255,9 @@ function runtimeSnapshotSchemaCases() {
         ["alert summary", (value) => value.alerts[0], 500],
     ]) {
         const property = {
+            "device id": "id",
             "device name": "name",
+            "device vendor": "vendor",
             "device reason": "reason",
             "profile detail": "detail",
             "alert id": "id",
@@ -207,6 +269,10 @@ function runtimeSnapshotSchemaCases() {
             target(value)[property] = "💡".repeat(maximum + 1);
         }));
     }
+    cases.push(snapshotCase("more than sixteen devices", false, (value) => {
+        value.devices = Array.from({length: 17}, (_, index) =>
+            deviceEntry({id: `npu-accel${index}`}));
+    }));
     cases.push(snapshotCase("more than one hundred alerts", false, (value) => {
         value.alerts = Array.from({length: 101}, (_, index) => ({
             ...value.alerts[0],
@@ -218,6 +284,7 @@ function runtimeSnapshotSchemaCases() {
 
 module.exports = {
     NOW,
+    deviceEntry,
     generatedAtParityCases,
     runtimeSnapshotSchemaCases,
     snapshotCase,

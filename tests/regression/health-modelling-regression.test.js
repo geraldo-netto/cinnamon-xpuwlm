@@ -19,7 +19,7 @@ function gateway(overrides = {}) {
         path: "/run/tpuwm.json",
         clock: {now: () => NOW},
         readTextAsync: (filename, options, callback) => callback(null, null),
-        detectDevice: () => ({available: true, name: "Coral USB", kind: "usb"}),
+        detectDevice: () => [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral USB", kind: "usb"}],
         snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: new FailureBackoff.FailureWarningBackoff({logger: {warn() {}}}),
         workloadCatalog: BuiltIns.coreCatalog(),
@@ -31,8 +31,16 @@ function connectedDocument(overrides = {}) {
     return JSON.stringify({
         version: Domain.SNAPSHOT_VERSION,
         generatedAt: NOW,
-        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
-        metrics: {load: 40, queueDepth: 3, runningProfiles: 1},
+        devices: [{
+            id: "tpu-usb",
+            backend: "tpu",
+            available: true,
+            name: "Coral USB",
+            kind: "usb",
+            load: 40,
+            reason: "",
+        }],
+        metrics: {queueDepth: 3, runningProfiles: 1},
         profiles: {},
         alerts: [],
         ...overrides,
@@ -49,8 +57,7 @@ test("regression: an unreadable runtime never claims the device is absent", () =
         runtime: "unreadable",
         detail: "Runtime snapshot could not be read",
     });
-    assert.equal(snapshot.device.state, "unknown");
-    assert.equal(snapshot.device.name, "TPU state unknown");
+    assert.deepEqual(snapshot.devices, []);
 });
 
 test("regression: a malformed document reports malformed, not a missing device", () => {
@@ -59,7 +66,7 @@ test("regression: a malformed document reports malformed, not a missing device",
     }));
     assert.equal(snapshot.health.runtime, "malformed");
     assert.equal(snapshot.health.device, "unknown");
-    assert.equal(snapshot.device.available, false);
+    assert.deepEqual(snapshot.devices, []);
 });
 
 test("regression: failed discovery reports probe failure, not an absent device", () => {
@@ -77,7 +84,7 @@ test("regression: a detected device with no runtime keeps both facts separate", 
         runtime: "absent",
         detail: "No runtime service is publishing a snapshot",
     });
-    assert.equal(snapshot.device.available, true);
+    assert.equal(snapshot.devices[0].available, true);
 });
 
 test("regression: a connected runtime reports both device and runtime health", () => {
@@ -88,7 +95,14 @@ test("regression: a connected runtime reports both device and runtime health", (
 
     const absent = readSnapshot(gateway({
         readTextAsync: (filename, options, callback) => callback(null, connectedDocument({
-            device: {available: false, name: "No TPU detected", kind: "unknown", reason: "Unplugged"},
+            devices: [{
+                id: "tpu-usb",
+                backend: "tpu",
+                available: false,
+                name: "No TPU detected",
+                kind: "unknown",
+                reason: "Unplugged",
+            }],
         })),
     }));
     assert.deepEqual(absent.health, {
@@ -108,13 +122,13 @@ test("regression: unknown telemetry is shown as unknown, never as zero", () => {
     ]) {
         assert.equal(snapshot.metrics.queueDepth, null, snapshot.health.runtime);
         assert.equal(snapshot.metrics.runningProfiles, null, snapshot.health.runtime);
-        assert.equal(snapshot.metrics.load, null, snapshot.health.runtime);
     }
 
     const connected = readSnapshot(gateway({
         readTextAsync: (filename, options, callback) => callback(null, connectedDocument()),
     }));
-    assert.deepEqual(connected.metrics, {load: 40, queueDepth: 3, runningProfiles: 1});
+    assert.deepEqual(connected.metrics, {queueDepth: 3, runningProfiles: 1});
+    assert.equal(connected.devices[0].load, 40);
 });
 
 test("regression: each runtime state renders its own recovery guidance", () => {
@@ -124,9 +138,10 @@ test("regression: each runtime state renders its own recovery guidance", () => {
             selectedTab: "overview",
             paused: false,
             profiles: [],
-            device: Domain.unknownDevice("Detail for the state"),
+            device: Domain.aggregateDevice([], "Detail for the state"),
+            devices: [],
             health: {device: "unknown", runtime, detail: `Detail for ${runtime}`},
-            metrics: {load: null, queueDepth: null, runningProfiles: null},
+            metrics: {queueDepth: null, runningProfiles: null},
             alerts: [],
             attentionCount: 0,
             stale: false,
@@ -177,8 +192,9 @@ test("regression: an unrecognised health value degrades to an explicit unknown",
         selectedTab: "overview",
         paused: false,
         profiles: [],
-        device: Domain.unknownDevice("No health reported"),
-        metrics: {load: null, queueDepth: null, runningProfiles: null},
+        device: Domain.aggregateDevice([], "No health reported"),
+        devices: [],
+        metrics: {queueDepth: null, runningProfiles: null},
         alerts: [],
         attentionCount: 0,
         stale: false,

@@ -252,7 +252,7 @@ function panelModel(state) {
             tooltip: "TPU Workload Manager — hardware detected; runtime not connected",
         };
     }
-    const load = formatLoad(state.metrics.load);
+    const load = formatLoad(state.device.load);
     const attention = state.attentionCount > 0;
     const reviewText = attentionReviewText(state.attentionCount);
     const severity = highestActiveSeverity(state.alerts);
@@ -282,7 +282,7 @@ function effectiveScreen(state) {
 
 function metricModels(state) {
     return [
-        {label: "TPU load", value: state.paused ? "0%" : formatLoad(state.metrics.load)},
+        {label: "TPU load", value: state.paused ? "0%" : formatLoad(state.device.load)},
         {label: "Queue", value: formatCount(state.metrics.queueDepth), suffix: state.paused ? "held" : "jobs"},
         {label: "Running", value: state.paused ? "0" : formatCount(state.metrics.runningProfiles), suffix: "profiles"},
         state.paused

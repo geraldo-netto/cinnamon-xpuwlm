@@ -181,13 +181,13 @@ class RuntimeSnapshotGateway {
 
     _probe(nowMs, forceDeviceDetection, cancellable, deliver) {
         try {
-            const accept = (error, device) => {
+            const accept = (error, devices) => {
                 if (error) {
                     this._reportProbeFailure(error, nowMs, deliver);
                     return;
                 }
                 this._warnings.recover(DEVICE_PROBE_FAILURE);
-                deliver(Domain.probeSnapshot(device, nowMs));
+                deliver(Domain.probeSnapshot(devices, nowMs));
             };
             const result = this._detectDevice(forceDeviceDetection, {cancellable}, accept);
             if (result && typeof result === "object") {
@@ -202,10 +202,10 @@ class RuntimeSnapshotGateway {
     _reportProbeFailure(error, nowMs, deliver) {
         this._warnings.report(
             DEVICE_PROBE_FAILURE,
-            `Could not probe TPU devices: ${error}`,
+            `Could not probe accelerator devices: ${error}`,
             nowMs,
         );
-        return deliver(Domain.unavailableSnapshot("TPU device discovery failed", nowMs, "probe"));
+        return deliver(Domain.unavailableSnapshot("Accelerator discovery failed", nowMs, "probe"));
     }
 
     _reportReadFailure(error, nowMs, deliver) {

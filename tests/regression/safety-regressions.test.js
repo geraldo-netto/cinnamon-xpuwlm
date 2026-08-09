@@ -54,8 +54,8 @@ test("regression: malformed nullable measurements remain unknown rather than zer
     const snapshot = Domain.normalizeSnapshot({
         version: 1,
         generatedAt: NOW,
-        device: {available: true},
-        metrics: {load: "0", queueDepth: 0, runningProfiles: 0},
+        devices: [{id: "tpu-usb", backend: "tpu", available: true, load: "0"}],
+        metrics: {queueDepth: 0, runningProfiles: 0},
         profiles: {},
         alerts: [{
             id: "a",
@@ -66,7 +66,7 @@ test("regression: malformed nullable measurements remain unknown rather than zer
             riskScore: false,
         }],
     }, NOW, Domain.DEFAULT_STALE_AFTER_MS, BuiltIns.coreCatalog());
-    assert.equal(snapshot.metrics.load, null);
+    assert.equal(snapshot.devices[0].load, null);
     assert.equal(snapshot.alerts[0].confidence, null);
     assert.equal(snapshot.alerts[0].riskScore, null);
 });
@@ -75,10 +75,10 @@ test("regression: stale snapshots cannot display a connected device", () => {
     const snapshot = Domain.normalizeSnapshot({
         version: 1,
         generatedAt: NOW - 10_001,
-        device: {available: true, name: "Coral", kind: "usb"},
+        devices: [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral", kind: "usb"}],
     }, NOW, 10_000);
     assert.equal(snapshot.stale, true);
-    assert.equal(snapshot.device.available, false);
+    assert.deepEqual(snapshot.devices, []);
     assert.equal(snapshot.source, "runtime");
 });
 
@@ -86,11 +86,11 @@ test("regression: far-future snapshots cannot remain fresh indefinitely", () => 
     const snapshot = Domain.normalizeSnapshot({
         version: 1,
         generatedAt: NOW + 86_400_000,
-        device: {available: true, name: "Coral", kind: "usb"},
+        devices: [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral", kind: "usb"}],
     }, NOW);
     assert.equal(snapshot.source, "invalid");
-    assert.equal(snapshot.device.available, false);
-    assert.match(snapshot.device.reason, /timestamp/);
+    assert.deepEqual(snapshot.devices, []);
+    assert.match(snapshot.health.detail, /timestamp/);
 });
 
 test("regression: UTF-8 size checks count encoded bytes, not UTF-16 units", () => {
@@ -100,7 +100,7 @@ test("regression: UTF-8 size checks count encoded bytes, not UTF-16 units", () =
         tooLarge,
         NOW,
         new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
-    ).device.reason, /exceeds/);
+    ).health.detail, /exceeds/);
 });
 
 test("regression: warning backoff never hides failure state or overruns after clock rollback", () => {
@@ -122,8 +122,8 @@ test("regression: warning backoff never hides failure state or overruns after cl
     for (let poll = 0; poll < 20; poll += 1) {
         const snapshot = readSnapshot(gateway);
         assert.equal(snapshot.source, "error");
-        assert.equal(snapshot.device.available, false);
-        assert.match(snapshot.device.reason, /could not be read/);
+        assert.deepEqual(snapshot.devices, []);
+        assert.match(snapshot.health.detail, /could not be read/);
         nowMs += 1000;
     }
     assert.equal(warnings.length, 1);
@@ -131,7 +131,7 @@ test("regression: warning backoff never hides failure state or overruns after cl
     nowMs = NOW - 1000;
     const rolledBackSnapshot = readSnapshot(gateway);
     assert.equal(rolledBackSnapshot.source, "error");
-    assert.equal(rolledBackSnapshot.device.available, false);
+    assert.deepEqual(rolledBackSnapshot.devices, []);
     assert.equal(warnings.length, 2);
     readSnapshot(gateway);
     assert.equal(warnings.length, 2);
@@ -154,8 +154,18 @@ test("regression: same-identity alert content invalidates before its age changes
         selectedTab: "alerts",
         paused: false,
         profiles,
-        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
-        metrics: {load: 42, queueDepth: 0, runningProfiles: 1},
+        device: {
+            id: "tpu-usb",
+            backend: "tpu",
+            available: true,
+            state: "present",
+            name: "Coral USB",
+            kind: "usb",
+            vendor: "",
+            load: 42,
+            reason: "",
+        },
+        metrics: {queueDepth: 0, runningProfiles: 1},
         alerts: [alert],
         attentionCount: 1,
         stale: false,
@@ -190,8 +200,18 @@ test("regression: critical active alerts cannot be buried by runtime array order
         selectedTab: "alerts",
         paused: false,
         profiles,
-        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
-        metrics: {load: 42, queueDepth: 0, runningProfiles: 1},
+        device: {
+            id: "tpu-usb",
+            backend: "tpu",
+            available: true,
+            state: "present",
+            name: "Coral USB",
+            kind: "usb",
+            vendor: "",
+            load: 42,
+            reason: "",
+        },
+        metrics: {queueDepth: 0, runningProfiles: 1},
         alerts: [alert("advisory", "advisory"), alert("critical", "critical")],
         attentionCount: 2,
         stale: false,

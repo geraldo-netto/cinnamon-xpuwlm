@@ -21,7 +21,7 @@ test("regression: schema-invalid values cannot be clamped into connected runtime
     for (const change of [
         (value) => { delete value.metrics.queueDepth; },
         (value) => { value.metrics.queueDepth = 1.5; },
-        (value) => { value.metrics.load = 101; },
+        (value) => { value.devices[0].load = 101; },
         (value) => { value.alerts[0].confidence = 2; },
         (value) => { value.alerts[0].unexpected = true; },
         (value) => { value.alerts.push({id: "incomplete"}); },
@@ -35,8 +35,8 @@ test("regression: schema-invalid values cannot be clamped into connected runtime
     for (const candidate of candidates) {
         const snapshot = parse(candidate);
         assert.equal(snapshot.source, "invalid");
-        assert.equal(snapshot.device.available, false);
-        assert.match(snapshot.device.reason, /does not match/u);
+        assert.deepEqual(snapshot.devices, []);
+        assert.match(snapshot.health.detail, /does not match/u);
     }
 });
 
@@ -55,7 +55,7 @@ test("regression: one invalid alert invalidates the complete runtime document", 
     const snapshot = parse(candidate);
     assert.equal(snapshot.source, "invalid");
     assert.deepEqual(snapshot.alerts, []);
-    assert.equal(snapshot.device.available, false);
+    assert.deepEqual(snapshot.devices, []);
 });
 
 test("regression: a present non-string read result cannot masquerade as a missing snapshot", () => {
@@ -66,7 +66,7 @@ test("regression: a present non-string read result cannot masquerade as a missin
         readTextAsync: (filename, options, callback) => callback(null, ({present: true})),
         detectDevice() {
             probes += 1;
-            return {available: true, name: "Coral USB", kind: "usb"};
+            return [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral USB", kind: "usb"}];
         },
         snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),
         warningReporter: {report() {}, recover() {}},
@@ -74,6 +74,6 @@ test("regression: a present non-string read result cannot masquerade as a missin
 
     const snapshot = readSnapshot(gateway);
     assert.equal(snapshot.source, "invalid");
-    assert.equal(snapshot.device.available, false);
+    assert.deepEqual(snapshot.devices, []);
     assert.equal(probes, 0);
 });

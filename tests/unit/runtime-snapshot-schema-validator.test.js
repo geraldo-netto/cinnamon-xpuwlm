@@ -28,10 +28,15 @@ test("runtime snapshot validator matches every explicit v1 contract boundary", (
 
 test("runtime snapshot validator accepts every declared enum value", () => {
     const validator = new SchemaValidator.RuntimeSnapshotSchemaValidator();
-    for (const kind of ["usb", "pcie", "unknown"]) {
+    for (const kind of ["usb", "pcie", "accel", "dri", "unknown"]) {
         const value = Fixtures.validRuntimeSnapshot();
-        value.device.kind = kind;
+        value.devices[0].kind = kind;
         assert.equal(validator.validate(value).valid, true, kind);
+    }
+    for (const backend of ["tpu", "npu", "gpu"]) {
+        const value = Fixtures.validRuntimeSnapshot();
+        value.devices[0].backend = backend;
+        assert.equal(validator.validate(value).valid, true, backend);
     }
     for (const status of ["healthy", "running", "watching", "idle", "paused", "unavailable"]) {
         const value = Fixtures.validRuntimeSnapshot();

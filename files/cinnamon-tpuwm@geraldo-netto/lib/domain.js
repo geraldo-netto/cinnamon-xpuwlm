@@ -236,26 +236,6 @@ function normalizeProfileRuntime(candidate) {
     };
 }
 
-function normalizeDevice(candidate) {
-    if (!isPlainObject(candidate)) {
-        return {
-            available: false,
-            state: "absent",
-            name: "No TPU detected",
-            kind: "unknown",
-            reason: "Device state is missing",
-        };
-    }
-    const available = candidate.available === true;
-    return {
-        available,
-        state: available ? "present" : "absent",
-        name: safeText(candidate.name, 120, available ? "TPU accelerator" : "No TPU detected"),
-        kind: DEVICE_KINDS.has(candidate.kind) ? candidate.kind : "unknown",
-        reason: safeText(candidate.reason, 240, available ? "" : "Device unavailable"),
-    };
-}
-
 function normalizeDeviceEntry(candidate, index = 0) {
     if (!isPlainObject(candidate) || !BACKEND_SET.has(candidate.backend)) {
         return null;
@@ -326,16 +306,6 @@ function aggregateDevice(devices, detail = "") {
     };
 }
 
-function unknownDevice(detail) {
-    return {
-        available: false,
-        state: "unknown",
-        name: "TPU state unknown",
-        kind: "unknown",
-        reason: detail,
-    };
-}
-
 function health(device, runtime, detail) {
     return {
         device: DEVICE_STATES.has(device) ? device : "unknown",
@@ -346,9 +316,7 @@ function health(device, runtime, detail) {
 
 function normalizeMetrics(candidate, catalog = EMPTY_WORKLOAD_CATALOG) {
     const source = isPlainObject(candidate) ? candidate : {};
-    const load = nullableBoundedNumber(source.load, 0, 100);
     return {
-        load,
         queueDepth: boundedInteger(source.queueDepth, 0, MAX_QUEUE_DEPTH, 0),
         runningProfiles: boundedInteger(source.runningProfiles, 0, requireWorkloadCatalog(catalog).size, 0),
     };
@@ -385,8 +353,8 @@ function unavailableSnapshot(reason, nowMs, source = "fallback") {
         stale: false,
         source,
         health: health("unknown", SOURCE_RUNTIME_STATES[source], detail),
-        device: unknownDevice(detail),
-        metrics: {load: null, queueDepth: null, runningProfiles: null},
+        devices: [],
+        metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
     };
@@ -426,20 +394,23 @@ function expireSnapshot(snapshot, nowMs, staleAfterMs = DEFAULT_STALE_AFTER_MS) 
         : snapshot;
 }
 
-function probeSnapshot(device, nowMs) {
-    const normalizedDevice = normalizeDevice(device);
+function probeSnapshot(devices, nowMs) {
+    const list = normalizeDevices(Array.isArray(devices) ? devices : [devices]);
+    // A completed probe that found nothing is a definite absence, not an
+    // unknown state: the device nodes were reachable and none matched.
+    const deviceState = list.length === 0 ? "absent" : aggregateDevice(list).state;
     return {
         version: SNAPSHOT_VERSION,
         generatedAt: nowMs,
         stale: false,
         source: "probe",
         health: health(
-            normalizedDevice.state,
+            deviceState,
             "absent",
             "No runtime service is publishing a snapshot",
         ),
-        device: normalizedDevice,
-        metrics: {load: null, queueDepth: null, runningProfiles: null},
+        devices: list,
+        metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
     };
@@ -500,14 +471,15 @@ function normalizeSnapshot(
     const profiles = normalizeProfiles(candidate.profiles, catalog);
     const alerts = normalizeAlerts(candidate.alerts, nowMs, catalog);
 
-    const device = normalizeDevice(candidate.device);
+    const devices = normalizeDevices(candidate.devices);
+    const aggregate = aggregateDevice(devices);
     return {
         version: SNAPSHOT_VERSION,
         generatedAt,
         stale: false,
         source: "runtime",
-        health: health(device.state, "connected", device.available ? "" : device.reason),
-        device,
+        health: health(aggregate.state, "connected", aggregate.available ? "" : aggregate.reason),
+        devices,
         metrics: normalizeMetrics(candidate.metrics, catalog),
         profiles,
         alerts,
@@ -624,7 +596,6 @@ module.exports = {
     aggregateDevice,
     normalizeAlert,
     normalizeAlerts,
-    normalizeDevice,
     normalizeDeviceEntry,
     normalizeDevices,
     normalizeMetrics,
@@ -641,5 +612,4 @@ module.exports = {
     snapshotExpiryDelayMs,
     staleSnapshot,
     unavailableSnapshot,
-    unknownDevice,
 };

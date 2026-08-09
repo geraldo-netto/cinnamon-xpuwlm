@@ -20,8 +20,16 @@ function connectedDocument(overrides = {}) {
     return {
         version: Domain.SNAPSHOT_VERSION,
         generatedAt: NOW,
-        device: {available: true, name: "Coral USB", kind: "usb", reason: ""},
-        metrics: {load: 40, queueDepth: 3, runningProfiles: 1},
+        devices: [{
+            id: "tpu-usb",
+            backend: "tpu",
+            available: true,
+            name: "Coral USB",
+            kind: "usb",
+            load: 40,
+            reason: "",
+        }],
+        metrics: {queueDepth: 3, runningProfiles: 1},
         profiles: {"hardware-health": {status: "running", queued: 3, detail: "sampling"}},
         alerts: [],
         ...overrides,
@@ -30,22 +38,27 @@ function connectedDocument(overrides = {}) {
 
 test("device detection reports a complete structure in every branch", async () => {
     const absent = createAsyncDeviceEnvironment().environment;
-    assert.deepEqual(await detectAsync(Cinnamon.detectDeviceAsync, absent), {
-        available: false,
-        name: "No TPU detected",
-        kind: "unknown",
-        reason: "Connect a Coral USB or PCIe Edge TPU",
-    });
+    assert.deepEqual(await detectAsync(Cinnamon.detectDevicesAsync, absent), []);
     assert.equal(await detectAsync(Cinnamon.detectPcieDeviceAsync, absent), null);
     assert.equal(await detectAsync(Cinnamon.detectUsbDeviceAsync, absent), null);
 
     const pcie = createAsyncDeviceEnvironment({pcie: [0]}).environment;
     assert.deepEqual(await detectAsync(Cinnamon.detectPcieDeviceAsync, pcie), {
+        id: "tpu-pcie-0",
+        backend: "tpu",
         available: true,
         name: "Coral PCIe Edge TPU",
         kind: "pcie",
         reason: "",
     });
+    assert.deepEqual(await detectAsync(Cinnamon.detectDevicesAsync, pcie), [{
+        id: "tpu-pcie-0",
+        backend: "tpu",
+        available: true,
+        name: "Coral PCIe Edge TPU",
+        kind: "pcie",
+        reason: "",
+    }]);
 
     assert.deepEqual(Cinnamon.CORAL_USB_IDENTITIES.map((identity) => ({...identity})), [
         {vendor: "18d1", product: "9302", name: "Coral USB Accelerator"},
@@ -58,21 +71,22 @@ test("device detection reports a complete structure in every branch", async () =
     assert.equal(Cinnamon.findCoralUsbIdentity("18d1", "089a"), null);
 });
 
-test("cached detection returns an isolated copy of the shared device record", async () => {
+test("cached detection returns an isolated copy of the shared device records", async () => {
     const detector = new Cinnamon.CachedDeviceDetector(
-        createAsyncDeviceEnvironment().environment,
+        createAsyncDeviceEnvironment({pcie: [0]}).environment,
         {now: () => NOW},
     );
-    const read = () => new Promise((resolve, reject) => detector.detect(false, {}, (error, device) => {
-        if (error) { reject(error); } else { resolve(device); }
+    const read = () => new Promise((resolve, reject) => detector.detect(false, {}, (error, devices) => {
+        if (error) { reject(error); } else { resolve(devices); }
     }));
     const first = await read();
-    first.name = "mutated";
-    first.available = true;
+    first[0].name = "mutated";
+    first.push({id: "fake", backend: "gpu", available: true, name: "Fake", kind: "dri"});
     const second = await read();
-    assert.equal(second.name, "No TPU detected");
-    assert.equal(second.available, false);
+    assert.equal(second.length, 1);
+    assert.equal(second[0].name, "Coral PCIe Edge TPU");
     assert.notEqual(first, second);
+    assert.notEqual(first[0], second[0]);
 });
 
 test("the accepted enumerations stay closed and exact", () => {
@@ -108,19 +122,14 @@ test("fallback, probe, and stale snapshots carry the complete snapshot structure
         stale: false,
         source: "error",
         health: {device: "unknown", runtime: "unreadable", detail: "Disconnected"},
-        device: {
-            available: false,
-            state: "unknown",
-            name: "TPU state unknown",
-            kind: "unknown",
-            reason: "Disconnected",
-        },
-        metrics: {load: null, queueDepth: null, runningProfiles: null},
+        devices: [],
+        metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
     });
 
-    assert.deepEqual(Domain.probeSnapshot({available: true, name: "Coral USB", kind: "usb"}, NOW), {
+    const probed = {id: "tpu-usb", backend: "tpu", available: true, name: "Coral USB", kind: "usb"};
+    assert.deepEqual(Domain.probeSnapshot([probed], NOW), {
         version: Domain.SNAPSHOT_VERSION,
         generatedAt: NOW,
         stale: false,
@@ -130,11 +139,24 @@ test("fallback, probe, and stale snapshots carry the complete snapshot structure
             runtime: "absent",
             detail: "No runtime service is publishing a snapshot",
         },
-        device: {available: true, state: "present", name: "Coral USB", kind: "usb", reason: ""},
-        metrics: {load: null, queueDepth: null, runningProfiles: null},
+        devices: [{
+            id: "tpu-usb",
+            backend: "tpu",
+            available: true,
+            state: "present",
+            name: "Coral USB",
+            kind: "usb",
+            vendor: "",
+            load: null,
+            reason: "",
+        }],
+        metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
     });
+    assert.deepEqual(Domain.probeSnapshot(probed, NOW).health.device, "present");
+    assert.deepEqual(Domain.probeSnapshot([], NOW).health.device, "absent");
+    assert.deepEqual(Domain.probeSnapshot([], NOW).devices, []);
 
     assert.deepEqual(Domain.staleSnapshot(NOW), {
         version: Domain.SNAPSHOT_VERSION,
@@ -142,29 +164,30 @@ test("fallback, probe, and stale snapshots carry the complete snapshot structure
         stale: true,
         source: "runtime",
         health: {device: "unknown", runtime: "stale", detail: "Runtime snapshot is stale"},
-        device: {
-            available: false,
-            state: "unknown",
-            name: "TPU state unknown",
-            kind: "unknown",
-            reason: "Runtime snapshot is stale",
-        },
-        metrics: {load: null, queueDepth: null, runningProfiles: null},
+        devices: [],
+        metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
     });
 });
 
 test("normalized runtime fragments expose exactly their contract fields", () => {
-    assert.deepEqual(Domain.normalizeDevice(null), {
-        available: false,
-        state: "absent",
-        name: "No TPU detected",
-        kind: "unknown",
-        reason: "Device state is missing",
-    });
+    assert.equal(Domain.normalizeDeviceEntry(null), null);
+    assert.deepEqual(
+        Domain.normalizeDeviceEntry({backend: "tpu", available: true, name: "Coral USB", kind: "usb"}, 2),
+        {
+            id: "device-2",
+            backend: "tpu",
+            available: true,
+            state: "present",
+            name: "Coral USB",
+            kind: "usb",
+            vendor: "",
+            load: null,
+            reason: "",
+        },
+    );
     assert.deepEqual(Domain.normalizeMetrics(undefined), {
-        load: null,
         queueDepth: 0,
         runningProfiles: 0,
     });
@@ -248,30 +271,37 @@ test("manager projections are complete and isolated from listener mutation", () 
 
     const state = manager.state();
     assert.deepEqual(Object.keys(state), [
-        "selectedTab", "paused", "profiles", "device", "health", "metrics", "alerts",
+        "selectedTab", "paused", "profiles", "device", "devices", "health", "metrics", "alerts",
         "attentionCount", "stale", "source", "generatedAt", "control",
     ]);
     assert.deepEqual(state.device, {
+        id: "tpu-usb",
+        backend: "tpu",
         available: true,
         state: "present",
         name: "Coral USB",
         kind: "usb",
+        vendor: "",
+        load: 40,
         reason: "",
     });
+    assert.deepEqual(state.devices, [state.device]);
     assert.deepEqual(state.health, {device: "present", runtime: "connected", detail: ""});
-    assert.deepEqual(state.metrics, {load: 40, queueDepth: 3, runningProfiles: 1});
+    assert.deepEqual(state.metrics, {queueDepth: 3, runningProfiles: 1});
     assert.equal(state.profiles.length, DEFINITIONS.length);
     assert.equal(state.alerts.length, 1);
     assert.equal(state.attentionCount, 1);
     assert.deepEqual(state.control, {pending: false, message: ""});
 
     state.device.name = "mutated";
-    state.metrics.load = 99;
+    state.devices[0].load = 99;
+    state.metrics.queueDepth = 99;
     state.alerts[0].title = "mutated";
     state.profiles[0].weight = 99;
     const next = manager.state();
     assert.equal(next.device.name, "Coral USB");
-    assert.equal(next.metrics.load, 40);
+    assert.equal(next.devices[0].load, 40);
+    assert.equal(next.metrics.queueDepth, 3);
     assert.equal(next.alerts[0].title, "Voltage drift");
     assert.equal(next.profiles[0].weight, 2);
     manager.dispose();
@@ -297,8 +327,8 @@ test("simplified predicates keep their original acceptance", () => {
     const snapshot = {
         version: Domain.SNAPSHOT_VERSION,
         generatedAt: NOW,
-        device: {available: true, name: "Coral USB", kind: "usb"},
-        metrics: {load: null, queueDepth: 0, runningProfiles: 0},
+        devices: [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral USB", kind: "usb"}],
+        metrics: {queueDepth: 0, runningProfiles: 0},
         profiles: {},
         alerts: [alert],
     };

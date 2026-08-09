@@ -77,7 +77,7 @@ test("fuzz: document parsing fails closed for arbitrary strings", () => {
             1_700_000_000_000,
             snapshotValidator,
         );
-        assert.equal(typeof snapshot.device.available, "boolean");
+        assert.equal(Array.isArray(snapshot.devices), true);
         assert.equal(Array.isArray(snapshot.alerts), true);
         assert.equal(Number.isFinite(snapshot.generatedAt), true);
     }

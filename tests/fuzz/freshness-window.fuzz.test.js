@@ -23,8 +23,8 @@ function runtimeDocument(ageMs) {
     return {
         version: Domain.SNAPSHOT_VERSION,
         generatedAt: NOW - ageMs,
-        device: {available: true, name: "Coral USB", kind: "usb"},
-        metrics: {load: null, queueDepth: 0, runningProfiles: 0},
+        devices: [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral USB", kind: "usb"}],
+        metrics: {queueDepth: 0, runningProfiles: 0},
         profiles: {},
         alerts: [],
     };

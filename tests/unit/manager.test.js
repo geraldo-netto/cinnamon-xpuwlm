@@ -20,7 +20,10 @@ const CORE_VERSIONS = Object.fromEntries(BuiltIns.coreCatalog().definitions().ma
 ]));
 
 function snapshot() {
-    return Domain.probeSnapshot({available: true, name: "Coral", kind: "usb"}, NOW);
+    return Domain.probeSnapshot(
+        [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral", kind: "usb"}],
+        NOW,
+    );
 }
 
 function fakeScheduler() {
@@ -100,7 +103,7 @@ function connectedSnapshot(generatedAt) {
     return Domain.normalizeSnapshot({
         version: Domain.SNAPSHOT_VERSION,
         generatedAt,
-        device: {available: true, name: "Coral USB", kind: "usb"},
+        devices: [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral USB", kind: "usb"}],
         metrics: {load: 40, queueDepth: 0, runningProfiles: 0},
         profiles: {},
         alerts: [],
