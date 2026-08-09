@@ -36,6 +36,30 @@ function baseState(overrides = {}) {
             load: 42,
             reason: "",
         },
+        devices: [
+            {
+                id: "tpu-usb",
+                backend: "tpu",
+                available: true,
+                state: "present",
+                name: "Coral USB",
+                kind: "usb",
+                vendor: "",
+                load: 42,
+                reason: "",
+            },
+            {
+                id: "gpu-renderD128",
+                backend: "gpu",
+                available: false,
+                state: "absent",
+                name: "NVIDIA GPU",
+                kind: "dri",
+                vendor: "0x10de",
+                load: null,
+                reason: "Runtime not installed",
+            },
+        ],
         health: {device: "present", runtime: "connected", detail: ""},
         metrics: {queueDepth: 2, runningProfiles: 1},
         alerts: [],
@@ -73,6 +97,23 @@ function icons(root) {
 function labelsWithClass(root, styleClass) {
     return findActors(root, (actor) => actor.styleClasses.has(styleClass)).map((actor) => actor.text);
 }
+
+test("the overview lists every accelerator with availability and load", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(baseState(), NOW));
+
+    const titles = labelsWithClass(root, "tpuwm-profile-title");
+    assert.equal(titles.includes("TPU · Coral USB"), true);
+    assert.equal(titles.includes("GPU · NVIDIA GPU"), true);
+    const descriptions = labelsWithClass(root, "tpuwm-profile-description");
+    assert.equal(descriptions.includes("Load 42%"), true);
+    assert.equal(descriptions.includes("Absent"), true);
+    const headings = labelsWithClass(root, "tpuwm-group-value");
+    assert.equal(headings.includes("1 of 2 available"), true);
+
+    view.render(ViewModel.toViewModel(baseState({devices: []}), NOW));
+    assert.equal(labelsWithClass(root, "tpuwm-profile-title").includes("TPU · Coral USB"), false);
+});
 
 test("metric tiles keep a fixed name, order, and value structure", () => {
     const {view, root} = harness();

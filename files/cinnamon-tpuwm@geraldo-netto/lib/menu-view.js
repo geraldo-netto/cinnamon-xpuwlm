@@ -3,7 +3,9 @@
 const Layout = require("./layout.js");
 const ViewModel = require("./view-model.js");
 
-const METRIC_NAMES = Object.freeze(["TPU load", "Queue", "Running", "Attention"]);
+// Initial placeholders only: render() updates each tile name from the view
+// model, so the first tile can follow the active backend (TPU/NPU/GPU).
+const METRIC_NAMES = Object.freeze(["Accelerator load", "Queue", "Running", "Attention"]);
 const TAB_NAMES = Object.freeze(["overview", "profiles", "alerts"]);
 
 // Tab-strip key handling, kept pure so the expected arrow, Home, and End
@@ -148,6 +150,7 @@ class MenuView {
         for (let index = 0; index < this._metricValues.length; index += 1) {
             const metric = model.metrics[index];
             const suffix = metric.suffix ? ` ${metric.suffix}` : "";
+            this._metricNames[index].set_text(metric.label);
             this._metricValues[index].set_text(`${metric.value}${suffix}`);
             setStyleClass(this._metricValues[index], "tpuwm-attention", metric.tone === "attention");
         }
@@ -227,6 +230,7 @@ class MenuView {
 
     _layoutMetrics() {
         destroyChildren(this._metrics);
+        this._metricNames = [];
         this._metricValues = [];
         const columns = this._layout.metricColumns;
         let row = null;
@@ -236,10 +240,12 @@ class MenuView {
                 this._metrics.add_child(row);
             }
             const metric = this._box("tpuwm-metric", true, true);
-            metric.add_child(this._label(METRIC_NAMES[index], "tpuwm-metric-name"));
+            const name = this._label(METRIC_NAMES[index], "tpuwm-metric-name");
+            metric.add_child(name);
             const value = this._label("—", "tpuwm-metric-value");
             metric.add_child(value);
             row.add_child(metric);
+            this._metricNames.push(name);
             this._metricValues.push(value);
         }
     }
@@ -389,6 +395,7 @@ class MenuView {
     }
 
     _renderOverview(model) {
+        this._renderAccelerators(model);
         this._addSectionHeading("Active profiles", "Weights apply only when queues contend");
         for (const group of model.enabledGroups) {
             this._addGroupHeading(group.name, `${group.profiles.length} active`);
@@ -403,6 +410,30 @@ class MenuView {
             );
             paused.set_child(this._label(`${model.pausedProfiles.length} paused profiles  ›`, "tpuwm-button-label"));
             this._body.add_child(paused);
+        }
+    }
+
+    _renderAccelerators(model) {
+        if (model.devices.length === 0) {
+            return;
+        }
+        const availableCount = model.devices.filter((device) => device.available).length;
+        this._addGroupHeading("Accelerators", `${availableCount} of ${model.devices.length} available`);
+        for (const device of model.devices) {
+            const row = this._box("tpuwm-state-row");
+            const copy = this._box("tpuwm-profile-copy", true, true);
+            copy.add_child(this._label(`${device.backendText} · ${device.name}`, "tpuwm-profile-title", true));
+            copy.add_child(this._label(
+                device.available ? `Load ${device.loadText}` : device.statusText,
+                "tpuwm-profile-description",
+                true,
+            ));
+            row.add_child(copy);
+            row.add_child(this._label(
+                device.statusText,
+                device.available ? "tpuwm-status tpuwm-status-healthy" : "tpuwm-status tpuwm-status-unavailable",
+            ));
+            this._body.add_child(row);
         }
     }
 

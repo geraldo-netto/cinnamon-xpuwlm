@@ -1,5 +1,6 @@
 "use strict";
 
+const Domain = require("./domain.js");
 const Manager = require("./manager.js");
 
 const STATUS_LABELS = Object.freeze({
@@ -43,6 +44,16 @@ function severityText(severity) {
     return severity === null || severity === undefined
         ? "none"
         : SEVERITY_LABELS[severity] || "none";
+}
+
+const BACKEND_LABELS = Object.freeze({
+    tpu: "TPU",
+    npu: "NPU",
+    gpu: "GPU",
+});
+
+function backendLabel(device) {
+    return (device && BACKEND_LABELS[device.backend]) || "Accel";
 }
 
 const DEVICE_STATUS_LABELS = Object.freeze({
@@ -111,20 +122,20 @@ const RUNTIME_RECOVERY = Object.freeze({
     }),
     "probe-failed": Object.freeze({
         kicker: "Detection failed",
-        title: "TPU device discovery failed",
+        title: "Accelerator discovery failed",
         description: "Local discovery could not complete, so device presence is unknown rather than reported as absent.",
         steps: Object.freeze([
-            Object.freeze(["1", "Check device access", "Confirm the current user can read the USB and PCIe device nodes."]),
+            Object.freeze(["1", "Check device access", "Confirm the current user can read the USB, PCIe, accel, and render device nodes."]),
             Object.freeze(["2", "Retry detection", "Discovery runs again on request."]),
         ]),
     }),
     connected: Object.freeze({
         kicker: "Connection required",
-        title: "TPU accelerator unavailable",
-        description: "Profiles remain saved locally. No data, authorization, backup, or CPU-fallback policy is changed.",
+        title: "No accelerator available",
+        description: "Profiles remain saved locally. No data, authorization, or backup policy is changed.",
         steps: Object.freeze([
-            Object.freeze(["1", "Check the connection", "Reconnect the accelerator directly to a supported USB or PCIe interface."]),
-            Object.freeze(["2", "Check device access", "Confirm the current user can access the Edge TPU runtime."]),
+            Object.freeze(["1", "Check the connection", "Connect a supported TPU, NPU, or GPU accelerator."]),
+            Object.freeze(["2", "Check device access", "Confirm the current user can access the accelerator runtime."]),
         ]),
     }),
 });
@@ -223,7 +234,7 @@ function unavailablePanel(state) {
         : state.device.reason;
     return {
         accessibleName: `TPU Workload Manager, ${unknown ? "unknown" : "unavailable"}: ${reason}`,
-        label: unknown ? "TPU Unknown" : "TPU Offline",
+        label: unknown ? "Accel Unknown" : "Accel Offline",
         status: "unavailable",
         severity: null,
         tooltip: `TPU Workload Manager — ${reason}`,
@@ -237,7 +248,7 @@ function panelModel(state) {
     if (state.paused) {
         return {
             accessibleName: "TPU Workload Manager, paused: all workloads paused",
-            label: "TPU Paused",
+            label: "Accel Paused",
             status: "paused",
             severity: null,
             tooltip: "TPU Workload Manager — all workloads paused",
@@ -246,7 +257,7 @@ function panelModel(state) {
     if (state.source === "probe") {
         return {
             accessibleName: "TPU Workload Manager, detected: hardware detected; runtime not connected",
-            label: "TPU Detected",
+            label: `${backendLabel(state.device)} Detected`,
             status: "detected",
             severity: null,
             tooltip: "TPU Workload Manager — hardware detected; runtime not connected",
@@ -261,7 +272,9 @@ function panelModel(state) {
         accessibleName: attention
             ? `TPU Workload Manager, attention: ${attentionText}`
             : `TPU Workload Manager, online: ${load} load`,
-        label: attention ? `TPU ${load} · ${severityText(severity)}` : `TPU ${load}`,
+        label: attention
+            ? `${backendLabel(state.device)} ${load} · ${severityText(severity)}`
+            : `${backendLabel(state.device)} ${load}`,
         status: attention ? "attention" : "online",
         severity,
         tooltip: attention
@@ -282,7 +295,7 @@ function effectiveScreen(state) {
 
 function metricModels(state) {
     return [
-        {label: "TPU load", value: state.paused ? "0%" : formatLoad(state.device.load)},
+        {label: `${backendLabel(state.device)} load`, value: state.paused ? "0%" : formatLoad(state.device.load)},
         {label: "Queue", value: formatCount(state.metrics.queueDepth), suffix: state.paused ? "held" : "jobs"},
         {label: "Running", value: state.paused ? "0" : formatCount(state.metrics.runningProfiles), suffix: "profiles"},
         state.paused
@@ -296,6 +309,30 @@ function metricModels(state) {
                 tone: state.attentionCount > 0 ? "attention" : "normal",
             },
     ];
+}
+
+function compareDevices(rank, left, right) {
+    const byBackend = (rank.get(left.backend) ?? rank.size) - (rank.get(right.backend) ?? rank.size);
+    if (byBackend !== 0) {
+        return byBackend;
+    }
+    return left.id < right.id ? -1 : 1;
+}
+
+function deviceModels(state) {
+    const devices = Array.isArray(state.devices) ? state.devices : [];
+    const rank = new Map(Domain.BACKENDS.map((backend, index) => [backend, index]));
+    return [...devices]
+        .sort((left, right) => compareDevices(rank, left, right))
+        .map((device) => ({
+            id: device.id,
+            name: device.name,
+            backendText: backendLabel(device),
+            statusText: device.available ? "Available" : "Absent",
+            loadText: device.available ? formatLoad(device.load) : "—",
+            available: device.available === true,
+            vendor: device.vendor || "",
+        }));
 }
 
 function alertModel(alert, profiles, nowMs) {
@@ -349,6 +386,7 @@ function toViewModel(state, nowMs = Date.now()) {
         selectedTab: Manager.sanitizeTab(state.selectedTab),
         showTabs: Manager.TABS.includes(screen),
         device: {...state.device, status: deviceStatus},
+        devices: deviceModels(state),
         headerSubtitle: state.device.available
             ? `${state.device.name} · ${runtimeStatusText(state)} · Updated ${formatRelativeTime(state.generatedAt, nowMs)}`
             : `${runtimeStatusText(state)} · ${healthOf(state).detail || state.device.reason} · Last update ${formatRelativeTime(state.generatedAt, nowMs)}`,
@@ -372,6 +410,7 @@ function toViewModel(state, nowMs = Date.now()) {
             profiles: state.profiles,
             alerts: activeAlerts.concat(resolvedAlerts),
             device: state.device,
+            devices: state.devices,
             health: healthOf(state),
             paused: state.paused,
             control,
@@ -386,7 +425,10 @@ module.exports = {
     RUNTIME_STATUS_LABELS,
     SEVERITY_LABELS,
     STATUS_LABELS,
+    BACKEND_LABELS,
     alertModel,
+    backendLabel,
+    deviceModels,
     deviceStatusText,
     formatCount,
     recoveryModel,

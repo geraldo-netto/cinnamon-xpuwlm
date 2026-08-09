@@ -72,14 +72,14 @@ test("panel state communicates offline, paused, attention, and online modes", ()
         device: {available: false, reason: "Disconnected"},
     })), {
         accessibleName: "TPU Workload Manager, unavailable: Disconnected",
-        label: "TPU Offline",
+        label: "Accel Offline",
         status: "unavailable",
         severity: null,
         tooltip: "TPU Workload Manager — Disconnected",
     });
     assert.deepEqual(ViewModel.panelModel(state({paused: true})), {
         accessibleName: "TPU Workload Manager, paused: all workloads paused",
-        label: "TPU Paused",
+        label: "Accel Paused",
         status: "paused",
         severity: null,
         tooltip: "TPU Workload Manager — all workloads paused",
