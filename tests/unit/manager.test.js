@@ -208,7 +208,7 @@ test("runtime controls wait for acknowledgement and roll back failures", () => {
     assert.equal(manager.state().control.pending, true);
     requests[0].callback(new Error("service offline"), null);
     assert.equal(manager.state().profiles.find((profile) => profile.id === "hardware-health").enabled, true);
-    assert.match(manager.state().control.message, /service offline/u);
+    assert.match(manager.state().control.message, /could not apply the change/u);
     assert.equal(saves.length, 0);
 
     assert.equal(manager.toggleProfile("hardware-health"), true);
@@ -427,4 +427,28 @@ test("dispose is idempotent and blocks subsequent work", () => {
     assert.throws(() => manager.refresh(), /disposed/);
     assert.throws(() => manager.retryDeviceDetection(), /disposed/);
     assert.throws(() => manager.subscribe(() => {}), /disposed/);
+});
+
+test("control transport failures surface plain guidance, never raw D-Bus errors", () => {
+    assert.equal(
+        Manager.controlFailureText(new Error("GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.cinnamon.OmniTensor1 was not provided by any .service files")),
+        "The runtime service is not running; the change was not applied",
+    );
+    assert.equal(
+        Manager.controlFailureText(new Error("GDBus.Error:org.freedesktop.DBus.Error.NameHasNoOwner: x")),
+        "The runtime service is not running; the change was not applied",
+    );
+    assert.equal(
+        Manager.controlFailureText(new Error("GDBus.Error:org.freedesktop.DBus.Error.TimedOut: y")),
+        "The runtime service did not respond; the change was not applied",
+    );
+    assert.equal(
+        Manager.controlFailureText(new Error("Command timed out: Timeout was reached")),
+        "The runtime service did not respond; the change was not applied",
+    );
+    assert.equal(
+        Manager.controlFailureText(new Error("mystery")),
+        "The runtime service could not apply the change",
+    );
+    assert.doesNotMatch(Manager.controlFailureText(new Error("GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown")), /GDBus/u);
 });

@@ -12,6 +12,19 @@ const RUNTIME_READ_FAILURE = "runtime-read";
 const STATE_SAVE_FAILURE = "state-save";
 const RUNTIME_CONTROL_FAILURE = "runtime-control";
 
+// Transport failures reach the user as plain guidance; the raw error text
+// stays in the log where it belongs.
+function controlFailureText(error) {
+    const text = String(error);
+    if (text.includes("ServiceUnknown") || text.includes("NameHasNoOwner")) {
+        return "The runtime service is not running; the change was not applied";
+    }
+    if (text.includes("TimedOut") || text.includes("Timeout")) {
+        return "The runtime service did not respond; the change was not applied";
+    }
+    return "The runtime service could not apply the change";
+}
+
 function sanitizeTab(value) {
     return TAB_SET.has(value) ? value : "overview";
 }
@@ -375,8 +388,12 @@ class WorkloadManager {
         }
         this._controlPending = null;
         if (error) {
-            this._controlMessage = `Runtime did not apply the change: ${error}`;
-            this._errors.report(RUNTIME_CONTROL_FAILURE, this._controlMessage, this._clock.now());
+            this._controlMessage = controlFailureText(error);
+            this._errors.report(
+                RUNTIME_CONTROL_FAILURE,
+                `Runtime did not apply the change: ${error}`,
+                this._clock.now(),
+            );
             this._publish();
             return false;
         }
@@ -448,6 +465,7 @@ class WorkloadManager {
 module.exports = {
     RUNTIME_READ_FAILURE,
     RUNTIME_CONTROL_FAILURE,
+    controlFailureText,
     STATE_SAVE_FAILURE,
     TABS,
     WorkloadManager,
