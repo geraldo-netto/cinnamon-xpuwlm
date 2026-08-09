@@ -41,6 +41,23 @@ The earlier idle-window use case can be evaluated without making it the document
 5. Run in observation mode and measure false-idle and missed-idle rates.
 6. If the Edge TPU provides a net benefit, map predictions only to safe, predefined actions.
 
+## Reproducible staging and install verification
+
+`scripts/package-applet.js` produces deterministic release artifacts from the
+payload in `files/cinnamon-tpuwm@geraldo-netto/`:
+
+- `npm run package` stages the payload into `dist/`, writes a
+  `sha256sum --check` compatible `SHA256SUMS` manifest, and builds a
+  byte-reproducible ustar archive (sorted members, fixed timestamp, zero
+  ownership) with its own recorded SHA-256.
+- `npm run package:verify -- <installed-root>` audits an installed applet
+  directory against the payload checksums, reporting missing, mismatched,
+  and unexpected files; `verify-absent <installed-root>` proves a clean
+  uninstall.
+
+Identical payload bytes always produce identical staging trees, manifests,
+and archives, so releases can be rebuilt and audited offline.
+
 ## Localization
 
 The applet ships a gettext template at
