@@ -110,6 +110,11 @@ function readFileTextAsync(path, environment, options, callback) {
     const maximumBytes = options && Number.isFinite(options.maximumBytes)
         ? options.maximumBytes
         : null;
+    // Sysfs attribute files declare a page-sized st_size (4096) regardless of
+    // content, so bounded identity reads opt out of the declared-size gate and
+    // rely on the actual bounded byte read plus truncation instead. The
+    // snapshot path keeps the strict declared-size rejection.
+    const truncateOversize = options?.truncateOversize === true;
     const cancellable = options ? options.cancellable || null : null;
     const Gio = environment.Gio;
     const file = Gio.File.new_for_path(path);
@@ -141,7 +146,7 @@ function readFileTextAsync(path, environment, options, callback) {
                 fail(new Error(`Runtime snapshot is not a regular file: ${path}`));
                 return;
             }
-            if (maximumBytes !== null && info.get_size() > maximumBytes) {
+            if (!truncateOversize && maximumBytes !== null && info.get_size() > maximumBytes) {
                 fail(new RangeError("Runtime snapshot exceeds 1 MiB"));
                 return;
             }
@@ -166,7 +171,7 @@ function readFileTextAsync(path, environment, options, callback) {
                     (bytesSource, bytesResult) => guarded(() => {
                         const bytes = bytesSource.read_bytes_finish(bytesResult);
                         const data = typeof bytes.get_data === "function" ? bytes.get_data() : bytes;
-                        if (maximumBytes !== null && data.length > maximumBytes) {
+                        if (!truncateOversize && maximumBytes !== null && data.length > maximumBytes) {
                             fail(new RangeError("Runtime snapshot exceeds 1 MiB"));
                             return;
                         }
@@ -360,7 +365,11 @@ function listUsbDeviceNamesAsync(environment, cancellable, callback) {
 }
 
 function readTrimmedAsync(path, environment, cancellable, callback) {
-    readFileTextAsync(path, environment, {maximumBytes: MAX_USB_ID_BYTES, cancellable}, (error, text) => {
+    readFileTextAsync(path, environment, {
+        maximumBytes: MAX_USB_ID_BYTES,
+        truncateOversize: true,
+        cancellable,
+    }, (error, text) => {
         if (error) {
             callback(error, "");
             return;

@@ -47,7 +47,10 @@ function createAsyncDeviceEnvironment({pcie = [], usb = [], accel = [], dri = []
             }
             return {
                 get_file_type: () => environment.Gio.FileType.REGULAR,
-                get_size: () => text === null ? 0 : String(text).length,
+                // Real sysfs attribute files declare a page-sized st_size no
+                // matter how short their content is; the fake mirrors that so
+                // bounded id reads are tested against the real kernel behavior.
+                get_size: () => (this.path.startsWith("/sys/") ? 4096 : (text === null ? 0 : String(text).length)),
                 get_attribute_uint64: () => 1,
                 get_attribute_uint32: () => 1,
             };
