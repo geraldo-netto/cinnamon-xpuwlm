@@ -33,17 +33,17 @@ test("regression: shared runtime modules contain no Node-only Buffer dependency"
 });
 
 test("regression: Cinnamon root-resolution bridges export every nested dependency", () => {
-    for (const moduleName of [
-        "domain",
-        "manager",
-        "runtime-gateway",
-        "runtime-snapshot-schema-validator",
-        "snapshot-validator",
-        "view-model",
-        "workload-manifest",
-        "workload-registry",
-        "workload-reconciliation",
-    ]) {
+    const nestedDependencies = new Set();
+    const libraryRoot = path.join(ROOT, "lib");
+    for (const filename of fs.readdirSync(libraryRoot).filter((name) => name.endsWith(".js"))) {
+        const source = fs.readFileSync(path.join(libraryRoot, filename), "utf8");
+        for (const match of source.matchAll(/require\("\.\/([^/]+)\.js"\)/gu)) {
+            nestedDependencies.add(match[1]);
+        }
+    }
+
+    assert.equal(nestedDependencies.size > 0, true);
+    for (const moduleName of [...nestedDependencies].sort()) {
         const bridge = require(path.join(ROOT, `${moduleName}.js`));
         const implementation = require(path.join(ROOT, "lib", `${moduleName}.js`));
         assert.equal(bridge, implementation);

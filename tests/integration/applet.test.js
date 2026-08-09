@@ -461,26 +461,35 @@ test("menu destruction and panel rendering tolerate missing transient state", ()
     applet.on_applet_removed_from_panel();
 });
 
-test("the popup layout is measured at construction and again on every open", () => {
-    const {applet, menus, views} = appletHarness();
+test("the popup starts with a safe default and measures only after it opens", () => {
+    let measurements = 0;
+    const {applet, menus, views} = appletHarness({
+        layoutProvider: {
+            measure() {
+                measurements += 1;
+                return {workAreaWidth: 480, workAreaHeight: 900};
+            },
+        },
+    });
     assert.equal(views[0].layout.mode, "wide");
     assert.equal(views[0].layout.widthPx, Layout.PREFERRED_WIDTH);
     assert.deepEqual(views[0].layouts, []);
+    assert.equal(measurements, 0, "construction must not inspect an unstaged applet actor");
 
-    global.imports.ui.main.layoutManager.findMonitorForActor = () => ({width: 480, height: 900});
     menus[0].emit("open-state-changed", true);
+    assert.equal(measurements, 1);
     assert.equal(views[0].layouts.length, 1);
     assert.equal(views[0].layouts[0].mode, "compact");
     assert.equal(applet._layout.mode, "compact");
 
     menus[0].emit("open-state-changed", false);
+    assert.equal(measurements, 1);
     assert.equal(views[0].layouts.length, 1, "closing the popup must not re-measure");
-
-    global.imports.ui.main.layoutManager.findMonitorForActor = () => ({width: 1920, height: 1080});
 });
 
 test("an unusable layout measurement falls back to the default popup layout", () => {
     const warnings = [];
+    const menu = new FakeMenu();
     const applet = new AppletModule.TpuWorkloadApplet(
         {uuid: AppletModule.UUID, path: "/tmp/tpuwm"},
         "top",
@@ -495,12 +504,14 @@ test("an unusable layout measurement falls back to the default popup layout", ()
             runtimeGateway: {read: (options, callback) => callback(Domain.unavailableSnapshot("none", 1, "error"))},
             layoutProvider: {measure() { throw new Error("no monitor"); }},
             poller: {start() {}, stop() {}},
-            menuFactory: () => new FakeMenu(),
+            menuFactory: () => menu,
             menuManagerFactory: () => new FakeMenuManager(),
-            viewFactory: (menu, layout) => ({layout, render() {}, applyLayout() {}, destroy() {}}),
+            viewFactory: (_popup, layout) => ({layout, render() {}, applyLayout() {}, destroy() {}}),
         },
     );
     assert.deepEqual(applet._layout, Layout.defaultLayout());
+    assert.deepEqual(warnings, []);
+    menu.emit("open-state-changed", true);
     assert.match(warnings[0], /Could not measure the popup layout/u);
     applet.on_applet_removed_from_panel();
 });

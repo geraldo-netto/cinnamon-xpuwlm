@@ -18,6 +18,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "icon.png",
     "icons",
     "lib",
+    "layout.js",
     "manager.js",
     "metadata.json",
     "runtime-gateway.js",

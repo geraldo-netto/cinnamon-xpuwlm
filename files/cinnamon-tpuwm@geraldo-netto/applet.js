@@ -156,7 +156,10 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             || ((applet) => new PopupMenu.PopupMenuManager(applet));
         this._layoutProvider = overrides.layoutProvider
             || CinnamonRuntime.createLayoutProvider({Main, St});
-        this._layout = this._measureLayout();
+        // Cinnamon constructs the applet before adding its actor to the stage.
+        // Measuring here makes findMonitorForActor query an unstaged widget and
+        // emits St-CRITICAL messages. The popup re-measures when it opens.
+        this._layout = Layout.defaultLayout();
         this._viewFactory = overrides.viewFactory
             || ((menu, layout) => new Menu.MenuView({
                 St,
