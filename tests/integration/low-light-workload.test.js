@@ -14,7 +14,7 @@ function manifest() {
     return JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 }
 
-test("low-light enhancement is a normal disabled Visual Library workload", () => {
+test("low-light enhancement is a dedicated disabled-by-default catalog workload", () => {
     const descriptor = new Manifest.WorkloadDescriptor(manifest());
     const definition = descriptor.profileDefinition();
     assert.equal(descriptor.id, "low-light-enhancement");
