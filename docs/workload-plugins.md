@@ -19,6 +19,33 @@ every placeholder. Directory name and manifest `id` must match.
 - explicit host-pipeline responsibilities; and
 - measurable acceptance criteria.
 
+### Accelerator requirements
+
+`requirements.accelerator` is the backend the workload was designed for, one of
+`tpu`, `npu`, or `gpu`. The former `edge-tpu` value is retired: a third-party
+manifest that still declares `accelerator: "edge-tpu"` now fails validation
+loudly. Migration is mechanical — change the value to `"tpu"` and optionally
+add an `acceleratorPreference`.
+
+Optional `requirements.acceleratorPreference` is an ordered, unique list of one
+to three backends from the same enum. It is routing intent that the OmniTensor
+service consumes; the applet does not enforce it. When omitted, the global
+default `["tpu", "npu", "gpu"]` applies. Built-in manifests must lead with
+their designed-for backend as the first preference entry; a repository lint
+enforces this.
+
+`requirements.minimumDevices` counts devices of the backend actually selected
+for the workload, not total accelerators. It is validate-only: the contract
+checker enforces its shape, and the service — not the applet — decides what to
+do when the count is unmet.
+
+### Model requirements
+
+`model.format` is one of `tflite-edgetpu`, `tflite`, `onnx`, or `openvino`,
+with a `fullyQuantized` boolean. A tpu-designed workload must keep `model`
+null or declare `tflite-edgetpu` with `fullyQuantized: true`, because the Edge
+TPU only executes fully quantized, edgetpu-compiled TensorFlow Lite models.
+
 Use `model: null` when catalog identity does not select one concrete artifact.
 When a model is named, update its ID and version independently from workload
 identity. `fullyQuantized: true` and `tflite-edgetpu` describe contract
@@ -26,7 +53,8 @@ requirements; they do not replace compiler-report or hardware validation.
 
 Keep host work explicit. Decode, validation, resizing, normalization,
 quantization, capture, post-processing, policy, persistence, display, and result
-routing do not become Edge TPU work merely because a model is accelerated.
+routing do not become accelerator work merely because a model is accelerated,
+regardless of whether the workload routes to a TPU, NPU, or GPU backend.
 
 ## Check and test
 

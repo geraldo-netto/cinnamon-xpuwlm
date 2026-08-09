@@ -137,7 +137,7 @@ Use the following controls per workload:
 | `max_consecutive` | Limit cache-friendly batching so one model cannot monopolize the device |
 | `max_batch_wait_ms` | Bound how long the scheduler waits to collect same-model work |
 | `device_affinity` | Prefer or require a particular physical TPU |
-| `overflow_policy` | Reject newest, reject oldest, coalesce, sample, or fall back to CPU according to workload semantics |
+| `overflow_policy` | Reject newest, reject oldest, coalesce, or sample according to workload semantics; CPU fallback is deliberately excluded |
 
 A reasonable hybrid policy is:
 
@@ -213,11 +213,13 @@ Multiple devices are the only documented path to actual device-level parallelism
 | Pooled least-loaded | Send compatible jobs to the device with the least queued estimated time |
 | Model affinity | Keep a model on one device to preserve its parameter cache |
 | Workload affinity | Keep latency-sensitive or high-volume work on a predictable device |
-| Spillover | Use a preferred TPU, then another TPU or CPU when a queue limit is reached |
+| Spillover | Use a preferred device, then another accelerator when a queue limit is reached; this design deliberately never spills onto the CPU |
 | Replicated model | Load the same model on several TPUs for higher request throughput |
 | Segmented pipeline | Reserve several TPUs for consecutive segments of one large model |
 
 A Dual Edge TPU module contains two independent Edge TPU devices; it is not one TPU with two percentage partitions. The host must expose both PCIe links before both can be scheduled. Pipelining also consumes whole devices and should be treated as a multi-device reservation. [Multiple Edge TPUs](https://coral.ai/docs/edgetpu/multiple-edgetpu/) · [Model pipelining](https://coral.ai/docs/edgetpu/pipeline/)
+
+The production snapshot contract generalizes this multi-device model beyond the Edge TPU. A version 1 snapshot publishes a `devices` array of 1–16 accelerator entries — not a single `device` object — where each entry requires `id`, `backend` (`tpu`, `npu`, or `gpu`), `available`, `name`, and `kind`, with optional `vendor`, per-device `load` (0–100 or null), and `reason`. The `metrics` object carries only `queueDepth` and `runningProfiles`; load is per device rather than a global metric. The backend hierarchy is tpu > npu > gpu, and there is deliberately no CPU backend: inference never falls back onto the host CPU, and the absence of every accelerator is presented as an explicit unavailable/recovery state. The OmniTensor runtime service owns discovery and per-backend execution; the scheduling principles in this section — one serial dispatch worker per physical device, weighted soft shares, no hardware partitioning — apply per accelerator regardless of backend.
 
 If hard performance or security isolation is required, dedicate complete devices and enforce device access outside the inference service. Weighted scheduling on one process is cooperative policy, not a security boundary and not a guaranteed service-level reservation.
 
@@ -240,7 +242,7 @@ Track at least:
 
 ### Suggested D-Bus contract
 
-Use a session-bus name such as `org.example.CoralControl1`, an object path such as `/org/example/CoralControl1`, and a matching interface name. Include a version in the API or bus name so the applet and service can reject incompatible peers.
+Use a session-bus name such as `org.example.CoralControl1`, an object path such as `/org/example/CoralControl1`, and a matching interface name. Include a version in the API or bus name so the applet and service can reject incompatible peers. The names below are illustrative for a from-scratch integration; the production applet's actual control surface is the much smaller `org.cinnamon.OmniTensor1` contract implemented by the OmniTensor service, documented in [Runtime control contract](runtime-control.md).
 
 | Member | Direction | Purpose |
 | --- | --- | --- |

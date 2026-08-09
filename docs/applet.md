@@ -85,16 +85,43 @@ does. Focus on a control outside the body is never disturbed.
 
 ## Runtime boundary
 
-A trusted local workload service may atomically publish
+A trusted local workload service — in practice the OmniTensor runtime — may
+atomically publish
 `~/.local/state/tpu-workload-manager/state.json`. The accepted version 1
-contract is defined by `runtime-snapshot.schema.json`. The applet validates the
-complete document before normalizing or displaying any runtime field; it never
-executes its content.
+contract is defined by `runtime-snapshot.schema.json`; the canonical schemas
+live in the OmniTensor repository and the applet ships mirror copies. The
+applet validates the complete document before normalizing or displaying any
+runtime field; it never executes its content.
 
-If no snapshot exists, the applet probes for Coral USB runtime
-(`18d1:9302`), Coral USB DFU (`1a6e:089a`), and PCIe (`/dev/apex_*`)
-devices and reports device-only state. USB authorization uses those exact
-vendor/product pairs; mixed pairs are rejected. Missing or empty snapshot
+A version 1 snapshot carries a `devices` array of 1–16 accelerator entries
+rather than a single `device` object. Each entry requires `id`, `backend`
+(`tpu`, `npu`, or `gpu`), `available`, `name`, and `kind` (`usb`, `pcie`,
+`accel`, `dri`, or `unknown`), with optional `vendor`, per-device `load`
+(0–100 or null), and `reason`. The snapshot `metrics` object carries only
+`queueDepth` and `runningProfiles`; load is reported per device. The applet
+aggregates `devices` to a primary device — the first available device in
+tpu > npu > gpu hierarchy order — which drives the panel label (for example
+"GPU 55%", "TPU Detected", "Accel Offline", "Accel Unknown", "Accel Paused"),
+while the menu overview's "Accelerators" group lists every device with its
+availability and per-device load. There is deliberately no CPU backend: the CPU
+is the host's scarcest shared resource, inference never falls back onto it, and
+all-accelerators-absent shows the unavailable/recovery screen with generalized
+copy such as "Accelerator discovery failed" and "No accelerator available".
+
+If no snapshot exists, the applet probes for accelerator device nodes and
+reports device-only state. Coral TPU probing is unchanged: PCIe
+`/dev/apex_0`–`/dev/apex_7`, then USB runtime (`18d1:9302`) and USB DFU
+(`1a6e:089a`) devices. USB authorization uses those exact vendor/product pairs;
+mixed pairs are rejected. NPU probing covers the kernel accel subsystem,
+`/dev/accel/accel0`–`/dev/accel/accel7`, with a best-effort vendor read from
+`/sys/class/accel/accelN/device/vendor` (`0x8086` Intel NPU, `0x1002`/`0x1022`
+AMD NPU, otherwise a generic "NPU accelerator"). GPU probing covers DRM render
+nodes `/dev/dri/renderD128`–`/dev/dri/renderD135`, with vendor from
+`/sys/class/drm/renderDN/device/vendor` (`0x10de` NVIDIA, `0x1002` AMD,
+`0x8086` Intel, otherwise generic). An unreadable vendor file never fails
+detection. Only found devices are reported; absence is expressed by omission.
+Probing reports the presence of device nodes only — it does not verify that a
+driver is usable or that a runtime can be installed. Missing or empty snapshot
 content enables this trusted local probe. A present snapshot that is malformed,
 stale, oversized, unsupported, missing a required field, contains an unknown
 field, or violates a type or bound fails closed into an explicit

@@ -47,6 +47,12 @@ These characteristics are documented in the [Coral FAQ](https://coral.ai/docs/ed
 
 See the [Coral FAQ](https://coral.ai/docs/edgetpu/faq/), [inferencing overview](https://coral.ai/docs/edgetpu/inference/), and [on-device transfer-learning documentation](https://coral.ai/docs/edgetpu/models-intro/#transfer-learning-on-device).
 
+These constraints describe the Edge TPU silicon itself and remain true. The
+workload manager, however, is no longer TPU-only: the OmniTensor service can
+also route workloads to NPU (OpenVINO) and GPU (ONNX Runtime CUDA/ROCm)
+backends. Such workloads run on those other devices — routing does not relax
+any Edge TPU constraint above, and there is deliberately no CPU backend.
+
 ## What it can and cannot do
 
 | Area | What it can do | What it cannot do by itself |

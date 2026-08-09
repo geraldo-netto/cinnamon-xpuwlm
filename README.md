@@ -6,6 +6,8 @@ The Google Coral Edge TPU is a small application-specific integrated circuit (AS
 
 The Edge TPU is a coprocessor. It executes compatible portions of a compiled, fully quantized TensorFlow Lite model; the host system remains responsible for input acquisition, decoding, feature preparation, unsupported operations, output interpretation, storage, networking, user interfaces, and actions. [Inferencing overview](https://coral.ai/docs/edgetpu/inference/) · [Model requirements](https://coral.ai/docs/edgetpu/models-intro/)
 
+The workload manager built around this hardware is no longer TPU-only. Its version 1 runtime snapshot models one to sixteen accelerator devices across three backends — `tpu`, `npu`, and `gpu`, preferred in that order — and a separate sibling project, the OmniTensor runtime service (private repository, Python), owns device discovery, per-backend execution, scheduling, and snapshot publishing. There is deliberately no CPU backend: the CPU is the host's scarcest shared resource, and inference never falls back onto it; when no accelerator is available, the applet shows an explicit unavailable/recovery state rather than degrading silently. None of this relaxes the Edge TPU's own capabilities or constraints described below.
+
 This document is application-neutral. It explains the hardware and software boundary first, then preserves the existing application ideas as mappings onto documented model families. Inclusion in the catalog means that an idea can be formulated as a neural-network task; it does not mean Coral publishes that application, that a compatible model already exists, or that the Edge TPU will outperform a CPU.
 
 ## Documentation index
@@ -52,11 +54,12 @@ The Edge TPU is a narrow but capable accelerator: it executes the compatible, co
 The evidence-based application catalog is therefore a set of mappings, not promises, while the separate speculative idea bank is intentionally a source-free brainstorming inventory. A use case is justified only when its model compiles well, quantized accuracy remains acceptable, the host-side work is controlled, the complete pipeline beats a CPU baseline, operational risk is bounded, and the archived software stack can be maintained for the intended lifetime.
 
 The repository now includes the production Cinnamon panel applet. It presents
-device and workload state, persists local profile intent, and reads a validated
-snapshot from a trusted local service; it does not contain the inference service
-or directly enforce workload policy. That service—not the panel UI—should own
-the Edge TPU runtime, compiled models, input validation, per-workload queues,
-scheduling, inference, accounting, and recovery. It can accept many jobs
-concurrently, but it should serialize dispatch to each physical TPU. Weighted
-userspace scheduling can approximate shares such as 25/25/25/25 under
-contention; it cannot physically partition one TPU or provide hard isolation.
+accelerator and workload state, persists local profile intent, and reads a
+validated snapshot from a trusted local service; it does not contain the
+inference service or directly enforce workload policy. That service — the
+OmniTensor runtime, not the panel UI — owns the per-backend runtimes, compiled
+models, input validation, per-workload queues, scheduling, inference,
+accounting, and recovery. It can accept many jobs concurrently, but it
+serializes dispatch to each physical accelerator. Weighted userspace scheduling
+can approximate shares such as 25/25/25/25 under contention; it cannot
+physically partition one device or provide hard isolation.

@@ -10,8 +10,9 @@ service is implemented in this repository.
 
 The production applet presents device and workload state, persists local
 profile intent and contention weights, provides pause/resume and recovery UX,
-validates a trusted local runtime snapshot, and falls back to local Coral device
-discovery when no snapshot exists. It does not execute models, schedule jobs, or
+validates a trusted local runtime snapshot, and falls back to local accelerator
+discovery (Coral TPU devices, kernel accel NPU nodes, and DRM GPU render nodes)
+when no snapshot exists. It does not execute models, schedule jobs, or
 claim that UI intent has been enforced by hardware. See the
 [applet documentation](../../docs/applet.md) for the current runtime
 contract, quality gates, and installation instructions.
@@ -30,6 +31,14 @@ The panel prototype covers every primary navigation screen and critical recovery
 4. **No alerts:** explicit empty state with evaluation recency and retention context.
 5. **All paused:** held-queue behavior, collector behavior, safety-rule continuity, and recovery action.
 6. **TPU unavailable:** preserved jobs, deterministic no-fallback behavior, recovery steps, and diagnostics.
+
+The screens were designed for a TPU-only manager. The production behavior
+generalizes them without changing the approved direction: the "TPU unavailable"
+state applies to any accelerator, dispatch is serialized per physical
+accelerator rather than per physical Edge TPU only, workloads are routed by
+their manifest `acceleratorPreference` across the tpu > npu > gpu hierarchy,
+and the deterministic no-fallback rule stands — there is no CPU fallback by
+design.
 
 Approval images live in `mockup/screens/`. `all-screens.png` is the review gallery. Individual 1440×1080 images preserve readable detail; `768/` and `900/` preserve earlier viewport references.
 
@@ -110,7 +119,9 @@ Several requested cases share inputs, preprocessing, models, or actions. Profile
 - Treat model output as a score or recommendation, never an unrestricted command.
 - Keep screenshot, photo, document, and embedding indexes local by default.
 - Show retention controls and data-source permissions in the full manager.
-- Serialize dispatch per physical Edge TPU; concurrency belongs in bounded queues.
+- Serialize dispatch per physical accelerator — originally per physical Edge
+  TPU, now generalized across TPU, NPU, and GPU devices; concurrency belongs in
+  bounded queues.
 - Expose model version, last successful run, confidence, latency, and failure reason.
 - Never delay backups because a disk model reports low risk.
 

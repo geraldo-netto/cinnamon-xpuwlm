@@ -28,6 +28,22 @@ Power and heat depend on model, inference rate, and operating frequency. The PCI
 
 ## Software setup
 
+### Accelerator probing reference
+
+When no runtime snapshot is present, the applet probes for device nodes per
+backend. The OmniTensor service uses the matching runtime stack per backend:
+
+| Backend | Device nodes probed | Vendor source | Runtime stack |
+| --- | --- | --- | --- |
+| `tpu` | PCIe `/dev/apex_0`–`/dev/apex_7`; USB runtime `18d1:9302`; USB DFU `1a6e:089a` | Fixed Coral vendor/product IDs | `tflite-runtime` with the `libedgetpu.so.1` delegate |
+| `npu` | `/dev/accel/accel0`–`/dev/accel/accel7` | `/sys/class/accel/accelN/device/vendor` (`0x8086` Intel NPU, `0x1002`/`0x1022` AMD NPU, otherwise generic "NPU accelerator") | OpenVINO NPU plugin |
+| `gpu` | `/dev/dri/renderD128`–`/dev/dri/renderD135` | `/sys/class/drm/renderDN/device/vendor` (`0x10de` NVIDIA, `0x1002` AMD, `0x8086` Intel, otherwise generic) | ONNX Runtime CUDA/ROCm execution providers only; the CPU provider is deliberately never used |
+
+Node presence is not a working runtime. Probing reports only that a device
+node exists; it does not verify that the driver is usable or that the runtime
+library, execution provider, or plugin can be installed. An unreadable vendor
+file never fails detection — the device is reported with a generic name.
+
 ### Development quality-gate dependencies
 
 Complete local quality gates need Cinnamon's `cjs` runtime and `St-1.0.typelib`,
