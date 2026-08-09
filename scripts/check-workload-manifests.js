@@ -32,6 +32,17 @@ function checkManifestFile(filename, expectedId) {
         `${filename}: ${formatErrors(validate.errors)}`,
     );
     assert.equal(manifest.id, expectedId, `${filename}: id must match directory name`);
+    const preference = manifest.requirements.acceleratorPreference;
+    assert.equal(
+        Array.isArray(preference),
+        true,
+        `${filename}: built-in manifests must declare acceleratorPreference`,
+    );
+    assert.equal(
+        preference[0],
+        manifest.requirements.accelerator,
+        `${filename}: the first preference must be the designed-for accelerator`,
+    );
     return manifest;
 }
 

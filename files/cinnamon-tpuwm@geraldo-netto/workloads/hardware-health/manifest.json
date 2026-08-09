@@ -2,8 +2,21 @@
   "manifestVersion": 1,
   "id": "hardware-health",
   "version": "1.0.0",
-  "capabilities": ["anomaly-detection", "health-monitoring"],
-  "requirements": {"runtimeApi": 1, "accelerator": "edge-tpu", "minimumDevices": 1, "model": null},
+  "capabilities": [
+    "anomaly-detection",
+    "health-monitoring"
+  ],
+  "requirements": {
+    "runtimeApi": 1,
+    "accelerator": "tpu",
+    "acceleratorPreference": [
+      "tpu",
+      "npu",
+      "gpu"
+    ],
+    "minimumDevices": 1,
+    "model": null
+  },
   "ui": {
     "title": "Hardware health",
     "group": "System health",
@@ -11,7 +24,12 @@
     "icon": "applications-system-symbolic",
     "order": 10
   },
-  "defaults": {"enabled": true, "weight": 2},
-  "pipeline": {"hostResponsibilities": []},
+  "defaults": {
+    "enabled": true,
+    "weight": 2
+  },
+  "pipeline": {
+    "hostResponsibilities": []
+  },
   "acceptance": []
 }

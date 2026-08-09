@@ -2,8 +2,21 @@
   "manifestVersion": 1,
   "id": "build-advisor",
   "version": "1.0.0",
-  "capabilities": ["build-classification", "regression-detection"],
-  "requirements": {"runtimeApi": 1, "accelerator": "edge-tpu", "minimumDevices": 1, "model": null},
+  "capabilities": [
+    "build-classification",
+    "regression-detection"
+  ],
+  "requirements": {
+    "runtimeApi": 1,
+    "accelerator": "tpu",
+    "acceleratorPreference": [
+      "tpu",
+      "npu",
+      "gpu"
+    ],
+    "minimumDevices": 1,
+    "model": null
+  },
   "ui": {
     "title": "Build advisor",
     "group": "Orchestration",
@@ -11,7 +24,12 @@
     "icon": "applications-engineering-symbolic",
     "order": 40
   },
-  "defaults": {"enabled": true, "weight": 2},
-  "pipeline": {"hostResponsibilities": []},
+  "defaults": {
+    "enabled": true,
+    "weight": 2
+  },
+  "pipeline": {
+    "hostResponsibilities": []
+  },
   "acceptance": []
 }

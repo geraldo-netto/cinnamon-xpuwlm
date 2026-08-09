@@ -193,7 +193,7 @@ test("workload registry adapter discovers bounded validated manifests", () => {
         capabilities: ["classify"],
         requirements: {
             runtimeApi: 1,
-            accelerator: "edge-tpu",
+            accelerator: "tpu",
             minimumDevices: 1,
             model: null,
         },

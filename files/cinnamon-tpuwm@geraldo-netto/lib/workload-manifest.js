@@ -11,7 +11,10 @@ const ROOT_PROPERTIES = new Set([
     "manifestVersion", "id", "version", "capabilities", "requirements", "ui",
     "defaults", "pipeline", "acceptance",
 ]);
-const REQUIREMENT_PROPERTIES = new Set(["runtimeApi", "accelerator", "minimumDevices", "model"]);
+const REQUIRED_REQUIREMENT_PROPERTIES = Object.freeze(["runtimeApi", "accelerator", "minimumDevices", "model"]);
+const REQUIREMENT_PROPERTIES = new Set([...REQUIRED_REQUIREMENT_PROPERTIES, "acceleratorPreference"]);
+const ACCELERATORS = new Set(["tpu", "npu", "gpu"]);
+const MODEL_FORMATS = new Set(["tflite-edgetpu", "tflite", "onnx", "openvino"]);
 const MODEL_PROPERTIES = new Set([
     "id", "version", "format", "fullyQuantized", "minimumCompilerVersion",
     "minimumRuntimeVersion",
@@ -58,27 +61,51 @@ function uniqueBoundedTextList(value, maximumItems, maximumLength, predicate = n
             && (predicate === null || predicate(item)));
 }
 
-function isModel(value) {
+// The Edge TPU executes only fully quantized, edgetpu-compiled TFLite models,
+// so a tpu-designed workload may not declare any other model format.
+function isModelFormat(value, accelerator) {
+    if (accelerator === "tpu") {
+        return value.format === "tflite-edgetpu" && value.fullyQuantized === true;
+    }
+    return MODEL_FORMATS.has(value.format) && typeof value.fullyQuantized === "boolean";
+}
+
+function isModel(value, accelerator) {
     if (value === null) {
         return true;
     }
     return exactProperties(value, MODEL_PROPERTIES)
         && identifier(value.id, 120)
         && semanticVersion(value.version)
-        && value.format === "tflite-edgetpu"
-        && value.fullyQuantized === true
+        && isModelFormat(value, accelerator)
         && boundedText(value.minimumCompilerVersion, 1, 80)
         && boundedText(value.minimumRuntimeVersion, 1, 80);
 }
 
-function isRequirements(value) {
-    return exactProperties(value, REQUIREMENT_PROPERTIES)
-        && value.runtimeApi === RUNTIME_API_VERSION
-        && value.accelerator === "edge-tpu"
-        && Number.isInteger(value.minimumDevices)
+function hasRequirementProperties(value) {
+    return isRecord(value)
+        && REQUIRED_REQUIREMENT_PROPERTIES.every((name) => Object.hasOwn(value, name))
+        && Object.keys(value).every((name) => REQUIREMENT_PROPERTIES.has(name));
+}
+
+function isAcceleratorPreference(value) {
+    return uniqueBoundedTextList(value, ACCELERATORS.size, 8, (item) => ACCELERATORS.has(item))
+        && value.length >= 1;
+}
+
+function hasBoundedMinimumDevices(value) {
+    return Number.isInteger(value.minimumDevices)
         && value.minimumDevices >= 0
-        && value.minimumDevices <= 16
-        && isModel(value.model);
+        && value.minimumDevices <= 16;
+}
+
+function isRequirements(value) {
+    return hasRequirementProperties(value)
+        && value.runtimeApi === RUNTIME_API_VERSION
+        && ACCELERATORS.has(value.accelerator)
+        && (!Object.hasOwn(value, "acceleratorPreference") || isAcceleratorPreference(value.acceleratorPreference))
+        && hasBoundedMinimumDevices(value)
+        && isModel(value.model, value.accelerator);
 }
 
 function hasUiText(value) {
@@ -163,6 +190,9 @@ function cloneManifest(manifest) {
         capabilities: [...manifest.capabilities],
         requirements: {
             ...manifest.requirements,
+            ...(Object.hasOwn(manifest.requirements, "acceleratorPreference")
+                ? {acceleratorPreference: [...manifest.requirements.acceleratorPreference]}
+                : {}),
             model: manifest.requirements.model === null ? null : {...manifest.requirements.model},
         },
         ui: {...manifest.ui},
@@ -176,6 +206,9 @@ function freezeManifest(manifest) {
     Object.freeze(manifest.capabilities);
     if (manifest.requirements.model !== null) {
         Object.freeze(manifest.requirements.model);
+    }
+    if (Object.hasOwn(manifest.requirements, "acceleratorPreference")) {
+        Object.freeze(manifest.requirements.acceleratorPreference);
     }
     Object.freeze(manifest.requirements);
     Object.freeze(manifest.ui);
@@ -224,7 +257,9 @@ class WorkloadDescriptor {
 }
 
 module.exports = {
+    ACCELERATORS,
     MANIFEST_VERSION,
+    MODEL_FORMATS,
     MAX_WEIGHT,
     MIN_WEIGHT,
     RUNTIME_API_VERSION,
@@ -240,6 +275,7 @@ module.exports = {
     hasUiOrder,
     hasUiText,
     identifier,
+    isAcceleratorPreference,
     isAcceptance,
     isAcceptanceCriterion,
     isDefaults,

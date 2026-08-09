@@ -2,10 +2,18 @@
   "manifestVersion": 1,
   "id": "low-light-enhancement",
   "version": "0.1.0",
-  "capabilities": ["image-enhancement", "tonal-curve-estimation"],
+  "capabilities": [
+    "image-enhancement",
+    "tonal-curve-estimation"
+  ],
   "requirements": {
     "runtimeApi": 1,
-    "accelerator": "edge-tpu",
+    "accelerator": "tpu",
+    "acceleratorPreference": [
+      "tpu",
+      "npu",
+      "gpu"
+    ],
     "minimumDevices": 1,
     "model": {
       "id": "low-light-tonal-curve",
@@ -23,7 +31,10 @@
     "icon": "image-x-generic-symbolic",
     "order": 55
   },
-  "defaults": {"enabled": false, "weight": 2},
+  "defaults": {
+    "enabled": false,
+    "weight": 2
+  },
   "pipeline": {
     "hostResponsibilities": [
       "Decode and validate bounded image inputs",

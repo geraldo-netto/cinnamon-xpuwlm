@@ -8,7 +8,8 @@ function validWorkloadManifest(overrides = {}) {
         capabilities: ["classify"],
         requirements: {
             runtimeApi: 1,
-            accelerator: "edge-tpu",
+            accelerator: "tpu",
+            acceleratorPreference: ["tpu", "npu", "gpu"],
             minimumDevices: 1,
             model: {
                 id: "sample-model",

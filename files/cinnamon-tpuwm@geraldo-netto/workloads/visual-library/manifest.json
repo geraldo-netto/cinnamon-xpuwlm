@@ -2,8 +2,21 @@
   "manifestVersion": 1,
   "id": "visual-library",
   "version": "1.0.0",
-  "capabilities": ["image-classification", "image-embedding"],
-  "requirements": {"runtimeApi": 1, "accelerator": "edge-tpu", "minimumDevices": 1, "model": null},
+  "capabilities": [
+    "image-classification",
+    "image-embedding"
+  ],
+  "requirements": {
+    "runtimeApi": 1,
+    "accelerator": "tpu",
+    "acceleratorPreference": [
+      "tpu",
+      "npu",
+      "gpu"
+    ],
+    "minimumDevices": 1,
+    "model": null
+  },
   "ui": {
     "title": "Visual library",
     "group": "Local workflows",
@@ -11,7 +24,12 @@
     "icon": "image-x-generic-symbolic",
     "order": 50
   },
-  "defaults": {"enabled": true, "weight": 2},
-  "pipeline": {"hostResponsibilities": []},
+  "defaults": {
+    "enabled": true,
+    "weight": 2
+  },
+  "pipeline": {
+    "hostResponsibilities": []
+  },
   "acceptance": []
 }

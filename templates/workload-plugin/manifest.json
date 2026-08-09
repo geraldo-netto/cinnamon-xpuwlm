@@ -2,10 +2,17 @@
   "manifestVersion": 1,
   "id": "replace-me",
   "version": "0.1.0",
-  "capabilities": ["replace-capability"],
+  "capabilities": [
+    "replace-capability"
+  ],
   "requirements": {
     "runtimeApi": 1,
-    "accelerator": "edge-tpu",
+    "accelerator": "tpu",
+    "acceleratorPreference": [
+      "tpu",
+      "npu",
+      "gpu"
+    ],
     "minimumDevices": 1,
     "model": null
   },
@@ -16,9 +23,14 @@
     "icon": "applications-science-symbolic",
     "order": 900
   },
-  "defaults": {"enabled": false, "weight": 1},
+  "defaults": {
+    "enabled": false,
+    "weight": 1
+  },
   "pipeline": {
-    "hostResponsibilities": ["Replace with bounded host-side processing"]
+    "hostResponsibilities": [
+      "Replace with bounded host-side processing"
+    ]
   },
   "acceptance": [
     {
