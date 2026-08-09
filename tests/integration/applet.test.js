@@ -605,3 +605,39 @@ test("default environment, logger, and main construct with Cinnamon dependencies
     assert.equal(timer.callback(), true);
     instance.on_applet_removed_from_panel();
 });
+
+test("gettext installation binds the UUID domain and routes the translation port", () => {
+    const I18n = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/i18n.js");
+    const calls = [];
+    const fakeGettext = {
+        bindtextdomain: (...args) => calls.push(args),
+        dgettext: (domain, msgid) => `${domain}:${msgid}`,
+        dngettext: (domain, singular, plural, count) => `${domain}:${count === 1 ? singular : plural}`,
+    };
+    try {
+        assert.equal(AppletModule.installTranslations(
+            fakeGettext,
+            {GLib: {get_home_dir: () => "/home/tester"}},
+        ), true);
+        assert.deepEqual(calls, [[AppletModule.UUID, "/home/tester/.local/share/locale"]]);
+        assert.equal(I18n._("Pause all"), `${AppletModule.UUID}:Pause all`);
+        assert.equal(I18n.ngettext("one", "many", 2), `${AppletModule.UUID}:many`);
+        assert.equal(I18n.ngettext("one", "many", 1), `${AppletModule.UUID}:one`);
+    } finally {
+        I18n.reset();
+    }
+    try {
+        assert.equal(AppletModule.installTranslations(
+            {dgettext: (domain, msgid) => msgid.toUpperCase()},
+            {GLib: {get_home_dir: () => "/home/tester"}},
+        ), true, "bindtextdomain and dngettext stay optional");
+        assert.equal(I18n._("quiet"), "QUIET");
+        assert.equal(I18n.ngettext("one", "many", 1), "one");
+        assert.equal(I18n.ngettext("one", "many", 6), "many");
+    } finally {
+        I18n.reset();
+    }
+    assert.equal(AppletModule.installTranslations(undefined, {}), false);
+    assert.equal(AppletModule.installTranslations({}, {}), false);
+    assert.equal(I18n._("still identity"), "still identity");
+});

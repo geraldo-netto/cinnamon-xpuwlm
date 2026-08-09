@@ -3,6 +3,7 @@
 const Applet = imports.ui.applet;
 const Atk = imports.gi.Atk;
 const ByteArray = imports.byteArray;
+const Gettext = imports.gettext;
 const Clutter = imports.gi.Clutter;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
@@ -18,14 +19,38 @@ const AlertNotifier = require("./lib/alert-notifier.js");
 const CinnamonRuntime = require("./lib/cinnamon-runtime.js");
 const Domain = require("./lib/domain.js");
 const FailureBackoff = require("./lib/failure-log-backoff.js");
+const I18n = require("./lib/i18n.js");
 const Layout = require("./lib/layout.js");
 const Manager = require("./lib/manager.js");
 const Menu = require("./lib/menu-view.js");
 const ViewModel = require("./lib/view-model.js");
 const WorkloadRegistry = require("./lib/workload-registry.js");
 
+const {_} = I18n;
+
 const UUID = "cinnamon-tpuwm@geraldo-netto";
 const PANEL_STATUSES = Object.freeze(["online", "attention", "detected", "paused", "unavailable"]);
+
+// Binds the applet UUID text domain and routes the shared translation port
+// through GJS gettext. Absent gettext (test harnesses) keeps the identity
+// fallback, so English msgids remain the untranslated UI.
+function installTranslations(gettextModule, environment) {
+    if (!gettextModule || typeof gettextModule.dgettext !== "function") {
+        return false;
+    }
+    if (typeof gettextModule.bindtextdomain === "function") {
+        gettextModule.bindtextdomain(UUID, `${environment.GLib.get_home_dir()}/.local/share/locale`);
+    }
+    I18n.install({
+        translate: (msgid) => gettextModule.dgettext(UUID, msgid),
+        translatePlural: (singular, plural, count) => (
+            typeof gettextModule.dngettext === "function"
+                ? gettextModule.dngettext(UUID, singular, plural, count)
+                : I18n.identityTranslatePlural(singular, plural, count)
+        ),
+    });
+    return true;
+}
 
 function panelIconFilename(status) {
     const safeStatus = PANEL_STATUSES.includes(status) ? status : "unavailable";
@@ -86,6 +111,10 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
 
     _createSettings(metadata, instanceId, overrides) {
         this._environment = overrides.environment || defaultEnvironment();
+        installTranslations(
+            Object.hasOwn(overrides, "gettext") ? overrides.gettext : Gettext,
+            this._environment,
+        );
         this.settings = overrides.settings
             || (overrides.settingsFactory
                 ? overrides.settingsFactory(this)
@@ -93,8 +122,8 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
         this._bindSettings();
         this._registerIconPath();
         this.set_applet_icon_symbolic_path(`${metadata.path}/icons/tpuwm-symbolic-v2.svg`);
-        this.set_applet_tooltip("TPU Workload Manager — starting");
-        this.actor.set_accessible_name("TPU Workload Manager, starting");
+        this.set_applet_tooltip(_("TPU Workload Manager — starting"));
+        this.actor.set_accessible_name(_("TPU Workload Manager, starting"));
     }
 
     _createServices(metadata, overrides) {
@@ -386,6 +415,7 @@ if (typeof module !== "undefined") {
         TpuWorkloadApplet,
         defaultEnvironment,
         defaultLogger,
+        installTranslations,
         main,
         panelIconFilename,
         resolveWorkloadCatalog,

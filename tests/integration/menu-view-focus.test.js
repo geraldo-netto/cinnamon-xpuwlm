@@ -123,7 +123,7 @@ test("a body without any control hands focus to the selected tab", () => {
 
     view.render(ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW));
     const tab = findActors(root, (actor) => actor instanceof FakeButton
-        && actor.accessibleName === "alerts tab, selected")[0];
+        && actor.accessibleName === "Alerts tab, selected")[0];
     assert.equal(tab.focused, true);
     assert.equal(view._focusedIdentity, null);
 });

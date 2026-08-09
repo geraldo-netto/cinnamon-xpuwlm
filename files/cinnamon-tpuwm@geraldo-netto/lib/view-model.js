@@ -1,15 +1,18 @@
 "use strict";
 
 const Domain = require("./domain.js");
+const I18n = require("./i18n.js");
 const Manager = require("./manager.js");
 
+const {_, N_, format, ngettext} = I18n;
+
 const STATUS_LABELS = Object.freeze({
-    healthy: "Healthy",
-    running: "Running",
-    watching: "Watching",
-    idle: "Idle",
-    paused: "Paused",
-    unavailable: "Unavailable",
+    healthy: N_("Healthy"),
+    running: N_("Running"),
+    watching: N_("Watching"),
+    idle: N_("Idle"),
+    paused: N_("Paused"),
+    unavailable: N_("Unavailable"),
 });
 
 const ALERT_SEVERITY_PRIORITY = Object.freeze({
@@ -19,9 +22,9 @@ const ALERT_SEVERITY_PRIORITY = Object.freeze({
 });
 
 const SEVERITY_LABELS = Object.freeze({
-    advisory: "advisory",
-    warning: "warning",
-    critical: "critical",
+    advisory: N_("advisory"),
+    warning: N_("warning"),
+    critical: N_("critical"),
 });
 
 // Severity is announced as text in the panel and popup summaries; the alert
@@ -42,100 +45,101 @@ function highestActiveSeverity(alerts) {
 
 function severityText(severity) {
     return severity === null || severity === undefined
-        ? "none"
-        : SEVERITY_LABELS[severity] || "none";
+        ? _("none")
+        : _(SEVERITY_LABELS[severity] || "none");
 }
 
 const BACKEND_LABELS = Object.freeze({
-    tpu: "TPU",
-    npu: "NPU",
-    gpu: "GPU",
+    tpu: N_("TPU"),
+    npu: N_("NPU"),
+    gpu: N_("GPU"),
 });
 
 function backendLabel(device) {
-    return (device && BACKEND_LABELS[device.backend]) || "Accel";
+    const label = device && BACKEND_LABELS[device.backend];
+    return label ? _(label) : _("Accel");
 }
 
 const DEVICE_STATUS_LABELS = Object.freeze({
-    present: "Device detected",
-    absent: "No device",
-    unknown: "Device unknown",
+    present: N_("Device detected"),
+    absent: N_("No device"),
+    unknown: N_("Device unknown"),
 });
 
 const RUNTIME_STATUS_LABELS = Object.freeze({
-    connected: "Online",
-    "not-started": "Starting",
-    absent: "Runtime absent",
-    stale: "Runtime stale",
-    malformed: "Runtime malformed",
-    unreadable: "Runtime unreadable",
-    "probe-failed": "Detection failed",
+    connected: N_("Online"),
+    "not-started": N_("Starting"),
+    absent: N_("Runtime absent"),
+    stale: N_("Runtime stale"),
+    malformed: N_("Runtime malformed"),
+    unreadable: N_("Runtime unreadable"),
+    "probe-failed": N_("Detection failed"),
 });
 
 // Specific telemetry and recovery guidance per runtime state. Nothing here
 // invents an operational value: what is unknown is presented as unknown.
 const RUNTIME_RECOVERY = Object.freeze({
     "not-started": Object.freeze({
-        kicker: "Starting",
-        title: "Monitoring has not started",
-        description: "No runtime state has been read yet. Local profile intent is unchanged.",
+        kicker: N_("Starting"),
+        title: N_("Monitoring has not started"),
+        description: N_("No runtime state has been read yet. Local profile intent is unchanged."),
         steps: Object.freeze([
-            Object.freeze(["1", "Wait for the first read", "Monitoring starts with the applet and repeats on the refresh interval."]),
-            Object.freeze(["2", "Check the runtime path", "Open the settings and confirm the runtime state path."]),
+            Object.freeze(["1", N_("Wait for the first read"), N_("Monitoring starts with the applet and repeats on the refresh interval.")]),
+            Object.freeze(["2", N_("Check the runtime path"), N_("Open the settings and confirm the runtime state path.")]),
         ]),
     }),
     absent: Object.freeze({
-        kicker: "Runtime absent",
-        title: "No runtime service is publishing state",
-        description: "Device detection still works. Queue, load, and profile telemetry stay unknown until a runtime publishes a snapshot.",
+        kicker: N_("Runtime absent"),
+        title: N_("No runtime service is publishing state"),
+        description: N_("Device detection still works. Queue, load, and profile telemetry stay unknown until a runtime publishes a snapshot."),
         steps: Object.freeze([
-            Object.freeze(["1", "Start the workload runtime", "A trusted local service must publish the snapshot document."]),
-            Object.freeze(["2", "Check the runtime path", "Confirm the configured runtime state path matches the service."]),
+            Object.freeze(["1", N_("Start the workload runtime"), N_("A trusted local service must publish the snapshot document.")]),
+            Object.freeze(["2", N_("Check the runtime path"), N_("Confirm the configured runtime state path matches the service.")]),
         ]),
     }),
     stale: Object.freeze({
-        kicker: "Runtime stale",
-        title: "The runtime snapshot stopped updating",
-        description: "The last snapshot is older than its freshness deadline, so its values are no longer shown as current.",
+        kicker: N_("Runtime stale"),
+        title: N_("The runtime snapshot stopped updating"),
+        description: N_("The last snapshot is older than its freshness deadline, so its values are no longer shown as current."),
         steps: Object.freeze([
-            Object.freeze(["1", "Check the runtime service", "Confirm the service is running and still writing its snapshot."]),
-            Object.freeze(["2", "Check the clock", "A large clock change can also age a snapshot past its deadline."]),
+            Object.freeze(["1", N_("Check the runtime service"), N_("Confirm the service is running and still writing its snapshot.")]),
+            Object.freeze(["2", N_("Check the clock"), N_("A large clock change can also age a snapshot past its deadline.")]),
         ]),
     }),
     malformed: Object.freeze({
-        kicker: "Runtime malformed",
-        title: "The runtime snapshot failed validation",
-        description: "The document was read but rejected by the version 1 contract, so none of its values are displayed.",
+        kicker: N_("Runtime malformed"),
+        title: N_("The runtime snapshot failed validation"),
+        description: N_("The document was read but rejected by the version 1 contract, so none of its values are displayed."),
         steps: Object.freeze([
-            Object.freeze(["1", "Check the runtime version", "The service must publish the version 1 snapshot contract."]),
-            Object.freeze(["2", "Inspect the document", "Validate it against runtime-snapshot.schema.json."]),
+            Object.freeze(["1", N_("Check the runtime version"), N_("The service must publish the version 1 snapshot contract.")]),
+            Object.freeze(["2", N_("Inspect the document"), N_("Validate it against runtime-snapshot.schema.json.")]),
         ]),
     }),
     unreadable: Object.freeze({
-        kicker: "Runtime unreadable",
-        title: "The runtime snapshot could not be read",
-        description: "Reading the snapshot failed, so device and workload telemetry are unknown rather than assumed.",
+        kicker: N_("Runtime unreadable"),
+        title: N_("The runtime snapshot could not be read"),
+        description: N_("Reading the snapshot failed, so device and workload telemetry are unknown rather than assumed."),
         steps: Object.freeze([
-            Object.freeze(["1", "Check permissions", "Confirm the current user can read the runtime state path."]),
-            Object.freeze(["2", "Check the path", "A missing directory or a replaced path object also fails the read."]),
+            Object.freeze(["1", N_("Check permissions"), N_("Confirm the current user can read the runtime state path.")]),
+            Object.freeze(["2", N_("Check the path"), N_("A missing directory or a replaced path object also fails the read.")]),
         ]),
     }),
     "probe-failed": Object.freeze({
-        kicker: "Detection failed",
-        title: "Accelerator discovery failed",
-        description: "Local discovery could not complete, so device presence is unknown rather than reported as absent.",
+        kicker: N_("Detection failed"),
+        title: N_("Accelerator discovery failed"),
+        description: N_("Local discovery could not complete, so device presence is unknown rather than reported as absent."),
         steps: Object.freeze([
-            Object.freeze(["1", "Check device access", "Confirm the current user can read the USB, PCIe, accel, and render device nodes."]),
-            Object.freeze(["2", "Retry detection", "Discovery runs again on request."]),
+            Object.freeze(["1", N_("Check device access"), N_("Confirm the current user can read the USB, PCIe, accel, and render device nodes.")]),
+            Object.freeze(["2", N_("Retry detection"), N_("Discovery runs again on request.")]),
         ]),
     }),
     connected: Object.freeze({
-        kicker: "Connection required",
-        title: "No accelerator available",
-        description: "Profiles remain saved locally. No data, authorization, or backup policy is changed.",
+        kicker: N_("Connection required"),
+        title: N_("No accelerator available"),
+        description: N_("Profiles remain saved locally. No data, authorization, or backup policy is changed."),
         steps: Object.freeze([
-            Object.freeze(["1", "Check the connection", "Connect a supported TPU, NPU, or GPU accelerator."]),
-            Object.freeze(["2", "Check device access", "Confirm the current user can access the accelerator runtime."]),
+            Object.freeze(["1", N_("Check the connection"), N_("Connect a supported TPU, NPU, or GPU accelerator.")]),
+            Object.freeze(["2", N_("Check device access"), N_("Confirm the current user can access the accelerator runtime.")]),
         ]),
     }),
 });
@@ -151,13 +155,13 @@ function healthOf(state) {
 function deviceStatusText(state) {
     const health = healthOf(state);
     return health.runtime === "connected" && health.device === "present"
-        ? RUNTIME_STATUS_LABELS.connected
-        : DEVICE_STATUS_LABELS[health.device] || DEVICE_STATUS_LABELS.unknown;
+        ? _(RUNTIME_STATUS_LABELS.connected)
+        : _(DEVICE_STATUS_LABELS[health.device] || DEVICE_STATUS_LABELS.unknown);
 }
 
 function runtimeStatusText(state) {
     const health = healthOf(state);
-    return RUNTIME_STATUS_LABELS[health.runtime] || RUNTIME_STATUS_LABELS.unreadable;
+    return _(RUNTIME_STATUS_LABELS[health.runtime] || RUNTIME_STATUS_LABELS.unreadable);
 }
 
 function recoveryModel(state) {
@@ -165,14 +169,18 @@ function recoveryModel(state) {
     const guidance = RUNTIME_RECOVERY[health.runtime] || RUNTIME_RECOVERY.connected;
     const detail = health.detail || state.device.reason;
     return {
-        kicker: guidance.kicker,
-        title: guidance.title,
-        description: guidance.description,
+        kicker: _(guidance.kicker),
+        title: _(guidance.title),
+        description: _(guidance.description),
         steps: guidance.steps
-            .map(([number, title, description]) => ({number, title, description}))
+            .map(([number, title, description]) => ({
+                number,
+                title: _(title),
+                description: _(description),
+            }))
             .concat({
                 number: `${guidance.steps.length + 1}`,
-                title: "Retry now",
+                title: _("Retry now"),
                 description: detail,
             }),
     };
@@ -186,21 +194,21 @@ function formatLoad(value) {
 
 function formatRelativeTime(timestamp, nowMs) {
     if (!Number.isFinite(timestamp) || timestamp <= 0) {
-        return "unknown";
+        return _("unknown");
     }
     const seconds = Math.max(0, Math.floor((nowMs - timestamp) / 1000));
     if (seconds < 5) {
-        return "just now";
+        return _("just now");
     }
     if (seconds < 60) {
-        return `${seconds}s ago`;
+        return format(_("%ds ago"), seconds);
     }
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) {
-        return `${minutes}m ago`;
+        return format(_("%dm ago"), minutes);
     }
     const hours = Math.floor(minutes / 60);
-    return `${hours}h ago`;
+    return format(_("%dh ago"), hours);
 }
 
 function formatFraction(value) {
@@ -224,20 +232,22 @@ function groupProfiles(profiles) {
 }
 
 function attentionReviewText(count) {
-    return count === 1 ? "1 item needs review" : `${count} items need review`;
+    return format(ngettext("%d item needs review", "%d items need review", count), count);
 }
 
 function unavailablePanel(state) {
     const unknown = healthOf(state).device === "unknown";
     const reason = unknown
-        ? `${runtimeStatusText(state).toLowerCase()}; device state unknown`
+        ? format(_("%s; device state unknown"), runtimeStatusText(state).toLowerCase())
         : state.device.reason;
     return {
-        accessibleName: `TPU Workload Manager, ${unknown ? "unknown" : "unavailable"}: ${reason}`,
-        label: unknown ? "Accel Unknown" : "Accel Offline",
+        accessibleName: unknown
+            ? format(_("TPU Workload Manager, unknown: %s"), reason)
+            : format(_("TPU Workload Manager, unavailable: %s"), reason),
+        label: unknown ? _("Accel Unknown") : _("Accel Offline"),
         status: "unavailable",
         severity: null,
-        tooltip: `TPU Workload Manager — ${reason}`,
+        tooltip: format(_("TPU Workload Manager — %s"), reason),
     };
 }
 
@@ -247,39 +257,39 @@ function panelModel(state) {
     }
     if (state.paused) {
         return {
-            accessibleName: "TPU Workload Manager, paused: all workloads paused",
-            label: "Accel Paused",
+            accessibleName: _("TPU Workload Manager, paused: all workloads paused"),
+            label: _("Accel Paused"),
             status: "paused",
             severity: null,
-            tooltip: "TPU Workload Manager — all workloads paused",
+            tooltip: _("TPU Workload Manager — all workloads paused"),
         };
     }
     if (state.source === "probe") {
         return {
-            accessibleName: "TPU Workload Manager, detected: hardware detected; runtime not connected",
-            label: `${backendLabel(state.device)} Detected`,
+            accessibleName: _("TPU Workload Manager, detected: hardware detected; runtime not connected"),
+            label: format(_("%s Detected"), backendLabel(state.device)),
             status: "detected",
             severity: null,
-            tooltip: "TPU Workload Manager — hardware detected; runtime not connected",
+            tooltip: _("TPU Workload Manager — hardware detected; runtime not connected"),
         };
     }
     const load = formatLoad(state.device.load);
     const attention = state.attentionCount > 0;
     const reviewText = attentionReviewText(state.attentionCount);
     const severity = highestActiveSeverity(state.alerts);
-    const attentionText = `${reviewText}, highest severity ${severityText(severity)}`;
+    const attentionText = format(_("%s, highest severity %s"), reviewText, severityText(severity));
     return {
         accessibleName: attention
-            ? `TPU Workload Manager, attention: ${attentionText}`
-            : `TPU Workload Manager, online: ${load} load`,
+            ? format(_("TPU Workload Manager, attention: %s"), attentionText)
+            : format(_("TPU Workload Manager, online: %s load"), load),
         label: attention
             ? `${backendLabel(state.device)} ${load} · ${severityText(severity)}`
             : `${backendLabel(state.device)} ${load}`,
         status: attention ? "attention" : "online",
         severity,
         tooltip: attention
-            ? `TPU Workload Manager — ${attentionText}`
-            : "TPU Workload Manager — online",
+            ? format(_("TPU Workload Manager — %s"), attentionText)
+            : _("TPU Workload Manager — online"),
     };
 }
 
@@ -295,17 +305,17 @@ function effectiveScreen(state) {
 
 function metricModels(state) {
     return [
-        {label: `${backendLabel(state.device)} load`, value: state.paused ? "0%" : formatLoad(state.device.load)},
-        {label: "Queue", value: formatCount(state.metrics.queueDepth), suffix: state.paused ? "held" : "jobs"},
-        {label: "Running", value: state.paused ? "0" : formatCount(state.metrics.runningProfiles), suffix: "profiles"},
+        {label: format(_("%s load"), backendLabel(state.device)), value: state.paused ? "0%" : formatLoad(state.device.load)},
+        {label: _("Queue"), value: formatCount(state.metrics.queueDepth), suffix: state.paused ? _("held") : _("jobs")},
+        {label: _("Running"), value: state.paused ? "0" : formatCount(state.metrics.runningProfiles), suffix: _("profiles")},
         state.paused
-            ? {label: "State", value: "Paused", tone: "attention"}
+            ? {label: _("State"), value: _("Paused"), tone: "attention"}
             : {
-                label: "Attention",
+                label: _("Attention"),
                 value: `${state.attentionCount}`,
                 suffix: state.attentionCount > 0
-                    ? `${state.attentionCount === 1 ? "item" : "items"} · ${severityText(highestActiveSeverity(state.alerts))}`
-                    : "items",
+                    ? `${ngettext("item", "items", state.attentionCount)} · ${severityText(highestActiveSeverity(state.alerts))}`
+                    : _("items"),
                 tone: state.attentionCount > 0 ? "attention" : "normal",
             },
     ];
@@ -328,7 +338,7 @@ function deviceModels(state) {
             id: device.id,
             name: device.name,
             backendText: backendLabel(device),
-            statusText: device.available ? "Available" : "Absent",
+            statusText: device.available ? _("Available") : _("Absent"),
             loadText: device.available ? formatLoad(device.load) : "—",
             available: device.available === true,
             vendor: device.vendor || "",
@@ -339,7 +349,7 @@ function alertModel(alert, profiles, nowMs) {
     const profile = profiles.find((candidate) => candidate.id === alert.profileId);
     return {
         ...alert,
-        profileTitle: profile ? profile.title : "Unknown profile",
+        profileTitle: profile ? profile.title : _("Unknown profile"),
         age: formatRelativeTime(alert.timestamp, nowMs),
         confidenceText: formatFraction(alert.confidence),
         riskText: formatFraction(alert.riskScore),
@@ -388,8 +398,8 @@ function toViewModel(state, nowMs = Date.now()) {
         device: {...state.device, status: deviceStatus},
         devices: deviceModels(state),
         headerSubtitle: state.device.available
-            ? `${state.device.name} · ${runtimeStatusText(state)} · Updated ${formatRelativeTime(state.generatedAt, nowMs)}`
-            : `${runtimeStatusText(state)} · ${healthOf(state).detail || state.device.reason} · Last update ${formatRelativeTime(state.generatedAt, nowMs)}`,
+            ? `${state.device.name} · ${runtimeStatusText(state)} · ${format(_("Updated %s"), formatRelativeTime(state.generatedAt, nowMs))}`
+            : `${runtimeStatusText(state)} · ${healthOf(state).detail || state.device.reason} · ${format(_("Last update %s"), formatRelativeTime(state.generatedAt, nowMs))}`,
         panel: panelModel(state),
         metrics: metricModels(state),
         enabledGroups: groupProfiles(enabledProfiles),

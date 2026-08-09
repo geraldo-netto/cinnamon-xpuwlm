@@ -1,6 +1,9 @@
 "use strict";
 
 const FailureReporter = require("./failure-reporter.js");
+const I18n = require("./i18n.js");
+
+const {_, format} = I18n;
 
 const CRITICAL_SEVERITY = "critical";
 const NOTIFY_FAILURE = "critical-notify";
@@ -14,12 +17,12 @@ function requireNotificationPort(candidate) {
 
 function profileTitle(profiles, profileId) {
     const profile = profiles.find((candidate) => candidate.id === profileId);
-    return profile ? profile.title : "Unknown profile";
+    return profile ? profile.title : _("Unknown profile");
 }
 
 function notificationMessage(alert, profiles = []) {
     return {
-        summary: `TPU critical alert — ${profileTitle(profiles, alert.profileId)}`,
+        summary: format(_("TPU critical alert — %s"), profileTitle(profiles, alert.profileId)),
         body: alert.summary ? `${alert.title}. ${alert.summary}` : alert.title,
     };
 }

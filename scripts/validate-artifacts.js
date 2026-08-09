@@ -15,6 +15,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "domain.js",
     "failure-log-backoff.js",
     "failure-reporter.js",
+    "i18n.js",
     "icon.png",
     "icons",
     "lib",

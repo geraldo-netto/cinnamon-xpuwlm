@@ -49,7 +49,12 @@ generated deterministically by `npm run generate:pot`. Cinnamon translates
 `settings-schema.json` (titles, descriptions, tooltips, units) and
 `metadata.json` (name, description) through the applet UUID text domain, so
 those strings are harvested into the template and a unit test fails whenever
-the committed template drifts from the sources. Translators add
+the committed template drifts from the sources. Runtime UI, status, and
+accessibility strings flow through the shared translation port in
+`lib/i18n.js` — `_()`, table marker `N_()`, and `ngettext()` with positional
+`%s`/`%d` substitution — which the applet binds to GJS gettext at startup;
+tests run against the identity fallback, so English msgids remain the
+untranslated UI. Translators add
 `po/<language>.po` files against the template; Cinnamon compiles and installs
 them under `~/.local/share/locale` when the applet is installed from Spices.
 

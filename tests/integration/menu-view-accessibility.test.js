@@ -86,7 +86,7 @@ test("the selected state follows the active tab in both directions", () => {
         [false, false, true],
     );
     assert.deepEqual(tabs(root).map((tab) => tab.accessibleName), [
-        "overview tab", "profiles tab", "alerts tab, selected",
+        "Overview tab", "Profiles tab", "Alerts tab, selected",
     ]);
 });
 

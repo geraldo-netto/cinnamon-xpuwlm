@@ -62,6 +62,35 @@ test("settings extraction harvests exactly the Cinnamon text keys", () => {
     ]);
 });
 
+test("source extraction harvests literal translation-port calls", () => {
+    const catalog = new Pot.MessageCatalog();
+    Pot.collectSourceStrings([
+        "const label = _(\"Pause all\");",
+        "const marker = N_(\"Marker text\");",
+        "const plural = ngettext(\"%d item\", \"%d items\", count);",
+        "const escaped = _(\"a \\\"quoted\\\" word\");",
+        "const dynamic = _(candidate.title);",
+        "const formatted = format(_(\"%s tab\"), label);",
+    ].join("\n"), "lib/sample.js", catalog);
+    assert.deepEqual(catalog.entries(), [
+        {msgid: "%d item", msgidPlural: "%d items", references: ["lib/sample.js"]},
+        {msgid: "%s tab", msgidPlural: null, references: ["lib/sample.js"]},
+        {msgid: "Marker text", msgidPlural: null, references: ["lib/sample.js"]},
+        {msgid: "Pause all", msgidPlural: null, references: ["lib/sample.js"]},
+        {msgid: "a \"quoted\" word", msgidPlural: null, references: ["lib/sample.js"]},
+    ]);
+    assert.equal(Pot.unescapeSource("line\\nbreak\\ttab\\\\slash"), "line\nbreak\ttab\\slash");
+});
+
+test("source scanning covers the applet root and every library module", () => {
+    const files = Pot.sourceFiles();
+    assert.equal(files[0], "applet.js");
+    assert.equal(files.includes("lib/view-model.js"), true);
+    assert.equal(files.includes("lib/menu-view.js"), true);
+    assert.equal(files.includes("lib/i18n.js"), true);
+    assert.deepEqual(files.slice(1), [...files.slice(1)].sort());
+});
+
 test("metadata extraction harvests the name and description", () => {
     const catalog = new Pot.MessageCatalog();
     Pot.collectMetadataStrings({
@@ -126,4 +155,27 @@ test("every harvestable settings and metadata string is catalogued", () => {
     ]) {
         assert.equal(messages.has(expected), true, `missing catalog string: ${expected}`);
     }
+});
+
+test("every runtime UI string family is catalogued from the sources", () => {
+    const entries = Pot.buildRepositoryCatalog().entries();
+    const messages = new Set(entries.map((entry) => entry.msgid));
+    for (const expected of [
+        "Pause all",
+        "Resume all workloads",
+        "TPU Workload Manager — starting",
+        "Monitoring has not started",
+        "Runtime snapshot is stale",
+        "No accelerator available",
+        "Overview",
+        "Healthy",
+        "advisory",
+        "%s tab, selected",
+        "TPU critical alert — %s",
+        "The runtime service could not apply the change",
+    ]) {
+        assert.equal(messages.has(expected), true, `missing runtime string: ${expected}`);
+    }
+    const plural = entries.find((entry) => entry.msgid === "%d item needs review");
+    assert.equal(plural.msgidPlural, "%d items need review");
 });

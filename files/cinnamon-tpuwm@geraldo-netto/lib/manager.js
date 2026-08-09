@@ -2,9 +2,12 @@
 
 const Domain = require("./domain.js");
 const FailureReporter = require("./failure-reporter.js");
+const I18n = require("./i18n.js");
 const RuntimeControl = require("./runtime-control-contract.js");
 const WorkloadReconciliation = require("./workload-reconciliation.js");
 const WorkloadRegistry = require("./workload-registry.js");
+
+const {_} = I18n;
 
 const TABS = Object.freeze(["overview", "profiles", "alerts"]);
 const TAB_SET = new Set(TABS);
@@ -17,12 +20,12 @@ const RUNTIME_CONTROL_FAILURE = "runtime-control";
 function controlFailureText(error) {
     const text = String(error);
     if (text.includes("ServiceUnknown") || text.includes("NameHasNoOwner")) {
-        return "The runtime service is not running; the change was not applied";
+        return _("The runtime service is not running; the change was not applied");
     }
     if (text.includes("TimedOut") || text.includes("Timeout")) {
-        return "The runtime service did not respond; the change was not applied";
+        return _("The runtime service did not respond; the change was not applied");
     }
-    return "The runtime service could not apply the change";
+    return _("The runtime service could not apply the change");
 }
 
 function sanitizeTab(value) {
@@ -105,7 +108,7 @@ class WorkloadManager {
         this._pluginVersions = initial.state.pluginVersions;
         this._portfolio = new Domain.WorkloadPortfolio(null, this._catalog);
         this._selectedTab = "overview";
-        this._snapshot = Domain.unavailableSnapshot("Monitoring has not started", this._clock.now());
+        this._snapshot = Domain.unavailableSnapshot(_("Monitoring has not started"), this._clock.now());
         this._listeners = new Set();
         this._started = false;
         this._disposed = false;
@@ -166,7 +169,7 @@ class WorkloadManager {
                 this._clock.now(),
             );
             this._acceptSnapshot(sequence, Domain.unavailableSnapshot(
-                "Runtime state could not be read",
+                _("Runtime state could not be read"),
                 this._clock.now(),
                 "error",
             ), false);
@@ -353,7 +356,7 @@ class WorkloadManager {
             return false;
         }
         if (this._controlGateway === null) {
-            this._controlMessage = "Runtime control service is unavailable; start it and retry";
+            this._controlMessage = _("Runtime control service is unavailable; start it and retry");
             this._errors.report(RUNTIME_CONTROL_FAILURE, this._controlMessage, this._clock.now());
             this._publish();
             return false;
@@ -370,7 +373,7 @@ class WorkloadManager {
             value,
         };
         this._controlPending = {sequence, command};
-        this._controlMessage = "Applying change in runtime…";
+        this._controlMessage = _("Applying change in runtime…");
         this._publish();
         try {
             this._controlGateway.send(command, (error, acknowledgement) => {
@@ -400,7 +403,7 @@ class WorkloadManager {
         this._runtimeRevision = acknowledgement.revision;
         this._portfolio = new Domain.WorkloadPortfolio(acknowledgement.portfolio, this._catalog);
         if (acknowledgement.status === "rejected") {
-            this._controlMessage = acknowledgement.message || "Runtime rejected the change; retry";
+            this._controlMessage = acknowledgement.message || _("Runtime rejected the change; retry");
             this._errors.report(RUNTIME_CONTROL_FAILURE, this._controlMessage, this._clock.now());
         } else {
             this._controlMessage = "";

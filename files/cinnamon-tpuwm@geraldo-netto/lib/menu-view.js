@@ -1,12 +1,20 @@
 "use strict";
 
+const I18n = require("./i18n.js");
 const Layout = require("./layout.js");
 const ViewModel = require("./view-model.js");
 
+const {_, N_, format, ngettext} = I18n;
+
 // Initial placeholders only: render() updates each tile name from the view
 // model, so the first tile can follow the active backend (TPU/NPU/GPU).
-const METRIC_NAMES = Object.freeze(["Accelerator load", "Queue", "Running", "Attention"]);
+const METRIC_NAMES = Object.freeze([N_("Accelerator load"), N_("Queue"), N_("Running"), N_("Attention")]);
 const TAB_NAMES = Object.freeze(["overview", "profiles", "alerts"]);
+const TAB_LABELS = Object.freeze({
+    overview: N_("Overview"),
+    profiles: N_("Profiles"),
+    alerts: N_("Alerts"),
+});
 
 // Tab-strip key handling, kept pure so the expected arrow, Home, and End
 // behaviour can be verified without a Clutter stage.
@@ -141,10 +149,10 @@ class MenuView {
         this._controlPending = model.controlPending;
         this._statusLabel.set_text(model.device.status);
         this._subtitleLabel.set_text(model.headerSubtitle);
-        this._pauseLabel.set_text(this._policyPaused ? "Resume all" : "Pause all");
+        this._pauseLabel.set_text(this._policyPaused ? _("Resume all") : _("Pause all"));
         this._pauseButton.set_accessible_name(this._policyPaused
-            ? "Resume all workloads"
-            : "Pause all workloads");
+            ? _("Resume all workloads")
+            : _("Pause all workloads"));
         this._setButtonEnabled(this._pauseButton, !this._controlPending);
         setStyleClass(this._statusLabel, "tpuwm-status-unavailable", !model.device.available);
         for (let index = 0; index < this._metricValues.length; index += 1) {
@@ -160,7 +168,10 @@ class MenuView {
         for (const [tab, button] of this._tabButtons) {
             const selected = model.selectedTab === tab;
             setStyleClass(button, "tpuwm-tab-active", selected);
-            button.set_accessible_name(`${tab} tab${selected ? ", selected" : ""}`);
+            button.set_accessible_name(format(
+                selected ? _("%s tab, selected") : _("%s tab"),
+                _(TAB_LABELS[tab]),
+            ));
             this._setAccessibleState(button, "SELECTED", selected);
             button.can_focus = selected;
         }
@@ -202,21 +213,21 @@ class MenuView {
         }));
         const copy = this._box("tpuwm-header-copy", true, true);
         const titleRow = this._box("tpuwm-title-row");
-        titleRow.add_child(this._label("TPU Workload Manager", "tpuwm-title"));
-        this._statusLabel = this._label("Unavailable", "tpuwm-status");
+        titleRow.add_child(this._label(_("TPU Workload Manager"), "tpuwm-title"));
+        this._statusLabel = this._label(_("Unavailable"), "tpuwm-status");
         titleRow.add_child(this._statusLabel);
         copy.add_child(titleRow);
-        this._subtitleLabel = this._label("Starting monitoring…", "tpuwm-subtitle", true);
+        this._subtitleLabel = this._label(_("Starting monitoring…"), "tpuwm-subtitle", true);
         copy.add_child(this._subtitleLabel);
         header.add_child(copy);
-        this._pauseButton = this._button("tpuwm-secondary-button", "Pause all workloads", () => {
+        this._pauseButton = this._button("tpuwm-secondary-button", _("Pause all workloads"), () => {
             if (this._policyPaused) {
                 this._actions.resumeAll();
             } else {
                 this._actions.pauseAll();
             }
         });
-        this._pauseLabel = this._label("Pause all", "tpuwm-button-label");
+        this._pauseLabel = this._label(_("Pause all"), "tpuwm-button-label");
         this._pauseButton.set_child(this._pauseLabel);
         header.add_child(this._pauseButton);
         this._root.add_child(header);
@@ -240,7 +251,7 @@ class MenuView {
                 this._metrics.add_child(row);
             }
             const metric = this._box("tpuwm-metric", true, true);
-            const name = this._label(METRIC_NAMES[index], "tpuwm-metric-name");
+            const name = this._label(_(METRIC_NAMES[index]), "tpuwm-metric-name");
             metric.add_child(name);
             const value = this._label("—", "tpuwm-metric-value");
             metric.add_child(value);
@@ -255,10 +266,10 @@ class MenuView {
         this._setAccessibleRole(row, "PAGE_TAB_LIST");
         this._tabButtons = new Map();
         for (const tab of TAB_NAMES) {
-            const label = tab[0].toUpperCase() + tab.slice(1);
+            const label = _(TAB_LABELS[tab]);
             const button = this._button(
                 "tpuwm-tab",
-                `${label} tab`,
+                format(_("%s tab"), label),
                 () => this._actions.selectTab(tab),
                 "PAGE_TAB",
             );
@@ -327,14 +338,14 @@ class MenuView {
 
     _buildFooter() {
         const footer = this._box("tpuwm-footer");
-        this._manageButton = this._button("tpuwm-primary-button", "Manage workload profiles", () => this._actions.selectTab("profiles"));
+        this._manageButton = this._button("tpuwm-primary-button", _("Manage workload profiles"), () => this._actions.selectTab("profiles"));
         this._manageButton.x_expand = true;
-        this._manageButton.set_child(this._label("Manage profiles", "tpuwm-button-label"));
+        this._manageButton.set_child(this._label(_("Manage profiles"), "tpuwm-button-label"));
         footer.add_child(this._manageButton);
-        const refresh = this._button("tpuwm-secondary-button", "Refresh TPU status", this._actions.refresh);
-        refresh.set_child(this._label("Refresh", "tpuwm-button-label"));
+        const refresh = this._button("tpuwm-secondary-button", _("Refresh TPU status"), this._actions.refresh);
+        refresh.set_child(this._label(_("Refresh"), "tpuwm-button-label"));
         footer.add_child(refresh);
-        const settings = this._button("tpuwm-secondary-button", "Open TPU Workload Manager settings", this._actions.openSettings);
+        const settings = this._button("tpuwm-secondary-button", _("Open TPU Workload Manager settings"), this._actions.openSettings);
         settings.set_child(new this._St.Icon({
             icon_name: "emblem-system-symbolic",
             icon_type: this._St.IconType.SYMBOLIC,
@@ -396,19 +407,22 @@ class MenuView {
 
     _renderOverview(model) {
         this._renderAccelerators(model);
-        this._addSectionHeading("Active profiles", "Weights apply only when queues contend");
+        this._addSectionHeading(_("Active profiles"), _("Weights apply only when queues contend"));
         for (const group of model.enabledGroups) {
-            this._addGroupHeading(group.name, `${group.profiles.length} active`);
+            this._addGroupHeading(group.name, format(_("%d active"), group.profiles.length));
             for (const profile of group.profiles) {
                 this._body.add_child(this._profileRow(profile, false));
             }
         }
         if (model.pausedProfiles.length > 0) {
             const paused = this._identify(
-                this._button("tpuwm-paused-summary", "Manage paused profiles", () => this._actions.selectTab("profiles")),
+                this._button("tpuwm-paused-summary", _("Manage paused profiles"), () => this._actions.selectTab("profiles")),
                 "paused-summary",
             );
-            paused.set_child(this._label(`${model.pausedProfiles.length} paused profiles  ›`, "tpuwm-button-label"));
+            paused.set_child(this._label(
+                `${format(ngettext("%d paused profile", "%d paused profiles", model.pausedProfiles.length), model.pausedProfiles.length)}  ›`,
+                "tpuwm-button-label",
+            ));
             this._body.add_child(paused);
         }
     }
@@ -418,13 +432,13 @@ class MenuView {
             return;
         }
         const availableCount = model.devices.filter((device) => device.available).length;
-        this._addGroupHeading("Accelerators", `${availableCount} of ${model.devices.length} available`);
+        this._addGroupHeading(_("Accelerators"), format(_("%d of %d available"), availableCount, model.devices.length));
         for (const device of model.devices) {
             const row = this._box("tpuwm-state-row");
             const copy = this._box("tpuwm-profile-copy", true, true);
             copy.add_child(this._label(`${device.backendText} · ${device.name}`, "tpuwm-profile-title", true));
             copy.add_child(this._label(
-                device.available ? `Load ${device.loadText}` : device.statusText,
+                device.available ? format(_("Load %s"), device.loadText) : device.statusText,
                 "tpuwm-profile-description",
                 true,
             ));
@@ -440,10 +454,10 @@ class MenuView {
     _renderProfiles(model) {
         const active = model.allGroups.flatMap((group) => group.profiles).filter((profile) => profile.enabled).length;
         const paused = model.pausedProfiles.length;
-        this._addSectionHeading("Workload profiles", `${active} active · ${paused} paused · weight 1–5`);
+        this._addSectionHeading(_("Workload profiles"), format(_("%d active · %d paused · weight 1–5"), active, paused));
         for (const group of model.allGroups) {
             const activeInGroup = group.profiles.filter((profile) => profile.enabled).length;
-            this._addGroupHeading(group.name, `${activeInGroup} of ${group.profiles.length} active`);
+            this._addGroupHeading(group.name, format(_("%d of %d active"), activeInGroup, group.profiles.length));
             for (const profile of group.profiles) {
                 this._body.add_child(this._profileRow(profile, true));
             }
@@ -454,23 +468,23 @@ class MenuView {
         if (model.activeAlerts.length === 0) {
             const hero = this._hero(
                 "emblem-ok-symbolic",
-                "No active alerts",
-                "You’re all caught up",
-                "All monitored signals are within their review thresholds.",
+                _("No active alerts"),
+                _("You’re all caught up"),
+                _("All monitored signals are within their review thresholds."),
                 "tpuwm-hero-ok",
             );
             this._body.add_child(hero);
         } else {
             this._addSectionHeading(
-                "Needs review",
-                `${model.activeAlerts.length} active · highest severity ${model.highestSeverityText} · no automatic action`,
+                _("Needs review"),
+                format(_("%d active · highest severity %s · no automatic action"), model.activeAlerts.length, model.highestSeverityText),
             );
             for (const alert of model.activeAlerts) {
                 this._body.add_child(this._alertCard(alert));
             }
         }
         if (model.resolvedAlerts.length > 0) {
-            this._addGroupHeading("Recently resolved", `${model.resolvedAlerts.length}`);
+            this._addGroupHeading(_("Recently resolved"), `${model.resolvedAlerts.length}`);
             for (const alert of model.resolvedAlerts.slice(0, 5)) {
                 const row = this._box("tpuwm-history-row");
                 row.add_child(this._label("✓", "tpuwm-history-mark"));
@@ -478,7 +492,7 @@ class MenuView {
                 copy.add_child(this._label(alert.title, "tpuwm-profile-title", true));
                 copy.add_child(this._label(`${alert.profileTitle} · ${alert.age}`, "tpuwm-profile-description", true));
                 row.add_child(copy);
-                row.add_child(this._label("Resolved", "tpuwm-status tpuwm-status-ok"));
+                row.add_child(this._label(_("Resolved"), "tpuwm-status tpuwm-status-ok"));
                 this._body.add_child(row);
             }
         }
@@ -487,26 +501,30 @@ class MenuView {
     _renderPaused(model) {
         this._body.add_child(this._hero(
             "media-playback-pause-symbolic",
-            "Local policy paused",
-            "All local profiles are paused",
-            "A connected runtime must apply this policy before accepting new jobs. The applet does not modify queued jobs.",
+            _("Local policy paused"),
+            _("All local profiles are paused"),
+            _("A connected runtime must apply this policy before accepting new jobs. The applet does not modify queued jobs."),
             "tpuwm-hero-paused",
         ));
         const resume = this._identify(
-            this._button("tpuwm-primary-button tpuwm-state-action", "Resume all workloads", this._actions.resumeAll),
+            this._button("tpuwm-primary-button tpuwm-state-action", _("Resume all workloads"), this._actions.resumeAll),
             "resume-all",
         );
-        resume.set_child(this._label("Resume all workloads", "tpuwm-button-label"));
+        resume.set_child(this._label(_("Resume all workloads"), "tpuwm-button-label"));
         this._setButtonEnabled(resume, !this._controlPending);
         this._body.add_child(resume);
-        this._addGroupHeading("Paused groups", "Safety rules remain active");
+        this._addGroupHeading(_("Paused groups"), _("Safety rules remain active"));
         for (const group of model.allGroups) {
             const row = this._box("tpuwm-state-row");
             const copy = this._box("tpuwm-profile-copy", true, true);
             copy.add_child(this._label(group.name, "tpuwm-profile-title", true));
-            copy.add_child(this._label(`${group.profiles.length} profiles`, "tpuwm-profile-description", true));
+            copy.add_child(this._label(
+                format(ngettext("%d profile", "%d profiles", group.profiles.length), group.profiles.length),
+                "tpuwm-profile-description",
+                true,
+            ));
             row.add_child(copy);
-            row.add_child(this._label("Paused", "tpuwm-status tpuwm-status-watching"));
+            row.add_child(this._label(_("Paused"), "tpuwm-status tpuwm-status-watching"));
             this._body.add_child(row);
         }
     }
@@ -529,10 +547,10 @@ class MenuView {
             this._body.add_child(row);
         }
         const retry = this._identify(
-            this._button("tpuwm-primary-button tpuwm-state-action", "Retry TPU detection", this._actions.refresh),
+            this._button("tpuwm-primary-button tpuwm-state-action", _("Retry TPU detection"), this._actions.refresh),
             "retry-detection",
         );
-        retry.set_child(this._label("Retry detection", "tpuwm-button-label"));
+        retry.set_child(this._label(_("Retry detection"), "tpuwm-button-label"));
         this._body.add_child(retry);
     }
 
@@ -547,15 +565,15 @@ class MenuView {
         const copy = this._box("tpuwm-profile-copy", true, true);
         const titleRow = this._box("tpuwm-profile-title-row");
         titleRow.add_child(this._label(profile.title, "tpuwm-profile-title", true));
-        titleRow.add_child(this._label(ViewModel.STATUS_LABELS[profile.status], `tpuwm-status tpuwm-status-${profile.status}`));
+        titleRow.add_child(this._label(_(ViewModel.STATUS_LABELS[profile.status]), `tpuwm-status tpuwm-status-${profile.status}`));
         copy.add_child(titleRow);
         const detail = profile.detail || profile.description;
-        copy.add_child(this._label(`${detail} · ${profile.queued} queued`, "tpuwm-profile-description", true));
+        copy.add_child(this._label(`${detail} · ${format(_("%d queued"), profile.queued)}`, "tpuwm-profile-description", true));
         row.add_child(copy);
         if (editableWeight) {
             const controls = this._box("tpuwm-weight-control");
             const down = this._identify(
-                this._button("tpuwm-weight-button", `Decrease ${profile.title} weight`, () => this._actions.changeWeight(profile.id, -1)),
+                this._button("tpuwm-weight-button", format(_("Decrease %s weight"), profile.title), () => this._actions.changeWeight(profile.id, -1)),
                 `weight-down:${profile.id}`,
             );
             this._setButtonEnabled(down, this._policyControlEnabled(profile.weight > 1));
@@ -563,7 +581,7 @@ class MenuView {
             controls.add_child(down);
             controls.add_child(this._label(`${profile.weight}`, "tpuwm-weight-value"));
             const up = this._identify(
-                this._button("tpuwm-weight-button", `Increase ${profile.title} weight`, () => this._actions.changeWeight(profile.id, 1)),
+                this._button("tpuwm-weight-button", format(_("Increase %s weight"), profile.title), () => this._actions.changeWeight(profile.id, 1)),
                 `weight-up:${profile.id}`,
             );
             this._setButtonEnabled(up, this._policyControlEnabled(profile.weight < 5));
@@ -571,12 +589,12 @@ class MenuView {
             controls.add_child(up);
             row.add_child(controls);
         } else {
-            row.add_child(this._label(`Weight ${profile.weight}`, "tpuwm-weight-summary"));
+            row.add_child(this._label(format(_("Weight %d"), profile.weight), "tpuwm-weight-summary"));
         }
         const toggle = this._identify(
             this._button(
                 `tpuwm-toggle${profile.enabled ? " tpuwm-toggle-on" : ""}`,
-                `${profile.enabled ? "Disable" : "Enable"} ${profile.title}`,
+                format(profile.enabled ? _("Disable %s") : _("Enable %s"), profile.title),
                 () => this._actions.toggleProfile(profile.id),
                 "TOGGLE_BUTTON",
             ),
@@ -584,7 +602,7 @@ class MenuView {
         );
         this._setAccessibleState(toggle, "CHECKED", profile.enabled);
         this._setButtonEnabled(toggle, !this._controlPending);
-        toggle.set_child(this._label(profile.enabled ? "On" : "Off", "tpuwm-toggle-label"));
+        toggle.set_child(this._label(profile.enabled ? _("On") : _("Off"), "tpuwm-toggle-label"));
         row.add_child(toggle);
         return row;
     }
@@ -596,12 +614,12 @@ class MenuView {
         copy.add_child(this._label(`${alert.profileTitle} · ${alert.age}`, "tpuwm-alert-kicker"));
         copy.add_child(this._label(alert.title, "tpuwm-alert-title", true));
         heading.add_child(copy);
-        heading.add_child(this._label(alert.severity, "tpuwm-status tpuwm-status-watching"));
+        heading.add_child(this._label(_(alert.severity), "tpuwm-status tpuwm-status-watching"));
         card.add_child(heading);
-        card.add_child(this._label(alert.summary || "No additional detail was supplied.", "tpuwm-alert-summary", true));
+        card.add_child(this._label(alert.summary || _("No additional detail was supplied."), "tpuwm-alert-summary", true));
         const singleColumn = this._layout.evidenceColumns === 1;
         const evidence = this._box("tpuwm-evidence", singleColumn);
-        for (const [label, value] of [["Risk", alert.riskText], ["Confidence", alert.confidenceText]]) {
+        for (const [label, value] of [[_("Risk"), alert.riskText], [_("Confidence"), alert.confidenceText]]) {
             const metric = this._box("tpuwm-evidence-item", true, true);
             metric.add_child(this._label(label, "tpuwm-metric-name"));
             metric.add_child(this._label(value, "tpuwm-metric-value"));
@@ -609,7 +627,7 @@ class MenuView {
         }
         card.add_child(evidence);
         card.add_child(this._label(
-            "Safe by default · no write, shutdown, authorization, or backup policy changed",
+            _("Safe by default · no write, shutdown, authorization, or backup policy changed"),
             "tpuwm-safety-note",
         ));
         return card;

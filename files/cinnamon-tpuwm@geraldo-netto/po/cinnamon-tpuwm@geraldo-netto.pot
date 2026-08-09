@@ -12,12 +12,322 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: lib/menu-view.js
+msgid "%d active"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "%d active · %d paused · weight 1–5"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "%d active · highest severity %s · no automatic action"
+msgstr ""
+
+#: lib/view-model.js
+msgid "%d item needs review"
+msgid_plural "%d items need review"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/menu-view.js
+msgid "%d of %d active"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "%d of %d available"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "%d paused profile"
+msgid_plural "%d paused profiles"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/menu-view.js
+msgid "%d profile"
+msgid_plural "%d profiles"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/menu-view.js
+msgid "%d queued"
+msgstr ""
+
+#: lib/view-model.js
+msgid "%dh ago"
+msgstr ""
+
+#: lib/view-model.js
+msgid "%dm ago"
+msgstr ""
+
+#: lib/view-model.js
+msgid "%ds ago"
+msgstr ""
+
+#: lib/view-model.js
+msgid "%s Detected"
+msgstr ""
+
+#: lib/domain.js
+msgid "%s accelerator"
+msgstr ""
+
+#: lib/view-model.js
+msgid "%s load"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "%s tab"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "%s tab, selected"
+msgstr ""
+
+#: lib/view-model.js
+msgid "%s, highest severity %s"
+msgstr ""
+
+#: lib/view-model.js
+msgid "%s; device state unknown"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "A connected runtime must apply this policy before accepting new jobs. The applet does not modify queued jobs."
+msgstr ""
+
+#: lib/view-model.js
+msgid "A large clock change can also age a snapshot past its deadline."
+msgstr ""
+
+#: lib/view-model.js
+msgid "A missing directory or a replaced path object also fails the read."
+msgstr ""
+
 #: settings-schema.json
 msgid "A trusted local service may atomically publish the versioned JSON contract documented by this applet."
 msgstr ""
 
+#: lib/view-model.js
+msgid "A trusted local service must publish the snapshot document."
+msgstr ""
+
+#: lib/view-model.js
+msgid "Absent"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Accel"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Accel Offline"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Accel Paused"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Accel Unknown"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Accelerator discovery failed"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Accelerator load"
+msgstr ""
+
+#: lib/domain.js
+msgid "Accelerator state unknown"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Accelerators"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Active profiles"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Alerts"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "All local profiles are paused"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "All monitored signals are within their review thresholds."
+msgstr ""
+
+#: lib/manager.js
+msgid "Applying change in runtime…"
+msgstr ""
+
+#: lib/menu-view.js lib/view-model.js
+msgid "Attention"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Available"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Check device access"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Check permissions"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Check the clock"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Check the connection"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Check the path"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Check the runtime path"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Check the runtime service"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Check the runtime version"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Confidence"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Confirm the configured runtime state path matches the service."
+msgstr ""
+
+#: lib/view-model.js
+msgid "Confirm the current user can access the accelerator runtime."
+msgstr ""
+
+#: lib/view-model.js
+msgid "Confirm the current user can read the USB, PCIe, accel, and render device nodes."
+msgstr ""
+
+#: lib/view-model.js
+msgid "Confirm the current user can read the runtime state path."
+msgstr ""
+
+#: lib/view-model.js
+msgid "Confirm the service is running and still writing its snapshot."
+msgstr ""
+
+#: lib/view-model.js
+msgid "Connect a supported TPU, NPU, or GPU accelerator."
+msgstr ""
+
+#: lib/view-model.js
+msgid "Connection required"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Decrease %s weight"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Detection failed"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Device detected"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Device detection still works. Queue, load, and profile telemetry stay unknown until a runtime publishes a snapshot."
+msgstr ""
+
+#: lib/domain.js
+msgid "Device unavailable"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Device unknown"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Disable %s"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Discovery runs again on request."
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Enable %s"
+msgstr ""
+
+#: lib/view-model.js
+msgid "GPU"
+msgstr ""
+
 #: settings-schema.json
 msgid "General"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Healthy"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Idle"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Increase %s weight"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Inspect the document"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Last update %s"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Load %s"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Local discovery could not complete, so device presence is unknown rather than reported as absent."
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Local policy paused"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Manage paused profiles"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Manage profiles"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Manage workload profiles"
 msgstr ""
 
 #: settings-schema.json
@@ -32,42 +342,440 @@ msgstr ""
 msgid "Monitoring"
 msgstr ""
 
+#: lib/manager.js lib/view-model.js
+msgid "Monitoring has not started"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Monitoring starts with the applet and repeats on the refresh interval."
+msgstr ""
+
+#: lib/view-model.js
+msgid "NPU"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Needs review"
+msgstr ""
+
+#: lib/view-model.js
+msgid "No accelerator available"
+msgstr ""
+
+#: lib/domain.js
+msgid "No accelerator detected"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "No active alerts"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "No additional detail was supplied."
+msgstr ""
+
+#: lib/view-model.js
+msgid "No device"
+msgstr ""
+
+#: lib/domain.js
+msgid "No runtime service is publishing a snapshot"
+msgstr ""
+
+#: lib/view-model.js
+msgid "No runtime service is publishing state"
+msgstr ""
+
+#: lib/view-model.js
+msgid "No runtime state has been read yet. Local profile intent is unchanged."
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Off"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "On"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Online"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Open TPU Workload Manager settings"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Open the settings and confirm the runtime state path."
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Overview"
+msgstr ""
+
 #: settings-schema.json
 msgid "Panel"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Pause all"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Pause all workloads"
+msgstr ""
+
+#: lib/menu-view.js lib/view-model.js
+msgid "Paused"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Paused groups"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Profiles"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Profiles remain saved locally. No data, authorization, or backup policy is changed."
+msgstr ""
+
+#: lib/menu-view.js lib/view-model.js
+msgid "Queue"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Reading the snapshot failed, so device and workload telemetry are unknown rather than assumed."
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Recently resolved"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Refresh"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Refresh TPU status"
 msgstr ""
 
 #: settings-schema.json
 msgid "Refresh interval"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Resolved"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Resume all"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Resume all workloads"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Retry TPU detection"
+msgstr ""
+
+#: lib/menu-view.js lib/view-model.js
+msgid "Retry detection"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Retry now"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Risk"
+msgstr ""
+
+#: lib/menu-view.js lib/view-model.js
+msgid "Running"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Runtime absent"
+msgstr ""
+
+#: lib/manager.js
+msgid "Runtime control service is unavailable; start it and retry"
+msgstr ""
+
 #: settings-schema.json
 msgid "Runtime integration"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Runtime malformed"
+msgstr ""
+
+#: lib/manager.js
+msgid "Runtime rejected the change; retry"
 msgstr ""
 
 #: settings-schema.json
 msgid "Runtime snapshot file"
 msgstr ""
 
+#: lib/domain.js
+msgid "Runtime snapshot is not an object"
+msgstr ""
+
+#: lib/domain.js
+msgid "Runtime snapshot is stale"
+msgstr ""
+
+#: lib/domain.js
+msgid "Runtime snapshot timestamp is invalid"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Runtime stale"
+msgstr ""
+
+#: lib/manager.js
+msgid "Runtime state could not be read"
+msgstr ""
+
+#: lib/domain.js
+msgid "Runtime state is unknown"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Runtime unreadable"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Safe by default · no write, shutdown, authorization, or backup policy changed"
+msgstr ""
+
 #: settings-schema.json
 msgid "Safety boundary"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Safety rules remain active"
 msgstr ""
 
 #: settings-schema.json
 msgid "Show TPU status beside the panel icon"
 msgstr ""
 
-#: metadata.json
+#: lib/view-model.js
+msgid "Start the workload runtime"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Starting"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Starting monitoring…"
+msgstr ""
+
+#: lib/view-model.js
+msgid "State"
+msgstr ""
+
+#: lib/view-model.js
+msgid "TPU"
+msgstr ""
+
+#: lib/menu-view.js metadata.json
 msgid "TPU Workload Manager"
+msgstr ""
+
+#: lib/view-model.js
+msgid "TPU Workload Manager — %s"
+msgstr ""
+
+#: lib/view-model.js
+msgid "TPU Workload Manager — all workloads paused"
+msgstr ""
+
+#: lib/view-model.js
+msgid "TPU Workload Manager — hardware detected; runtime not connected"
+msgstr ""
+
+#: lib/view-model.js
+msgid "TPU Workload Manager — online"
+msgstr ""
+
+#: applet.js
+msgid "TPU Workload Manager — starting"
+msgstr ""
+
+#: lib/view-model.js
+msgid "TPU Workload Manager, attention: %s"
+msgstr ""
+
+#: lib/view-model.js
+msgid "TPU Workload Manager, detected: hardware detected; runtime not connected"
+msgstr ""
+
+#: lib/view-model.js
+msgid "TPU Workload Manager, online: %s load"
+msgstr ""
+
+#: lib/view-model.js
+msgid "TPU Workload Manager, paused: all workloads paused"
+msgstr ""
+
+#: applet.js
+msgid "TPU Workload Manager, starting"
+msgstr ""
+
+#: lib/view-model.js
+msgid "TPU Workload Manager, unavailable: %s"
+msgstr ""
+
+#: lib/view-model.js
+msgid "TPU Workload Manager, unknown: %s"
+msgstr ""
+
+#: lib/alert-notifier.js
+msgid "TPU critical alert — %s"
 msgstr ""
 
 #: settings-schema.json
 msgid "The applet reads this file but never executes content from it. If it is absent, hardware discovery provides a safe device-only status."
 msgstr ""
 
+#: lib/view-model.js
+msgid "The document was read but rejected by the version 1 contract, so none of its values are displayed."
+msgstr ""
+
+#: lib/view-model.js
+msgid "The last snapshot is older than its freshness deadline, so its values are no longer shown as current."
+msgstr ""
+
+#: lib/manager.js
+msgid "The runtime service could not apply the change"
+msgstr ""
+
+#: lib/manager.js
+msgid "The runtime service did not respond; the change was not applied"
+msgstr ""
+
+#: lib/manager.js
+msgid "The runtime service is not running; the change was not applied"
+msgstr ""
+
+#: lib/view-model.js
+msgid "The runtime snapshot could not be read"
+msgstr ""
+
+#: lib/view-model.js
+msgid "The runtime snapshot failed validation"
+msgstr ""
+
+#: lib/view-model.js
+msgid "The runtime snapshot stopped updating"
+msgstr ""
+
+#: lib/view-model.js
+msgid "The service must publish the version 1 snapshot contract."
+msgstr ""
+
+#: lib/menu-view.js lib/view-model.js
+msgid "Unavailable"
+msgstr ""
+
+#: lib/alert-notifier.js lib/view-model.js
+msgid "Unknown profile"
+msgstr ""
+
+#: lib/domain.js
+msgid "Unsupported runtime snapshot version"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Updated %s"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Validate it against runtime-snapshot.schema.json."
+msgstr ""
+
+#: lib/view-model.js
+msgid "Wait for the first read"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Watching"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Weight %d"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Weights apply only when queues contend"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Workload profiles"
+msgstr ""
+
 #: settings-schema.json
 msgid "Workload runtime"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "You’re all caught up"
+msgstr ""
+
+#: lib/view-model.js
+msgid "advisory"
+msgstr ""
+
+#: lib/view-model.js
+msgid "critical"
+msgstr ""
+
+#: lib/view-model.js
+msgid "held"
+msgstr ""
+
+#: lib/view-model.js
+msgid "item"
+msgid_plural "items"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/view-model.js
+msgid "items"
+msgstr ""
+
+#: lib/view-model.js
+msgid "jobs"
+msgstr ""
+
+#: lib/view-model.js
+msgid "just now"
+msgstr ""
+
+#: lib/view-model.js
+msgid "none"
+msgstr ""
+
+#: lib/view-model.js
+msgid "profiles"
+msgstr ""
+
 #: settings-schema.json
 msgid "seconds"
+msgstr ""
+
+#: lib/view-model.js
+msgid "unknown"
+msgstr ""
+
+#: lib/view-model.js
+msgid "warning"
 msgstr ""

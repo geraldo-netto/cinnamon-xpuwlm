@@ -98,9 +98,9 @@ test("pause control defaults to local pause intent before first render", () => {
 test("overview exposes grouped profiles and all primary actions", () => {
     const {calls, view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
-    assert.equal(button(root, "overview tab, selected").styleClasses.has("tpuwm-tab-active"), true);
-    assert.equal(button(root, "profiles tab").styleClasses.has("tpuwm-tab-active"), false);
-    button(root, "profiles tab").click();
+    assert.equal(button(root, "Overview tab, selected").styleClasses.has("tpuwm-tab-active"), true);
+    assert.equal(button(root, "Profiles tab").styleClasses.has("tpuwm-tab-active"), false);
+    button(root, "Profiles tab").click();
     button(root, "Manage workload profiles").click();
     button(root, "Refresh TPU status").click();
     button(root, "Open TPU Workload Manager settings").click();

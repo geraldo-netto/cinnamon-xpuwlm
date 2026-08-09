@@ -1,5 +1,9 @@
 "use strict";
 
+const I18n = require("./i18n.js");
+
+const {_, format} = I18n;
+
 const SNAPSHOT_VERSION = 1;
 const MIN_GENERATED_AT = 1;
 const MAX_CLOCK_SKEW_MS = 60000;
@@ -247,11 +251,11 @@ function normalizeDeviceEntry(candidate, index = 0) {
         backend,
         available,
         state: available ? "present" : "absent",
-        name: safeText(candidate.name, 120, `${backend.toUpperCase()} accelerator`),
+        name: safeText(candidate.name, 120, format(_("%s accelerator"), backend.toUpperCase())),
         kind: DEVICE_KINDS.has(candidate.kind) ? candidate.kind : "unknown",
         vendor: safeText(candidate.vendor, 80),
         load: nullableBoundedNumber(candidate.load, 0, 100),
-        reason: safeText(candidate.reason, 240, available ? "" : "Device unavailable"),
+        reason: safeText(candidate.reason, 240, available ? "" : _("Device unavailable")),
     };
 }
 
@@ -298,7 +302,7 @@ function aggregateDevice(devices, detail = "") {
         backend: null,
         available: false,
         state: empty ? "unknown" : "absent",
-        name: empty ? "Accelerator state unknown" : "No accelerator detected",
+        name: empty ? _("Accelerator state unknown") : _("No accelerator detected"),
         kind: "unknown",
         vendor: "",
         load: null,
@@ -346,7 +350,7 @@ function normalizeAlert(candidate, nowMs, catalog = EMPTY_WORKLOAD_CATALOG) {
 }
 
 function unavailableSnapshot(reason, nowMs, source = "fallback") {
-    const detail = safeText(reason, 240, "Runtime state is unknown");
+    const detail = safeText(reason, 240, _("Runtime state is unknown"));
     return {
         version: SNAPSHOT_VERSION,
         generatedAt: nowMs,
@@ -361,7 +365,7 @@ function unavailableSnapshot(reason, nowMs, source = "fallback") {
 }
 
 function staleSnapshot(generatedAt) {
-    const snapshot = unavailableSnapshot("Runtime snapshot is stale", generatedAt, "runtime");
+    const snapshot = unavailableSnapshot(_("Runtime snapshot is stale"), generatedAt, "runtime");
     snapshot.stale = true;
     return snapshot;
 }
@@ -407,7 +411,7 @@ function probeSnapshot(devices, nowMs) {
         health: health(
             deviceState,
             "absent",
-            "No runtime service is publishing a snapshot",
+            _("No runtime service is publishing a snapshot"),
         ),
         devices: list,
         metrics: {queueDepth: null, runningProfiles: null},
@@ -418,13 +422,13 @@ function probeSnapshot(devices, nowMs) {
 
 function rejectSnapshot(candidate, nowMs, staleAfterMs) {
     if (!isPlainObject(candidate)) {
-        return unavailableSnapshot("Runtime snapshot is not an object", nowMs, "invalid");
+        return unavailableSnapshot(_("Runtime snapshot is not an object"), nowMs, "invalid");
     }
     if (candidate.version !== SNAPSHOT_VERSION) {
-        return unavailableSnapshot("Unsupported runtime snapshot version", nowMs, "invalid");
+        return unavailableSnapshot(_("Unsupported runtime snapshot version"), nowMs, "invalid");
     }
     if (!isValidGeneratedAt(candidate.generatedAt, nowMs)) {
-        return unavailableSnapshot("Runtime snapshot timestamp is invalid", nowMs, "invalid");
+        return unavailableSnapshot(_("Runtime snapshot timestamp is invalid"), nowMs, "invalid");
     }
     if (Math.max(0, nowMs - candidate.generatedAt) > normalizeStaleAfterMs(staleAfterMs)) {
         return staleSnapshot(candidate.generatedAt);

@@ -18,6 +18,11 @@ const potPath = path.join(appletRoot, "po", `${UUID}.pot`);
 const SETTINGS_TEXT_KEYS = Object.freeze(["title", "description", "tooltip", "units"]);
 const METADATA_TEXT_KEYS = Object.freeze(["name", "description"]);
 
+// Literal msgids reaching the runtime translation port: _("..."), the no-op
+// table marker N_("..."), and ngettext("singular", "plural", n).
+const SINGULAR_CALL = /\b(?:_|N_)\(\s*"((?:[^"\\]|\\.)*)"\s*\)/gu;
+const PLURAL_CALL = /\bngettext\(\s*"((?:[^"\\]|\\.)*)"\s*,\s*"((?:[^"\\]|\\.)*)"/gu;
+
 function isRecord(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -82,6 +87,25 @@ function collectMetadataStrings(metadata, reference, catalog) {
     return catalog;
 }
 
+function unescapeSource(text) {
+    return text.replace(/\\(["\\nt])/gu, (match, code) => ({
+        "\"": "\"",
+        "\\": "\\",
+        n: "\n",
+        t: "\t",
+    }[code]));
+}
+
+function collectSourceStrings(source, reference, catalog) {
+    for (const match of source.matchAll(SINGULAR_CALL)) {
+        catalog.add(unescapeSource(match[1]), reference);
+    }
+    for (const match of source.matchAll(PLURAL_CALL)) {
+        catalog.add(unescapeSource(match[1]), reference, unescapeSource(match[2]));
+    }
+    return catalog;
+}
+
 function escapePo(text) {
     return text
         .replace(/\\/gu, "\\\\")
@@ -129,10 +153,22 @@ function readJson(filename) {
     return JSON.parse(fs.readFileSync(path.join(appletRoot, filename), "utf8"));
 }
 
+function sourceFiles() {
+    const libraries = fs.readdirSync(path.join(appletRoot, "lib"))
+        .filter((name) => name.endsWith(".js"))
+        .sort(compareText)
+        .map((name) => `lib/${name}`);
+    return ["applet.js", ...libraries];
+}
+
 function buildRepositoryCatalog() {
     const catalog = new MessageCatalog();
     collectSettingsStrings(readJson("settings-schema.json"), "settings-schema.json", catalog);
     collectMetadataStrings(readJson("metadata.json"), "metadata.json", catalog);
+    for (const relativePath of sourceFiles()) {
+        const source = fs.readFileSync(path.join(appletRoot, relativePath), "utf8");
+        collectSourceStrings(source, relativePath, catalog);
+    }
     return catalog;
 }
 
@@ -157,10 +193,13 @@ module.exports = {
     buildRepositoryPot,
     collectMetadataStrings,
     collectSettingsStrings,
+    collectSourceStrings,
     compareText,
     escapePo,
     formatPotEntry,
     isRecord,
     potHeader,
     potPath,
+    sourceFiles,
+    unescapeSource,
 };

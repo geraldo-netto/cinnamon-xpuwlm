@@ -161,9 +161,9 @@ test("every essential control survives the narrowest supported popup", () => {
         .map((button) => button.accessibleName);
     for (const required of [
         "Pause all workloads",
-        "overview tab",
-        "profiles tab",
-        "alerts tab",
+        "Overview tab",
+        "Profiles tab",
+        "Alerts tab",
         "Manage workload profiles",
         "Refresh TPU status",
         "Open TPU Workload Manager settings",
