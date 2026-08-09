@@ -112,7 +112,7 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
                 workloadCatalog: this._workloadCatalog,
             }));
         this._repository = overrides.repository
-            || new CinnamonRuntime.CinnamonSettingsRepository(this.settings);
+            || CinnamonRuntime.createStateRepository(this._environment, this.settings);
         this._runtimeGateway = overrides.runtimeGateway
             || this._runtimeGatewayFactory(this.runtimeStatePath);
         this._controlGateway = overrides.controlGateway

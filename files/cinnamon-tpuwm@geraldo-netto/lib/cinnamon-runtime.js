@@ -558,6 +558,80 @@ class CachedDeviceDetector {
     }
 }
 
+// Applet-owned atomic state file. Cinnamon's xlet-settings layer caches
+// values in-process and flushes them asynchronously, so an applet reload can
+// interleave a stale flush with the fresh instance's reads and silently lose
+// profile toggles. This repository owns its file and writes it atomically
+// through GIO (replace_contents uses a temp file plus rename), with a one-time
+// migration read from the legacy xlet-settings keys.
+const STATE_FILE_MAX_BYTES = 64 * 1024;
+const EMPTY_APPLET_STATE = Object.freeze({portfolio: null, selectedTab: null});
+
+class FileStateRepository {
+    constructor({path, environment, legacy = null}) {
+        if (!path || !environment || !environment.Gio) {
+            throw new TypeError("A state file path and a Gio environment are required");
+        }
+        this._path = expandHome(String(path), environment.GLib.get_home_dir());
+        this._environment = environment;
+        this._legacy = legacy;
+    }
+
+    load() {
+        const text = this._readStateText();
+        if (text === null) {
+            return this._legacy ? this._legacy.load() : EMPTY_APPLET_STATE;
+        }
+        try {
+            const parsed = JSON.parse(text);
+            return {
+                portfolio: parsed?.portfolio ?? null,
+                selectedTab: parsed?.selectedTab ?? null,
+            };
+        } catch {
+            return EMPTY_APPLET_STATE;
+        }
+    }
+
+    _readStateText() {
+        try {
+            return readFileText(this._path, this._environment, STATE_FILE_MAX_BYTES);
+        } catch {
+            return null;
+        }
+    }
+
+    save(state) {
+        const Gio = this._environment.Gio;
+        const file = Gio.File.new_for_path(this._path);
+        const parent = file.get_parent();
+        if (parent !== null && !parent.query_exists(null)) {
+            parent.make_directory_with_parents(null);
+        }
+        const text = JSON.stringify({
+            portfolio: state.portfolio,
+            selectedTab: state.selectedTab,
+        });
+        file.replace_contents(
+            text,
+            null,
+            false,
+            Gio.FileCreateFlags.REPLACE_DESTINATION,
+            null,
+        );
+    }
+}
+
+// Falls back to the legacy xlet-settings store when the environment cannot
+// reach GIO (test harnesses); production always gets the atomic state file.
+function createStateRepository(environment, settings, path = "~/.config/tpu-workload-manager/applet-state.json") {
+    const legacy = new CinnamonSettingsRepository(settings);
+    if (!environment || !environment.Gio || !environment.GLib) {
+        return legacy;
+    }
+    return new FileStateRepository({path, environment, legacy});
+}
+
 class CinnamonSettingsRepository {
     constructor(settings) {
         if (!settings || typeof settings.getValue !== "function" || typeof settings.setValue !== "function") {
@@ -801,7 +875,9 @@ module.exports = {
     detectTpuDeviceAsync,
     detectUsbDeviceAsync,
     detectUsbNameAsync,
+    createStateRepository,
     expandHome,
+    FileStateRepository,
     findCoralUsbIdentity,
     fileIdentity,
     isIoError,
