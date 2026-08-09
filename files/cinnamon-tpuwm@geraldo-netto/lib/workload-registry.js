@@ -66,12 +66,20 @@ class StaticWorkloadRegistry {
     }
 }
 
+// `onInvalid` selects the failure policy for one broken plug-in directory:
+// bundled discovery omits it and fails loudly, user-supplied plug-in
+// discovery reports the directory and continues, so one broken third-party
+// manifest never takes down the built-in catalog.
 class ManifestDirectoryRegistry {
-    constructor({root, listDirectories, readText}) {
+    constructor({root, listDirectories, readText, onInvalid = null}) {
         requireDiscoveryPorts(listDirectories, readText);
+        if (onInvalid !== null && typeof onInvalid !== "function") {
+            throw new TypeError("The invalid-manifest handler must be a function");
+        }
         this._root = String(root || "");
         this._listDirectories = listDirectories;
         this._readText = readText;
+        this._onInvalid = onInvalid;
     }
 
     descriptors() {
@@ -83,8 +91,22 @@ class ManifestDirectoryRegistry {
         if (names.length !== directories.length || names.length > MAX_WORKLOADS) {
             throw new RangeError("Workload directories must be unique and bounded");
         }
-        const descriptors = names.map((name) => this._readDescriptor(name));
+        const descriptors = names
+            .map((name) => this._guardedDescriptor(name))
+            .filter((descriptor) => descriptor !== null);
         return [...validateDescriptors(descriptors)];
+    }
+
+    _guardedDescriptor(directoryName) {
+        if (this._onInvalid === null) {
+            return this._readDescriptor(directoryName);
+        }
+        try {
+            return this._readDescriptor(directoryName);
+        } catch (error) {
+            this._onInvalid(directoryName, error);
+            return null;
+        }
     }
 
     _readDescriptor(directoryName) {
@@ -97,6 +119,37 @@ class ManifestDirectoryRegistry {
             throw new RangeError(`Workload manifest identity does not match directory: ${source}`);
         }
         return descriptor;
+    }
+}
+
+// Combines the bundled catalog with user-installed plug-ins. Identity
+// collisions resolve bundled-wins so a third-party directory can never
+// shadow or replace a built-in workload; `onCollision` reports each shadowed
+// identifier for the log.
+class MergedWorkloadRegistry {
+    constructor({primary, secondary, onCollision = null}) {
+        this._primary = requireWorkloadRegistry(primary);
+        this._secondary = requireWorkloadRegistry(secondary);
+        if (onCollision !== null && typeof onCollision !== "function") {
+            throw new TypeError("The collision handler must be a function");
+        }
+        this._onCollision = onCollision;
+    }
+
+    descriptors() {
+        const merged = validateDescriptors(this._primary.descriptors()).slice();
+        const known = new Set(merged.map((descriptor) => descriptor.id));
+        for (const descriptor of validateDescriptors(this._secondary.descriptors())) {
+            if (known.has(descriptor.id)) {
+                if (this._onCollision !== null) {
+                    this._onCollision(descriptor.id);
+                }
+                continue;
+            }
+            known.add(descriptor.id);
+            merged.push(descriptor);
+        }
+        return [...validateDescriptors(merged)];
     }
 }
 
@@ -115,6 +168,7 @@ module.exports = {
     MAX_MANIFEST_BYTES,
     MAX_WORKLOADS,
     ManifestDirectoryRegistry,
+    MergedWorkloadRegistry,
     StaticWorkloadRegistry,
     compareProfileDefinitions,
     parseManifest,

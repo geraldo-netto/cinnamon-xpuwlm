@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Cinnamon = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/cinnamon-runtime.js");
+const ManifestFixtures = require("../helpers/workload-manifest-fixtures.js");
 const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
 const {readSnapshot} = require("../helpers/fakes.js");
 
@@ -113,9 +114,10 @@ class FakeFile {
 
     enumerate_children() {
         const fileEnvironment = this.environment;
-        const names = (this.path === "/workloads"
-            ? this.environment.workloadNames
-            : this.environment.usbNames).slice();
+        const names = (this.environment.directoryNames?.[this.path]
+            ?? (this.path === "/workloads"
+                ? this.environment.workloadNames
+                : this.environment.usbNames)).slice();
         let index = 0;
         return {
             next_file() {
@@ -823,4 +825,90 @@ test("runtime control transport calls the versioned D-Bus endpoint", () => {
     }, {});
     Cinnamon.sendRuntimeCommandText("command", {cancellable: null}, (...args) => completions.push(args), env);
     assert.match(completions.at(-1)[0].message, /unavailable/u);
+});
+
+test("user plug-in root resolves through the XDG data dir with a home fallback", () => {
+    const env = environment();
+    env.GLib.get_user_data_dir = () => "/home/tester/.xdg-data";
+    assert.equal(
+        Cinnamon.userWorkloadRoot(env, "uuid@example"),
+        "/home/tester/.xdg-data/uuid@example/workloads",
+    );
+    delete env.GLib.get_user_data_dir;
+    assert.equal(
+        Cinnamon.userWorkloadRoot(env, "uuid@example"),
+        "/home/tester/.local/share/uuid@example/workloads",
+    );
+});
+
+test("user plug-in discovery isolates invalid plug-ins and unreadable roots", () => {
+    const uuid = "cinnamon-tpuwm@geraldo-netto";
+    const root = `/home/tester/.local/share/${uuid}/workloads`;
+    const env = environment({
+        [root]: "",
+        [`${root}/custom-workload/manifest.json`]: JSON.stringify(
+            ManifestFixtures.validWorkloadManifest({id: "custom-workload"}),
+        ),
+        [`${root}/broken-workload/manifest.json`]: "{not json",
+    });
+    env.directoryNames = {[root]: ["custom-workload", "broken-workload"]};
+    const warnings = [];
+    const logger = {warn: (message) => warnings.push(message)};
+
+    const registry = Cinnamon.createUserWorkloadRegistry(env, uuid, logger);
+    assert.deepEqual(registry.descriptors().map((entry) => entry.id), ["custom-workload"]);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /broken-workload/u);
+
+    const denied = environment({[root]: ""});
+    denied.directoryNames = {[root]: ["custom-workload"]};
+    const originalFactory = denied.Gio.File.new_for_path;
+    denied.Gio.File.new_for_path = (path) => {
+        const file = originalFactory(path);
+        if (path === root) {
+            file.enumerate_children = () => {
+                throw new Error("enumeration denied");
+            };
+        }
+        return file;
+    };
+    const unreadableWarnings = [];
+    const unreadable = Cinnamon.createUserWorkloadRegistry(denied, uuid, {
+        warn: (message) => unreadableWarnings.push(message),
+    });
+    assert.deepEqual(unreadable.descriptors(), []);
+    assert.match(unreadableWarnings[0], /enumeration denied/u);
+});
+
+test("merged registry composition keeps bundled workloads authoritative", () => {
+    const uuid = "cinnamon-tpuwm@geraldo-netto";
+    const userRoot = `/home/tester/.local/share/${uuid}/workloads`;
+    const bundledManifest = ManifestFixtures.validWorkloadManifest({id: "sample-workload"});
+    const env = environment({
+        "/workloads": "",
+        "/workloads/sample-workload/manifest.json": JSON.stringify(bundledManifest),
+        [userRoot]: "",
+        [`${userRoot}/sample-workload/manifest.json`]: JSON.stringify(
+            ManifestFixtures.validWorkloadManifest({id: "sample-workload", version: "9.9.9"}),
+        ),
+        [`${userRoot}/custom-workload/manifest.json`]: JSON.stringify(
+            ManifestFixtures.validWorkloadManifest({id: "custom-workload", ui: {
+                ...bundledManifest.ui,
+                order: bundledManifest.ui.order + 1,
+            }}),
+        ),
+    }, [], ["sample-workload"]);
+    env.directoryNames = {[userRoot]: ["sample-workload", "custom-workload"]};
+    const warnings = [];
+    const registry = Cinnamon.createMergedWorkloadRegistry({
+        bundledRoot: "/workloads",
+        environment: env,
+        uuid,
+        logger: {warn: (message) => warnings.push(message)},
+    });
+    const listed = registry.descriptors();
+    assert.deepEqual(listed.map((entry) => entry.id), ["sample-workload", "custom-workload"]);
+    assert.equal(listed[0].version, bundledManifest.version, "bundled wins the identity collision");
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /shadowed/u);
 });

@@ -7,6 +7,28 @@ Copy [`../templates/workload-plugin/manifest.json`](../templates/workload-plugin
 to `files/cinnamon-tpuwm@geraldo-netto/workloads/<id>/manifest.json`, then replace
 every placeholder. Directory name and manifest `id` must match.
 
+## Installation locations
+
+The applet merges two plug-in directories at startup and on every applet
+reload:
+
+- **Bundled**: `<applet>/workloads/<id>/manifest.json`, shipped with the
+  applet. A defective bundled manifest fails loudly — the repository gates
+  (`npm run check:workloads`) keep this impossible in a release.
+- **User-installed**: `$XDG_DATA_HOME/cinnamon-tpuwm@geraldo-netto/workloads/<id>/manifest.json`
+  (normally `~/.local/share/cinnamon-tpuwm@geraldo-netto/workloads/`). Install a
+  plug-in by creating its directory; uninstall by deleting it. One invalid
+  user manifest is skipped with a logged warning, and an unreadable user
+  directory yields an empty user catalog — neither can take down the applet
+  or the bundled workloads.
+
+Identity collisions resolve **bundled-wins**: a user plug-in that reuses a
+bundled `id` is ignored and logged, so third-party directories can never
+shadow or replace a built-in workload. Reconciliation treats user plug-ins
+exactly like bundled ones: a new directory installs with schema defaults, a
+changed `version` reports an upgrade, and a removed directory drops its
+persisted profile state on the next reconciliation.
+
 ## Contract
 
 `workload-manifest.schema.json` is authoritative. Version 1 requires:

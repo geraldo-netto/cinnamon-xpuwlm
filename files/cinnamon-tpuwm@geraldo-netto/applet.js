@@ -69,8 +69,13 @@ function resolveWorkloadCatalog(workloadRegistry) {
     return new Domain.WorkloadCatalog(WorkloadRegistry.profileDefinitions(workloadRegistry));
 }
 
-function resolveWorkloadRegistry(metadata, environment, override) {
-    return override || CinnamonRuntime.createWorkloadRegistry(`${metadata.path}/workloads`, environment);
+function resolveWorkloadRegistry(metadata, environment, override, logger = defaultLogger()) {
+    return override || CinnamonRuntime.createMergedWorkloadRegistry({
+        bundledRoot: `${metadata.path}/workloads`,
+        environment,
+        uuid: UUID,
+        logger,
+    });
 }
 
 class TpuWorkloadApplet extends Applet.TextIconApplet {
@@ -131,6 +136,7 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             metadata,
             this._environment,
             overrides.workloadRegistry,
+            this._logger,
         );
         this._workloadCatalog = resolveWorkloadCatalog(this._workloadRegistry);
         this._runtimeGatewayFactory = overrides.runtimeGatewayFactory
