@@ -102,3 +102,29 @@ test("regression: a snapshot carrying plug-in telemetry is accepted, not discard
     candidate.pluginTelemetry = Fixtures.pluginTelemetry({version: 2});
     assert.equal(parse(candidate).source, "invalid");
 });
+
+// The runtime stamps a resultRef on every alert it publishes. Together with
+// pluginTelemetry this was the second independent reason a live snapshot was
+// rejected outright, so the pair is proven accepted together here: fixing
+// either one alone still left the applet showing no runtime at all.
+test("regression: a live snapshot carrying resultRef and plug-in telemetry is accepted", () => {
+    const candidate = Fixtures.validRuntimeSnapshot();
+    candidate.pluginTelemetry = Fixtures.pluginTelemetry();
+    candidate.alerts[0].resultRef = "result-2f9c1a";
+    const snapshot = parse(candidate);
+    assert.equal(snapshot.source, "runtime");
+    assert.equal(snapshot.health.runtime, "connected");
+    assert.equal(snapshot.alerts.length, 0);
+
+    // The reference is accepted, not yet resolved: nothing surfaces it until
+    // the applet can retrieve the result it points at.
+    const rendered = Fixtures.validRuntimeSnapshot();
+    rendered.alerts[0].profileId = "hardware-health";
+    rendered.alerts[0].resultRef = "result-2f9c1a";
+    assert.equal(parse(rendered).source, "runtime");
+
+    // A malformed reference must still fail loudly rather than pass as an
+    // unchecked string.
+    candidate.alerts[0].resultRef = "job-2f9c1a";
+    assert.equal(parse(candidate).source, "invalid");
+});

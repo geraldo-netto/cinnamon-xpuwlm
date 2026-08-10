@@ -330,6 +330,15 @@ function runtimeSnapshotSchemaCases() {
             value.alerts[0].title = "💡".repeat(160);
             value.alerts[0].summary = "💡".repeat(500);
         }),
+        snapshotCase("alert result reference", true, (value) => {
+            value.alerts[0].resultRef = "result-x";
+        }),
+        snapshotCase("alert result reference at the maximum", true, (value) => {
+            value.alerts[0].resultRef = `result-${"a".repeat(113)}`;
+        }),
+        snapshotCase("alert result reference punctuation", true, (value) => {
+            value.alerts[0].resultRef = "result-A.9_z-0";
+        }),
         snapshotCase("one hundred alerts", true, (value) => {
             value.alerts = Array.from({length: 100}, (_, index) => ({
                 ...value.alerts[0],
@@ -418,6 +427,13 @@ function runtimeSnapshotSchemaCases() {
         ["risk above maximum", (value) => value.alerts[0], {riskScore: 1.1}],
         ["risk wrong type", (value) => value.alerts[0], {riskScore: false}],
         ["resolved wrong type", (value) => value.alerts[0], {resolved: 0}],
+        ["result reference wrong prefix", (value) => value.alerts[0], {resultRef: "job-12345"}],
+        ["result reference bare prefix", (value) => value.alerts[0], {resultRef: "result-"}],
+        ["result reference illegal character", (value) => value.alerts[0], {resultRef: "result-a b"}],
+        ["result reference non-ASCII", (value) => value.alerts[0], {resultRef: "result-💡"}],
+        ["result reference wrong type", (value) => value.alerts[0], {resultRef: 7}],
+        ["result reference null", (value) => value.alerts[0], {resultRef: null}],
+        ["result reference above maximum", (value) => value.alerts[0], {resultRef: `result-${"a".repeat(114)}`}],
     ];
     for (const [name, target, replacement] of replacements) {
         if (name === "root null" || name === "root array") {

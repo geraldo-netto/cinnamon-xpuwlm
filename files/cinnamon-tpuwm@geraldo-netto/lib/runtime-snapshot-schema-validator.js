@@ -17,10 +17,14 @@ const MAX_DEVICE_ENTRIES = 16;
 const METRIC_PROPERTIES = new Set(["queueDepth", "runningProfiles"]);
 const METRIC_REQUIRED = Object.freeze([...METRIC_PROPERTIES]);
 const PROFILE_PROPERTIES = new Set(["status", "queued", "detail"]);
+// `resultRef` is the runtime's handle for the job result behind an alert. The
+// applet does not resolve it yet, but it must be accepted: the runtime stamps
+// one on every alert it publishes.
 const ALERT_PROPERTIES = new Set([
     "id", "profileId", "title", "summary", "severity", "timestamp",
-    "confidence", "riskScore", "resolved",
+    "confidence", "riskScore", "resolved", "resultRef",
 ]);
+const RESULT_REFERENCE = /^result-[A-Za-z0-9._-]+$/u;
 const ALERT_REQUIRED = Object.freeze(["id", "profileId", "title", "summary", "severity", "timestamp"]);
 const DEVICE_KINDS = new Set(["usb", "pcie", "accel", "dri", "unknown"]);
 const DEVICE_BACKENDS = new Set(["tpu", "npu", "gpu"]);
@@ -156,10 +160,15 @@ function hasAlertReport(value) {
         && isIntegerAtLeast(value.timestamp, 0);
 }
 
+function isResultReference(value) {
+    return hasCodePointLength(value, 8, 120) && RESULT_REFERENCE.test(value);
+}
+
 function hasAlertEvidence(value) {
     return optionalProperty(value, "confidence", isNullableEvidence)
         && optionalProperty(value, "riskScore", isNullableEvidence)
-        && optionalProperty(value, "resolved", (resolved) => typeof resolved === "boolean");
+        && optionalProperty(value, "resolved", (resolved) => typeof resolved === "boolean")
+        && optionalProperty(value, "resultRef", isResultReference);
 }
 
 function isAlert(value) {
