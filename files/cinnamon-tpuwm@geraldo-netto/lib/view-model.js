@@ -3,6 +3,7 @@
 const Domain = require("./domain.js");
 const I18n = require("./i18n.js");
 const Manager = require("./manager.js");
+const ProfileBlockers = require("./profile-blockers.js");
 
 const {_, N_, format, ngettext} = I18n;
 
@@ -301,37 +302,113 @@ function formatFraction(value) {
         : "—";
 }
 
-// Eight of the nine bundled workloads declare no model, and the runtime
-// refuses to build a pipeline for any of them. Their rows used to look exactly
-// like a runnable profile's, so "enabled" read as "will run". The limitation is
-// named in words next to the profile it applies to, and never by styling alone.
-const NOT_EXECUTABLE_TEXT = N_("Declares no model · the runtime cannot run it");
+// Most of the bundled workloads cannot run, but not for the same reason and
+// not with the same remedy: one needs an artifact installed, one needs a Python
+// package, and one needs hardware that cannot be installed at all. A single
+// sentence for all three sent the user looking for a fix that, in the hardware
+// case, does not exist. Each profile therefore names its own reason in words,
+// and every reason points at the Setup tab where the remedy is written out.
+const BLOCKER_REASONS = Object.freeze({
+    model: N_("No model installed"),
+    runtime: N_("Accelerator runtime not installed"),
+    hardware: N_("No supported accelerator present"),
+    unknown: N_("The runtime cannot run this profile"),
+});
 
-function profileModel(profile) {
-    const executable = profile.executable !== false;
+// A reason this applet does not recognise is repeated exactly as the runtime
+// published it. Guessing a category for it would be worse than quoting it.
+const NO_BLOCKER_DETAIL_TEXT = N_("the runtime gave no reason");
+
+const NOT_AVAILABLE_TITLE = N_("Not available");
+
+function blockerReasonText(blocker) {
+    if (blocker.kind !== "unknown") {
+        return _(BLOCKER_REASONS[blocker.kind] || BLOCKER_REASONS.unknown);
+    }
+    return blocker.detail || _(NO_BLOCKER_DETAIL_TEXT);
+}
+
+function blockerModel(blocker) {
+    if (blocker === null) {
+        return null;
+    }
+    const reason = blockerReasonText(blocker);
     return {
-        ...profile,
-        executable,
-        executableText: executable ? "" : _(NOT_EXECUTABLE_TEXT),
+        kind: blocker.kind,
+        detail: blocker.detail,
+        reason,
+        text: format(_("%s · see Setup"), reason),
     };
 }
 
-function groupProfiles(profiles) {
+function profileModel(profile) {
+    const blocker = blockerModel(ProfileBlockers.classifyProfileBlocker(profile));
+    return {
+        ...profile,
+        executable: blocker === null,
+        blocker,
+        executableText: blocker === null ? "" : blocker.text,
+    };
+}
+
+function groupModels(models) {
     const groups = [];
     const byName = new Map();
-    for (const profile of profiles) {
-        if (!byName.has(profile.group)) {
-            const group = {name: profile.group, profiles: []};
+    for (const model of models) {
+        if (!byName.has(model.group)) {
+            const group = {name: model.group, profiles: []};
             groups.push(group);
-            byName.set(profile.group, group);
+            byName.set(model.group, group);
         }
-        byName.get(profile.group).profiles.push(profileModel(profile));
+        byName.get(model.group).profiles.push(model);
     }
     return groups;
 }
 
+function groupProfiles(profiles) {
+    return groupModels(profiles.map(profileModel));
+}
+
 function inexecutableCount(profiles) {
-    return profiles.filter((profile) => profile.executable === false).length;
+    return profiles.filter(
+        (profile) => ProfileBlockers.classifyProfileBlocker(profile) !== null,
+    ).length;
+}
+
+// One collapsed group, not one per reason: the group exists to get profiles
+// that cannot run out of the way, and it shrinks by itself as models and
+// runtimes are installed. Its own count is derived, never assumed, so a host
+// where more or fewer profiles run describes itself correctly.
+function blockedGroupModel(blocked) {
+    const count = blocked.length;
+    if (count === 0) {
+        return null;
+    }
+    return {
+        count,
+        title: _(NOT_AVAILABLE_TITLE),
+        label: format(_("%s (%d)"), _(NOT_AVAILABLE_TITLE), count),
+        summary: format(
+            ngettext("%d profile cannot run yet", "%d profiles cannot run yet", count),
+            count,
+        ),
+        collapsedName: format(
+            ngettext(
+                "Not available, %d profile, collapsed",
+                "Not available, %d profiles, collapsed",
+                count,
+            ),
+            count,
+        ),
+        expandedName: format(
+            ngettext(
+                "Not available, %d profile, expanded",
+                "Not available, %d profiles, expanded",
+                count,
+            ),
+            count,
+        ),
+    };
 }
 
 function attentionReviewText(count) {
@@ -480,6 +557,8 @@ function compareActiveAlerts(left, right) {
 
 function toViewModel(state, nowMs = Date.now()) {
     const screen = effectiveScreen(state);
+    const profiles = state.profiles.map(profileModel);
+    const blocked = profiles.filter((profile) => profile.blocker !== null);
     const enabledProfiles = state.profiles.filter((profile) => profile.enabled);
     const pausedProfiles = state.profiles.filter((profile) => !profile.enabled);
     const activeAlerts = state.alerts
@@ -508,8 +587,11 @@ function toViewModel(state, nowMs = Date.now()) {
         unknownContent: unknownContentNotice(state),
         metrics: metricModels(state),
         enabledGroups: groupProfiles(enabledProfiles),
-        allGroups: groupProfiles(state.profiles),
-        inexecutableCount: inexecutableCount(state.profiles),
+        allGroups: groupModels(profiles),
+        runnableGroups: groupModels(profiles.filter((profile) => profile.blocker === null)),
+        blockedProfiles: blocked,
+        blockedGroup: blockedGroupModel(blocked),
+        inexecutableCount: blocked.length,
         pausedProfiles,
         activeAlerts,
         resolvedAlerts,
@@ -537,10 +619,12 @@ function toViewModel(state, nowMs = Date.now()) {
 
 module.exports = {
     ALERT_SEVERITY_PRIORITY,
+    BLOCKER_REASONS,
     CATALOG_CHANGE_KINDS,
     CATALOG_CHANGE_LABELS,
     DEVICE_STATUS_LABELS,
-    NOT_EXECUTABLE_TEXT,
+    NOT_AVAILABLE_TITLE,
+    NO_BLOCKER_DETAIL_TEXT,
     RUNTIME_RECOVERY,
     RUNTIME_STATUS_LABELS,
     SEVERITY_LABELS,
@@ -548,6 +632,9 @@ module.exports = {
     BACKEND_LABELS,
     alertModel,
     backendLabel,
+    blockedGroupModel,
+    blockerModel,
+    blockerReasonText,
     catalogChangeGroups,
     catalogEntryName,
     catalogNoticeModel,
@@ -562,6 +649,7 @@ module.exports = {
     formatFraction,
     formatLoad,
     formatRelativeTime,
+    groupModels,
     groupProfiles,
     highestActiveSeverity,
     inexecutableCount,

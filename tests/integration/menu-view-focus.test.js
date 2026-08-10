@@ -23,8 +23,12 @@ function baseState(overrides = {}) {
     return {
         selectedTab: "profiles",
         paused: false,
+        // Focus restoration is about live controls, so every profile here is
+        // one the runtime serves; a profile it cannot run has no live control
+        // to return the caret to.
         profiles: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list({
-            "hardware-health": {status: "running", queued: 2, detail: "sampling"},
+            ...BuiltIns.servingProfiles(),
+            "hardware-health": {status: "running", queued: 2, detail: "Serving on tpu"},
         }),
         device: {available: true, state: "present", name: "Coral USB", kind: "usb", reason: ""},
         health: {device: "present", runtime: "connected", detail: ""},

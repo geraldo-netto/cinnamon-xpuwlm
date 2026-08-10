@@ -24,10 +24,6 @@ msgstr ""
 msgid "%d active · highest severity %s · no automatic action"
 msgstr ""
 
-#: lib/menu-view.js
-msgid "%d cannot run yet"
-msgstr ""
-
 #: lib/view-model.js
 msgid "%d item needs review"
 msgid_plural "%d items need review"
@@ -51,6 +47,12 @@ msgstr[1] ""
 #: lib/menu-view.js
 msgid "%d profile"
 msgid_plural "%d profiles"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/view-model.js
+msgid "%d profile cannot run yet"
+msgid_plural "%d profiles cannot run yet"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -83,6 +85,10 @@ msgid "%ds ago"
 msgstr ""
 
 #: lib/view-model.js
+msgid "%s (%d)"
+msgstr ""
+
+#: lib/view-model.js
 msgid "%s Detected"
 msgstr ""
 
@@ -100,6 +106,10 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "%s tab, selected"
+msgstr ""
+
+#: lib/view-model.js
+msgid "%s · see Setup"
 msgstr ""
 
 #: lib/view-model.js
@@ -160,6 +170,10 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Accelerator load"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Accelerator runtime not installed"
 msgstr ""
 
 #: lib/domain.js
@@ -260,10 +274,6 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Connection required"
-msgstr ""
-
-#: lib/view-model.js
-msgid "Declares no model · the runtime cannot run it"
 msgstr ""
 
 #: lib/menu-view.js
@@ -414,6 +424,10 @@ msgstr ""
 msgid "No device"
 msgstr ""
 
+#: lib/view-model.js
+msgid "No model installed"
+msgstr ""
+
 #: lib/domain.js
 msgid "No runtime service is publishing a snapshot"
 msgstr ""
@@ -425,6 +439,30 @@ msgstr ""
 #: lib/view-model.js
 msgid "No runtime state has been read yet. Local profile intent is unchanged."
 msgstr ""
+
+#: lib/view-model.js
+msgid "No supported accelerator present"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "No workload profile can run on this machine yet. Open the Setup tab to see what each one needs."
+msgstr ""
+
+#: lib/view-model.js
+msgid "Not available"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Not available, %d profile, collapsed"
+msgid_plural "Not available, %d profiles, collapsed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/view-model.js
+msgid "Not available, %d profile, expanded"
+msgid_plural "Not available, %d profiles, expanded"
+msgstr[0] ""
+msgstr[1] ""
 
 #: lib/view-model.js
 msgid "Not shown: %d profile update(s), %d alert(s). Install the missing workload plug-in to see them."
@@ -698,6 +736,10 @@ msgstr ""
 msgid "The last snapshot is older than its freshness deadline, so its values are no longer shown as current."
 msgstr ""
 
+#: lib/view-model.js
+msgid "The runtime cannot run this profile"
+msgstr ""
+
 #: lib/manager.js
 msgid "The runtime service could not apply the change"
 msgstr ""
@@ -866,6 +908,10 @@ msgstr ""
 
 #: settings-schema.json
 msgid "seconds"
+msgstr ""
+
+#: lib/view-model.js
+msgid "the runtime gave no reason"
 msgstr ""
 
 #: lib/view-model.js

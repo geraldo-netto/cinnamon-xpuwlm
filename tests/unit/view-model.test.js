@@ -267,37 +267,97 @@ test("body key tracks every rendered field of a same-identity alert", () => {
     }
 });
 
-test("a profile the runtime cannot execute is labelled, not merely styled", () => {
-    const runnable = ViewModel.profileModel({id: "a", group: "g", executable: true});
+test("each blocked profile names its own reason and points at Setup", () => {
+    const runnable = ViewModel.profileModel({
+        id: "a",
+        group: "g",
+        executable: true,
+        status: "watching",
+        detail: "Serving on gpu",
+    });
     assert.equal(runnable.executable, true);
+    assert.equal(runnable.blocker, null);
     assert.equal(runnable.executableText, "");
 
-    const inert = ViewModel.profileModel({id: "b", group: "g", executable: false});
-    assert.equal(inert.executable, false);
-    assert.equal(inert.executableText, ViewModel.NOT_EXECUTABLE_TEXT);
-    assert.match(inert.executableText, /no model/u, "the reason, not just the verdict");
+    const reasons = {
+        model: ["Ready on gpu; no model bundled", "No model installed"],
+        runtime: ["gpu: ncnn is not installed", "Accelerator runtime not installed"],
+        hardware: ["tpu: No Coral Edge TPU device detected", "No supported accelerator present"],
+    };
+    for (const [kind, [detail, reason]] of Object.entries(reasons)) {
+        const blocked = ViewModel.profileModel({
+            id: kind,
+            group: "g",
+            executable: true,
+            status: "unavailable",
+            detail,
+        });
+        assert.equal(blocked.executable, false, kind);
+        assert.equal(blocked.blocker.kind, kind);
+        assert.equal(blocked.blocker.reason, reason);
+        assert.equal(blocked.executableText, `${reason} · see Setup`);
+    }
+
+    // An unrecognised reason is quoted, never relabelled or dropped.
+    const unknown = ViewModel.profileModel({
+        id: "d",
+        group: "g",
+        status: "unavailable",
+        detail: "gpu: something nobody has written a label for",
+    });
+    assert.equal(unknown.blocker.kind, "unknown");
+    assert.equal(unknown.blocker.reason, "gpu: something nobody has written a label for");
+    assert.equal(ViewModel.blockerReasonText({kind: "unknown", detail: ""}), "the runtime gave no reason");
+    assert.equal(ViewModel.blockerModel(null), null);
 
     // A projection built before this field existed must not be reported as
     // unrunnable on the strength of a missing property.
-    assert.equal(ViewModel.profileModel({id: "c", group: "g"}).executable, true);
+    assert.equal(ViewModel.profileModel({id: "c", group: "g", detail: "Serving on gpu"}).executable, true);
+});
 
+test("the blocked group derives its own size from the live snapshot", () => {
+    assert.equal(ViewModel.blockedGroupModel([]), null);
     assert.equal(ViewModel.inexecutableCount([]), 0);
-    assert.equal(ViewModel.inexecutableCount([{executable: true}, {executable: false}, {}]), 1);
 
-    const model = ViewModel.toViewModel(state({
-        profiles: state().profiles.map((profile, index) => ({...profile, executable: index > 0})),
-    }), NOW);
-    assert.equal(model.inexecutableCount, 1);
-    assert.equal(model.allGroups[0].profiles[0].executableText, ViewModel.NOT_EXECUTABLE_TEXT);
+    const serving = state({
+        profiles: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog())
+            .list(BuiltIns.servingProfiles()),
+    });
+    const ready = ViewModel.toViewModel(serving, NOW);
+    assert.equal(ready.inexecutableCount, 0);
+    assert.equal(ready.blockedGroup, null);
+    assert.deepEqual(ready.blockedProfiles, []);
     assert.equal(
-        ViewModel.toViewModel(state({
-            profiles: state().profiles.map((profile) => ({...profile, executable: true})),
-        }), NOW).inexecutableCount,
-        0,
+        ready.runnableGroups.flatMap((group) => group.profiles).length,
+        serving.profiles.length,
     );
-    // Every bundled workload except low-light-enhancement declares no model,
-    // so today the whole shipped catalog is unrunnable and says so.
-    assert.equal(ViewModel.toViewModel(state(), NOW).inexecutableCount, state().profiles.length);
+
+    // Nothing counts profiles from the shipped catalog: one profile stops
+    // serving and both sides of the split follow it.
+    const partial = state({
+        profiles: serving.profiles.map((profile) => (profile.id === "desktop-context"
+            ? {...profile, status: "unavailable", detail: "gpu: ncnn is not installed"}
+            : profile)),
+    });
+    const mixed = ViewModel.toViewModel(partial, NOW);
+    assert.equal(mixed.inexecutableCount, 1);
+    assert.deepEqual(mixed.blockedProfiles.map((profile) => profile.id), ["desktop-context"]);
+    assert.equal(mixed.blockedGroup.count, 1);
+    assert.equal(mixed.blockedGroup.label, "Not available (1)");
+    assert.equal(mixed.blockedGroup.summary, "1 profile cannot run yet");
+    assert.equal(mixed.blockedGroup.collapsedName, "Not available, 1 profile, collapsed");
+    assert.equal(mixed.blockedGroup.expandedName, "Not available, 1 profile, expanded");
+    assert.equal(
+        mixed.runnableGroups.flatMap((group) => group.profiles).some((profile) => profile.id === "desktop-context"),
+        false,
+    );
+
+    // Every bundled workload declares no model, so today the shipped catalog
+    // collapses whole and the group states its own size in the plural.
+    const shipped = ViewModel.toViewModel(state(), NOW);
+    assert.equal(shipped.inexecutableCount, state().profiles.length - 1);
+    assert.equal(shipped.blockedGroup.count, state().profiles.length - 1);
+    assert.equal(shipped.blockedGroup.summary, `${state().profiles.length - 1} profiles cannot run yet`);
 });
 
 test("discarded runtime content is stated in words instead of vanishing", () => {

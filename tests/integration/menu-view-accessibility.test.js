@@ -21,7 +21,8 @@ function baseState(overrides = {}) {
     return {
         selectedTab: "overview",
         paused: false,
-        profiles: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list(),
+        profiles: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog())
+            .list(BuiltIns.servingProfiles()),
         device: {available: true, state: "present", name: "Coral USB", kind: "usb", reason: ""},
         health: {device: "present", runtime: "connected", detail: ""},
         metrics: {load: 42, queueDepth: 2, runningProfiles: 1},

@@ -13,6 +13,7 @@ const Mainloop = imports.mainloop;
 const PopupMenu = imports.ui.popupMenu;
 const Settings = imports.ui.settings;
 const St = imports.gi.St;
+const Tooltips = imports.ui.tooltips;
 const Util = imports.misc.util;
 
 const AlertNotifier = require("./lib/alert-notifier.js");
@@ -212,6 +213,10 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
                 menu,
                 layout,
                 actions: this._menuActions(),
+                // A Cinnamon tooltip attaches itself to the actor and dies with
+                // it, so the popup only has to hand over the pair.
+                tooltips: overrides.tooltips
+                    || ((actor, text) => new Tooltips.Tooltip(actor, text)),
             }));
         this.menuManager = this._menuManagerFactory(this);
         this._createMenu(this._orientation);

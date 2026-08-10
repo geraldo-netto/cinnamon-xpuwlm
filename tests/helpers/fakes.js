@@ -369,6 +369,7 @@ function createAtk() {
         StateType: {
             SELECTED: "selected",
             CHECKED: "checked",
+            EXPANDED: "expanded",
             SENSITIVE: "sensitive",
         },
     };

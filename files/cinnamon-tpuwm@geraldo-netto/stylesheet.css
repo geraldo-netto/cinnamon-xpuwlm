@@ -75,6 +75,54 @@
     font-weight: bold;
 }
 
+/* The collapsed group of profiles the runtime cannot run. The arrow is a second
+   cue beside the word and the count, never the only one. */
+.tpuwm-disclosure {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border: 1px solid rgba(127, 127, 127, 0.28);
+    border-radius: 7px;
+    background-color: rgba(127, 127, 127, 0.09);
+}
+
+.tpuwm-disclosure:hover {
+    background-color: rgba(127, 127, 127, 0.18);
+}
+
+.tpuwm-disclosure:focus {
+    border-width: 2px;
+    border-color: symbolic;
+}
+
+.tpuwm-disclosure-row {
+    min-height: 34px;
+    spacing: 8px;
+}
+
+.tpuwm-disclosure-arrow {
+    min-width: 14px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.tpuwm-disclosure-title {
+    font-weight: bold;
+}
+
+.tpuwm-disclosure-summary,
+.tpuwm-empty-note {
+    font-size: 0.82em;
+    opacity: 0.72;
+}
+
+.tpuwm-disclosure-list {
+    spacing: 0;
+}
+
+.tpuwm-empty-note {
+    padding: 12px 10px;
+}
+
 .tpuwm-status {
     padding: 2px 5px;
     border-radius: 4px;
@@ -408,7 +456,9 @@
 .tpuwm-mode-compact .tpuwm-toggle,
 .tpuwm-mode-dense .tpuwm-toggle,
 .tpuwm-mode-compact .tpuwm-weight-button,
-.tpuwm-mode-dense .tpuwm-weight-button {
+.tpuwm-mode-dense .tpuwm-weight-button,
+.tpuwm-mode-compact .tpuwm-disclosure-row,
+.tpuwm-mode-dense .tpuwm-disclosure-row {
     min-height: 44px;
 }
 

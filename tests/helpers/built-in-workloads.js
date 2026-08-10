@@ -39,6 +39,17 @@ function catalog() {
     return new Domain.WorkloadCatalog(Registry.profileDefinitions(registry()));
 }
 
+// A runtime that can execute the whole bundled catalog. The service publishes
+// "Serving on <backend>" for a profile whose model resolved on an available
+// lane, and that sentence is what the popup reads to decide a profile runs, so
+// this is the fixture for a host where nothing is missing.
+function servingProfiles(detail = "Serving on gpu") {
+    return Object.fromEntries(coreDescriptors().map((descriptor) => [
+        descriptor.id,
+        {status: "watching", queued: 0, detail},
+    ]));
+}
+
 module.exports = {
     ROOT,
     catalog,
@@ -47,4 +58,5 @@ module.exports = {
     coreRegistry,
     descriptors,
     registry,
+    servingProfiles,
 };

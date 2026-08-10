@@ -93,13 +93,17 @@ function focusableControls(actor, found = []) {
 }
 
 class MenuView {
-    constructor({St, Clutter, Atk, menu, actions, layout}) {
+    constructor({St, Clutter, Atk, menu, actions, layout, tooltips}) {
         if (!St || !Clutter || !menu || typeof menu.addActor !== "function") {
             throw new TypeError("Cinnamon UI dependencies are required");
         }
         this._St = St;
         this._Clutter = Clutter;
         this._Atk = Atk;
+        // Optional: a Cinnamon build supplies imports.ui.tooltips, tests do not.
+        // Absent, a disabled control still announces its reason through its
+        // accessible name and the words printed on its row.
+        this._tooltips = typeof tooltips === "function" ? tooltips : null;
         this._actions = {
             selectTab: requireAction(actions, "selectTab"),
             toggleProfile: requireAction(actions, "toggleProfile"),
@@ -116,6 +120,11 @@ class MenuView {
         this._model = null;
         this._selectedTab = TAB_NAMES[0];
         this._focusedIdentity = null;
+        // Disclosure state belongs to the popup, not to saved policy: it is a
+        // reading position, and it survives body rebuilds so a refresh never
+        // collapses the group under the user's cursor.
+        this._blockedExpanded = false;
+        this._blocked = null;
         this._layout = layout || Layout.defaultLayout();
         this._root = this._box("tpuwm-root", true);
         this._buildHeader();
@@ -398,6 +407,7 @@ class MenuView {
     _renderBody(model) {
         const previous = this._focusedIdentity;
         destroyChildren(this._body);
+        this._blocked = null;
         if (model.controlMessage) {
             this._body.add_child(this._label(
                 model.controlMessage,
@@ -491,23 +501,89 @@ class MenuView {
         }
     }
 
+    // Profiles that can run come first and read normally. Everything the
+    // runtime cannot run goes into one group at the bottom, collapsed, so the
+    // tab is a list of what works rather than a wall of controls that lie. The
+    // split and every count in it are derived from the live snapshot, so the
+    // group shrinks by itself as models and runtimes are installed.
     _renderProfiles(model) {
         const active = model.allGroups.flatMap((group) => group.profiles).filter((profile) => profile.enabled).length;
         const paused = model.pausedProfiles.length;
-        const summary = format(_("%d active · %d paused · weight 1–5"), active, paused);
         this._addSectionHeading(
             _("Workload profiles"),
-            model.inexecutableCount > 0
-                ? `${summary} · ${format(_("%d cannot run yet"), model.inexecutableCount)}`
-                : summary,
+            format(_("%d active · %d paused · weight 1–5"), active, paused),
         );
-        for (const group of model.allGroups) {
+        for (const group of model.runnableGroups) {
             const activeInGroup = group.profiles.filter((profile) => profile.enabled).length;
             this._addGroupHeading(group.name, format(_("%d of %d active"), activeInGroup, group.profiles.length));
             for (const profile of group.profiles) {
                 this._body.add_child(this._profileRow(profile, true));
             }
         }
+        if (model.runnableGroups.length === 0) {
+            this._body.add_child(this._label(
+                _("No workload profile can run on this machine yet. Open the Setup tab to see what each one needs."),
+                "tpuwm-empty-note",
+                true,
+            ));
+        }
+        this._renderBlockedProfiles(model);
+    }
+
+    _renderBlockedProfiles(model) {
+        const group = model.blockedGroup;
+        if (group === null || group === undefined) {
+            return false;
+        }
+        const disclosure = this._identify(
+            this._button(
+                "tpuwm-disclosure",
+                group.collapsedName,
+                () => this._toggleBlockedProfiles(),
+                "TOGGLE_BUTTON",
+            ),
+            "blocked-disclosure",
+        );
+        const row = this._box("tpuwm-disclosure-row");
+        const arrow = this._label("", "tpuwm-disclosure-arrow");
+        row.add_child(arrow);
+        const copy = this._box("tpuwm-profile-copy", true, true);
+        const title = this._label(group.label, "tpuwm-disclosure-title");
+        copy.add_child(title);
+        copy.add_child(this._label(group.summary, "tpuwm-disclosure-summary", true));
+        row.add_child(copy);
+        disclosure.set_child(row);
+        this._body.add_child(disclosure);
+        const list = this._box("tpuwm-disclosure-list", true);
+        for (const profile of model.blockedProfiles) {
+            list.add_child(this._profileRow(profile, true));
+        }
+        this._body.add_child(list);
+        this._blocked = {arrow, disclosure, group, list, title};
+        this._applyBlockedExpansion();
+        return true;
+    }
+
+    _toggleBlockedProfiles() {
+        this._blockedExpanded = !this._blockedExpanded;
+        return this._applyBlockedExpansion();
+    }
+
+    // Words, an arrow, and the ATK expanded state all say the same thing, so
+    // the group never depends on the glyph alone to report whether it is open.
+    _applyBlockedExpansion() {
+        if (this._blocked === null) {
+            return false;
+        }
+        const {arrow, disclosure, group, list, title} = this._blocked;
+        const expanded = this._blockedExpanded;
+        list.visible = expanded;
+        arrow.set_text(expanded ? "▾" : "▸");
+        title.set_text(group.label);
+        disclosure.set_accessible_name(expanded ? group.expandedName : group.collapsedName);
+        this._setAccessibleState(disclosure, "EXPANDED", expanded);
+        setStyleClass(disclosure, "tpuwm-disclosure-open", expanded);
+        return expanded;
     }
 
     _renderAlerts(model) {
@@ -607,6 +683,13 @@ class MenuView {
             `tpuwm-profile-row${profile.enabled ? "" : " tpuwm-profile-disabled"}`
             + `${inert ? " tpuwm-profile-inert" : ""}`,
         );
+        if (inert) {
+            // The controls this row disables are non-reactive, so the pointer
+            // falls through to the row: hovering the dead toggle still answers
+            // why it is dead.
+            row.reactive = true;
+            this._tooltip(row, profile.executableText);
+        }
         row.add_child(new this._St.Icon({
             icon_name: profile.icon,
             icon_type: this._St.IconType.SYMBOLIC,
@@ -625,19 +708,19 @@ class MenuView {
         }
         row.add_child(copy);
         row.add_child(editableWeight
-            ? this._weightControls(profile)
+            ? this._weightControls(profile, inert)
             : this._label(format(_("Weight %d"), profile.weight), "tpuwm-weight-summary"));
         row.add_child(this._profileToggle(profile, inert));
         return row;
     }
 
-    _weightControls(profile) {
+    _weightControls(profile, inert = false) {
         const controls = this._box("tpuwm-weight-control");
         const down = this._identify(
             this._button("tpuwm-weight-button", format(_("Decrease %s weight"), profile.title), () => this._actions.changeWeight(profile.id, -1)),
             `weight-down:${profile.id}`,
         );
-        this._setButtonEnabled(down, this._policyControlEnabled(profile.weight > 1));
+        this._setButtonEnabled(down, this._policyControlEnabled(!inert && profile.weight > 1));
         down.set_child(this._label("−", "tpuwm-button-label"));
         controls.add_child(down);
         controls.add_child(this._label(`${profile.weight}`, "tpuwm-weight-value"));
@@ -645,16 +728,16 @@ class MenuView {
             this._button("tpuwm-weight-button", format(_("Increase %s weight"), profile.title), () => this._actions.changeWeight(profile.id, 1)),
             `weight-up:${profile.id}`,
         );
-        this._setButtonEnabled(up, this._policyControlEnabled(profile.weight < 5));
+        this._setButtonEnabled(up, this._policyControlEnabled(!inert && profile.weight < 5));
         up.set_child(this._label("+", "tpuwm-button-label"));
         controls.add_child(up);
         return controls;
     }
 
-    // The control stays live for a profile the runtime cannot run: enabling one
-    // is a policy statement, and installing the missing model must not require
-    // the user to first find a control the applet took away. Only the wording
-    // changes, so the limitation is announced rather than silently enforced.
+    // A weight the scheduler will never read, and an "on" that starts nothing,
+    // are controls that do nothing. They stay visible, because the profile is
+    // still part of the catalog, but they are insensitive and say why: the
+    // reason is in the accessible name and in the row's tooltip.
     _profileToggle(profile, inert) {
         const name = format(profile.enabled ? _("Disable %s") : _("Enable %s"), profile.title);
         const toggle = this._identify(
@@ -667,7 +750,7 @@ class MenuView {
             `toggle:${profile.id}`,
         );
         this._setAccessibleState(toggle, "CHECKED", profile.enabled);
-        this._setButtonEnabled(toggle, !this._controlPending);
+        this._setButtonEnabled(toggle, !inert && !this._controlPending);
         toggle.set_child(this._label(profile.enabled ? _("On") : _("Off"), "tpuwm-toggle-label"));
         return toggle;
     }
@@ -788,6 +871,15 @@ class MenuView {
     _identify(actor, identity) {
         actor.tpuwmIdentity = identity;
         return actor;
+    }
+
+    // Cinnamon tooltips destroy themselves with the actor they describe, so a
+    // rebuilt body leaves none behind.
+    _tooltip(actor, text) {
+        if (this._tooltips === null || !text) {
+            return null;
+        }
+        return this._tooltips(actor, text);
     }
 
     // Assistive technology needs the semantic role and state, not only the

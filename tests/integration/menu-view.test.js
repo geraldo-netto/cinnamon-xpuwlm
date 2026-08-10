@@ -22,8 +22,11 @@ function baseState(overrides = {}) {
     return {
         selectedTab: "overview",
         paused: false,
+        // A host where the runtime serves the whole catalog, so a control that
+        // is dead in these tests is dead for a reason the test states.
         profiles: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list({
-            "hardware-health": {status: "running", queued: 2, detail: "sampling"},
+            ...BuiltIns.servingProfiles(),
+            "hardware-health": {status: "running", queued: 2, detail: "Serving on tpu"},
         }),
         device: {available: true, state: "present", name: "Coral USB", kind: "usb", reason: ""},
         health: {device: "present", runtime: "connected", detail: ""},
@@ -39,6 +42,7 @@ function baseState(overrides = {}) {
 
 function harness() {
     const calls = [];
+    const tooltips = [];
     const actions = {};
     for (const name of ["selectTab", "toggleProfile", "changeWeight", "pauseAll", "resumeAll", "refresh", "openSettings", "acknowledgeCatalogChanges"]) {
         actions[name] = (...args) => calls.push([name, ...args]);
@@ -50,8 +54,13 @@ function harness() {
         Atk: createAtk(),
         menu,
         actions,
+        tooltips: (actor, text) => {
+            const tooltip = {actor, text};
+            tooltips.push(tooltip);
+            return tooltip;
+        },
     });
-    return {calls, menu, view, root: menu.actors[0]};
+    return {calls, menu, tooltips, view, root: menu.actors[0]};
 }
 
 function button(root, accessibleName) {
@@ -339,57 +348,173 @@ test("the catalog notice appears with named plug-ins and dismisses on demand", (
     assert.equal(notice.visible, false);
 });
 
-test("a profile the runtime cannot execute says so instead of looking runnable", () => {
-    const {calls, view, root} = harness();
-    const state = baseState({selectedTab: "profiles"});
-    // The bundled catalog declares no model for these workloads, so the
-    // runtime refuses to build a pipeline for either of them.
-    state.profiles = state.profiles.map((profile) => ({
-        ...profile,
-        executable: profile.id !== "hardware-health",
-    }));
-    view.render(ViewModel.toViewModel(state, NOW));
+// Three blockers, three remedies. A host is normally missing more than one
+// thing at a time, so the group has to keep them apart rather than average
+// them into one sentence.
+function blockedState(selectedTab = "profiles") {
+    const blockers = {
+        "hardware-health": "Ready on gpu; no model bundled",
+        "desktop-context": "gpu: ncnn is not installed",
+        "storage-intelligence": "tpu: No Coral Edge TPU device detected",
+        "build-advisor": "gpu: a reason nobody wrote a label for",
+    };
+    const state = baseState({selectedTab});
+    state.profiles = state.profiles.map((profile) => (Object.hasOwn(blockers, profile.id)
+        ? {...profile, status: "unavailable", detail: blockers[profile.id]}
+        : profile));
+    return state;
+}
 
-    const limitation = ViewModel.NOT_EXECUTABLE_TEXT;
-    const notes = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-profile-limitation"));
-    assert.equal(notes.length, 1, "only the profile that cannot run is annotated");
-    assert.equal(notes[0].text, limitation);
+function disclosure(root) {
+    return findActors(root, (actor) => actor.tpuwmIdentity === "blocked-disclosure")[0];
+}
+
+function blockedList(root) {
+    return findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-disclosure-list"))[0];
+}
+
+test("profiles that cannot run collapse into one group under the ones that can", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(blockedState(), NOW));
+
+    const body = findActors(root, (actor) => actor.styleClasses.has("tpuwm-body"))[0];
+    const list = blockedList(root);
+    assert.equal(body.children.at(-1), list, "the group is last, under the runnable profiles");
+    assert.equal(list.visible, false, "it starts collapsed");
+    assert.equal(list.children.length, 4);
+
+    // Each blocked profile states its own reason; the recognised ones are
+    // labelled and the unrecognised one is quoted exactly.
+    assert.deepEqual(
+        findActors(list, (actor) => actor.styleClasses
+            && actor.styleClasses.has("tpuwm-profile-limitation")).map((actor) => actor.text),
+        [
+            "No model installed · see Setup",
+            "No supported accelerator present · see Setup",
+            "gpu: a reason nobody wrote a label for · see Setup",
+            "Accelerator runtime not installed · see Setup",
+        ],
+    );
+
+    // Runnable profiles stay in their own groups and carry no limitation.
+    const runnable = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-profile-row") && actor.parent === body);
+    assert.equal(runnable.length, 4);
     assert.equal(
         findActors(root, (actor) => actor.styleClasses
-            && actor.styleClasses.has("tpuwm-profile-inert")).length,
+            && actor.styleClasses.has("tpuwm-profile-limitation")).length,
+        4,
+    );
+});
+
+test("the collapsed group is operable and announces its own state", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(blockedState(), NOW));
+
+    const toggle = disclosure(root);
+    const list = blockedList(root);
+    const arrow = findActors(toggle, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-disclosure-arrow"))[0];
+    const title = findActors(toggle, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-disclosure-title"))[0];
+
+    assert.equal(toggle.accessibleRole, "toggle-button");
+    assert.equal(toggle.can_focus, true);
+    assert.equal(toggle.accessibleName, "Not available, 4 profiles, collapsed");
+    assert.equal(toggle.accessibleStates.has("expanded"), false);
+    assert.equal(title.text, "Not available (4)");
+    assert.equal(arrow.text, "▸");
+    assert.equal(
+        findActors(toggle, (actor) => actor.text === "4 profiles cannot run yet").length,
         1,
     );
 
-    // The reason travels with the control, not only with the row beside it.
-    const inert = control(root, "Disable Hardware health");
-    assert.equal(inert.accessibleName, `Disable Hardware health — ${limitation}`);
-    assert.equal(inert.reactive, true, "policy intent is still editable");
-    inert.click();
-    assert.deepEqual(calls, [["toggleProfile", "hardware-health"]]);
+    toggle.click();
+    assert.equal(list.visible, true);
+    assert.equal(arrow.text, "▾");
+    assert.equal(toggle.accessibleName, "Not available, 4 profiles, expanded");
+    assert.equal(toggle.accessibleStates.has("expanded"), true);
+    assert.equal(toggle.styleClasses.has("tpuwm-disclosure-open"), true);
 
-    const runnable = control(root, "Disable Storage intelligence");
-    assert.equal(runnable.accessibleName, "Disable Storage intelligence");
+    // The reading position survives a refresh that rebuilds the body.
+    const changed = blockedState();
+    changed.profiles = changed.profiles.map((profile) => ({...profile, queued: 7}));
+    view.render(ViewModel.toViewModel(changed, NOW));
+    assert.equal(blockedList(root).visible, true);
+    assert.equal(disclosure(root).accessibleName, "Not available, 4 profiles, expanded");
 
-    const heading = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-section-description"))[0];
-    assert.match(heading.text, /1 cannot run yet/u);
+    disclosure(root).click();
+    assert.equal(blockedList(root).visible, false);
 });
 
-test("a fully executable catalog carries no limitation wording at all", () => {
-    const {view, root} = harness();
-    const state = baseState({selectedTab: "profiles"});
-    state.profiles = state.profiles.map((profile) => ({...profile, executable: true}));
-    view.render(ViewModel.toViewModel(state, NOW));
+test("controls on a profile that cannot run are disabled and say why", () => {
+    const {calls, tooltips, view, root} = harness();
+    view.render(ViewModel.toViewModel(blockedState(), NOW));
 
+    const reason = "No model installed · see Setup";
+    const inert = control(root, "Disable Hardware health");
+    assert.equal(inert.accessibleName, `Disable Hardware health — ${reason}`);
+    assert.equal(inert.reactive, false, "a control that changes nothing is not offered");
+    assert.equal(inert.can_focus, false);
+    assert.equal(inert.styleClasses.has("tpuwm-button-disabled"), true);
+    assert.equal(inert.accessibleStates.has("sensitive"), false);
+
+    for (const name of ["Decrease Hardware health weight", "Increase Hardware health weight"]) {
+        const weight = control(root, name);
+        assert.equal(weight.reactive, false, name);
+        assert.equal(weight.can_focus, false, name);
+        assert.equal(weight.styleClasses.has("tpuwm-button-disabled"), true, name);
+    }
+
+    // The pointer falls through the dead controls to the row, which carries a
+    // tooltip with the same words the row prints.
+    const row = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-profile-inert"))[0];
+    assert.equal(row.reactive, true);
+    assert.equal(tooltips.filter((tooltip) => tooltip.actor === row)[0].text, reason);
+    assert.equal(tooltips.length, 4);
+
+    const runnable = control(root, "Enable Network & peripherals");
+    assert.equal(runnable.accessibleName, "Enable Network & peripherals");
+    assert.equal(runnable.reactive, true);
+    runnable.click();
+    assert.deepEqual(calls, [["toggleProfile", "network-peripherals"]]);
+});
+
+test("a catalog the runtime serves whole carries no group and no limitation", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW));
+
+    assert.equal(disclosure(root), undefined);
+    assert.equal(blockedList(root), undefined);
     assert.equal(
         findActors(root, (actor) => actor.styleClasses
             && actor.styleClasses.has("tpuwm-profile-limitation")).length,
         0,
     );
-    const heading = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-section-description"))[0];
-    assert.doesNotMatch(heading.text, /cannot run/u);
+    assert.equal(
+        findActors(root, (actor) => actor.styleClasses
+            && actor.styleClasses.has("tpuwm-empty-note")).length,
+        0,
+    );
+});
+
+test("a catalog nothing can run says so instead of showing an empty tab", () => {
+    const {view, root} = harness();
+    const state = baseState({selectedTab: "profiles"});
+    state.profiles = state.profiles.map((profile) => ({
+        ...profile,
+        status: "unavailable",
+        detail: "gpu: ncnn is not installed",
+    }));
+    view.render(ViewModel.toViewModel(state, NOW));
+
+    const note = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-empty-note"))[0];
+    assert.match(note.text, /No workload profile can run on this machine yet/u);
+    assert.match(note.text, /Setup tab/u);
+    assert.equal(blockedList(root).children.length, state.profiles.length);
 });
 
 test("the alerts screen states runtime content it could not render", () => {

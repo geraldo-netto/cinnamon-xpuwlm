@@ -23,6 +23,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "manager.js",
     "metadata.json",
     "po",
+    "profile-blockers.js",
     "runtime-gateway.js",
     "runtime-control-contract.js",
     "runtime-control-gateway.js",
