@@ -68,3 +68,90 @@ test("the bundled catalog covers every workload the service ships", (t) => {
     // exists for.
     assert.deepEqual(identifiers(BuiltIns.ROOT), identifiers(service));
 });
+
+// The manifests were pinned to each other; the *schemas* were not, and neither
+// was the hand-written validator that restates the schema for GJS. Adding
+// `tensorContract` to the service and not here would have made the applet
+// reject the manifest and hide a profile the runtime runs — the same silent
+// failure the snapshot validator produced, in a different file.
+const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
+
+const appletRoot = path.join(repositoryRoot, "files/cinnamon-tpuwm@geraldo-netto");
+
+function serviceSchema() {
+    const configured = process.env.TPUWM_OMNITENSOR_ROOT;
+    const candidate = configured || path.resolve(repositoryRoot, "../omnitensor");
+    const schema = path.join(candidate, "schemas/workload-manifest.schema.json");
+    return fs.existsSync(schema) ? JSON.parse(fs.readFileSync(schema, "utf8")) : null;
+}
+
+const mirrored = JSON.parse(
+    fs.readFileSync(path.join(appletRoot, "workload-manifest.schema.json"), "utf8"),
+);
+
+function modelProperties(schema) {
+    return schema.properties.requirements.properties.model.properties;
+}
+
+test("the mirrored manifest schema still describes the model the service does", (t) => {
+    const service = serviceSchema();
+    if (service === null) {
+        t.skip(
+            "the OmniTensor checkout is not available; "
+            + "set TPUWM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
+        );
+        return;
+    }
+
+    assert.deepEqual(
+        Object.keys(modelProperties(mirrored)).sort(),
+        Object.keys(modelProperties(service)).sort(),
+        "the two schemas disagree on what a model may declare",
+    );
+    assert.deepEqual(
+        modelProperties(mirrored).tensorContract,
+        modelProperties(service).tensorContract,
+        "the mirrored tensor contract drifted from the service's",
+    );
+});
+
+test("every validator allowlist names exactly the mirrored schema's properties", () => {
+    const model = modelProperties(mirrored);
+    const contract = model.tensorContract;
+    const input = contract.properties.inputs.items;
+    const requirements = mirrored.properties.requirements;
+    const objects = {
+        model,
+        tensorContract: contract.properties,
+        tensorInput: input.properties,
+        preprocess: input.properties.preprocess.properties,
+        requirements: requirements.properties,
+        ui: mirrored.properties.ui.properties,
+        defaults: mirrored.properties.defaults.properties,
+        pipeline: mirrored.properties.pipeline.properties,
+    };
+
+    for (const [name, allowed] of Object.entries(Manifest.MANIFEST_ALLOWLISTS)) {
+        assert.deepEqual(
+            [...allowed].sort(),
+            Object.keys(objects[name]).sort(),
+            `${name}: the validator and the schema disagree on which properties exist`,
+        );
+    }
+});
+
+test("the validator and the mirrored schema agree on the bundled manifests", () => {
+    // Belt and braces: the allowlists can match while a value rule does not.
+    const Ajv2020 = require("ajv/dist/2020").default;
+    const oracle = new Ajv2020({strict: true}).compile(mirrored);
+    const root = path.join(appletRoot, "workloads");
+
+    for (const identifier of identifiers(root)) {
+        const manifest = readManifest(root, identifier);
+        assert.equal(oracle(manifest), true, `${identifier}: rejected by the mirrored schema`);
+        assert.doesNotThrow(
+            () => new Manifest.WorkloadDescriptor(manifest),
+            `${identifier}: rejected by the validator the applet actually runs`,
+        );
+    }
+});

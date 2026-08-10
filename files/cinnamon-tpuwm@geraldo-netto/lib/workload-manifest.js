@@ -45,8 +45,23 @@ const MODEL_REQUIRED = Object.freeze([
 // `sha256` pins the exact artifact a profile may run. It is optional: manifests
 // written before the runtime verified the digest have none, and the runtime
 // then falls back to the digest recorded at install time.
-const MODEL_PROPERTIES = new Set([...MODEL_REQUIRED, "sha256"]);
+// `tensorContract` states what the model expects of its input. Optional for
+// the same reason `sha256` is: manifests written before the field exist, and
+// absent means the runtime checks nothing, exactly as it did.
+const MODEL_PROPERTIES = new Set([...MODEL_REQUIRED, "sha256", "tensorContract"]);
 const MODEL_DIGEST = /^[a-f0-9]{64}$/u;
+const TENSOR_CONTRACT_PROPERTIES = new Set(["inputs"]);
+const TENSOR_INPUT_REQUIRED = Object.freeze(["shape", "dtype"]);
+const TENSOR_INPUT_PROPERTIES = new Set([...TENSOR_INPUT_REQUIRED, "layout", "preprocess"]);
+const TENSOR_DTYPES = new Set(["float32", "float64", "int32", "int64", "uint8"]);
+const TENSOR_LAYOUTS = new Set(["NCHW", "NHWC", "NC", "N"]);
+const PREPROCESS_REQUIRED = Object.freeze(["channelOrder", "mean", "scale"]);
+const PREPROCESS_PROPERTIES = new Set(PREPROCESS_REQUIRED);
+const CHANNEL_ORDERS = new Set(["RGB", "BGR", "GRAY"]);
+const MAX_TENSOR_INPUTS = 8;
+const MAX_TENSOR_RANK = 6;
+const MAX_TENSOR_DIMENSION = 65536;
+const MAX_CHANNELS = 4;
 const UI_PROPERTIES = new Set(["title", "group", "description", "icon", "order"]);
 const DEFAULT_PROPERTIES = new Set(["enabled", "weight"]);
 const PIPELINE_PROPERTIES = new Set(["hostResponsibilities"]);
@@ -113,6 +128,49 @@ function isModelArtifact(value) {
             || (boundedText(value.sha256, 64, 64) && MODEL_DIGEST.test(value.sha256)));
 }
 
+function isFiniteNumberArray(value, minimum, maximum, positive) {
+    return Array.isArray(value)
+        && value.length >= minimum
+        && value.length <= maximum
+        && value.every((item) => typeof item === "number"
+            && Number.isFinite(item)
+            && (!positive || item > 0));
+}
+
+function isPreprocess(value) {
+    return boundedProperties(value, PREPROCESS_REQUIRED, PREPROCESS_PROPERTIES)
+        && CHANNEL_ORDERS.has(value.channelOrder)
+        && isFiniteNumberArray(value.mean, 1, MAX_CHANNELS, false)
+        && isFiniteNumberArray(value.scale, 1, MAX_CHANNELS, true);
+}
+
+function isTensorShape(value) {
+    return Array.isArray(value)
+        && value.length >= 1
+        && value.length <= MAX_TENSOR_RANK
+        && value.every((item) => Number.isInteger(item)
+            && item >= 1
+            && item <= MAX_TENSOR_DIMENSION);
+}
+
+function isTensorInput(value) {
+    return isRecord(value)
+        && boundedProperties(value, TENSOR_INPUT_REQUIRED, TENSOR_INPUT_PROPERTIES)
+        && isTensorShape(value.shape)
+        && TENSOR_DTYPES.has(value.dtype)
+        && (!declared(value, "layout") || TENSOR_LAYOUTS.has(value.layout))
+        && (!declared(value, "preprocess") || isPreprocess(value.preprocess));
+}
+
+function isTensorContract(value) {
+    return isRecord(value)
+        && boundedProperties(value, ["inputs"], TENSOR_CONTRACT_PROPERTIES)
+        && Array.isArray(value.inputs)
+        && value.inputs.length >= 1
+        && value.inputs.length <= MAX_TENSOR_INPUTS
+        && value.inputs.every(isTensorInput);
+}
+
 function isModel(value, accelerator) {
     if (value === null) {
         return true;
@@ -121,7 +179,8 @@ function isModel(value, accelerator) {
         && identifier(value.id, 120)
         && semanticVersion(value.version)
         && isModelFormat(value, accelerator)
-        && isModelArtifact(value);
+        && isModelArtifact(value)
+        && (!declared(value, "tensorContract") || isTensorContract(value.tensorContract));
 }
 
 function hasRequirementProperties(value) {
@@ -450,8 +509,20 @@ class WorkloadDescriptor {
     }
 }
 
+const MANIFEST_ALLOWLISTS = Object.freeze({
+    model: MODEL_PROPERTIES,
+    tensorContract: TENSOR_CONTRACT_PROPERTIES,
+    tensorInput: TENSOR_INPUT_PROPERTIES,
+    preprocess: PREPROCESS_PROPERTIES,
+    requirements: REQUIREMENT_PROPERTIES,
+    ui: UI_PROPERTIES,
+    defaults: DEFAULT_PROPERTIES,
+    pipeline: PIPELINE_PROPERTIES,
+});
+
 module.exports = {
     ACCELERATORS,
+    MANIFEST_ALLOWLISTS,
     MANIFEST_VERSION,
     MANIFEST_VERSIONS,
     MODEL_FORMATS,

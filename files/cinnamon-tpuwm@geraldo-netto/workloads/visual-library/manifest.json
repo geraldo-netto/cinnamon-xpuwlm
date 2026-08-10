@@ -20,13 +20,40 @@
       "fullyQuantized": false,
       "minimumCompilerVersion": "validated-release",
       "minimumRuntimeVersion": "validated-release",
-      "sha256": "6a38784ab51f056e5ecdf208120f8a9174b74831255e66b74c4dd6bf755a4324"
+      "sha256": "6a38784ab51f056e5ecdf208120f8a9174b74831255e66b74c4dd6bf755a4324",
+      "tensorContract": {
+        "inputs": [
+          {
+            "shape": [
+              1,
+              3,
+              227,
+              227
+            ],
+            "dtype": "float32",
+            "layout": "NCHW",
+            "preprocess": {
+              "channelOrder": "BGR",
+              "mean": [
+                104.0,
+                117.0,
+                123.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          }
+        ]
+      }
     }
   },
   "ui": {
     "title": "Visual library",
     "group": "Local workflows",
-    "description": "Search · tagging · scenes",
+    "description": "Search \u00b7 tagging \u00b7 scenes",
     "icon": "image-x-generic-symbolic",
     "order": 50
   },
