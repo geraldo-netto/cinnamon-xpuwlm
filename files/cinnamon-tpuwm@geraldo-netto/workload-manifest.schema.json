@@ -4,47 +4,117 @@
   "title": "TPU Workload Manager workload manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["manifestVersion", "id", "version", "capabilities", "requirements", "ui", "defaults", "pipeline", "acceptance"],
+  "required": [
+    "manifestVersion",
+    "id",
+    "version",
+    "capabilities",
+    "requirements",
+    "ui",
+    "defaults",
+    "pipeline",
+    "acceptance"
+  ],
   "properties": {
-    "manifestVersion": {"enum": [1, 2]},
-    "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "minLength": 1, "maxLength": 80},
-    "version": {"type": "string", "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)$", "maxLength": 32},
+    "manifestVersion": {
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)$",
+      "maxLength": 32
+    },
     "capabilities": {
       "type": "array",
       "minItems": 1,
       "maxItems": 32,
       "uniqueItems": true,
-      "items": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "minLength": 1, "maxLength": 80}
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        "minLength": 1,
+        "maxLength": 80
+      }
     },
     "plugin": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["entryPoint", "protocol", "schemas", "triggers", "artifacts", "permissions"],
+      "required": [
+        "entryPoint",
+        "protocol",
+        "schemas",
+        "triggers",
+        "artifacts",
+        "permissions"
+      ],
       "properties": {
-        "entryPoint": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "minLength": 1, "maxLength": 80},
+        "entryPoint": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "minLength": 1,
+          "maxLength": 80
+        },
         "protocol": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["minimum", "maximum"],
+          "required": [
+            "minimum",
+            "maximum"
+          ],
           "properties": {
-            "minimum": {"type": "integer", "minimum": 1, "maximum": 65535},
-            "maximum": {"type": "integer", "minimum": 1, "maximum": 65535},
+            "minimum": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "maximum": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
             "capabilities": {
               "type": "array",
               "maxItems": 32,
               "uniqueItems": true,
-              "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$", "minLength": 1, "maxLength": 64}
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*$",
+                "minLength": 1,
+                "maxLength": 64
+              }
             }
           }
         },
         "schemas": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["configuration", "input", "output"],
+          "required": [
+            "configuration",
+            "input",
+            "output"
+          ],
           "properties": {
-            "configuration": {"type": "object", "maxProperties": 64},
-            "input": {"type": "object", "maxProperties": 64},
-            "output": {"type": "object", "maxProperties": 64}
+            "configuration": {
+              "type": "object",
+              "maxProperties": 64
+            },
+            "input": {
+              "type": "object",
+              "maxProperties": 64
+            },
+            "output": {
+              "type": "object",
+              "maxProperties": 64
+            }
           }
         },
         "triggers": {
@@ -52,7 +122,13 @@
           "minItems": 1,
           "maxItems": 8,
           "uniqueItems": true,
-          "items": {"enum": ["manual", "periodic", "event"]}
+          "items": {
+            "enum": [
+              "manual",
+              "periodic",
+              "event"
+            ]
+          }
         },
         "artifacts": {
           "type": "array",
@@ -61,12 +137,37 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "version", "format", "sha256"],
+            "required": [
+              "id",
+              "version",
+              "format",
+              "sha256"
+            ],
             "properties": {
-              "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "minLength": 1, "maxLength": 120},
-              "version": {"type": "string", "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)$", "maxLength": 32},
-              "format": {"enum": ["tflite-edgetpu", "tflite", "onnx", "openvino", "ncnn"]},
-              "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "version": {
+                "type": "string",
+                "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)$",
+                "maxLength": 32
+              },
+              "format": {
+                "enum": [
+                  "tflite-edgetpu",
+                  "tflite",
+                  "onnx",
+                  "openvino",
+                  "ncnn"
+                ]
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
             }
           }
         },
@@ -74,123 +175,473 @@
           "type": "array",
           "maxItems": 32,
           "uniqueItems": true,
-          "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*:[a-zA-Z0-9*._/-]+$", "minLength": 3, "maxLength": 160}
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*:[a-zA-Z0-9*._/-]+$",
+            "minLength": 3,
+            "maxLength": 160
+          }
         }
       }
     },
     "requirements": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["runtimeApi", "accelerator", "minimumDevices", "model"],
+      "required": [
+        "runtimeApi",
+        "accelerator",
+        "minimumDevices"
+      ],
       "properties": {
-        "runtimeApi": {"const": 1},
-        "accelerator": {"enum": ["tpu", "npu", "gpu"]},
+        "runtimeApi": {
+          "const": 1
+        },
+        "accelerator": {
+          "enum": [
+            "tpu",
+            "npu",
+            "gpu"
+          ]
+        },
         "acceleratorPreference": {
           "type": "array",
           "minItems": 1,
           "maxItems": 3,
           "uniqueItems": true,
-          "items": {"enum": ["tpu", "npu", "gpu"]}
+          "items": {
+            "enum": [
+              "tpu",
+              "npu",
+              "gpu"
+            ]
+          }
         },
-        "minimumDevices": {"type": "integer", "minimum": 0, "maximum": 16},
+        "minimumDevices": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16
+        },
         "model": {
-          "type": ["object", "null"],
-          "additionalProperties": false,
-          "required": ["id", "version", "format", "fullyQuantized", "minimumCompilerVersion", "minimumRuntimeVersion"],
-          "properties": {
-            "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "minLength": 1, "maxLength": 120},
-            "version": {"type": "string", "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)$", "maxLength": 32},
-            "format": {"enum": ["tflite-edgetpu", "tflite", "onnx", "openvino", "ncnn"]},
-            "fullyQuantized": {"type": "boolean"},
-            "minimumCompilerVersion": {"type": "string", "minLength": 1, "maxLength": 80},
-            "minimumRuntimeVersion": {"type": "string", "minLength": 1, "maxLength": 80},
-            "sha256": {
-              "description": "Digest of the exact artifact this profile may run. Optional for compatibility with manifests written before dispatch verified it; when absent the runtime can only trust the digest recorded when the artifact was installed.",
-              "type": "string",
-              "pattern": "^[a-f0-9]{64}$"
+          "description": "The single model this profile runs. A profile that can serve more than one accelerator declares `models` instead, because an artifact is format-specific and one entry can only name one format.",
+          "anyOf": [
+            {
+              "type": "null"
             },
-            "companions": {
-              "description": "Digests for the files that travel with the primary one — ncnn keeps every weight in the .bin beside the .param, and OpenVINO IR has the same split. Without these the publisher vouches for the graph and not for the weights: the store re-verifies its own record on every resolve, which catches a companion replaced after installation and not one substituted before it.",
-              "type": "object",
-              "maxProperties": 8,
-              "propertyNames": {"pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"},
-              "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
-            },
-            "outputContract": {
-              "description": "What the model's output means. Absent means the raw tensors are returned unchanged, which is what every profile did before this field. A reduction belongs here rather than in whoever renders the result: the reduction is a property of the model, and a consumer that guessed it would relabel every result the day the artifact changed.",
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["kind"],
-              "properties": {
-                "kind": {
-                  "description": "classification reduces to the highest-scoring entries; embedding and raw are returned unreduced and differ only in what a consumer may assume about them.",
-                  "enum": ["classification", "embedding", "raw"]
-                },
-                "topK": {"type": "integer", "minimum": 1, "maximum": 100},
-                "labels": {
-                  "description": "Filename of a labels companion installed beside the model and digest-verified with it. Optional: without it a classification reports indices, which is honest where a guessed label list is not.",
-                  "type": "string",
-                  "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
-                }
+            {
+              "$ref": "#/$defs/model"
+            }
+          ]
+        },
+        "models": {
+          "description": "One model per accelerator lane, so `acceleratorPreference` can actually be honoured. An artifact is format-specific \u2014 ncnn runs on the GPU, tflite-edgetpu on the TPU \u2014 so a profile declaring a single model can only ever serve the lane its format belongs to, whatever preference it states. Formats must be distinct: two entries for one format would leave the runtime choosing between artifacts with no rule that would not surprise somebody. Every entry describes the same network, so they must agree on their input and output contracts.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/model"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "accelerator": {
+                "const": "tpu"
               }
             },
-            "tensorContract": {
-              "description": "What this model expects of its input. Absent means no check: a manifest written before this field still loads and still runs. Split deliberately in two — shape and dtype are facts the runtime enforces at admission, while preprocess is advice for whoever turns a picture into a buffer and is never enforced, because the runtime decodes nothing and cannot tell a correctly normalised tensor from a wrong one.",
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["inputs"],
-              "properties": {
-                "inputs": {
-                  "type": "array",
-                  "minItems": 1,
-                  "maxItems": 8,
-                  "items": {
+            "required": [
+              "accelerator"
+            ]
+          },
+          "then": {
+            "properties": {
+              "model": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "format": {
+                        "const": "tflite-edgetpu"
+                      },
+                      "fullyQuantized": {
+                        "const": true
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "anyOf": [
+        {
+          "properties": {
+            "model": true
+          },
+          "required": [
+            "model"
+          ]
+        },
+        {
+          "properties": {
+            "models": true
+          },
+          "required": [
+            "models"
+          ]
+        }
+      ],
+      "dependentSchemas": {
+        "models": {
+          "properties": {
+            "model": {
+              "type": "null"
+            }
+          }
+        }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "group",
+        "description",
+        "icon",
+        "order"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "group": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "icon": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*-symbolic$",
+          "minLength": 10,
+          "maxLength": 120
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "weight"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "weight": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        }
+      }
+    },
+    "pipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hostResponsibilities"
+      ],
+      "properties": {
+        "hostResponsibilities": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        }
+      }
+    },
+    "acceptance": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "metric",
+          "comparator",
+          "target",
+          "unit",
+          "description"
+        ],
+        "properties": {
+          "metric": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "comparator": {
+            "enum": [
+              "at-least",
+              "at-most",
+              "equal"
+            ]
+          },
+          "target": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "manifestVersion": {
+          "const": 1
+        },
+        "plugin": false
+      }
+    },
+    {
+      "properties": {
+        "manifestVersion": {
+          "const": 2
+        },
+        "plugin": true
+      },
+      "required": [
+        "plugin"
+      ]
+    }
+  ],
+  "$defs": {
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version",
+        "format",
+        "fullyQuantized",
+        "minimumCompilerVersion",
+        "minimumRuntimeVersion"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)$",
+          "maxLength": 32
+        },
+        "format": {
+          "enum": [
+            "tflite-edgetpu",
+            "tflite",
+            "onnx",
+            "openvino",
+            "ncnn"
+          ]
+        },
+        "fullyQuantized": {
+          "type": "boolean"
+        },
+        "minimumCompilerVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "minimumRuntimeVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "sha256": {
+          "description": "Digest of the exact artifact this profile may run. Optional for compatibility with manifests written before dispatch verified it; when absent the runtime can only trust the digest recorded when the artifact was installed.",
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "companions": {
+          "description": "Digests for the files that travel with the primary one \u2014 ncnn keeps every weight in the .bin beside the .param, and OpenVINO IR has the same split. Without these the publisher vouches for the graph and not for the weights: the store re-verifies its own record on every resolve, which catches a companion replaced after installation and not one substituted before it.",
+          "type": "object",
+          "maxProperties": 8,
+          "propertyNames": {
+            "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "outputContract": {
+          "description": "What the model's output means. Absent means the raw tensors are returned unchanged, which is what every profile did before this field. A reduction belongs here rather than in whoever renders the result: the reduction is a property of the model, and a consumer that guessed it would relabel every result the day the artifact changed.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "description": "classification reduces to the highest-scoring entries; embedding and raw are returned unreduced and differ only in what a consumer may assume about them.",
+              "enum": [
+                "classification",
+                "embedding",
+                "raw"
+              ]
+            },
+            "topK": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "labels": {
+              "description": "Filename of a labels companion installed beside the model and digest-verified with it. Optional: without it a classification reports indices, which is honest where a guessed label list is not.",
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+            }
+          }
+        },
+        "tensorContract": {
+          "description": "What this model expects of its input. Absent means no check: a manifest written before this field still loads and still runs. Split deliberately in two \u2014 shape and dtype are facts the runtime enforces at admission, while preprocess is advice for whoever turns a picture into a buffer and is never enforced, because the runtime decodes nothing and cannot tell a correctly normalised tensor from a wrong one.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "inputs"
+          ],
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "shape",
+                  "dtype"
+                ],
+                "properties": {
+                  "shape": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 6,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 65536
+                    }
+                  },
+                  "dtype": {
+                    "enum": [
+                      "float32",
+                      "float64",
+                      "int32",
+                      "int64",
+                      "uint8"
+                    ]
+                  },
+                  "layout": {
+                    "enum": [
+                      "NCHW",
+                      "NHWC",
+                      "NC",
+                      "N"
+                    ]
+                  },
+                  "preprocess": {
+                    "description": "How the values were produced, for a caller that has pixels and needs a buffer. Stated by the publisher because nothing in the artifact records it: an ncnn .param declares its input size and says nothing about mean subtraction or channel order, and a tensor normalised the wrong way infers successfully and means nothing.",
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["shape", "dtype"],
+                    "required": [
+                      "channelOrder",
+                      "mean",
+                      "scale"
+                    ],
                     "properties": {
-                      "shape": {
+                      "channelOrder": {
+                        "enum": [
+                          "RGB",
+                          "BGR",
+                          "GRAY"
+                        ]
+                      },
+                      "mean": {
                         "type": "array",
                         "minItems": 1,
-                        "maxItems": 6,
-                        "items": {"type": "integer", "minimum": 1, "maximum": 65536}
+                        "maxItems": 4,
+                        "items": {
+                          "type": "number"
+                        }
                       },
-                      "dtype": {"enum": ["float32", "float64", "int32", "int64", "uint8"]},
-                      "layout": {"enum": ["NCHW", "NHWC", "NC", "N"]},
-                      "preprocess": {
-                        "description": "How the values were produced, for a caller that has pixels and needs a buffer. Stated by the publisher because nothing in the artifact records it: an ncnn .param declares its input size and says nothing about mean subtraction or channel order, and a tensor normalised the wrong way infers successfully and means nothing.",
+                      "scale": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 4,
+                        "items": {
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        }
+                      },
+                      "resize": {
+                        "description": "How a picture becomes the declared shape. Absent means the consumer decides, and its choice is then a convention rather than an agreement: two consumers that resize differently build different tensors from the same picture. Measured on one host, that is a 0.986 correlation between two bilinear implementations \u2014 enough to leave a confident answer intact and to reorder an uncertain one. Stated here so the publisher owns the choice rather than inheriting whichever one a consumer happened to make.",
                         "type": "object",
                         "additionalProperties": false,
-                        "required": ["channelOrder", "mean", "scale"],
+                        "required": [
+                          "filter",
+                          "fit"
+                        ],
                         "properties": {
-                          "channelOrder": {"enum": ["RGB", "BGR", "GRAY"]},
-                          "mean": {"type": "array", "minItems": 1, "maxItems": 4, "items": {"type": "number"}},
-                          "scale": {"type": "array", "minItems": 1, "maxItems": 4, "items": {"type": "number", "exclusiveMinimum": 0}},
-                          "resize": {
-                            "description": "How a picture becomes the declared shape. Absent means the consumer decides, and its choice is then a convention rather than an agreement: two consumers that resize differently build different tensors from the same picture. Measured on one host, that is a 0.986 correlation between two bilinear implementations \u2014 enough to leave a confident answer intact and to reorder an uncertain one. Stated here so the publisher owns the choice rather than inheriting whichever one a consumer happened to make.",
-                            "type": "object",
-                            "additionalProperties": false,
-                            "required": [
-                              "filter",
-                              "fit"
-                            ],
-                            "properties": {
-                              "filter": {
-                                "description": "Resampling filter. Named rather than left open because a nearest-neighbour and a bilinear resize of one picture are two different inputs to the model.",
-                                "enum": [
-                                  "nearest",
-                                  "bilinear",
-                                  "bicubic"
-                                ]
-                              },
-                              "fit": {
-                                "description": "exact scales to the declared width and height and distorts the aspect ratio; cover scales until both axes are covered and centre-crops the remainder. Letterboxing is deliberately absent: it needs a declared fill value, and an undeclared fill is the class of problem this field exists to remove.",
-                                "enum": [
-                                  "exact",
-                                  "cover"
-                                ]
-                              }
-                            }
+                          "filter": {
+                            "description": "Resampling filter. Named rather than left open because a nearest-neighbour and a bilinear resize of one picture are two different inputs to the model.",
+                            "enum": [
+                              "nearest",
+                              "bilinear",
+                              "bicubic"
+                            ]
+                          },
+                          "fit": {
+                            "description": "exact scales to the declared width and height and distorts the aspect ratio; cover scales until both axes are covered and centre-crops the remainder. Letterboxing is deliberately absent: it needs a declared fill value, and an undeclared fill is the class of problem this field exists to remove.",
+                            "enum": [
+                              "exact",
+                              "cover"
+                            ]
                           }
                         }
                       }
@@ -201,82 +652,7 @@
             }
           }
         }
-      },
-      "allOf": [
-        {
-          "if": {"properties": {"accelerator": {"const": "tpu"}}, "required": ["accelerator"]},
-          "then": {
-            "properties": {
-              "model": {
-                "anyOf": [
-                  {"type": "null"},
-                  {
-                    "type": "object",
-                    "properties": {
-                      "format": {"const": "tflite-edgetpu"},
-                      "fullyQuantized": {"const": true}
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        }
-      ]
-    },
-    "ui": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["title", "group", "description", "icon", "order"],
-      "properties": {
-        "title": {"type": "string", "minLength": 1, "maxLength": 120},
-        "group": {"type": "string", "minLength": 1, "maxLength": 120},
-        "description": {"type": "string", "minLength": 1, "maxLength": 240},
-        "icon": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*-symbolic$", "minLength": 10, "maxLength": 120},
-        "order": {"type": "integer", "minimum": 0, "maximum": 1000}
-      }
-    },
-    "defaults": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["enabled", "weight"],
-      "properties": {
-        "enabled": {"type": "boolean"},
-        "weight": {"type": "integer", "minimum": 1, "maximum": 5}
-      }
-    },
-    "pipeline": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["hostResponsibilities"],
-      "properties": {
-        "hostResponsibilities": {
-          "type": "array",
-          "maxItems": 32,
-          "uniqueItems": true,
-          "items": {"type": "string", "minLength": 1, "maxLength": 160}
-        }
-      }
-    },
-    "acceptance": {
-      "type": "array",
-      "maxItems": 32,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["metric", "comparator", "target", "unit", "description"],
-        "properties": {
-          "metric": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "minLength": 1, "maxLength": 80},
-          "comparator": {"enum": ["at-least", "at-most", "equal"]},
-          "target": {"type": "number"},
-          "unit": {"type": "string", "minLength": 1, "maxLength": 40},
-          "description": {"type": "string", "minLength": 1, "maxLength": 240}
-        }
       }
     }
-  },
-  "oneOf": [
-    {"properties": {"manifestVersion": {"const": 1}, "plugin": false}},
-    {"properties": {"manifestVersion": {"const": 2}, "plugin": true}, "required": ["plugin"]}
-  ]
+  }
 }

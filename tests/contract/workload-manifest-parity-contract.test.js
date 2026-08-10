@@ -89,8 +89,10 @@ const mirrored = JSON.parse(
     fs.readFileSync(path.join(appletRoot, "workload-manifest.schema.json"), "utf8"),
 );
 
+// The model moved into a shared definition so `model` and `models` describe
+// their entries with one set of rules rather than two that drift.
 function modelProperties(schema) {
-    return schema.properties.requirements.properties.model.properties;
+    return schema.$defs.model.properties;
 }
 
 test("the mirrored manifest schema still describes the model the service does", (t) => {

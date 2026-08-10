@@ -472,3 +472,43 @@ test("a model may vouch for its companions or for nothing beyond itself", () => 
     delete manifest.requirements.model.companions;
     assert.equal(Contract.isWorkloadManifest(manifest), true, "absent is still valid");
 });
+
+test("a profile may declare one model per accelerator lane", () => {
+    const gpu = {
+        id: "sample-model",
+        version: "1.0.0",
+        format: "ncnn",
+        fullyQuantized: false,
+        minimumCompilerVersion: "1.0",
+        minimumRuntimeVersion: "1.0",
+    };
+    const npu = {...gpu, id: "sample-model-npu", format: "openvino"};
+
+    const manifest = Fixtures.validWorkloadManifest();
+    manifest.requirements.accelerator = "gpu";
+    manifest.requirements.acceleratorPreference = ["npu", "gpu"];
+    delete manifest.requirements.model;
+    manifest.requirements.models = [gpu, npu];
+    assert.equal(Contract.isWorkloadManifest(manifest), true);
+
+    // Two entries for one format leave the runtime choosing with no rule.
+    assert.equal(Contract.isModelSet([gpu, {...gpu, id: "other"}], "gpu"), false);
+    // Entries that disagree are two networks sharing a profile.
+    assert.equal(Contract.isModelSet(
+        [{...gpu, outputContract: {kind: "classification"}}, npu], "gpu",
+    ), false);
+    assert.equal(Contract.isModelSet([], "gpu"), false);
+    assert.equal(Contract.isModelSet(new Array(Contract.MAX_MODELS + 1).fill(gpu), "gpu"), false);
+    assert.equal(Contract.isModelSet(gpu, "gpu"), false);
+});
+
+test("exactly one spelling states which model a profile runs", () => {
+    const model = {id: "m", version: "1.0.0", format: "ncnn"};
+
+    assert.equal(Contract.hasOneModelDeclaration({model}), true);
+    assert.equal(Contract.hasOneModelDeclaration({model: null}), true);
+    assert.equal(Contract.hasOneModelDeclaration({models: [model]}), true);
+    assert.equal(Contract.hasOneModelDeclaration({model: null, models: [model]}), true);
+    assert.equal(Contract.hasOneModelDeclaration({model, models: [model]}), false);
+    assert.equal(Contract.hasOneModelDeclaration({}), false);
+});

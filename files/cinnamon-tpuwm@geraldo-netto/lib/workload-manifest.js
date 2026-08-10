@@ -34,8 +34,14 @@ const PROTOCOL_CAPABILITY = /^[a-z][a-z0-9-]*$/u;
 const PERMISSION_NAME = /^[a-z][a-z0-9-]*:[a-zA-Z0-9*._/-]+$/u;
 const MAX_PROTOCOL_VERSION = 65535;
 const MAX_SCHEMA_PROPERTIES = 64;
-const REQUIRED_REQUIREMENT_PROPERTIES = Object.freeze(["runtimeApi", "accelerator", "minimumDevices", "model"]);
-const REQUIREMENT_PROPERTIES = new Set([...REQUIRED_REQUIREMENT_PROPERTIES, "acceleratorPreference"]);
+// `model` is no longer required on its own: a profile that can serve more than
+// one accelerator declares `models`, one per lane, because an artifact is
+// format-specific and a single entry can only ever name one format.
+const REQUIRED_REQUIREMENT_PROPERTIES = Object.freeze(["runtimeApi", "accelerator", "minimumDevices"]);
+const REQUIREMENT_PROPERTIES = new Set([
+    ...REQUIRED_REQUIREMENT_PROPERTIES, "acceleratorPreference", "model", "models",
+]);
+const MAX_MODELS = 5;
 const ACCELERATORS = new Set(["tpu", "npu", "gpu"]);
 const MODEL_FORMATS = new Set(["tflite-edgetpu", "tflite", "onnx", "openvino", "ncnn"]);
 const MODEL_REQUIRED = Object.freeze([
@@ -262,13 +268,52 @@ function hasBoundedMinimumDevices(value) {
         && value.minimumDevices <= 16;
 }
 
+// Every entry describes the same network in a different format, so two entries
+// for one format leave the runtime choosing with no rule, and entries that
+// disagree about their contracts are two networks sharing a profile.
+function isModelSet(value, accelerator) {
+    if (!Array.isArray(value) || value.length < 1 || value.length > MAX_MODELS) {
+        return false;
+    }
+    if (!value.every((model) => isModel(model, accelerator))) {
+        return false;
+    }
+    const formats = value.map((model) => model.format);
+    return new Set(formats).size === formats.length && agreeOnContracts(value);
+}
+
+function agreeOnContracts(models) {
+    return ["tensorContract", "outputContract"].every((field) => {
+        const stated = new Set(models.map((model) => JSON.stringify(model[field] ?? null)));
+        return stated.size === 1;
+    });
+}
+
+// Exactly one spelling per manifest: two ways to say which model a profile runs
+// is two sources of truth with no rule for which wins.
+function hasOneModelDeclaration(value) {
+    const single = declared(value, "model");
+    const several = declared(value, "models");
+    if (single && several) {
+        return value.model === null;
+    }
+    return single || several;
+}
+
 function isRequirements(value) {
     return hasRequirementProperties(value)
         && value.runtimeApi === RUNTIME_API_VERSION
         && ACCELERATORS.has(value.accelerator)
         && (!declared(value, "acceleratorPreference") || isAcceleratorPreference(value.acceleratorPreference))
         && hasBoundedMinimumDevices(value)
-        && isModel(value.model, value.accelerator);
+        && hasOneModelDeclaration(value)
+        && declaresValidModels(value);
+}
+
+function declaresValidModels(value) {
+    return declared(value, "models")
+        ? isModelSet(value.models, value.accelerator)
+        : isModel(value.model, value.accelerator);
 }
 
 function hasUiText(value) {
@@ -615,6 +660,9 @@ const MANIFEST_ALLOWLISTS = Object.freeze({
 
 module.exports = {
     ACCELERATORS,
+    isModelSet,
+    MAX_MODELS,
+    hasOneModelDeclaration,
     isCompanions,
     freezeDeep,
     MANIFEST_ALLOWLISTS,
