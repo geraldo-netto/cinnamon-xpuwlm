@@ -48,6 +48,7 @@ function harness() {
         "selectTab", "toggleProfile", "changeWeight",
         "pauseAll", "resumeAll", "refresh", "openSettings",
         "acknowledgeCatalogChanges",
+        "submitJob",
     ]) {
         actions[name] = () => {};
     }

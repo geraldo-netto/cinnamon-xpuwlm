@@ -11,7 +11,7 @@ const ROOT_REQUIRED = Object.freeze(["version", "generatedAt", "devices", "metri
 // than ignored so the concrete validator stays equivalent to the shipped
 // schema, and it stays out of ROOT_REQUIRED so a runtime that omits it is
 // still a valid snapshot.
-const ROOT_PROPERTIES = new Set([...ROOT_REQUIRED, "pluginTelemetry"]);
+const ROOT_PROPERTIES = new Set([...ROOT_REQUIRED, "inputs", "pluginTelemetry"]);
 const DEVICE_PROPERTIES = new Set(["id", "backend", "available", "name", "kind", "vendor", "load", "reason"]);
 const DEVICE_REQUIRED = Object.freeze(["id", "backend", "available", "name", "kind"]);
 const MAX_DEVICE_ENTRIES = 16;
@@ -44,6 +44,16 @@ const DEVICE_KINDS = new Set(["usb", "pcie", "accel", "dri", "unknown"]);
 const DEVICE_BACKENDS = new Set(["tpu", "npu", "gpu"]);
 const PROFILE_STATUSES = new Set(["healthy", "running", "watching", "idle", "paused", "unavailable"]);
 const ALERT_SEVERITIES = new Set(["advisory", "warning", "critical"]);
+
+// Where the runtime will read a referenced input buffer from. Optional, so a
+// runtime that predates the field still publishes a valid snapshot, and
+// validated rather than ignored so this validator stays equivalent to the
+// shipped schema.
+const INPUTS_PROPERTIES = new Set(["roots", "maxBytes"]);
+const INPUTS_REQUIRED = Object.freeze([...INPUTS_PROPERTIES]);
+const MAX_INPUT_ROOTS = 8;
+const MAX_INPUT_ROOT_LENGTH = 4096;
+const MAX_INPUT_BYTES = 1024 * 1024 * 1024;
 
 const TELEMETRY_PROPERTIES = new Set(["version", "plugins"]);
 const TELEMETRY_REQUIRED = Object.freeze([...TELEMETRY_PROPERTIES]);
@@ -252,11 +262,26 @@ function isPluginTelemetry(value) {
         && value.plugins.every(isTelemetryPlugin);
 }
 
+function isInputRoots(value) {
+    return Array.isArray(value)
+        && value.length <= MAX_INPUT_ROOTS
+        && new Set(value).size === value.length
+        && value.every((root) => hasCodePointLength(root, 1, MAX_INPUT_ROOT_LENGTH));
+}
+
+function isSnapshotInputs(value) {
+    return isRecord(value)
+        && hasContractProperties(value, INPUTS_REQUIRED, INPUTS_PROPERTIES)
+        && isInputRoots(value.roots)
+        && isIntegerBetween(value.maxBytes, 0, MAX_INPUT_BYTES);
+}
+
 function hasSnapshotCollections(value) {
     return isDevices(value.devices)
         && isMetrics(value.metrics)
         && isProfiles(value.profiles)
         && isAlerts(value.alerts)
+        && optionalProperty(value, "inputs", isSnapshotInputs)
         && optionalProperty(value, "pluginTelemetry", isPluginTelemetry);
 }
 
@@ -278,6 +303,7 @@ class RuntimeSnapshotSchemaValidator {
 
 const CONTRACT_ALLOWLISTS = Object.freeze({
     root: ROOT_PROPERTIES,
+    inputs: INPUTS_PROPERTIES,
     device: DEVICE_PROPERTIES,
     metric: METRIC_PROPERTIES,
     profile: PROFILE_PROPERTIES,
@@ -303,5 +329,6 @@ module.exports = {
     RuntimeSnapshotSchemaValidator,
     isPluginTelemetry,
     isRuntimeSnapshot,
+    isSnapshotInputs,
     isTelemetryPlugin,
 };

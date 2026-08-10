@@ -370,6 +370,38 @@ function normalizeAlert(candidate, nowMs, catalog = EMPTY_WORKLOAD_CATALOG) {
 // installed.
 const NO_UNKNOWN_CONTENT = Object.freeze({profiles: 0, alerts: 0});
 
+// Where the runtime will read a referenced input buffer from, as the runtime
+// itself publishes it. The applet cannot infer this and must not guess it: the
+// roots are whatever the service was configured with, the default is none at
+// all, and a buffer staged anywhere else is refused with the same answer as a
+// path that does not exist — deliberately, so a caller cannot probe the
+// filesystem through refusals.
+//
+// A runtime too old to publish the block is indistinguishable from one that
+// permits nothing, which is the right answer for both: neither will read a
+// referenced file.
+const NO_INPUT_ROOTS = Object.freeze({roots: Object.freeze([]), maxBytes: 0});
+const MAX_INPUT_ROOTS = 8;
+const MAX_INPUT_ROOT_LENGTH = 4096;
+const MAX_INPUT_BYTES = 1024 * 1024 * 1024;
+
+function normalizeInputs(candidate) {
+    if (!isPlainObject(candidate) || !Array.isArray(candidate.roots)) {
+        return NO_INPUT_ROOTS;
+    }
+    const roots = candidate.roots
+        .slice(0, MAX_INPUT_ROOTS)
+        // Absolute only: a relative root names a directory relative to the
+        // service's working directory, which the applet does not share.
+        .filter((root) => typeof root === "string" && root.startsWith("/"))
+        .map((root) => safeText(root, MAX_INPUT_ROOT_LENGTH))
+        .filter((root) => root.length > 0);
+    return Object.freeze({
+        roots: Object.freeze(roots),
+        maxBytes: boundedInteger(candidate.maxBytes, 0, MAX_INPUT_BYTES, 0),
+    });
+}
+
 function unknownProfileCount(candidate, catalog = EMPTY_WORKLOAD_CATALOG) {
     const supplied = isPlainObject(candidate) ? candidate : {};
     return Object.keys(supplied)
@@ -398,6 +430,7 @@ function unavailableSnapshot(reason, nowMs, source = "fallback") {
         metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
+        inputs: NO_INPUT_ROOTS,
         unknownContent: NO_UNKNOWN_CONTENT,
     };
 }
@@ -455,6 +488,7 @@ function probeSnapshot(devices, nowMs) {
         metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
+        inputs: NO_INPUT_ROOTS,
         unknownContent: NO_UNKNOWN_CONTENT,
     };
 }
@@ -526,6 +560,7 @@ function normalizeSnapshot(
         metrics: normalizeMetrics(candidate.metrics, catalog),
         profiles,
         alerts,
+        inputs: normalizeInputs(candidate.inputs),
         unknownContent: Object.freeze({
             profiles: unknownProfileCount(candidate.profiles, catalog),
             alerts: unknownAlertCount(candidate.alerts, catalog),
@@ -620,6 +655,7 @@ module.exports = {
     MAX_WEIGHT,
     MIN_GENERATED_AT,
     MIN_WEIGHT,
+    NO_INPUT_ROOTS,
     NO_UNKNOWN_CONTENT,
     PROFILE_STATUSES,
     RUNTIME_STATES,
@@ -647,6 +683,7 @@ module.exports = {
     normalizeAlerts,
     normalizeDeviceEntry,
     normalizeDevices,
+    normalizeInputs,
     normalizeMetrics,
     normalizeProfileRuntime,
     normalizeProfiles,

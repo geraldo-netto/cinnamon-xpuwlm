@@ -456,6 +456,19 @@ function freezePlugin(plugin) {
     return Object.freeze(plugin);
 }
 
+// The model subtree is cloned and frozen all the way down, not one level: it
+// now carries `tensorContract`, which a descriptor hands out, and a shallow
+// copy would hand out a live reference into the caller's own manifest.
+function freezeDeep(value) {
+    if (value === null || typeof value !== "object") {
+        return value;
+    }
+    for (const item of Object.values(value)) {
+        freezeDeep(item);
+    }
+    return Object.freeze(value);
+}
+
 function cloneManifest(manifest) {
     return {
         ...manifest,
@@ -466,7 +479,9 @@ function cloneManifest(manifest) {
             ...(declared(manifest.requirements, "acceleratorPreference")
                 ? {acceleratorPreference: [...manifest.requirements.acceleratorPreference]}
                 : {}),
-            model: manifest.requirements.model === null ? null : {...manifest.requirements.model},
+            model: manifest.requirements.model === null
+                ? null
+                : structuredCloneRecord(manifest.requirements.model),
         },
         ui: {...manifest.ui},
         defaults: {...manifest.defaults},
@@ -481,7 +496,7 @@ function freezeManifest(manifest) {
         freezePlugin(manifest.plugin);
     }
     if (manifest.requirements.model !== null) {
-        Object.freeze(manifest.requirements.model);
+        freezeDeep(manifest.requirements.model);
     }
     if (declared(manifest.requirements, "acceleratorPreference")) {
         Object.freeze(manifest.requirements.acceleratorPreference);
@@ -526,6 +541,20 @@ class WorkloadDescriptor {
         return this._manifest.requirements.model !== null;
     }
 
+    // What this profile expects of its first input, or null when it declares
+    // nothing. Read from the manifest rather than projected into the catalog:
+    // the catalog describes what to render and what the user may change, and
+    // this describes how to build a tensor — two different questions with two
+    // different consumers.
+    inputContract() {
+        const model = this._manifest.requirements.model;
+        const contract = model === null ? null : model.tensorContract;
+        if (!isRecord(contract) || !Array.isArray(contract.inputs) || contract.inputs.length === 0) {
+            return null;
+        }
+        return contract.inputs[0];
+    }
+
     profileDefinition() {
         return Object.freeze({
             id: this._manifest.id,
@@ -555,6 +584,7 @@ const MANIFEST_ALLOWLISTS = Object.freeze({
 
 module.exports = {
     ACCELERATORS,
+    freezeDeep,
     MANIFEST_ALLOWLISTS,
     MANIFEST_VERSION,
     MANIFEST_VERSIONS,

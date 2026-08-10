@@ -44,7 +44,7 @@ function harness() {
     const calls = [];
     const tooltips = [];
     const actions = {};
-    for (const name of ["selectTab", "toggleProfile", "changeWeight", "pauseAll", "resumeAll", "refresh", "openSettings", "acknowledgeCatalogChanges"]) {
+    for (const name of ["selectTab", "toggleProfile", "changeWeight", "pauseAll", "resumeAll", "refresh", "openSettings", "acknowledgeCatalogChanges", "submitJob"]) {
         actions[name] = (...args) => calls.push([name, ...args]);
     }
     const menu = new FakeMenu();
@@ -76,7 +76,7 @@ function control(root, accessibleNamePrefix) {
 
 test("menu validates dependencies and required actions", () => {
     const validActions = Object.fromEntries(
-        ["selectTab", "toggleProfile", "changeWeight", "pauseAll", "resumeAll", "refresh", "openSettings", "acknowledgeCatalogChanges"]
+        ["selectTab", "toggleProfile", "changeWeight", "pauseAll", "resumeAll", "refresh", "openSettings", "acknowledgeCatalogChanges", "submitJob"]
             .map((name) => [name, () => {}]),
     );
     assert.throws(() => new Menu.MenuView({}), /dependencies/);

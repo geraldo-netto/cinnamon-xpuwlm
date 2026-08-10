@@ -72,6 +72,7 @@ function harness(layout) {
         "selectTab", "toggleProfile", "changeWeight",
         "pauseAll", "resumeAll", "refresh", "openSettings",
         "acknowledgeCatalogChanges",
+        "submitJob",
     ]) {
         actions[name] = () => {};
     }
@@ -130,8 +131,11 @@ test("a narrow popup wraps the wording that explains a profile it cannot run", (
 
     const wrapping = findActors(root, (actor) => actor.styleClasses.has("tpuwm-profile-limitation")
         || actor.styleClasses.has("tpuwm-disclosure-summary")
-        || actor.styleClasses.has("tpuwm-empty-note"));
-    assert.equal(wrapping.length, COLLAPSED + 1);
+        || actor.styleClasses.has("tpuwm-empty-note")
+        || actor.styleClasses.has("tpuwm-run-note"));
+    // The run note explains why no picture can be submitted; it is prose like
+    // the rest and must wrap rather than ellipsize.
+    assert.equal(wrapping.length, COLLAPSED + 2);
     assert.equal(wrapping.every((label) => label.clutter_text.line_wrap === true), true);
 
     view.render(ViewModel.toViewModel(alertState({selectedTab: "setup"}), NOW));

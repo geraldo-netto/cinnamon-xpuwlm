@@ -116,6 +116,7 @@ class MenuView {
             refresh: requireAction(actions, "refresh"),
             openSettings: requireAction(actions, "openSettings"),
             acknowledgeCatalogChanges: requireAction(actions, "acknowledgeCatalogChanges"),
+            submitJob: requireAction(actions, "submitJob"),
         };
         this._policyPaused = false;
         this._controlPending = false;
@@ -532,7 +533,71 @@ class MenuView {
                 true,
             ));
         }
+        // Above the collapsed group deliberately: what a user can run now
+        // belongs with the profiles that run, and the group of profiles that
+        // cannot stays at the bottom where it was.
+        this._renderRun(model.run);
         this._renderBlockedProfiles(model);
+    }
+
+    // The runtime's input root is both the permission boundary and the way in:
+    // a picture inside it is one the service will read, and a picture anywhere
+    // else is one it refuses. So the root is the list, and there is no file
+    // chooser to reconcile with a directory the service was never told about.
+    _renderRun(run) {
+        if (!run) {
+            return false;
+        }
+        this._addSectionHeading(run.title, this._runSubtitle(run));
+        this._renderJobOutcome(run.job);
+        if (run.reason !== "") {
+            this._body.add_child(this._label(run.reason, "tpuwm-run-note", true));
+            return false;
+        }
+        for (const profile of run.profiles) {
+            this._addGroupHeading(profile.title, format(
+                ngettext("%d picture", "%d pictures", run.pictures.length),
+                run.pictures.length,
+            ));
+            for (const picture of run.pictures) {
+                this._body.add_child(this._pictureRow(profile, picture));
+            }
+        }
+        return true;
+    }
+
+    _runSubtitle(run) {
+        return run.roots.length === 0
+            ? _("No input directory")
+            : run.roots.join(" · ");
+    }
+
+    _pictureRow(profile, picture) {
+        const button = this._identify(
+            this._button(
+                "tpuwm-run-row",
+                format(_("Run %s on %s"), profile.title, picture.name),
+                () => this._actions.submitJob(profile.id, picture),
+            ),
+            `run:${profile.id}:${picture.name}`,
+        );
+        button.set_child(this._label(picture.name, "tpuwm-button-label", true));
+        return button;
+    }
+
+    // One line, and it says which picture and which profile: a bare "accepted"
+    // beside a list of pictures does not say which of them was accepted.
+    _renderJobOutcome(job) {
+        if (job === null || job === undefined) {
+            return false;
+        }
+        const detail = job.jobId === "" ? job.message : `${job.message} · ${job.jobId}`;
+        this._body.add_child(this._label(
+            `${job.title} · ${job.sourceName} — ${detail}`,
+            `tpuwm-job-outcome tpuwm-job-${job.tone}`,
+            true,
+        ));
+        return true;
     }
 
     _renderBlockedProfiles(model) {

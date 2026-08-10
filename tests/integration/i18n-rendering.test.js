@@ -111,6 +111,7 @@ test("menu chrome renders translated labels and accessible names", () => {
                 selectTab() {}, toggleProfile() {}, changeWeight() {},
                 pauseAll() {}, resumeAll() {}, refresh() {}, openSettings() {},
                 acknowledgeCatalogChanges() {},
+                submitJob() {},
             },
         });
         const root = menu.actors[0];

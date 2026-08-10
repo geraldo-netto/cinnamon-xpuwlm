@@ -37,6 +37,7 @@ test("fuzz: pause control follows policy across effective-screen transitions", (
         "refresh",
         "openSettings",
         "acknowledgeCatalogChanges",
+        "submitJob",
     ].map((name) => [name, () => calls.push(name)]));
     const menu = new FakeMenu();
     const view = new Menu.MenuView({

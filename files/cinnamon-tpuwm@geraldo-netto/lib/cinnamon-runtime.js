@@ -5,6 +5,7 @@ const Domain = require("./domain.js");
 const Runtime = require("./runtime-gateway.js");
 const RuntimeContract = require("./runtime-contract-gateway.js");
 const RuntimeControl = require("./runtime-control-gateway.js");
+const RuntimeJob = require("./runtime-job-gateway.js");
 const RuntimeSchema = require("./runtime-snapshot-schema-validator.js");
 const WorkloadRegistry = require("./workload-registry.js");
 
@@ -22,6 +23,7 @@ const CONTROL_OBJECT_PATH = "/org/cinnamon/OmniTensor1";
 const CONTROL_INTERFACE = "org.cinnamon.OmniTensor1";
 const CONTROL_METHOD = "ApplyCommand";
 const CONTRACT_METHOD = "DescribeContract";
+const SUBMIT_JOB_METHOD = "SubmitJob";
 const CONTROL_TIMEOUT_MS = 5000;
 const MAX_PCIE_DEVICES = 8;
 const MAX_USB_DEVICES = 256;
@@ -922,6 +924,208 @@ function createRuntimeGateway({
     });
 }
 
+// Reading a picture, and writing the buffer a model wants from it.
+//
+// GdkPixbuf ships with every Cinnamon desktop and is the decoder the panel
+// already trusts for icons and thumbnails, so nothing new is installed and no
+// image decoder is added to a service that runs models on a shared
+// accelerator. `new_from_stream_at_scale_async` scales while it decodes rather
+// than after, so a very large picture never becomes a very large allocation;
+// the byte ceiling below is a second, cheaper bound in front of it.
+const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
+const MAX_INPUT_FILES = 64;
+const IMAGE_SUFFIXES = Object.freeze([
+    ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff",
+]);
+
+function isImageFilename(name) {
+    const lowered = String(name).toLowerCase();
+    return !lowered.startsWith(".")
+        && IMAGE_SUFFIXES.some((suffix) => lowered.endsWith(suffix));
+}
+
+function pixbufImage(pixbuf) {
+    return {
+        width: pixbuf.get_width(),
+        height: pixbuf.get_height(),
+        channels: pixbuf.get_n_channels(),
+        rowstride: pixbuf.get_rowstride(),
+        pixels: pixbuf.get_pixels(),
+    };
+}
+
+function decodeImageAsync(path, geometry, environment, options, callback) {
+    const Gio = environment.Gio;
+    const GdkPixbuf = environment.GdkPixbuf;
+    const cancellable = options ? options.cancellable || null : null;
+    if (!GdkPixbuf) {
+        callback(new Error("No image decoder is available in this environment"), null);
+        return;
+    }
+    const guarded = (step) => {
+        try {
+            step();
+        } catch (error) {
+            if (!isIoError(environment, error, "CANCELLED")) {
+                callback(error, null);
+            }
+        }
+    };
+    guarded(() => {
+        const file = Gio.File.new_for_path(path);
+        const info = file.query_info(
+            "standard::size,standard::type",
+            Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
+            cancellable,
+        );
+        if (info.get_file_type() !== Gio.FileType.REGULAR) {
+            throw new Error(`Not a regular file: ${path}`);
+        }
+        if (info.get_size() > MAX_IMAGE_BYTES) {
+            throw new RangeError(`Picture exceeds ${MAX_IMAGE_BYTES} bytes: ${path}`);
+        }
+        file.read_async(0, cancellable, (source, result) => guarded(() => {
+            scaleStreamAsync(source.read_finish(result), geometry, environment, cancellable, callback);
+        }));
+    });
+}
+
+function scaleStreamAsync(stream, geometry, environment, cancellable, callback) {
+    environment.GdkPixbuf.Pixbuf.new_from_stream_at_scale_async(
+        stream,
+        geometry.width,
+        geometry.height,
+        // Never preserve the aspect ratio: the model declares one exact size and
+        // a letterboxed picture would be a different tensor from the one it
+        // asked for.
+        false,
+        cancellable,
+        (source, result) => {
+            try {
+                callback(null, pixbufImage(
+                    environment.GdkPixbuf.Pixbuf.new_from_stream_finish(result),
+                ));
+            } catch (error) {
+                if (!isIoError(environment, error, "CANCELLED")) {
+                    callback(error, null);
+                }
+            }
+        },
+    );
+}
+
+function writeBufferAsync(path, bytes, environment, callback) {
+    const Gio = environment.Gio;
+    try {
+        const file = Gio.File.new_for_path(path);
+        const parent = file.get_parent();
+        if (parent !== null && !parent.query_exists(null)) {
+            parent.make_directory_with_parents(null);
+        }
+        file.replace_contents_bytes_async(
+            new environment.GLib.Bytes(bytes),
+            null,
+            false,
+            Gio.FileCreateFlags.REPLACE_DESTINATION,
+            null,
+            (source, result) => {
+                try {
+                    source.replace_contents_finish(result);
+                    callback(null);
+                } catch (error) {
+                    callback(error);
+                }
+            },
+        );
+    } catch (error) {
+        callback(error);
+    }
+}
+
+function removeFile(path, environment) {
+    try {
+        return environment.Gio.File.new_for_path(path).delete(null);
+    } catch {
+        return false;
+    }
+}
+
+// The same digest the service recomputes from the bytes it reads. Computed
+// from the buffer in hand rather than from the file just written, so a write
+// that lands differently is caught by the service's own comparison instead of
+// being papered over by re-reading what was written.
+function digestBytes(bytes, environment) {
+    return environment.GLib.compute_checksum_for_bytes(
+        environment.GLib.ChecksumType.SHA256,
+        new environment.GLib.Bytes(bytes),
+    );
+}
+
+function createImagePort(environment) {
+    return {
+        decode(path, geometry, callback) {
+            decodeImageAsync(path, geometry, environment, {}, callback);
+        },
+        write(path, bytes, callback) {
+            writeBufferAsync(path, bytes, environment, callback);
+        },
+        remove(path) {
+            return removeFile(path, environment);
+        },
+        digest(bytes) {
+            return digestBytes(bytes, environment);
+        },
+    };
+}
+
+// The pictures a user has put where the runtime is allowed to read them. The
+// input root is both the permission boundary and the way in: a file inside it
+// is one the service will read, and a file anywhere else is one it refuses, so
+// listing the root is the honest set of things that can actually be run.
+function listInputImages(root, environment) {
+    const Gio = environment.Gio;
+    const directory = Gio.File.new_for_path(root);
+    if (!directory.query_exists(null)) {
+        return [];
+    }
+    const enumerator = directory.enumerate_children(
+        "standard::name,standard::type",
+        Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
+        null,
+    );
+    const names = [];
+    try {
+        let info = enumerator.next_file(null);
+        while (info !== null && names.length < MAX_INPUT_FILES) {
+            if (info.get_file_type() === Gio.FileType.REGULAR && isImageFilename(info.get_name())) {
+                names.push(info.get_name());
+            }
+            info = enumerator.next_file(null);
+        }
+    } finally {
+        enumerator.close(null);
+    }
+    return names.sort();
+}
+
+function createInputCatalog(environment, logger) {
+    return {
+        pictures(roots) {
+            const found = [];
+            for (const root of roots) {
+                try {
+                    for (const name of listInputImages(root, environment)) {
+                        found.push({root, name, path: `${root}/${name}`});
+                    }
+                } catch (error) {
+                    logger.warn(`Could not list runtime input root ${root}: ${error}`);
+                }
+            }
+            return found.slice(0, MAX_INPUT_FILES);
+        },
+    };
+}
+
 function callRuntimeMethod(method, argument, {cancellable}, callback, environment) {
     const connection = environment.Gio.DBus.session;
     connection.call(
@@ -991,6 +1195,19 @@ function createRuntimeContractGateway(environment) {
     });
 }
 
+function submitRuntimeJobText(text, options, callback, environment) {
+    return callRuntimeMethod(SUBMIT_JOB_METHOD, text, options, callback, environment);
+}
+
+function createRuntimeJobGateway(environment) {
+    return new RuntimeJob.RuntimeJobGateway({
+        cancellableFactory: createCancellableFactory(environment),
+        sendText: (text, options, callback) => submitRuntimeJobText(
+            text, options, callback, environment,
+        ),
+    });
+}
+
 function createRuntimeControlGateway(environment) {
     return new RuntimeControl.RuntimeControlGateway({
         cancellableFactory: createCancellableFactory(environment),
@@ -1009,6 +1226,10 @@ module.exports = {
     CONTROL_TIMEOUT_MS,
     CONTRACT_METHOD,
     DEVICE_CACHE_MS,
+    IMAGE_SUFFIXES,
+    MAX_IMAGE_BYTES,
+    MAX_INPUT_FILES,
+    SUBMIT_JOB_METHOD,
     MAX_PCIE_DEVICES,
     MAX_USB_DEVICES,
     MAX_USB_ID_BYTES,
@@ -1029,12 +1250,17 @@ module.exports = {
     createMergedWorkloadRegistry,
     callRuntimeMethod,
     createRuntimeGateway,
+    createImagePort,
+    createInputCatalog,
     createRuntimeContractGateway,
     createRuntimeControlGateway,
+    createRuntimeJobGateway,
     createUserWorkloadRegistry,
     createWorkloadRegistry,
     userWorkloadRoot,
     decodeBytes,
+    decodeImageAsync,
+    digestBytes,
     closeEnumeratorAsync,
     collectUsbNames,
     detectDevicesAsync,
@@ -1049,7 +1275,9 @@ module.exports = {
     FileStateRepository,
     findCoralUsbIdentity,
     fileIdentity,
+    isImageFilename,
     isIoError,
+    listInputImages,
     listWorkloadDirectories,
     listUsbDeviceNamesAsync,
     joinChunks,
@@ -1064,4 +1292,7 @@ module.exports = {
     requestRuntimeContractText,
     sameIdentity,
     sendRuntimeCommandText,
+    submitRuntimeJobText,
+    removeFile,
+    writeBufferAsync,
 };

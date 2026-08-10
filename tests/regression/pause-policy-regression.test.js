@@ -27,6 +27,7 @@ test("regression: a paused policy can be resumed while the device is unavailable
         "refresh",
         "openSettings",
         "acknowledgeCatalogChanges",
+        "submitJob",
     ].map((name) => [name, () => calls.push(name)]));
     const menu = new FakeMenu();
     const view = new Menu.MenuView({

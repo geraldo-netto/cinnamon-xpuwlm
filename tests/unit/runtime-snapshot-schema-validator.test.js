@@ -57,3 +57,21 @@ test("runtime snapshot validator rejects callable objects at the object boundary
     assert.equal(validator.validate(candidate).valid, false);
     assert.equal(Boolean(oracle(candidate)), false);
 });
+
+test("the published input roots are validated, not merely tolerated", () => {
+    const Validator = require(
+        "../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js",
+    );
+
+    assert.equal(Validator.isSnapshotInputs({roots: [], maxBytes: 0}), true);
+    assert.equal(Validator.isSnapshotInputs({roots: ["/a", "/b"], maxBytes: 67108864}), true);
+    assert.equal(Validator.isSnapshotInputs({roots: ["/a", "/a"], maxBytes: 1}), false, "unique");
+    assert.equal(Validator.isSnapshotInputs({roots: new Array(9).fill(0).map((u, i) => `/r${i}`), maxBytes: 1}), false);
+    assert.equal(Validator.isSnapshotInputs({roots: [""], maxBytes: 1}), false);
+    assert.equal(Validator.isSnapshotInputs({roots: ["/a"], maxBytes: -1}), false);
+    assert.equal(Validator.isSnapshotInputs({roots: ["/a"], maxBytes: 1024 * 1024 * 1024 + 1}), false);
+    assert.equal(Validator.isSnapshotInputs({roots: ["/a"]}), false, "maxBytes is required");
+    assert.equal(Validator.isSnapshotInputs({roots: ["/a"], maxBytes: 1, extra: 1}), false);
+    assert.equal(Validator.isSnapshotInputs({roots: "/a", maxBytes: 1}), false);
+    assert.equal(Validator.isSnapshotInputs(null), false);
+});

@@ -41,6 +41,7 @@ function harness(Atk = createAtk()) {
         "selectTab", "toggleProfile", "changeWeight",
         "pauseAll", "resumeAll", "refresh", "openSettings",
         "acknowledgeCatalogChanges",
+        "submitJob",
     ]) {
         actions[name] = () => {};
     }

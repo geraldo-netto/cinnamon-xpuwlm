@@ -33,6 +33,7 @@ const telemetryPlugin = schema.properties.pluginTelemetry.properties.plugins.ite
 
 const OBJECTS = Object.freeze({
     root: schema,
+    inputs: schema.properties.inputs,
     device: schema.properties.devices.items,
     metric: schema.properties.metrics,
     profile: profileEntry,

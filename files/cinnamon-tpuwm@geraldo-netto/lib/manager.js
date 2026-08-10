@@ -3,6 +3,7 @@
 const Domain = require("./domain.js");
 const FailureReporter = require("./failure-reporter.js");
 const I18n = require("./i18n.js");
+const JobSubmission = require("./job-submission.js");
 const RuntimeContract = require("./runtime-contract.js");
 const RuntimeControl = require("./runtime-control-contract.js");
 const RuntimeRefusal = require("./runtime-refusal-contract.js");
@@ -17,6 +18,43 @@ const RUNTIME_READ_FAILURE = "runtime-read";
 const STATE_SAVE_FAILURE = "state-save";
 const RUNTIME_CONTROL_FAILURE = "runtime-control";
 const RUNTIME_CONTRACT_FAILURE = "runtime-contract";
+const RUNTIME_JOB_FAILURE = "runtime-job";
+
+const NO_JOB = Object.freeze({
+    pending: false,
+    profileId: "",
+    sourceName: "",
+    jobId: "",
+    status: "",
+    code: "",
+    message: "",
+});
+
+// Why a picture could not be turned into this profile's input. Every one of
+// these is a fact the manifest states or fails to state, so the sentence names
+// the profile's declaration rather than blaming the user's file — except the
+// three that genuinely are about the file.
+const JOB_REFUSAL_TEXTS = Object.freeze({
+    "contract-absent": N_("This profile does not state what input it needs, so no picture can be prepared for it"),
+    "dtype-unsupported": N_("This profile needs an input this applet cannot build from a picture"),
+    "rank-unsupported": N_("This profile does not take a single picture as its input"),
+    "batch-unsupported": N_("This profile takes more than one picture at a time"),
+    "layout-unsupported": N_("This profile does not state how its input is laid out"),
+    "channels-unsupported": N_("This profile wants a channel count a picture cannot fill"),
+    "preprocess-undeclared": N_("This profile does not state how a picture becomes its input"),
+    "normalisation-mismatch": N_("This profile's normalisation does not match its channel count"),
+    "tensor-too-large": N_("This profile wants an input larger than the runtime accepts"),
+    "image-decode-failed": N_("That file could not be read as a picture"),
+    "image-invalid": N_("That file could not be read as a picture"),
+    "image-truncated": N_("That picture is incomplete"),
+    "image-size-mismatch": N_("That picture could not be resized to what this profile needs"),
+    "staging-write-failed": N_("The input buffer could not be written where the runtime reads"),
+    "staging-name-invalid": N_("The input buffer could not be given a usable name"),
+});
+
+const NO_INPUT_ROOTS_TEXT
+    = N_("The runtime service is not configured to read input files; no picture can be submitted");
+const JOB_PREPARING_TEXT = N_("Preparing the picture…");
 
 const NO_CATALOG_CHANGES = Object.freeze({
     installed: Object.freeze([]),
@@ -90,8 +128,47 @@ function controlFailureText(error) {
     return _("The runtime service could not apply the change");
 }
 
+// A job can fail as a picture, as a contract, or as a bus call. The first two
+// have their own sentences; the third already had one, so it is reused rather
+// than duplicated with different wording for the same condition.
+function jobFailureText(error) {
+    const code = JobSubmission.refusalCode(error);
+    return code !== null && Object.hasOwn(JOB_REFUSAL_TEXTS, code)
+        ? _(JOB_REFUSAL_TEXTS[code])
+        : controlFailureText(error);
+}
+
 function sanitizeTab(value) {
     return TAB_SET.has(value) ? value : "overview";
+}
+
+function requireJobSubmitter(candidate) {
+    if (!candidate
+        || typeof candidate.submit !== "function"
+        || typeof candidate.cancel !== "function") {
+        throw new TypeError("A job submitter with submit/cancel is required");
+    }
+    return candidate;
+}
+
+function requireInputCatalog(candidate) {
+    if (!candidate || typeof candidate.pictures !== "function") {
+        throw new TypeError("An input catalog with pictures is required");
+    }
+    return candidate;
+}
+
+// What each profile declares about its input, read once from the same registry
+// the catalog comes from. A descriptor that declares nothing maps to null,
+// which the encoder refuses with `contract-absent` rather than guessing.
+function inputContracts(registry) {
+    const contracts = new Map();
+    for (const descriptor of registry.descriptors()) {
+        contracts.set(descriptor.id, typeof descriptor.inputContract === "function"
+            ? descriptor.inputContract()
+            : null);
+    }
+    return contracts;
 }
 
 function createSilentLogger() {
@@ -165,6 +242,8 @@ class WorkloadManager {
         contractGateway = null,
         controlGateway = null,
         controlWatch = null,
+        jobSubmitter,
+        inputCatalog,
         errorReporter,
         clock = Date,
         logger = createSilentLogger(),
@@ -198,6 +277,7 @@ class WorkloadManager {
         this._expiryHandle = null;
         this._errors = FailureReporter.requireFailureReporter(errorReporter, "manager error");
         this._workloadRegistry = WorkloadRegistry.requireWorkloadRegistry(workloadRegistry);
+        this._attachJobPorts(jobSubmitter, inputCatalog);
         const initial = WorkloadReconciliation.reconcilePortfolioState(null, this._workloadRegistry);
         this._catalog = initial.catalog;
         this._pluginVersions = initial.state.pluginVersions;
@@ -209,6 +289,20 @@ class WorkloadManager {
         this._listeners = new Set();
         this._started = false;
         this._disposed = false;
+    }
+
+    // Both ports are optional: an applet built without them still monitors and
+    // still changes policy, and says so rather than offering a control that
+    // cannot work.
+    _attachJobPorts(jobSubmitter, inputCatalog) {
+        this._jobSubmitter = optionalPort(jobSubmitter ?? null, requireJobSubmitter);
+        this._inputCatalog = optionalPort(inputCatalog ?? null, requireInputCatalog);
+        this._inputContracts = inputContracts(this._workloadRegistry);
+        this._pictures = [];
+        this._listedRoots = "";
+        this._job = NO_JOB;
+        this._jobPending = null;
+        this._jobSequence = 0;
     }
 
     start() {
@@ -374,6 +468,7 @@ class WorkloadManager {
         }
         this._snapshot = snapshot;
         this._reportUnknownContent(snapshot);
+        this._relistPictures(false);
         if (recovered) {
             this._errors.recover(RUNTIME_READ_FAILURE);
         }
@@ -490,6 +585,154 @@ class WorkloadManager {
         return true;
     }
 
+    // Listing a directory is synchronous I/O on the compositor's own thread, so
+    // it happens when the set of roots changes and when somebody opens the
+    // surface that shows it — not on every poll, and never on every render.
+    _relistPictures(force) {
+        const roots = this._inputRoots();
+        const key = JSON.stringify(roots);
+        if (this._inputCatalog === null || (!force && key === this._listedRoots)) {
+            return false;
+        }
+        this._listedRoots = key;
+        try {
+            this._pictures = this._inputCatalog.pictures(roots);
+        } catch (error) {
+            this._pictures = [];
+            this._logger.warn(`Could not list runtime input files: ${error}`);
+        }
+        return true;
+    }
+
+    // The profiles a picture could actually be prepared for, decided from the
+    // manifest alone. A profile that declares nothing is absent from this list
+    // rather than offered and refused after the user has chosen a file.
+    _runnableProfiles() {
+        const runnable = [];
+        for (const [id, spec] of this._inputContracts) {
+            if (JobSubmission.encodingRefusalFor(spec) === null) {
+                runnable.push(id);
+            }
+        }
+        return runnable;
+    }
+
+    _inputRoots() {
+        return [...(this._snapshot.inputs || Domain.NO_INPUT_ROOTS).roots];
+    }
+
+    refreshInputs() {
+        this._ensureActive();
+        const changed = this._relistPictures(true);
+        if (changed) {
+            this._publish();
+        }
+        return changed;
+    }
+
+    // What this profile would need before it could run a picture, or the empty
+    // string when it could run one now. Answered from the manifest alone, so
+    // the surface can say why a profile is not offered instead of offering it
+    // and refusing after the user has chosen a file.
+    jobBlocker(profileId) {
+        const refusal = JobSubmission.encodingRefusalFor(this._inputContracts.get(profileId));
+        if (refusal !== null) {
+            return _(JOB_REFUSAL_TEXTS[refusal] ?? JOB_REFUSAL_TEXTS["contract-absent"]);
+        }
+        return this._inputRoots().length === 0 ? _(NO_INPUT_ROOTS_TEXT) : "";
+    }
+
+    submitJob(profileId, picture) {
+        this._ensureActive();
+        if (this._jobPending !== null) {
+            return false;
+        }
+        const refusal = this._jobPrecondition(profileId, picture);
+        if (refusal !== "") {
+            return this._reportJobFailure(refusal);
+        }
+        return this._dispatchJob(profileId, picture);
+    }
+
+    _jobPrecondition(profileId, picture) {
+        if (this._jobSubmitter === null) {
+            return _("Runtime job service is unavailable; start it and retry");
+        }
+        if (this._controlServiceAvailable === false) {
+            return _(SERVICE_STOPPED_TEXT);
+        }
+        if (!picture || typeof picture.path !== "string" || typeof picture.root !== "string") {
+            return _("No picture was chosen");
+        }
+        return this.jobBlocker(profileId);
+    }
+
+    _dispatchJob(profileId, picture) {
+        this._jobSequence += 1;
+        const sequence = this._jobSequence;
+        const sourceName = typeof picture.name === "string" ? picture.name : "";
+        this._jobPending = {sequence, profileId, sourceName};
+        this._job = {
+            ...NO_JOB,
+            pending: true,
+            profileId,
+            sourceName,
+            message: _(JOB_PREPARING_TEXT),
+        };
+        this._publish();
+        try {
+            this._jobSubmitter.submit({
+                workloadId: profileId,
+                spec: this._inputContracts.get(profileId),
+                sourcePath: picture.path,
+                stagingRoot: picture.root,
+            }, (error, acknowledgement) => this._acceptJob(sequence, error, acknowledgement));
+        } catch (error) {
+            this._acceptJob(sequence, error, null);
+        }
+        return true;
+    }
+
+    _acceptJob(sequence, error, acknowledgement) {
+        if (this._disposed || this._jobPending?.sequence !== sequence) {
+            return false;
+        }
+        const pending = this._jobPending;
+        this._jobPending = null;
+        if (error) {
+            this._job = {...NO_JOB, profileId: pending.profileId, sourceName: pending.sourceName};
+            this._reportJobFailure(jobFailureText(error), `Runtime did not accept the job: ${error}`);
+            return false;
+        }
+        this._job = {
+            pending: false,
+            profileId: pending.profileId,
+            sourceName: pending.sourceName,
+            jobId: acknowledgement.jobId || "",
+            status: acknowledgement.status,
+            code: acknowledgement.code,
+            message: acknowledgement.message,
+        };
+        this._settleJobOutcome(acknowledgement);
+        this._publish();
+        return acknowledgement.status === "accepted";
+    }
+
+    _settleJobOutcome(acknowledgement) {
+        if (acknowledgement.status === "accepted") {
+            this._errors.recover(RUNTIME_JOB_FAILURE);
+            return;
+        }
+        this._errors.report(RUNTIME_JOB_FAILURE, acknowledgement.message, this._clock.now());
+    }
+
+    _reportJobFailure(message, logged = null) {
+        this._job = {...this._job, pending: false, message};
+        this._errors.report(RUNTIME_JOB_FAILURE, logged ?? message, this._clock.now());
+        this._publish();
+        return false;
+    }
+
     toggleProfile(id) {
         this._ensureActive();
         const profile = this._portfolio.profile(id);
@@ -563,6 +806,12 @@ class WorkloadManager {
                 available: this._controlServiceAvailable,
             },
             contract: this._contract.describe(),
+            job: {...this._job},
+            inputs: {
+                roots: this._inputRoots(),
+                pictures: this._pictures.map((picture) => ({...picture})),
+                runnable: this._runnableProfiles(),
+            },
         };
     }
 
@@ -575,11 +824,13 @@ class WorkloadManager {
         this._cancelRuntimeRead();
         this._cancelRuntimeControl();
         this._cancelContract();
+        this._cancelJob();
         this._stopControlWatch();
         this._errors.recover(RUNTIME_READ_FAILURE);
         this._errors.recover(STATE_SAVE_FAILURE);
         this._errors.recover(RUNTIME_CONTROL_FAILURE);
         this._errors.recover(RUNTIME_CONTRACT_FAILURE);
+        this._errors.recover(RUNTIME_JOB_FAILURE);
         for (const listener of this._listeners) {
             this._errors.recover(listener);
         }
@@ -702,6 +953,12 @@ class WorkloadManager {
         return this._controlGateway === null ? false : this._controlGateway.cancel();
     }
 
+    _cancelJob() {
+        this._jobSequence += 1;
+        this._jobPending = null;
+        return this._jobSubmitter === null ? false : this._jobSubmitter.cancel();
+    }
+
     _cancelContract() {
         this._contractSequence += 1;
         return this._contractGateway === null ? false : this._contractGateway.cancel();
@@ -757,10 +1014,15 @@ module.exports = {
     REFUSAL_TEXTS,
     RUNTIME_READ_FAILURE,
     RUNTIME_CONTROL_FAILURE,
+    RUNTIME_JOB_FAILURE,
     SERVICE_STOPPED_TEXT,
     TRANSPORT_FAILURES,
     UNINTELLIGIBLE_REPLY_TEXT,
+    JOB_REFUSAL_TEXTS,
+    NO_JOB,
     controlFailureText,
+    inputContracts,
+    jobFailureText,
     STATE_SAVE_FAILURE,
     TABS,
     WorkloadManager,
@@ -771,6 +1033,8 @@ module.exports = {
     requireClock,
     requireControlWatch,
     requireRepository,
+    requireInputCatalog,
+    requireJobSubmitter,
     requireRuntimeGateway,
     requireScheduler,
     sanitizeTab,

@@ -126,6 +126,7 @@ test("fallback, probe, and stale snapshots carry the complete snapshot structure
         metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
+        inputs: {roots: [], maxBytes: 0},
         unknownContent: {profiles: 0, alerts: 0},
     });
 
@@ -154,6 +155,7 @@ test("fallback, probe, and stale snapshots carry the complete snapshot structure
         metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
+        inputs: {roots: [], maxBytes: 0},
         unknownContent: {profiles: 0, alerts: 0},
     });
     assert.deepEqual(Domain.probeSnapshot(probed, NOW).health.device, "present");
@@ -170,6 +172,7 @@ test("fallback, probe, and stale snapshots carry the complete snapshot structure
         metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
+        inputs: {roots: [], maxBytes: 0},
         unknownContent: {profiles: 0, alerts: 0},
     });
 });
@@ -277,7 +280,7 @@ test("manager projections are complete and isolated from listener mutation", () 
     assert.deepEqual(Object.keys(state), [
         "selectedTab", "paused", "profiles", "device", "devices", "health", "metrics", "alerts",
         "attentionCount", "unknownContent", "stale", "source", "generatedAt", "catalogChanges",
-        "control", "contract",
+        "control", "contract", "job", "inputs",
     ]);
     assert.deepEqual(state.device, {
         id: "tpu-usb",

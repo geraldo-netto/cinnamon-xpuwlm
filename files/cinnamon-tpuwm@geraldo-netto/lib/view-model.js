@@ -352,6 +352,65 @@ function setupModel(profiles) {
     };
 }
 
+// The run surface: which profiles a picture can be prepared for, which
+// pictures the runtime is allowed to read, and what happened to the last job.
+// Everything it needs is already published — the roots come from the runtime's
+// own snapshot and the contracts from the manifests — so nothing here guesses
+// a path or a normalisation.
+const MAX_RUN_PICTURES = 24;
+const RUN_TITLE = N_("Run a picture");
+const NO_ROOTS_TEXT = N_("The runtime service is not configured to read input files, so no picture can be submitted");
+const NO_RUNNABLE_TEXT = N_("No installed profile states what input it needs, so no picture can be prepared");
+const EMPTY_ROOT_TEXT = N_("Put a picture in %s and it will be listed here");
+
+function runReason(runnable, inputs) {
+    if (inputs.roots.length === 0) {
+        return _(NO_ROOTS_TEXT);
+    }
+    if (runnable.length === 0) {
+        return _(NO_RUNNABLE_TEXT);
+    }
+    return inputs.pictures.length === 0
+        ? format(_(EMPTY_ROOT_TEXT), inputs.roots[0])
+        : "";
+}
+
+function jobTone(job) {
+    if (job.pending === true) {
+        return "pending";
+    }
+    return job.status === "accepted" ? "normal" : "attention";
+}
+
+function jobModel(job, profiles) {
+    if (!job || !job.profileId) {
+        return null;
+    }
+    const profile = profiles.find((candidate) => candidate.id === job.profileId);
+    return {
+        pending: job.pending === true,
+        title: profile ? profile.title : job.profileId,
+        sourceName: job.sourceName || "",
+        message: job.message || "",
+        jobId: job.jobId || "",
+        tone: jobTone(job),
+    };
+}
+
+function runModel(state) {
+    const inputs = state.inputs || {roots: [], pictures: [], runnable: []};
+    const runnableIds = new Set(inputs.runnable || []);
+    const runnable = state.profiles.filter((profile) => runnableIds.has(profile.id));
+    return {
+        title: _(RUN_TITLE),
+        reason: runReason(runnable, inputs),
+        roots: [...inputs.roots],
+        profiles: runnable.map((profile) => ({id: profile.id, title: profile.title})),
+        pictures: inputs.pictures.slice(0, MAX_RUN_PICTURES).map((picture) => ({...picture})),
+        job: jobModel(state.job, state.profiles),
+    };
+}
+
 function formatLoad(value) {
     return typeof value === "number" && Number.isFinite(value)
         ? `${Math.round(value)}%`
@@ -673,6 +732,7 @@ function toViewModel(state, nowMs = Date.now()) {
         blockedProfiles: blocked,
         blockedGroup: blockedGroupModel(blocked),
         setup: setupModel(profiles),
+        run: runModel(state),
         inexecutableCount: blocked.length,
         pausedProfiles,
         activeAlerts,
@@ -695,6 +755,12 @@ function toViewModel(state, nowMs = Date.now()) {
             health: healthOf(state),
             paused: state.paused,
             control,
+            // The run surface changes without the snapshot changing: a job
+            // acknowledgement and a newly listed picture are both invisible to
+            // every other key here, so a body keyed without them would show the
+            // outcome of the click before last.
+            job: state.job,
+            inputs: state.inputs,
         }),
     };
 }
@@ -711,6 +777,7 @@ module.exports = {
     RUNTIME_STATUS_LABELS,
     SETUP_KIND_ORDER,
     SETUP_SECTIONS,
+    MAX_RUN_PICTURES,
     SEVERITY_LABELS,
     STATUS_LABELS,
     BACKEND_LABELS,
@@ -744,6 +811,9 @@ module.exports = {
     setupSection,
     setupSummary,
     severityText,
+    jobModel,
+    runModel,
+    runReason,
     toViewModel,
     unavailablePanel,
     unknownContentNotice,

@@ -187,6 +187,8 @@ function managerFake(initial = liveState()) {
         pauseAll() { this.calls.push(["pauseAll"]); },
         resumeAll() { this.calls.push(["resumeAll"]); },
         acknowledgeCatalogChanges() { this.calls.push(["acknowledgeCatalogChanges"]); },
+        refreshInputs() { this.calls.push(["refreshInputs"]); },
+        submitJob(id, picture) { this.calls.push(["submitJob", id, picture]); },
         dispose() { this.calls.push(["dispose"]); },
     };
 }
@@ -283,6 +285,7 @@ test("menu actions delegate without mixing responsibilities", () => {
     actions.resumeAll();
     actions.refresh();
     actions.openSettings();
+    actions.submitJob("visual-library", {root: "/root", name: "cat.png", path: "/root/cat.png"});
     actions.acknowledgeCatalogChanges();
     assert.deepEqual(manager.calls.slice(1), [
         ["selectTab", "alerts"],
@@ -291,6 +294,7 @@ test("menu actions delegate without mixing responsibilities", () => {
         ["pauseAll"],
         ["resumeAll"],
         ["retryDeviceDetection"],
+        ["submitJob", "visual-library", {root: "/root", name: "cat.png", path: "/root/cat.png"}],
         ["acknowledgeCatalogChanges"],
     ]);
     assert.equal(spawned.at(-1), `cinnamon-settings applets ${AppletModule.UUID}`);

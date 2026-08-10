@@ -43,6 +43,7 @@ function harness(Clutter = CLUTTER) {
         "selectTab", "toggleProfile", "changeWeight",
         "pauseAll", "resumeAll", "refresh", "openSettings",
         "acknowledgeCatalogChanges",
+        "submitJob",
     ]) {
         actions[name] = (...args) => calls.push([name, ...args]);
     }

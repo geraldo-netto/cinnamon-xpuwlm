@@ -5,6 +5,7 @@ const Atk = imports.gi.Atk;
 const ByteArray = imports.byteArray;
 const Gettext = imports.gettext;
 const Clutter = imports.gi.Clutter;
+const GdkPixbuf = imports.gi.GdkPixbuf;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
 const Gtk = imports.gi.Gtk;
@@ -21,6 +22,7 @@ const CinnamonRuntime = require("./lib/cinnamon-runtime.js");
 const Domain = require("./lib/domain.js");
 const FailureBackoff = require("./lib/failure-log-backoff.js");
 const I18n = require("./lib/i18n.js");
+const JobSubmission = require("./lib/job-submission.js");
 const Layout = require("./lib/layout.js");
 const Manager = require("./lib/manager.js");
 const Menu = require("./lib/menu-view.js");
@@ -59,7 +61,7 @@ function panelIconFilename(status) {
 }
 
 function defaultEnvironment() {
-    return {ByteArray, Gio, GLib};
+    return {ByteArray, GdkPixbuf, Gio, GLib};
 }
 
 function defaultLogger() {
@@ -166,6 +168,13 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
     _createControlPorts(overrides) {
         this._controlGateway = overrides.controlGateway
             || CinnamonRuntime.createRuntimeControlGateway(this._environment);
+        this._jobSubmitter = overrides.jobSubmitter || new JobSubmission.JobSubmitter({
+            gateway: CinnamonRuntime.createRuntimeJobGateway(this._environment),
+            imagePort: CinnamonRuntime.createImagePort(this._environment),
+            clock: overrides.clock || Date,
+        });
+        this._inputCatalog = overrides.inputCatalog
+            || CinnamonRuntime.createInputCatalog(this._environment, this._logger);
         this._controlWatch = overrides.controlWatch
             || CinnamonRuntime.createControlServiceWatch(this._environment);
         this._contractGateway = overrides.contractGateway
@@ -179,6 +188,8 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             contractGateway: this._contractGateway,
             controlGateway: this._controlGateway,
             controlWatch: this._controlWatch,
+            jobSubmitter: this._jobSubmitter,
+            inputCatalog: this._inputCatalog,
             errorReporter: overrides.errorReporter
                 || new FailureBackoff.FailureErrorBackoff({logger: this._logger}),
             logger: this._logger,
@@ -273,6 +284,7 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             refresh: () => this._manager.retryDeviceDetection(),
             openSettings: () => this._openSettings(),
             acknowledgeCatalogChanges: () => this._manager.acknowledgeCatalogChanges(),
+            submitJob: (id, picture) => this._manager.submitJob(id, picture),
         };
     }
 
@@ -284,6 +296,10 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             this.menu.connect("open-state-changed", (_menu, open) => {
                 if (open) {
                     this._applyLayout();
+                    // Listing the input directory is synchronous I/O, so it
+                    // happens when somebody looks at the list and not on the
+                    // poll interval.
+                    this._manager.refreshInputs();
                 }
             });
         }

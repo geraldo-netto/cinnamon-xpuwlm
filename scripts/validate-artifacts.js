@@ -18,6 +18,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "i18n.js",
     "icon.png",
     "icons",
+    "job-submission.js",
     "lib",
     "layout.js",
     "manager.js",
@@ -25,6 +26,8 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "po",
     "profile-blockers.js",
     "runtime-gateway.js",
+    "runtime-job-contract.js",
+    "runtime-job-gateway.js",
     "runtime-control-contract.js",
     "runtime-control-gateway.js",
     "runtime-control-service.js",
@@ -40,6 +43,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "settings-schema.json",
     "snapshot-validator.js",
     "stylesheet.css",
+    "tensor-encoder.js",
     "view-model.js",
     "workload-manifest.js",
     "workload-manifest.schema.json",
@@ -224,12 +228,40 @@ function validateWorkflows() {
     assert.doesNotMatch(audit, /run: npm test/);
 }
 
+// A control character inside a string literal is invisible in a diff, accepted
+// by Node, and refused by the SpiderMonkey parser Cinnamon actually runs — so
+// it ships a module the desktop cannot load while every Node test passes. One
+// reached a shipped source this way; the cjs smoke caught it, but that gate is
+// not part of `test:ci` and needs cjs installed, so the cheap check runs here.
+// Tab, newline, and carriage return are the only control characters a source
+// file may contain; everything else below 0x20 is invisible in a diff and
+// refused by the parser Cinnamon runs.
+const PERMITTED_CONTROL_CODES = new Set([9, 10, 13]);
+
+function controlCharacterLine(source) {
+    let line = 1;
+    for (const character of source) {
+        const code = character.codePointAt(0);
+        if (code === 10) {
+            line += 1;
+        } else if (code < 0x20 && !PERMITTED_CONTROL_CODES.has(code)) {
+            return line;
+        }
+    }
+    return 0;
+}
+
 function validateJavaScriptSyntax() {
     for (const filename of productionJavaScriptFiles()) {
         childProcess.execFileSync(process.execPath, ["--check", filename], {stdio: "pipe"});
         const source = fs.readFileSync(filename, "utf8");
         assert.equal(/require\(["'](?:node:)?(?:fs|child_process|path)["']\)/.test(source), false);
         assert.equal(/\bBuffer\b/.test(source), false);
+        assert.equal(
+            controlCharacterLine(source),
+            0,
+            `${filename} carries a control character Cinnamon's parser refuses`,
+        );
     }
 }
 

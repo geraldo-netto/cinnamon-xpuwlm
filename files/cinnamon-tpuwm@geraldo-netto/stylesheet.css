@@ -519,3 +519,39 @@
 .tpuwm-mode-dense .tpuwm-evidence {
     spacing: 1px;
 }
+
+/* Running a picture. The rows are ordinary buttons: each one names a file the
+   runtime is already permitted to read, so the list is exactly the set of
+   things that can be submitted, and there is nothing to grey out. */
+.tpuwm-run-row {
+    padding: 7px 10px;
+    border-radius: 6px;
+}
+
+.tpuwm-run-row:hover,
+.tpuwm-run-row:focus {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Why nothing can be submitted, when nothing can. Prose, so it wraps. */
+.tpuwm-run-note {
+    font-size: 0.82em;
+    opacity: 0.72;
+    padding: 12px 10px;
+}
+
+/* The last job's outcome. The tone is a second cue beside the sentence, which
+   already names the profile, the picture, and what the runtime answered. */
+.tpuwm-job-outcome {
+    font-size: 0.82em;
+    padding: 8px 10px;
+    border-radius: 6px;
+}
+
+.tpuwm-job-pending {
+    opacity: 0.72;
+}
+
+.tpuwm-job-attention {
+    font-weight: bold;
+}

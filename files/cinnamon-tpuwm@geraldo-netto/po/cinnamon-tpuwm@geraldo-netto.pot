@@ -51,6 +51,12 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/menu-view.js
+msgid "%d picture"
+msgid_plural "%d pictures"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/menu-view.js
 msgid "%d profile"
 msgid_plural "%d profiles"
 msgstr[0] ""
@@ -450,8 +456,20 @@ msgstr ""
 msgid "No device"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "No input directory"
+msgstr ""
+
+#: lib/view-model.js
+msgid "No installed profile states what input it needs, so no picture can be prepared"
+msgstr ""
+
 #: lib/view-model.js
 msgid "No model installed"
+msgstr ""
+
+#: lib/manager.js
+msgid "No picture was chosen"
 msgstr ""
 
 #: lib/domain.js
@@ -546,12 +564,20 @@ msgstr ""
 msgid "Paused groups"
 msgstr ""
 
+#: lib/manager.js
+msgid "Preparing the picture…"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Profiles"
 msgstr ""
 
 #: lib/view-model.js
 msgid "Profiles remain saved locally. No data, authorization, or backup policy is changed."
+msgstr ""
+
+#: lib/view-model.js
+msgid "Put a picture in %s and it will be listed here"
 msgstr ""
 
 #: lib/menu-view.js lib/view-model.js
@@ -618,6 +644,14 @@ msgstr ""
 msgid "Risk"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Run %s on %s"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Run a picture"
+msgstr ""
+
 #: lib/menu-view.js lib/view-model.js
 msgid "Running"
 msgstr ""
@@ -632,6 +666,10 @@ msgstr ""
 
 #: settings-schema.json
 msgid "Runtime integration"
+msgstr ""
+
+#: lib/manager.js
+msgid "Runtime job service is unavailable; start it and retry"
 msgstr ""
 
 #: lib/view-model.js
@@ -774,6 +812,18 @@ msgstr ""
 msgid "TPU critical alert — %s"
 msgstr ""
 
+#: lib/manager.js
+msgid "That file could not be read as a picture"
+msgstr ""
+
+#: lib/manager.js
+msgid "That picture could not be resized to what this profile needs"
+msgstr ""
+
+#: lib/manager.js
+msgid "That picture is incomplete"
+msgstr ""
+
 #: lib/view-model.js
 msgid "The accelerator is present, but the Python package that drives it cannot be imported, so the runtime has no lane to run these profiles on. Install the matching extra and restart the service."
 msgstr ""
@@ -784,6 +834,14 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "The document was read but rejected by the version 1 contract, so none of its values are displayed."
+msgstr ""
+
+#: lib/manager.js
+msgid "The input buffer could not be given a usable name"
+msgstr ""
+
+#: lib/manager.js
+msgid "The input buffer could not be written where the runtime reads"
 msgstr ""
 
 #: lib/view-model.js
@@ -820,6 +878,14 @@ msgstr ""
 
 #: lib/manager.js
 msgid "The runtime service is busy with other requests; retry shortly"
+msgstr ""
+
+#: lib/view-model.js
+msgid "The runtime service is not configured to read input files, so no picture can be submitted"
+msgstr ""
+
+#: lib/manager.js
+msgid "The runtime service is not configured to read input files; no picture can be submitted"
 msgstr ""
 
 #: lib/manager.js
@@ -876,6 +942,42 @@ msgstr ""
 
 #: lib/manager.js
 msgid "This applet and the runtime service speak different versions; update whichever is older"
+msgstr ""
+
+#: lib/manager.js
+msgid "This profile does not state how a picture becomes its input"
+msgstr ""
+
+#: lib/manager.js
+msgid "This profile does not state how its input is laid out"
+msgstr ""
+
+#: lib/manager.js
+msgid "This profile does not state what input it needs, so no picture can be prepared for it"
+msgstr ""
+
+#: lib/manager.js
+msgid "This profile does not take a single picture as its input"
+msgstr ""
+
+#: lib/manager.js
+msgid "This profile needs an input this applet cannot build from a picture"
+msgstr ""
+
+#: lib/manager.js
+msgid "This profile takes more than one picture at a time"
+msgstr ""
+
+#: lib/manager.js
+msgid "This profile wants a channel count a picture cannot fill"
+msgstr ""
+
+#: lib/manager.js
+msgid "This profile wants an input larger than the runtime accepts"
+msgstr ""
+
+#: lib/manager.js
+msgid "This profile's normalisation does not match its channel count"
 msgstr ""
 
 #: lib/menu-view.js lib/view-model.js
