@@ -116,8 +116,14 @@ test("the wide layout keeps one metric row and single-line rows", () => {
     assert.equal(evidence.vertical, false);
 });
 
-// Nothing in the shipped catalog declares a model, so this state is a popup
-// with a full collapsed group and every setup section that has copy.
+// Every shipped workload that declares no model is collapsed here, which today
+// is all of them but one: the popup renders one limitation line per collapsed
+// profile plus the group's own summary, and one setup section — a description,
+// a note, and a title and reason per profile — because they all need the same
+// remedy.
+const COLLAPSED = BuiltIns.coreCatalog().definitions()
+    .filter((definition) => !definition.executable).length;
+
 test("a narrow popup wraps the wording that explains a profile it cannot run", () => {
     const {view, root} = harness(COMPACT);
     view.render(ViewModel.toViewModel(alertState({selectedTab: "profiles"}), NOW));
@@ -125,7 +131,7 @@ test("a narrow popup wraps the wording that explains a profile it cannot run", (
     const wrapping = findActors(root, (actor) => actor.styleClasses.has("tpuwm-profile-limitation")
         || actor.styleClasses.has("tpuwm-disclosure-summary")
         || actor.styleClasses.has("tpuwm-empty-note"));
-    assert.equal(wrapping.length, BuiltIns.coreCatalog().size + 2);
+    assert.equal(wrapping.length, COLLAPSED + 1);
     assert.equal(wrapping.every((label) => label.clutter_text.line_wrap === true), true);
 
     view.render(ViewModel.toViewModel(alertState({selectedTab: "setup"}), NOW));
@@ -133,7 +139,7 @@ test("a narrow popup wraps the wording that explains a profile it cannot run", (
         || actor.styleClasses.has("tpuwm-setup-note")
         || actor.styleClasses.has("tpuwm-profile-title")
         || actor.styleClasses.has("tpuwm-profile-description"));
-    assert.equal(setup.length, BuiltIns.coreCatalog().size * 2 + 2);
+    assert.equal(setup.length, COLLAPSED * 2 + 2);
     assert.equal(setup.every((label) => label.clutter_text.line_wrap === true), true);
 });
 

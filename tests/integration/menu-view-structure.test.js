@@ -153,7 +153,8 @@ test("the view model always describes exactly four metric tiles", () => {
 
 test("every symbolic icon declares a name, type, size, and placement", () => {
     const {view, root} = harness();
-    view.render(ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW));
+    const profiles = ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW);
+    view.render(profiles);
 
     const brand = icons(root).find((actor) => actor.icon_name === "tpuwm-symbolic");
     assert.deepEqual(
@@ -175,11 +176,21 @@ test("every symbolic icon declares a name, type, size, and placement", () => {
     assert.equal(settings.icon_size, 16);
     assert.equal(settings.icon_type, "symbolic");
 
+    // Every profile keeps its icon, but the tab renders the ones that run
+    // before the collapsed group, so the order follows that split rather than
+    // catalog order once part of the catalog can run.
     const profileIcons = icons(root).filter((actor) => actor.style_class === "tpuwm-profile-icon");
     assert.equal(profileIcons.length, BuiltIns.coreCatalog().size);
     assert.deepEqual(
         profileIcons.map((actor) => actor.icon_name),
-        BuiltIns.coreCatalog().definitions().map((definition) => definition.icon),
+        [
+            ...profiles.runnableGroups.flatMap((group) => group.profiles),
+            ...profiles.blockedProfiles,
+        ].map((profile) => profile.icon),
+    );
+    assert.deepEqual(
+        [...profileIcons.map((actor) => actor.icon_name)].sort(),
+        BuiltIns.coreCatalog().definitions().map((definition) => definition.icon).sort(),
     );
     assert.equal(profileIcons.every((actor) => actor.icon_size === 20), true);
     assert.equal(profileIcons.every((actor) => actor.icon_type === "symbolic"), true);

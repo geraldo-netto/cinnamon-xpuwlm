@@ -352,12 +352,22 @@ test("the blocked group derives its own size from the live snapshot", () => {
         false,
     );
 
-    // Every bundled workload declares no model, so today the shipped catalog
-    // collapses whole and the group states its own size in the plural.
+    // What the shipped catalog collapses is derived twice over: `visual-library`
+    // declares a model, and `hardware-health` is serving in this state, so the
+    // group is the rest and states its own size in the plural.
     const shipped = ViewModel.toViewModel(state(), NOW);
-    assert.equal(shipped.inexecutableCount, state().profiles.length - 1);
-    assert.equal(shipped.blockedGroup.count, state().profiles.length - 1);
-    assert.equal(shipped.blockedGroup.summary, `${state().profiles.length - 1} profiles cannot run yet`);
+    const collapsed = state().profiles.filter(
+        (profile) => profile.id !== "hardware-health" && !profile.executable,
+    ).length;
+    assert.equal(shipped.inexecutableCount, collapsed);
+    assert.equal(shipped.blockedGroup.count, collapsed);
+    assert.equal(shipped.blockedGroup.summary, `${collapsed} profiles cannot run yet`);
+    assert.equal(
+        shipped.runnableGroups.flatMap((group) => group.profiles).map((profile) => profile.id)
+            .includes("visual-library"),
+        true,
+        "the workload that declares a model is not collapsed with the ones that cannot run",
+    );
 });
 
 test("the setup projection groups blocked profiles by the remedy they need", () => {

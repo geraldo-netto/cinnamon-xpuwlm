@@ -52,8 +52,8 @@ test("the shipped catalog reports which workloads the runtime can execute", () =
     const executable = descriptors.filter((descriptor) => descriptor.executable);
     assert.deepEqual(
         executable.map((descriptor) => descriptor.id),
-        ["low-light-enhancement"],
-        "only the workload that declares a model can run",
+        ["low-light-enhancement", "visual-library"],
+        "only the workloads that declare a model can run",
     );
     for (const descriptor of descriptors) {
         assert.equal(
@@ -63,8 +63,10 @@ test("the shipped catalog reports which workloads the runtime can execute", () =
         );
     }
     assert.deepEqual(
-        BuiltIns.coreCatalog().definitions().filter((definition) => definition.executable),
-        [],
-        "no core workload declares a model today",
+        BuiltIns.coreCatalog().definitions()
+            .filter((definition) => definition.executable)
+            .map((definition) => definition.id),
+        ["visual-library"],
+        "visual-library is the one core workload the runtime has a model for",
     );
 });
