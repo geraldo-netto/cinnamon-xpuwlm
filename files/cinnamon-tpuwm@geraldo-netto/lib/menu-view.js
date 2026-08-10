@@ -563,6 +563,17 @@ class MenuView {
             this._body.add_child(this._label(run.reason, "tpuwm-run-note", true));
             return false;
         }
+        if (run.omitted > 0) {
+            this._body.add_child(this._label(
+                format(ngettext(
+                    "%d more picture is not shown",
+                    "%d more pictures are not shown",
+                    run.omitted,
+                ), run.omitted),
+                "tpuwm-run-note",
+                true,
+            ));
+        }
         for (const profile of run.profiles) {
             this._addGroupHeading(profile.title, format(
                 ngettext("%d picture", "%d pictures", run.pictures.length),

@@ -1196,20 +1196,34 @@ function listInputImages(root, environment) {
     return names.sort();
 }
 
+// Bounded per root rather than across all of them. Slicing the combined list
+// let the first root fill the budget and the rest vanish entirely — the
+// runtime would read a picture the popup never showed, which is the silence
+// this project's own rule about capped lists exists to prevent.
 function createInputCatalog(environment, logger) {
     return {
         pictures(roots) {
+            const share = Math.max(1, Math.floor(MAX_INPUT_FILES / Math.max(1, roots.length)));
             const found = [];
+            let omitted = 0;
             for (const root of roots) {
                 try {
-                    for (const name of listInputImages(root, environment)) {
+                    const names = listInputImages(root, environment);
+                    omitted += Math.max(0, names.length - share);
+                    for (const name of names.slice(0, share)) {
                         found.push({root, name, path: `${root}/${name}`});
                     }
                 } catch (error) {
                     logger.warn(`Could not list runtime input root ${root}: ${error}`);
                 }
             }
-            return found.slice(0, MAX_INPUT_FILES);
+            if (omitted > 0) {
+                logger.warn(
+                    `${omitted} picture(s) in the runtime input roots are not listed; `
+                    + `at most ${share} per root are shown`,
+                );
+            }
+            return {pictures: found, omitted};
         },
     };
 }

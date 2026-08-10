@@ -177,8 +177,11 @@ function harness(options = {}) {
             if (options.listThrows) {
                 throw new Error("permission denied");
             }
-            return roots.flatMap((root) => (options.pictures ?? ["cat.png"])
-                .map((name) => ({root, name, path: `${root}/${name}`})));
+            return {
+                pictures: roots.flatMap((root) => (options.pictures ?? ["cat.png"])
+                    .map((name) => ({root, name, path: `${root}/${name}`}))),
+                omitted: options.omitted ?? 0,
+            };
         },
     };
     options.scheduler = options.scheduler || fakeScheduler();
@@ -320,7 +323,7 @@ test("a job is refused before the bus when the service is known to be gone", () 
             requestResult() { throw new Error("must not be called"); },
             cancelResult: () => false,
         },
-        inputCatalog: {pictures: () => []},
+        inputCatalog: {pictures: () => ({pictures: [], omitted: 0})},
         clock: {now: () => NOW},
         errorReporter: new FailureBackoff.FailureErrorBackoff({
             logger: {error: (m) => errors.push(m), warn() {}},

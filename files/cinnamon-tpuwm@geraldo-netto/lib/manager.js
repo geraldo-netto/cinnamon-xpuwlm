@@ -325,6 +325,7 @@ class WorkloadManager {
         this._inputCatalog = optionalPort(inputCatalog ?? null, requireInputCatalog);
         this._inputContracts = inputContracts(this._workloadRegistry);
         this._pictures = [];
+        this._omittedPictures = 0;
         this._listedRoots = "";
         this._job = NO_JOB;
         this._jobPending = null;
@@ -624,9 +625,12 @@ class WorkloadManager {
         }
         this._listedRoots = key;
         try {
-            this._pictures = this._inputCatalog.pictures(roots);
+            const listed = this._inputCatalog.pictures(roots);
+            this._pictures = listed.pictures;
+            this._omittedPictures = listed.omitted;
         } catch (error) {
             this._pictures = [];
+            this._omittedPictures = 0;
             this._logger.warn(`Could not list runtime input files: ${error}`);
         }
         return true;
@@ -954,6 +958,7 @@ class WorkloadManager {
             inputs: {
                 roots: this._inputRoots(),
                 pictures: this._pictures.map((picture) => ({...picture})),
+                omitted: this._omittedPictures,
                 runnable: this._runnableProfiles(),
             },
         };

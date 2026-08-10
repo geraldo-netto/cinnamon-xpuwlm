@@ -48,7 +48,13 @@ function state(overrides = {}) {
         generatedAt: NOW,
         control: {pending: false, message: "", available: true},
         job,
-        inputs: {roots: [ROOT], pictures: pictures(["cat.png"]), runnable: [RUNNABLE], ...inputs},
+        inputs: {
+            roots: [ROOT],
+            pictures: pictures(["cat.png"]),
+            runnable: [RUNNABLE],
+            omitted: 0,
+            ...inputs,
+        },
         ...rest,
     };
 }
@@ -379,4 +385,34 @@ test("the outcome line omits what is not known rather than printing gaps", () =>
         Menu.jobDetail({message: "", stateText: "Finished", progressText: "", jobId: ""}),
         "Finished",
     );
+});
+
+test("a capped picture list says how many it is not showing", () => {
+    // A capped list that says nothing about the cap reads as the whole list,
+    // and the runtime would happily accept the ones left out.
+    const {view, root} = harness();
+    const many = Array.from({length: ViewModel.MAX_RUN_PICTURES + 3}, (unused, i) => `p${i}.png`);
+
+    view.render(ViewModel.toViewModel(state({
+        inputs: {pictures: pictures(many), omitted: 5},
+    }), NOW));
+
+    const notes = textWithClass(root, "tpuwm-run-note");
+    assert.equal(notes.length, 1);
+    assert.match(notes[0], /8 more pictures are not shown/u, "trimmed here plus omitted upstream");
+});
+
+test("a list that shows everything says nothing about omission", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(state(), NOW));
+
+    assert.deepEqual(textWithClass(root, "tpuwm-run-note"), []);
+    assert.equal(ViewModel.runModel(state()).omitted, 0);
+});
+
+test("omission counts what the catalog dropped and what this surface trims", () => {
+    assert.equal(ViewModel.omittedCount({pictures: [], omitted: 4}), 4);
+    assert.equal(ViewModel.omittedCount({pictures: new Array(30), omitted: 0}), 6);
+    assert.equal(ViewModel.omittedCount({pictures: new Array(30), omitted: 2}), 8);
+    assert.equal(ViewModel.omittedCount({}), 0);
 });

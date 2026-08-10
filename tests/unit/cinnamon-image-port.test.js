@@ -375,7 +375,7 @@ test("the catalog gathers every root and survives one it cannot read", () => {
     const warnings = [];
     const catalog = Cinnamon.createInputCatalog(env, {warn: (message) => warnings.push(message)});
 
-    assert.deepEqual(catalog.pictures([ROOT]), [
+    assert.deepEqual(catalog.pictures([ROOT]).pictures, [
         {root: ROOT, name: "cat.png", path: `${ROOT}/cat.png`},
     ]);
 
@@ -387,11 +387,11 @@ test("the catalog gathers every root and survives one it cannot read", () => {
         },
     });
 
-    assert.deepEqual(catalog.pictures(["/broken"]), []);
+    assert.deepEqual(catalog.pictures(["/broken"]).pictures, []);
     assert.match(warnings[0], /Could not list runtime input root/u);
 });
 
-test("the catalog is bounded however many roots are published", () => {
+test("the cap is shared across roots rather than won by the first", () => {
     const env = environment();
     const roots = [];
     for (let index = 0; index < 4; index += 1) {
@@ -402,7 +402,12 @@ test("the catalog is bounded however many roots are published", () => {
     }
     const catalog = Cinnamon.createInputCatalog(env, {warn() {}});
 
-    assert.equal(catalog.pictures(roots).length, Cinnamon.MAX_INPUT_FILES);
+    const listed = catalog.pictures(roots);
+    const perRoot = new Set(listed.pictures.map((entry) => entry.root));
+
+    assert.equal(perRoot.size, roots.length, "every root is represented, not just the first");
+    assert.ok(listed.pictures.length <= Cinnamon.MAX_INPUT_FILES);
+    assert.ok(listed.omitted > 0, "and what was left out is counted rather than hidden");
 });
 
 test("the image port exposes exactly what a submitter needs", async () => {

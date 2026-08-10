@@ -31,6 +31,12 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/menu-view.js
+msgid "%d more picture is not shown"
+msgid_plural "%d more pictures are not shown"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/menu-view.js
 msgid "%d of %d active"
 msgstr ""
 

@@ -465,8 +465,16 @@ function jobModel(job, profiles) {
     };
 }
 
+// Everything the runtime holds that this surface is not showing: what the
+// catalog left out, plus what this projection itself trims.
+function omittedCount(inputs) {
+    const listed = Array.isArray(inputs.pictures) ? inputs.pictures.length : 0;
+    const trimmed = Math.max(0, listed - MAX_RUN_PICTURES);
+    return trimmed + (Number.isInteger(inputs.omitted) ? inputs.omitted : 0);
+}
+
 function runModel(state) {
-    const inputs = state.inputs || {roots: [], pictures: [], runnable: []};
+    const inputs = state.inputs || {roots: [], pictures: [], runnable: [], omitted: 0};
     const runnableIds = new Set(inputs.runnable || []);
     const runnable = state.profiles.filter((profile) => runnableIds.has(profile.id));
     return {
@@ -475,6 +483,7 @@ function runModel(state) {
         roots: [...inputs.roots],
         profiles: runnable.map((profile) => ({id: profile.id, title: profile.title})),
         pictures: inputs.pictures.slice(0, MAX_RUN_PICTURES).map((picture) => ({...picture})),
+        omitted: omittedCount(inputs),
         job: jobModel(state.job, state.profiles),
     };
 }
@@ -882,6 +891,7 @@ module.exports = {
     setupSummary,
     severityText,
     jobModel,
+    omittedCount,
     progressText,
     readingModel,
     runModel,
