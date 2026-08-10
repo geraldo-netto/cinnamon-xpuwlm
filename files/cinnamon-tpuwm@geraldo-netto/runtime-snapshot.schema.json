@@ -4,10 +4,22 @@
   "title": "TPU Workload Manager runtime snapshot",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "generatedAt", "devices", "metrics", "profiles", "alerts"],
+  "required": [
+    "version",
+    "generatedAt",
+    "devices",
+    "metrics",
+    "profiles",
+    "alerts"
+  ],
   "properties": {
-    "version": {"const": 1},
-    "generatedAt": {"type": "integer", "minimum": 1},
+    "version": {
+      "const": 1
+    },
+    "generatedAt": {
+      "type": "integer",
+      "minimum": 1
+    },
     "devices": {
       "type": "array",
       "minItems": 1,
@@ -15,26 +27,79 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "backend", "available", "name", "kind"],
+        "required": [
+          "id",
+          "backend",
+          "available",
+          "name",
+          "kind"
+        ],
         "properties": {
-          "id": {"type": "string", "minLength": 1, "maxLength": 80},
-          "backend": {"enum": ["tpu", "npu", "gpu"]},
-          "available": {"type": "boolean"},
-          "name": {"type": "string", "maxLength": 120},
-          "kind": {"enum": ["usb", "pcie", "accel", "dri", "unknown"]},
-          "vendor": {"type": "string", "maxLength": 80},
-          "load": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
-          "reason": {"type": "string", "maxLength": 240}
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "backend": {
+            "enum": [
+              "tpu",
+              "npu",
+              "gpu"
+            ]
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "kind": {
+            "enum": [
+              "usb",
+              "pcie",
+              "accel",
+              "dri",
+              "unknown"
+            ]
+          },
+          "vendor": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "load": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 240
+          }
         }
       }
     },
     "metrics": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["queueDepth", "runningProfiles"],
+      "required": [
+        "queueDepth",
+        "runningProfiles"
+      ],
       "properties": {
-        "queueDepth": {"type": "integer", "minimum": 0, "maximum": 1000000},
-        "runningProfiles": {"type": "integer", "minimum": 0, "maximum": 128}
+        "queueDepth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "runningProfiles": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        }
       }
     },
     "profiles": {
@@ -44,9 +109,25 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "status": {"enum": ["healthy", "running", "watching", "idle", "paused", "unavailable"]},
-          "queued": {"type": "integer", "minimum": 0, "maximum": 1000000},
-          "detail": {"type": "string", "maxLength": 240},
+          "status": {
+            "enum": [
+              "healthy",
+              "running",
+              "watching",
+              "idle",
+              "paused",
+              "unavailable"
+            ]
+          },
+          "queued": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 240
+          },
           "reason": {
             "description": "Machine-readable counterpart to detail: what kind of problem this is, so a consumer chooses a remedy without matching English prose.",
             "enum": [
@@ -55,6 +136,7 @@
               "profile-disabled",
               "no-model",
               "artifact-unavailable",
+              "consent-missing",
               "device-absent",
               "runtime-missing",
               "runtime-unusable",
@@ -72,17 +154,64 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "profileId", "title", "summary", "severity", "timestamp"],
+        "required": [
+          "id",
+          "profileId",
+          "title",
+          "summary",
+          "severity",
+          "timestamp"
+        ],
         "properties": {
-          "id": {"type": "string", "minLength": 1, "maxLength": 120},
-          "profileId": {"type": "string", "minLength": 1, "maxLength": 80},
-          "title": {"type": "string", "minLength": 1, "maxLength": 160},
-          "summary": {"type": "string", "maxLength": 500},
-          "severity": {"enum": ["advisory", "warning", "critical"]},
-          "timestamp": {"type": "integer", "minimum": 0},
-          "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
-          "riskScore": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
-          "resolved": {"type": "boolean"},
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "profileId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "severity": {
+            "enum": [
+              "advisory",
+              "warning",
+              "critical"
+            ]
+          },
+          "timestamp": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1
+          },
+          "riskScore": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1
+          },
+          "resolved": {
+            "type": "boolean"
+          },
           "resultRef": {
             "type": "string",
             "pattern": "^result-[A-Za-z0-9._-]+$",
@@ -96,23 +225,39 @@
       "description": "Where a caller may stage a referenced input buffer, and how large one may be. Absent means the runtime predates the field. Empty roots mean it will read no referenced file at all, which is the default: reading a path a caller names is a capability, not something that is on unless configured off. A consumer cannot infer these paths and must not guess them, because a buffer written anywhere else is refused with the same answer as a path that does not exist.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["roots", "maxBytes"],
+      "required": [
+        "roots",
+        "maxBytes"
+      ],
       "properties": {
         "roots": {
           "type": "array",
           "maxItems": 8,
           "uniqueItems": true,
-          "items": {"type": "string", "minLength": 1, "maxLength": 4096}
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
         },
-        "maxBytes": {"type": "integer", "minimum": 0, "maximum": 1073741824}
+        "maxBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1073741824
+        }
       }
     },
     "pluginTelemetry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "plugins"],
+      "required": [
+        "version",
+        "plugins"
+      ],
       "properties": {
-        "version": {"const": 1},
+        "version": {
+          "const": 1
+        },
         "plugins": {
           "type": "array",
           "maxItems": 128,
@@ -120,34 +265,117 @@
             "type": "object",
             "additionalProperties": false,
             "required": [
-              "id", "health", "stage", "artifactReadiness", "queuedJobs", "activeJobs",
-              "lastSuccessAt", "lastErrorCode", "lastErrorAt", "deadlineExceeded", "retries",
-              "cancellations", "drops", "successes", "failures"
+              "id",
+              "health",
+              "stage",
+              "artifactReadiness",
+              "queuedJobs",
+              "activeJobs",
+              "lastSuccessAt",
+              "lastErrorCode",
+              "lastErrorAt",
+              "deadlineExceeded",
+              "retries",
+              "cancellations",
+              "drops",
+              "successes",
+              "failures"
             ],
             "properties": {
-              "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "minLength": 1, "maxLength": 80},
-              "health": {"enum": ["initializing", "healthy", "degraded", "unavailable", "stopped"]},
-              "stage": {
-                "type": ["string", "null"],
-                "enum": [null, "collect", "preprocess", "resolve", "infer", "postprocess", "deliver", "terminal"]
-              },
-              "artifactReadiness": {"enum": ["unknown", "resolving", "ready", "missing", "rejected", "incompatible"]},
-              "queuedJobs": {"type": "integer", "minimum": 0, "maximum": 1000000},
-              "activeJobs": {"type": "integer", "minimum": 0, "maximum": 1024},
-              "lastSuccessAt": {"type": ["integer", "null"], "minimum": 0, "maximum": 9007199254740991},
-              "lastErrorCode": {
-                "type": ["string", "null"],
+              "id": {
+                "type": "string",
                 "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
                 "minLength": 1,
                 "maxLength": 80
               },
-              "lastErrorAt": {"type": ["integer", "null"], "minimum": 0, "maximum": 9007199254740991},
-              "deadlineExceeded": {"$ref": "#/$defs/telemetryCounter"},
-              "retries": {"$ref": "#/$defs/telemetryCounter"},
-              "cancellations": {"$ref": "#/$defs/telemetryCounter"},
-              "drops": {"$ref": "#/$defs/telemetryCounter"},
-              "successes": {"$ref": "#/$defs/telemetryCounter"},
-              "failures": {"$ref": "#/$defs/telemetryCounter"}
+              "health": {
+                "enum": [
+                  "initializing",
+                  "healthy",
+                  "degraded",
+                  "unavailable",
+                  "stopped"
+                ]
+              },
+              "stage": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  null,
+                  "collect",
+                  "preprocess",
+                  "resolve",
+                  "infer",
+                  "postprocess",
+                  "deliver",
+                  "terminal"
+                ]
+              },
+              "artifactReadiness": {
+                "enum": [
+                  "unknown",
+                  "resolving",
+                  "ready",
+                  "missing",
+                  "rejected",
+                  "incompatible"
+                ]
+              },
+              "queuedJobs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "activeJobs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1024
+              },
+              "lastSuccessAt": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "lastErrorCode": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "lastErrorAt": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "deadlineExceeded": {
+                "$ref": "#/$defs/telemetryCounter"
+              },
+              "retries": {
+                "$ref": "#/$defs/telemetryCounter"
+              },
+              "cancellations": {
+                "$ref": "#/$defs/telemetryCounter"
+              },
+              "drops": {
+                "$ref": "#/$defs/telemetryCounter"
+              },
+              "successes": {
+                "$ref": "#/$defs/telemetryCounter"
+              },
+              "failures": {
+                "$ref": "#/$defs/telemetryCounter"
+              }
             }
           }
         }
@@ -155,6 +383,10 @@
     }
   },
   "$defs": {
-    "telemetryCounter": {"type": "integer", "minimum": 0, "maximum": 1000000000}
+    "telemetryCounter": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000000
+    }
   }
 }

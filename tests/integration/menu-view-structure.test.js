@@ -287,3 +287,37 @@ test("labels ellipsize on one line so narrow popups never reflow", () => {
     assert.equal(labels.every((label) => label.clutter_text.line_wrap === false), true);
     assert.equal(labels.every((label) => label.clutter_text.ellipsize === 3), true);
 });
+
+test("a profile waiting on consent is offered a command, not an install", () => {
+    const {view, root} = harness();
+    const state = baseState({selectedTab: "setup"});
+    state.profiles = state.profiles.map((profile) => (profile.id === "hardware-health"
+        ? {
+            ...profile,
+            status: "unavailable",
+            reason: "consent-missing",
+            detail: "needs consent for files:read",
+        }
+        : profile));
+
+    view.render(ViewModel.toViewModel(state, NOW));
+
+    const titles = labelsWithClass(root, "tpuwm-group-title");
+    assert.equal(
+        titles.some((title) => /Grant the permission/u.test(title)),
+        true,
+        "the setup tab names the remedy",
+    );
+    const commands = labelsWithClass(root, "tpuwm-command");
+    assert.equal(
+        commands.some((command) => command.includes("omnitensor-grant grant")),
+        true,
+        "and the command that grants it",
+    );
+    const notes = labelsWithClass(root, "tpuwm-setup-note");
+    assert.equal(
+        notes.some((note) => /same user/u.test(note)),
+        true,
+        "and why it is not a button in this popup",
+    );
+});

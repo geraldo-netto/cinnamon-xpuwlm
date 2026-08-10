@@ -24,7 +24,7 @@
 // `tests/contract/profile-blocker-reason-contract.test.js` pins both halves
 // against the service sources wherever both checkouts are present.
 
-const BLOCKER_KINDS = Object.freeze(["model", "runtime", "hardware", "unknown"]);
+const BLOCKER_KINDS = Object.freeze(["consent", "model", "runtime", "hardware", "unknown"]);
 
 // service.py `_profile_status` and scheduler.py `select_backend`, grouped by
 // the remedy each implies rather than by which module emits it.
@@ -36,6 +36,10 @@ const REASON_CODE_KINDS = Object.freeze({
     // The accelerator is there; the software that drives it is not usable.
     "runtime-missing": "runtime",
     "runtime-unusable": "runtime",
+    // The plugin declares a permission nobody has granted. Nothing is missing
+    // and nothing is broken: a person has to say yes, and the runtime refuses
+    // every job for the profile until they do.
+    "consent-missing": "consent",
     // No device at all. Nothing installable changes this.
     "device-absent": "hardware",
     "no-executor": "hardware",

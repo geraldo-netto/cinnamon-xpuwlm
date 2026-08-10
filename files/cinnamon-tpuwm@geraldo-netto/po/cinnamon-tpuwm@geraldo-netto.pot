@@ -296,6 +296,10 @@ msgstr ""
 msgid "Connection required"
 msgstr ""
 
+#: lib/view-model.js
+msgid "Consent is granted from a terminal rather than from this popup: every peer on the session bus runs as the same user, so the runtime could not tell a request made here from one made by anything else able to talk to it. Withdraw it again with omnitensor-grant revoke."
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Decrease %s weight"
 msgstr ""
@@ -358,6 +362,10 @@ msgstr ""
 
 #: settings-schema.json
 msgid "General"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Grant the permission these profiles ask for"
 msgstr ""
 
 #: lib/view-model.js
@@ -957,6 +965,10 @@ msgid "The service must publish the version 1 snapshot contract."
 msgstr ""
 
 #: lib/view-model.js
+msgid "These profiles declare a permission that has not been granted, so the runtime refuses every job they submit. Nothing is missing and nothing is broken \\u2014 a person has to say yes. The profile's status line names the permission it is waiting on."
+msgstr ""
+
+#: lib/view-model.js
 msgid "These profiles declare no model, so the runtime refuses to build a pipeline for them. Install the artifact, then declare the requirements.model block the command prints in the profile's manifest."
 msgstr ""
 
@@ -1108,6 +1120,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "none"
+msgstr ""
+
+#: lib/view-model.js
+msgid "omnitensor-grant grant <profile> <permission> --reason \"why you are allowing it\""
 msgstr ""
 
 #: lib/view-model.js

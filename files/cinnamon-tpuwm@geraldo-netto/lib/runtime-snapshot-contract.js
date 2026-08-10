@@ -36,7 +36,7 @@ const ENUMS = Object.freeze({
     deviceBackend: new Set(["tpu","npu","gpu"]),
     deviceKind: new Set(["usb","pcie","accel","dri","unknown"]),
     profileStatus: new Set(["healthy","running","watching","idle","paused","unavailable"]),
-    profileReason: new Set(["serving","paused-by-policy","profile-disabled","no-model","artifact-unavailable","device-absent","runtime-missing","runtime-unusable","format-unsupported","no-executor","no-preference"]),
+    profileReason: new Set(["serving","paused-by-policy","profile-disabled","no-model","artifact-unavailable","consent-missing","device-absent","runtime-missing","runtime-unusable","format-unsupported","no-executor","no-preference"]),
     alertSeverity: new Set(["advisory","warning","critical"]),
     telemetryHealth: new Set(["initializing","healthy","degraded","unavailable","stopped"]),
     telemetryStage: new Set([null,"collect","preprocess","resolve","infer","postprocess","deliver","terminal"]),

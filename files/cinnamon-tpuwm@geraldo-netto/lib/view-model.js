@@ -276,7 +276,9 @@ function recoveryModel(state) {
 // remedies are what actually differ: two of them are a command, and the third
 // is an admission that no command exists. Every string here is the applet's
 // own; the runtime's words are repeated per profile beside them.
-const SETUP_KIND_ORDER = Object.freeze(["runtime", "model", "hardware", "unknown"]);
+// Consent first: it is the only one a person can act on in seconds, and it
+// needs no install, no hardware, and no download.
+const SETUP_KIND_ORDER = Object.freeze(["consent", "runtime", "model", "hardware", "unknown"]);
 
 const SETUP_SECTIONS = Object.freeze({
     runtime: Object.freeze({
@@ -290,6 +292,12 @@ const SETUP_SECTIONS = Object.freeze({
         description: N_("These profiles declare no model, so the runtime refuses to build a pipeline for them. Install the artifact, then declare the requirements.model block the command prints in the profile's manifest."),
         command: N_("omnitensor-prepare-artifact <model>.param --id <id> --version <v> --format ncnn --install-root ~/.local/share/omnitensor/artifacts"),
         note: N_("See “Installing a model” in the OmniTensor installation guide. The model format has to match the accelerator the profile declares."),
+    }),
+    consent: Object.freeze({
+        title: N_("Grant the permission these profiles ask for"),
+        description: N_("These profiles declare a permission that has not been granted, so the runtime refuses every job they submit. Nothing is missing and nothing is broken \u2014 a person has to say yes. The profile's status line names the permission it is waiting on."),
+        command: N_("omnitensor-grant grant <profile> <permission> --reason \"why you are allowing it\""),
+        note: N_("Consent is granted from a terminal rather than from this popup: every peer on the session bus runs as the same user, so the runtime could not tell a request made here from one made by anything else able to talk to it. Withdraw it again with omnitensor-grant revoke."),
     }),
     hardware: Object.freeze({
         title: N_("Connect supported hardware"),

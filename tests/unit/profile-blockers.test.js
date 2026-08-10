@@ -9,8 +9,15 @@ function profile(overrides = {}) {
     return {id: "workload", status: "idle", detail: "", executable: true, ...overrides};
 }
 
-test("the three blocker classes stay closed and distinct", () => {
-    assert.deepEqual(Blockers.BLOCKER_KINDS, ["model", "runtime", "hardware", "unknown"]);
+test("the blocker classes stay closed and distinct", () => {
+    assert.deepEqual(
+        Blockers.BLOCKER_KINDS,
+        ["consent", "model", "runtime", "hardware", "unknown"],
+    );
+    // Sentence matching is the fallback for a snapshot carrying no code, so it
+    // covers only the classes a runtime published before codes existed.
+    // `consent` is code-only and deliberately absent here: no runtime ever
+    // described it in prose, so there is no sentence to match.
     assert.deepEqual(
         Blockers.REASON_CLASSES.map(([kind]) => kind),
         ["model", "runtime", "hardware"],
@@ -230,4 +237,17 @@ test("a snapshot with no code at all still classifies by sentence", () => {
         })).kind,
         "runtime",
     );
+});
+
+test("a profile waiting on consent asks a person, not an installer", () => {
+    // Nothing is missing and nothing is broken: the runtime refuses every job
+    // this profile submits until somebody says yes, and the remedy is a
+    // command rather than a download.
+    const blocker = Blockers.classifyProfileBlocker(
+        {status: "unavailable", reason: "consent-missing", detail: "needs consent for files:read"},
+        {executable: true},
+    );
+
+    assert.equal(blocker.kind, "consent");
+    assert.match(blocker.detail, /files:read/u);
 });
