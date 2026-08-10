@@ -39,6 +39,7 @@
     },
     "profiles": {
       "type": "object",
+      "maxProperties": 128,
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,

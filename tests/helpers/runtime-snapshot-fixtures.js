@@ -473,6 +473,16 @@ function runtimeSnapshotSchemaCases() {
         value.devices = Array.from({length: 17}, (_, index) =>
             deviceEntry({id: `npu-accel${index}`}));
     }));
+    cases.push(snapshotCase("one hundred and twenty-eight profiles", true, (value) => {
+        value.profiles = Object.fromEntries(
+            Array.from({length: 128}, (_, index) => [`plugin-${index}`, {queued: 0}]),
+        );
+    }));
+    cases.push(snapshotCase("more than one hundred and twenty-eight profiles", false, (value) => {
+        value.profiles = Object.fromEntries(
+            Array.from({length: 129}, (_, index) => [`plugin-${index}`, {queued: 0}]),
+        );
+    }));
     cases.push(snapshotCase("more than one hundred alerts", false, (value) => {
         value.alerts = Array.from({length: 101}, (_, index) => ({
             ...value.alerts[0],

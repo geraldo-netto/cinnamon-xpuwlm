@@ -17,6 +17,10 @@ const MAX_DEVICE_ENTRIES = 16;
 const METRIC_PROPERTIES = new Set(["queueDepth", "runningProfiles"]);
 const METRIC_REQUIRED = Object.freeze([...METRIC_PROPERTIES]);
 const PROFILE_PROPERTIES = new Set(["status", "queued", "detail"]);
+// The runtime bounds how many profiles one snapshot may describe, matching the
+// plug-in ceiling the registry enforces. Without the bound a hostile snapshot
+// could make the applet walk an unbounded map before anything rejected it.
+const MAX_PROFILE_ENTRIES = WorkloadRegistry.MAX_WORKLOADS;
 // `resultRef` is the runtime's handle for the job result behind an alert. The
 // applet does not resolve it yet, but it must be accepted: the runtime stamps
 // one on every alert it publishes.
@@ -141,7 +145,9 @@ function isProfile(value) {
 }
 
 function isProfiles(value) {
-    return isRecord(value) && Object.values(value).every(isProfile);
+    return isRecord(value)
+        && Object.keys(value).length <= MAX_PROFILE_ENTRIES
+        && Object.values(value).every(isProfile);
 }
 
 function isNullableEvidence(value) {
@@ -260,6 +266,7 @@ class RuntimeSnapshotSchemaValidator {
 }
 
 module.exports = {
+    MAX_PROFILE_ENTRIES,
     MAX_TELEMETRY_PLUGINS,
     RuntimeSnapshotSchemaValidator,
     isPluginTelemetry,
