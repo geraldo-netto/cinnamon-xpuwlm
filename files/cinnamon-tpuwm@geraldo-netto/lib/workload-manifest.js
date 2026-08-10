@@ -49,8 +49,13 @@ const MODEL_REQUIRED = Object.freeze([
 // the same reason `sha256` is: manifests written before the field exist, and
 // absent means the runtime checks nothing, exactly as it did.
 const MODEL_PROPERTIES = new Set([
-    ...MODEL_REQUIRED, "sha256", "tensorContract", "outputContract",
+    ...MODEL_REQUIRED, "sha256", "companions", "tensorContract", "outputContract",
 ]);
+// Digests for the files that travel with the primary one. Optional in the
+// contract and load-bearing at dispatch: a format that keeps its weights in a
+// companion has vouched for half its model without them.
+const COMPANION_FILENAME = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
+const MAX_COMPANIONS = 8;
 const OUTPUT_CONTRACT_REQUIRED = Object.freeze(["kind"]);
 const OUTPUT_CONTRACT_PROPERTIES = new Set([...OUTPUT_CONTRACT_REQUIRED, "topK", "labels"]);
 const OUTPUT_KINDS = new Set(["classification", "embedding", "raw"]);
@@ -135,11 +140,22 @@ function isModelFormat(value, accelerator) {
     return MODEL_FORMATS.has(value.format) && typeof value.fullyQuantized === "boolean";
 }
 
+function isCompanions(value) {
+    if (!isRecord(value)) {
+        return false;
+    }
+    const names = Object.keys(value);
+    return names.length <= MAX_COMPANIONS
+        && names.every((name) => COMPANION_FILENAME.test(name))
+        && names.every((name) => boundedText(value[name], 64, 64) && MODEL_DIGEST.test(value[name]));
+}
+
 function isModelArtifact(value) {
     return boundedText(value.minimumCompilerVersion, 1, 80)
         && boundedText(value.minimumRuntimeVersion, 1, 80)
         && (!declared(value, "sha256")
-            || (boundedText(value.sha256, 64, 64) && MODEL_DIGEST.test(value.sha256)));
+            || (boundedText(value.sha256, 64, 64) && MODEL_DIGEST.test(value.sha256)))
+        && (!declared(value, "companions") || isCompanions(value.companions));
 }
 
 function isFiniteNumberArray(value, minimum, maximum, positive) {
@@ -599,6 +615,7 @@ const MANIFEST_ALLOWLISTS = Object.freeze({
 
 module.exports = {
     ACCELERATORS,
+    isCompanions,
     freezeDeep,
     MANIFEST_ALLOWLISTS,
     MANIFEST_VERSION,

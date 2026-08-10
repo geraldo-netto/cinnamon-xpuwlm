@@ -311,7 +311,9 @@ test("optional model digests load, and malformed ones are still rejected", () =>
 });
 
 function withModel(extra) {
+    // ncnn is a GPU format, and a tpu profile may declare nothing else.
     const manifest = Fixtures.validWorkloadManifest();
+    manifest.requirements.accelerator = "gpu";
     manifest.requirements.model = {...manifest.requirements.model, ...extra};
     return manifest;
 }
@@ -421,4 +423,52 @@ test("a declared output contract is accepted exactly as the schema accepts it", 
 test("a model declaring neither contract is unchanged", () => {
     // Every manifest written before either field still loads.
     agree(Fixtures.validWorkloadManifest(), true, "no contracts");
+});
+
+test("companion digests are bounded, named, and lower-case hex", () => {
+    const digest = "a".repeat(64);
+
+    assert.equal(Contract.isCompanions({}), true, "vouching for nothing is still a statement");
+    assert.equal(Contract.isCompanions({"model.bin": digest}), true);
+    assert.equal(Contract.isCompanions({"labels.txt": digest, "model.bin": digest}), true);
+
+    assert.equal(Contract.isCompanions(null), false);
+    assert.equal(Contract.isCompanions([digest]), false);
+    assert.equal(Contract.isCompanions({"model.bin": digest.toUpperCase()}), false);
+    assert.equal(Contract.isCompanions({"model.bin": "abc"}), false);
+    assert.equal(Contract.isCompanions({"model.bin": 1}), false);
+    assert.equal(Contract.isCompanions({"Model.bin": digest}), false, "installed names are lower case");
+    assert.equal(Contract.isCompanions({"../etc/passwd": digest}), false);
+    assert.equal(Contract.isCompanions({[`${"x".repeat(65)}`]: digest}), false);
+
+    const many = {};
+    for (let index = 0; index < 9; index += 1) {
+        many[`file${index}.bin`] = digest;
+    }
+    assert.equal(Contract.isCompanions(many), false, "bounded like every mirrored collection");
+});
+
+test("a model may vouch for its companions or for nothing beyond itself", () => {
+    const digest = "b".repeat(64);
+
+    // ncnn is a GPU format, and a tpu profile may declare nothing else.
+    const manifest = Fixtures.validWorkloadManifest();
+    manifest.requirements.accelerator = "gpu";
+    manifest.requirements.model = {
+        id: "sample-model",
+        version: "1.0.0",
+        format: "ncnn",
+        fullyQuantized: false,
+        minimumCompilerVersion: "1.0",
+        minimumRuntimeVersion: "1.0",
+        sha256: digest,
+        companions: {"model.bin": digest},
+    };
+    assert.equal(Contract.isWorkloadManifest(manifest), true);
+
+    manifest.requirements.model.companions = {"model.bin": "not-a-digest"};
+    assert.equal(Contract.isWorkloadManifest(manifest), false);
+
+    delete manifest.requirements.model.companions;
+    assert.equal(Contract.isWorkloadManifest(manifest), true, "absent is still valid");
 });

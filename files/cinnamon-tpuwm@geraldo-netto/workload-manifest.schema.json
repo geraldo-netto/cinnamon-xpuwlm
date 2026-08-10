@@ -109,6 +109,13 @@
               "type": "string",
               "pattern": "^[a-f0-9]{64}$"
             },
+            "companions": {
+              "description": "Digests for the files that travel with the primary one — ncnn keeps every weight in the .bin beside the .param, and OpenVINO IR has the same split. Without these the publisher vouches for the graph and not for the weights: the store re-verifies its own record on every resolve, which catches a companion replaced after installation and not one substituted before it.",
+              "type": "object",
+              "maxProperties": 8,
+              "propertyNames": {"pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"},
+              "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+            },
             "outputContract": {
               "description": "What the model's output means. Absent means the raw tensors are returned unchanged, which is what every profile did before this field. A reduction belongs here rather than in whoever renders the result: the reduction is a property of the model, and a consumer that guessed it would relabel every result the day the artifact changed.",
               "type": "object",
