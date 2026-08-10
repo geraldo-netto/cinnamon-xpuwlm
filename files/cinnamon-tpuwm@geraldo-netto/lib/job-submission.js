@@ -79,6 +79,10 @@ function requireJobGateway(candidate) {
     return candidate;
 }
 
+function resultFailure(error) {
+    return new JobStagingError("job-result-unavailable", `the outcome could not be read: ${error}`);
+}
+
 function stagedFilename(workloadId, requestId) {
     const name = `${workloadId}-${requestId}${STAGED_SUFFIX}`;
     if (!STAGED_FILENAME.test(name) || name.includes("..")) {
@@ -213,6 +217,34 @@ class JobSubmitter {
         return true;
     }
 
+    // Whether this runtime can be asked what became of a job at all. An older
+    // service without the method leaves the applet reporting the
+    // acknowledgement and nothing more, which is all it can honestly know.
+    get pollable() {
+        return this._gateway.pollable === true;
+    }
+
+    // Each poll is its own request with its own id, so a reply that arrives
+    // after a later poll is discarded by the gateway rather than delivered
+    // against the newer question.
+    requestResult(jobId, callback) {
+        if (typeof callback !== "function") {
+            throw new TypeError("A job result callback is required");
+        }
+        try {
+            this._gateway.requestResult({requestId: this._nextRequestId(), jobId}, callback);
+        } catch (error) {
+            callback(resultFailure(error), null);
+        }
+        return true;
+    }
+
+    cancelResult() {
+        return typeof this._gateway.cancelResult === "function"
+            ? this._gateway.cancelResult()
+            : false;
+    }
+
     discard(path) {
         if (typeof path !== "string") {
             return false;
@@ -259,6 +291,7 @@ module.exports = {
     decodeFailure,
     encodingRefusalFor,
     refusalCode,
+    resultFailure,
     requireImagePort,
     requireJobGateway,
     stagedFilename,

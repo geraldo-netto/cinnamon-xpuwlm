@@ -191,3 +191,116 @@ describe("building a submission", () => {
         assert.ok(!Job.boundedProperties({a: 1, b: 2}, ["a"], new Set(["a"])));
     });
 });
+
+describe("job result contract", () => {
+    function jobResult(overrides = {}) {
+        return {
+            version: 1,
+            requestId: "tpuwm-1-2",
+            jobId: "job-7f3c",
+            state: "succeeded",
+            code: "job-succeeded",
+            message: "Job finished",
+            timestamp: 1786373216892,
+            ...overrides,
+        };
+    }
+
+    it("accepts every state the runtime may report", () => {
+        for (const state of Job.RESULT_STATES) {
+            assert.ok(Job.isJobResult(jobResult({state})), state);
+        }
+    });
+
+    it("accepts the optional evidence and its absence alike", () => {
+        assert.ok(Job.isJobResult(jobResult({progress: null, output: null})));
+        assert.ok(Job.isJobResult(jobResult({progress: {fraction: 0.5, detail: "infer"}})));
+        assert.ok(Job.isJobResult(jobResult({output: {outputs: [], durationMs: 21}})));
+        assert.ok(Job.isJobResult(jobResult({message: ""})), "a message may be empty");
+    });
+
+    it("rejects a reply that does not match the contract", () => {
+        assert.ok(!Job.isJobResult(jobResult({state: "queued"})));
+        assert.ok(!Job.isJobResult(jobResult({code: "Job Succeeded"})));
+        assert.ok(!Job.isJobResult(jobResult({timestamp: 0})));
+        assert.ok(!Job.isJobResult(jobResult({jobId: null})));
+        assert.ok(!Job.isJobResult(jobResult({progress: {fraction: 1.5, detail: ""}})));
+        assert.ok(!Job.isJobResult(jobResult({progress: {fraction: 0.5}})));
+        assert.ok(!Job.isJobResult(jobResult({output: []})));
+        assert.ok(!Job.isJobResult({...jobResult(), extra: 1}));
+        assert.ok(!Job.isJobResult(null));
+    });
+
+    it("names the states a job cannot leave", () => {
+        assert.deepEqual([...Job.TERMINAL_STATES].sort(), ["cancelled", "failed", "succeeded", "unknown"]);
+        assert.ok(Job.isTerminalState("failed"));
+        assert.ok(!Job.isTerminalState("running"));
+        for (const state of Job.TERMINAL_STATES) {
+            assert.ok(Job.RESULT_STATES.has(state), `${state} is a state the runtime reports`);
+        }
+    });
+
+    it("builds a result request or refuses to", () => {
+        assert.deepEqual(Job.jobResultRequest({requestId: "tpuwm-1-2", jobId: "job-1"}), {
+            version: 1,
+            requestId: "tpuwm-1-2",
+            jobId: "job-1",
+        });
+        assert.throws(() => Job.jobResultRequest({requestId: "a b", jobId: "job-1"}), TypeError);
+        assert.throws(() => Job.jobResultRequest({requestId: "tpuwm-1", jobId: ""}), TypeError);
+    });
+
+    it("validates progress on its own, including its absence", () => {
+        assert.ok(Job.isProgress(null));
+        assert.ok(Job.isProgress({fraction: 0, detail: ""}));
+        assert.ok(!Job.isProgress({fraction: -0.1, detail: ""}));
+        assert.ok(!Job.isProgress({fraction: 0.5, detail: "x".repeat(Job.MAX_PROGRESS_DETAIL_LENGTH + 1)}));
+        assert.ok(!Job.isProgress(undefined));
+    });
+});
+
+describe("reading a succeeded job", () => {
+    function output(reading) {
+        return {outputs: [], durationMs: 21, reading};
+    }
+
+    it("reads the reduction the profile's contract asked for", () => {
+        const reading = Job.readingOf(output({
+            kind: "classification",
+            top: [{index: 669, score: 0.0918, label: "beacon"}, {index: 2, score: 0.01}],
+        }));
+
+        assert.equal(reading.kind, "classification");
+        assert.deepEqual(reading.top[0], {index: 669, score: 0.0918, label: "beacon"});
+        assert.deepEqual(reading.top[1], {index: 2, score: 0.01});
+        assert.ok(!Object.hasOwn(reading.top[1], "label"), "an index gains no name here");
+    });
+
+    it("reports nothing rather than something partly understood", () => {
+        assert.equal(Job.readingOf(null), null);
+        assert.equal(Job.readingOf({}), null);
+        assert.equal(Job.readingOf(output({kind: "guess", top: []})), null);
+        assert.equal(Job.readingOf(output({kind: "classification", top: "top"})), null);
+        assert.equal(Job.readingOf(output({kind: "classification", top: [{index: -1, score: 1}]})), null);
+        assert.equal(Job.readingOf(output({kind: "classification", top: [{index: 1, score: "1"}]})), null);
+        assert.equal(Job.readingOf(output({kind: "classification", top: [{index: 1}]})), null);
+        assert.equal(Job.readingOf(output({kind: "classification", top: [{index: 1, score: 1, label: 5}]})), null);
+    });
+
+    it("is bounded however many candidates the runtime returned", () => {
+        const many = Array.from({length: Job.MAX_READING_ENTRIES + 10}, (unused, index) => ({
+            index,
+            score: 0.1,
+        }));
+
+        assert.equal(Job.readingOf(output({kind: "classification", top: many})).top.length,
+            Job.MAX_READING_ENTRIES);
+    });
+
+    it("returns an empty reduction as an empty one, not as an absence", () => {
+        assert.deepEqual(Job.readingOf(output({kind: "classification", top: []})), {
+            kind: "classification",
+            top: [],
+        });
+    });
+});

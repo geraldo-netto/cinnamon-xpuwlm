@@ -218,3 +218,136 @@ describe("superseding a job submission", () => {
         assert.equal(gateway.cancel(), false);
     });
 });
+
+describe("asking what became of a job", () => {
+    function jobResult(overrides = {}) {
+        return JSON.stringify({
+            version: 1,
+            requestId: "tpuwm-poll-1",
+            jobId: "job-1",
+            state: "succeeded",
+            code: "job-succeeded",
+            message: "Job finished",
+            timestamp: 1786373216892,
+            ...overrides,
+        });
+    }
+
+    function pollHarness({reply = jobResult(), defer = false} = {}) {
+        const calls = {submit: [], result: []};
+        const pending = [];
+        const gateway = new Gateway.RuntimeJobGateway({
+            sendText(text, options, callback) {
+                calls.submit.push(text);
+                callback(null, acknowledgement());
+            },
+            sendResultText(text, options, callback) {
+                calls.result.push(text);
+                if (defer) {
+                    pending.push(() => callback(null, reply));
+                    return;
+                }
+                callback(null, reply);
+            },
+        });
+        return {gateway, calls, pending};
+    }
+
+    it("asks with the request the runtime expects and returns its answer", () => {
+        const {gateway, calls} = pollHarness();
+        let received = null;
+
+        gateway.requestResult({requestId: "tpuwm-poll-1", jobId: "job-1"}, (error, reply) => {
+            received = {error, reply};
+        });
+
+        assert.deepEqual(JSON.parse(calls.result[0]), {
+            version: 1,
+            requestId: "tpuwm-poll-1",
+            jobId: "job-1",
+        });
+        assert.equal(received.error, null);
+        assert.equal(received.reply.state, "succeeded");
+    });
+
+    it("refuses a request the runtime would reject before sending it", () => {
+        const {gateway, calls} = pollHarness();
+
+        assert.throws(() => gateway.requestResult({requestId: "a b", jobId: "job-1"}), TypeError);
+        assert.throws(() => gateway.requestResult({requestId: "tpuwm-1", jobId: "job-1"}, null), TypeError);
+        assert.deepEqual(calls.result, []);
+    });
+
+    it("tells an answer for a different poll from this one", () => {
+        const {gateway} = pollHarness({reply: jobResult({requestId: "tpuwm-poll-9"})});
+        let received = null;
+
+        gateway.requestResult({requestId: "tpuwm-poll-1", jobId: "job-1"}, (error) => {
+            received = error;
+        });
+
+        assert.ok(RuntimeControl.isContractViolation(received));
+    });
+
+    it("recognises a refusal of the poll itself", () => {
+        const {gateway} = pollHarness({
+            reply: JSON.stringify({
+                version: 1,
+                status: "rejected",
+                code: "rate-limit-exceeded",
+                message: "too many",
+                method: "GetJobResult",
+            }),
+        });
+        let received = null;
+
+        gateway.requestResult({requestId: "tpuwm-poll-1", jobId: "job-1"}, (error) => {
+            received = error;
+        });
+
+        assert.equal(Refusal.refusalOf(received).method, "GetJobResult");
+    });
+
+    it("keeps the two channels independent, so a new job does not abandon a poll", () => {
+        const {gateway, pending} = pollHarness({defer: true});
+        const seen = [];
+
+        gateway.requestResult({requestId: "tpuwm-poll-1", jobId: "job-1"}, (error, reply) => {
+            seen.push(reply.state);
+        });
+        gateway.submit(submission({requestId: "tpuwm-2-2"}), () => {});
+        pending[0]();
+
+        assert.deepEqual(seen, ["succeeded"], "the poll still answered the caller waiting on it");
+    });
+
+    it("says when it cannot ask at all, rather than pretending to", () => {
+        const gateway = new Gateway.RuntimeJobGateway({
+            sendText(text, options, callback) {
+                callback(null, acknowledgement());
+            },
+        });
+
+        assert.equal(gateway.pollable, false);
+        assert.equal(gateway.cancelResult(), false);
+        assert.throws(
+            () => gateway.requestResult({requestId: "tpuwm-1-1", jobId: "job-1"}, () => {}),
+            /cannot request results/u,
+        );
+    });
+
+    it("cancels both channels together when the caller gives up", () => {
+        const {gateway} = pollHarness({defer: true});
+
+        gateway.requestResult({requestId: "tpuwm-poll-1", jobId: "job-1"}, () => {});
+        assert.equal(gateway.cancel(), true);
+        assert.equal(gateway.cancel(), false);
+        assert.equal(gateway.pollable, true);
+    });
+
+    it("parses a result on its own", () => {
+        assert.equal(Gateway.parseJobResult(jobResult()).state, "succeeded");
+        assert.throws(() => Gateway.parseJobResult("{"), SyntaxError);
+        assert.throws(() => Gateway.parseJobResult(jobResult({state: "queued"})), TypeError);
+    });
+});

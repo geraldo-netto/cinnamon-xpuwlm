@@ -2,8 +2,10 @@
 
 // What a job submission and its acknowledgement look like on the wire.
 //
-// Mirrors `runtime-job-submit.schema.json` and
-// `runtime-job-acknowledgement.schema.json`, plus the reference shape
+// Mirrors `runtime-job-submit.schema.json`,
+// `runtime-job-acknowledgement.schema.json`,
+// `runtime-job-result-request.schema.json` and `runtime-job-result.schema.json`,
+// plus the reference shape
 // `tensorref.py` parses out of the payload. The payload is an opaque object in
 // the schema — the runtime validates references separately — so the reference
 // rules are restated here rather than inherited, and a contract test pins them
@@ -48,6 +50,26 @@ const ACKNOWLEDGEMENT_REQUIRED = Object.freeze([...ACKNOWLEDGEMENT_PROPERTIES]);
 const ACKNOWLEDGEMENT_STATUSES = new Set(["accepted", "cancelled", "rejected", "not-found"]);
 const REFERENCE_PROPERTIES = new Set(["path", "shape", "dtype", "sha256"]);
 const REFERENCE_REQUIRED = Object.freeze([...REFERENCE_PROPERTIES]);
+
+const RESULT_REQUEST_PROPERTIES = new Set(["version", "requestId", "jobId"]);
+const RESULT_PROPERTIES = new Set([
+    "version", "requestId", "jobId", "state", "code", "message", "timestamp",
+    "progress", "output",
+]);
+const RESULT_REQUIRED = Object.freeze([
+    "version", "requestId", "jobId", "state", "code", "message", "timestamp",
+]);
+const PROGRESS_PROPERTIES = new Set(["fraction", "detail"]);
+const PROGRESS_REQUIRED = Object.freeze([...PROGRESS_PROPERTIES]);
+// `unknown` answers both a job that never existed and one belonging to another
+// caller, so a reply never reveals which job ids are real.
+const RESULT_STATES = new Set(["unknown", "running", "succeeded", "failed", "cancelled"]);
+// The states a job cannot leave. Polling stops here, and the staged input
+// buffer is removed here, because nothing will read it again.
+const TERMINAL_STATES = new Set(["unknown", "succeeded", "failed", "cancelled"]);
+const RESULT_CODE = /^[a-z0-9-]{1,64}$/u;
+const MAX_RESULT_MESSAGE_LENGTH = 500;
+const MAX_PROGRESS_DETAIL_LENGTH = 200;
 
 const exactRecord = Contract.exactRecord;
 
@@ -150,6 +172,64 @@ function isJobAcknowledgement(value) {
         && value.timestamp >= 1;
 }
 
+function isProgress(value) {
+    return value === null || (
+        boundedProperties(value, PROGRESS_REQUIRED, PROGRESS_PROPERTIES)
+        && Number.isFinite(value.fraction)
+        && value.fraction >= 0
+        && value.fraction <= 1
+        && boundedText(value.detail, 0, MAX_PROGRESS_DETAIL_LENGTH)
+    );
+}
+
+function hasResultIdentity(value) {
+    return value.version === JOB_VERSION
+        && isRequestId(value.requestId)
+        && isJobId(value.jobId)
+        && RESULT_STATES.has(value.state);
+}
+
+function hasResultReport(value) {
+    return boundedText(value.code, 1, 64)
+        && RESULT_CODE.test(value.code)
+        && boundedText(value.message, 0, MAX_RESULT_MESSAGE_LENGTH)
+        && Number.isInteger(value.timestamp)
+        && value.timestamp >= 1;
+}
+
+// `output` is deliberately open in the schema — the runtime puts whatever a
+// profile produced there — so it is checked as an object and read defensively,
+// never trusted field by field.
+function hasResultEvidence(value) {
+    return optional(value, "progress", isProgress)
+        && optional(value, "output", (output) => output === null || isRecord(output));
+}
+
+function optional(value, name, predicate) {
+    return !Object.hasOwn(value, name) || predicate(value[name]);
+}
+
+function isJobResult(value) {
+    return boundedProperties(value, RESULT_REQUIRED, RESULT_PROPERTIES)
+        && hasResultIdentity(value)
+        && hasResultReport(value)
+        && hasResultEvidence(value);
+}
+
+function isTerminalState(state) {
+    return TERMINAL_STATES.has(state);
+}
+
+function jobResultRequest({requestId, jobId}) {
+    const request = {version: JOB_VERSION, requestId, jobId};
+    if (!exactRecord(request, RESULT_REQUEST_PROPERTIES)
+        || !isRequestId(requestId)
+        || !isJobId(jobId)) {
+        throw new TypeError("Job result request does not match the version 1 contract");
+    }
+    return request;
+}
+
 // A submission the applet builds, ready to be stringified. Built here rather
 // than at the call site so the one place that knows the envelope is the one
 // place that validates it.
@@ -166,15 +246,63 @@ function jobSubmission({requestId, workloadId, references}) {
     return submission;
 }
 
+// What a succeeded job actually said, when its profile declared an output
+// contract. `output` is open in the schema, so every field is checked here
+// rather than assumed: a reading is worth rendering only if it is entirely
+// well-formed, and a partly-parsed one would put a confident wrong number on a
+// user's screen.
+const MAX_READING_ENTRIES = 100;
+const MAX_LABEL_LENGTH = 160;
+const READING_KINDS = new Set(["classification", "embedding", "raw"]);
+
+function isReadingEntry(value) {
+    return isRecord(value)
+        && Number.isInteger(value.index)
+        && value.index >= 0
+        && Number.isFinite(value.score)
+        && (!Object.hasOwn(value, "label") || boundedText(value.label, 0, MAX_LABEL_LENGTH));
+}
+
+function readingOf(output) {
+    if (!isRecord(output) || !isRecord(output.reading)) {
+        return null;
+    }
+    const reading = output.reading;
+    if (!READING_KINDS.has(reading.kind) || !Array.isArray(reading.top)) {
+        return null;
+    }
+    const top = reading.top.slice(0, MAX_READING_ENTRIES);
+    if (!top.every(isReadingEntry)) {
+        return null;
+    }
+    return {
+        kind: reading.kind,
+        top: top.map((entry) => (Object.hasOwn(entry, "label")
+            ? {index: entry.index, score: entry.score, label: entry.label}
+            : {index: entry.index, score: entry.score})),
+    };
+}
+
 const JOB_CONTRACT_ALLOWLISTS = Object.freeze({
     submission: SUBMISSION_PROPERTIES,
     acknowledgement: ACKNOWLEDGEMENT_PROPERTIES,
     reference: REFERENCE_PROPERTIES,
+    resultRequest: RESULT_REQUEST_PROPERTIES,
+    result: RESULT_PROPERTIES,
+    progress: PROGRESS_PROPERTIES,
 });
 
 module.exports = {
     ACKNOWLEDGEMENT_PROPERTIES,
     ACKNOWLEDGEMENT_STATUSES,
+    MAX_READING_ENTRIES,
+    MAX_PROGRESS_DETAIL_LENGTH,
+    MAX_RESULT_MESSAGE_LENGTH,
+    PROGRESS_PROPERTIES,
+    RESULT_PROPERTIES,
+    RESULT_REQUEST_PROPERTIES,
+    RESULT_STATES,
+    TERMINAL_STATES,
     DTYPE_SIZES,
     JOB_CONTRACT_ALLOWLISTS,
     JOB_VERSION,
@@ -189,12 +317,17 @@ module.exports = {
     elementCount,
     isInputReference,
     isJobAcknowledgement,
+    isJobResult,
     isJobSubmission,
+    isProgress,
+    isTerminalState,
     isPayload,
     isReferencePayload,
     isRequestId,
     isShape,
     isWorkloadId,
+    jobResultRequest,
     jobSubmission,
+    readingOf,
     referenceBytes,
 };

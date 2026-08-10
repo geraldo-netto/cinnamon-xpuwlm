@@ -62,6 +62,15 @@ function movedTabIndex(move, currentIndex, count) {
     return current;
 }
 
+// Everything known about one job, in the order it becomes known: what the
+// runtime said, then what became of it, then how far along it is. Each part is
+// omitted when it is not known rather than printed empty.
+function jobDetail(job) {
+    return [job.message, job.stateText, job.progressText, job.jobId]
+        .filter((part) => typeof part === "string" && part !== "")
+        .join(" · ");
+}
+
 function requireAction(actions, name) {
     if (!actions || typeof actions[name] !== "function") {
         throw new TypeError(`Menu action ${name} is required`);
@@ -586,17 +595,32 @@ class MenuView {
     }
 
     // One line, and it says which picture and which profile: a bare "accepted"
-    // beside a list of pictures does not say which of them was accepted.
+    // beside a list of pictures does not say which of them was accepted. The
+    // state comes second because it is the part that changes — accepted is a
+    // receipt, and only a terminal state is an outcome.
     _renderJobOutcome(job) {
         if (job === null || job === undefined) {
             return false;
         }
-        const detail = job.jobId === "" ? job.message : `${job.message} · ${job.jobId}`;
         this._body.add_child(this._label(
-            `${job.title} · ${job.sourceName} — ${detail}`,
+            `${job.title} · ${job.sourceName} — ${jobDetail(job)}`,
             `tpuwm-job-outcome tpuwm-job-${job.tone}`,
             true,
         ));
+        this._renderReading(job.reading);
+        return true;
+    }
+
+    // The answer the job was run for. Rendered as its own rows rather than
+    // folded into the outcome line, because a list of candidates read as one
+    // run-on sentence is a list nobody reads.
+    _renderReading(reading) {
+        if (reading === null || reading === undefined) {
+            return false;
+        }
+        for (const entry of reading.entries) {
+            this._body.add_child(this._label(entry, "tpuwm-job-reading", true));
+        }
         return true;
     }
 
@@ -1058,6 +1082,7 @@ class MenuView {
 }
 
 module.exports = {
+    jobDetail,
     MenuView,
     TAB_NAMES,
     destroyChildren,

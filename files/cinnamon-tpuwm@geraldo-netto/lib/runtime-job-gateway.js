@@ -1,13 +1,18 @@
 "use strict";
 
-// Submitting one job over the bus, and nothing else.
+// Submitting one job over the bus, and asking what became of it.
 //
-// The same shape as the control gateway on purpose: one call in flight, a
-// sequence number so a reply that arrives after a newer request is discarded
-// rather than delivered, and a refusal recognised before the acknowledgement
-// contract can flatten it into "malformed reply". A job is slower and more
-// expensive than a policy change, which is a reason to keep the failure
-// vocabulary identical rather than to invent a second one.
+// The same shape as the control gateway on purpose: one call in flight per
+// channel, a sequence number so a reply that arrives after a newer request is
+// discarded rather than delivered, and a refusal recognised before the
+// acknowledgement contract can flatten it into "malformed reply". A job is
+// slower and more expensive than a policy change, which is a reason to keep the
+// failure vocabulary identical rather than to invent a second one.
+//
+// Two channels, not one. A poll and a submission are independent calls with
+// independent lifetimes, and sharing a pending slot would make starting a new
+// job silently abandon the poll for the job before it — which is exactly the
+// moment a user is waiting for an answer.
 
 const Contract = require("./runtime-control-contract.js");
 const Job = require("./runtime-job-contract.js");
@@ -24,55 +29,61 @@ function requirePorts(sendText, cancellableFactory) {
     }
 }
 
-function parseJobAcknowledgement(text) {
+function parsed(text, label) {
     if (typeof text !== "string") {
-        throw contractViolation(TypeError, "Runtime job acknowledgement is not text");
+        throw contractViolation(TypeError, `Runtime job ${label} is not text`);
     }
-    let reply;
     try {
-        reply = JSON.parse(text);
+        return JSON.parse(text);
     } catch {
-        throw contractViolation(SyntaxError, "Runtime job acknowledgement contains invalid JSON");
+        throw contractViolation(SyntaxError, `Runtime job ${label} contains invalid JSON`);
     }
+}
+
+function accepted(text, label, matches) {
+    const reply = parsed(text, label);
     if (Refusal.isRuntimeRefusal(reply)) {
         throw new Refusal.RuntimeRefusedError(reply);
     }
-    if (!Job.isJobAcknowledgement(reply)) {
+    if (!matches(reply)) {
         throw contractViolation(
             TypeError,
-            "Runtime job acknowledgement does not match version 1 contract",
+            `Runtime job ${label} does not match version 1 contract`,
         );
     }
     return reply;
 }
 
-class RuntimeJobGateway {
-    constructor({sendText, cancellableFactory = () => null}) {
-        requirePorts(sendText, cancellableFactory);
+function parseJobAcknowledgement(text) {
+    return accepted(text, "acknowledgement", Job.isJobAcknowledgement);
+}
+
+function parseJobResult(text) {
+    return accepted(text, "result", Job.isJobResult);
+}
+
+// One request in flight, and a reply for a superseded one thrown away rather
+// than delivered against whatever the caller is waiting for now.
+class Channel {
+    constructor(sendText, cancellableFactory) {
         this._sendText = sendText;
         this._cancellableFactory = cancellableFactory;
         this._sequence = 0;
         this._pending = null;
     }
 
-    submit(submission, callback) {
-        if (!Job.isJobSubmission(submission)) {
-            throw new TypeError("Job submission does not match the version 1 contract");
-        }
-        if (typeof callback !== "function") {
-            throw new TypeError("A job submission callback is required");
-        }
+    send(requestId, text, parse, callback) {
         this.cancel();
         this._sequence += 1;
         const sequence = this._sequence;
         const cancellable = this._cancellableFactory();
-        this._pending = {sequence, cancellable, requestId: submission.requestId};
+        this._pending = {sequence, cancellable, requestId};
         try {
-            this._sendText(JSON.stringify(submission), {cancellable}, (error, text) => {
-                this._complete(sequence, callback, error, text);
+            this._sendText(text, {cancellable}, (error, reply) => {
+                this._complete(sequence, parse, callback, error, reply);
             });
         } catch (error) {
-            this._complete(sequence, callback, error, null);
+            this._complete(sequence, parse, callback, error, null);
         }
         return true;
     }
@@ -90,7 +101,7 @@ class RuntimeJobGateway {
         return true;
     }
 
-    _complete(sequence, callback, error, text) {
+    _complete(sequence, parse, callback, error, text) {
         if (this._pending === null || sequence !== this._sequence) {
             return false;
         }
@@ -101,30 +112,88 @@ class RuntimeJobGateway {
             return true;
         }
         try {
-            callback(null, this._matched(pending, text));
+            callback(null, matched(pending, parse(text)));
         } catch (parseError) {
             callback(parseError, null);
         }
         return true;
     }
+}
 
-    // An acknowledgement for a different request is not this job's answer, and
-    // treating it as one would report another submission's refusal against the
-    // picture the user just chose.
-    _matched(pending, text) {
-        const acknowledgement = parseJobAcknowledgement(text);
-        if (acknowledgement.requestId !== pending.requestId) {
-            throw contractViolation(
-                RangeError,
-                "Runtime job acknowledgement request ID does not match request",
-            );
+// A reply for a different request is not this one's answer, and treating it as
+// one would report another call's outcome against the picture in front of the
+// user.
+function matched(pending, reply) {
+    if (reply.requestId !== pending.requestId) {
+        throw contractViolation(
+            RangeError,
+            "Runtime job reply request ID does not match request",
+        );
+    }
+    return reply;
+}
+
+class RuntimeJobGateway {
+    constructor({sendText, sendResultText = null, cancellableFactory = () => null}) {
+        requirePorts(sendText, cancellableFactory);
+        this._submissions = new Channel(sendText, cancellableFactory);
+        // Absent against a runtime that has no result method to call: the
+        // applet then reports the acknowledgement and says nothing it cannot
+        // know, rather than polling an endpoint that is not there.
+        this._results = sendResultText === null
+            ? null
+            : new Channel(sendResultText, cancellableFactory);
+    }
+
+    get pollable() {
+        return this._results !== null;
+    }
+
+    submit(submission, callback) {
+        if (!Job.isJobSubmission(submission)) {
+            throw new TypeError("Job submission does not match the version 1 contract");
         }
-        return acknowledgement;
+        if (typeof callback !== "function") {
+            throw new TypeError("A job submission callback is required");
+        }
+        return this._submissions.send(
+            submission.requestId,
+            JSON.stringify(submission),
+            parseJobAcknowledgement,
+            callback,
+        );
+    }
+
+    requestResult(request, callback) {
+        if (typeof callback !== "function") {
+            throw new TypeError("A job result callback is required");
+        }
+        if (this._results === null) {
+            throw new TypeError("This runtime job gateway cannot request results");
+        }
+        return this._results.send(
+            request.requestId,
+            JSON.stringify(Job.jobResultRequest(request)),
+            parseJobResult,
+            callback,
+        );
+    }
+
+    cancelResult() {
+        return this._results === null ? false : this._results.cancel();
+    }
+
+    cancel() {
+        const results = this.cancelResult();
+        return this._submissions.cancel() || results;
     }
 }
 
 module.exports = {
+    Channel,
     RuntimeJobGateway,
+    matched,
     parseJobAcknowledgement,
+    parseJobResult,
     requirePorts,
 };

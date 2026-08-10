@@ -60,6 +60,20 @@ function harness(options = {}) {
     };
     const gateway = {
         submissions: [],
+        polls: [],
+        pollable: options.pollable !== false,
+        requestResult(poll, callback) {
+            this.polls.push(poll);
+            if (options.resultThrows) {
+                throw new Error("no such method");
+            }
+            callback(null, {state: "succeeded"});
+            return true;
+        },
+        cancelResult: options.noCancelResult ? undefined : () => {
+            events.push(["cancelResult"]);
+            return true;
+        },
         submit(document, callback) {
             this.submissions.push(document);
             events.push(["submit", document.workloadId]);
@@ -280,5 +294,49 @@ describe("submission ports", () => {
         assert.equal(Submission.refusalCode(Submission.decodeFailure("x")), "image-decode-failed");
         assert.equal(Submission.refusalCode(Submission.writeFailure("x")), "staging-write-failed");
         assert.equal(new Submission.JobStagingError("a", "b").name, "JobStagingError");
+    });
+});
+
+describe("asking what became of a job", () => {
+    it("polls with a fresh request each time, so a stale answer is discarded", () => {
+        const {submitter, gateway} = harness();
+        const seen = [];
+
+        submitter.requestResult("job-1", (error, reply) => seen.push([error, reply]));
+        submitter.requestResult("job-1", () => {});
+
+        assert.equal(gateway.polls.length, 2);
+        assert.notEqual(gateway.polls[0].requestId, gateway.polls[1].requestId);
+        assert.equal(gateway.polls[0].jobId, "job-1");
+        assert.deepEqual(seen[0], [null, {state: "succeeded"}]);
+    });
+
+    it("reports a runtime it cannot ask rather than throwing at the caller", () => {
+        const {submitter} = harness({resultThrows: true});
+        let received = null;
+
+        submitter.requestResult("job-1", (error) => {
+            received = error;
+        });
+
+        assert.equal(Submission.refusalCode(received), "job-result-unavailable");
+        assert.match(received.detail, /no such method/u);
+    });
+
+    it("reports whether this runtime can be asked at all", () => {
+        assert.equal(harness().submitter.pollable, true);
+        assert.equal(harness({pollable: false}).submitter.pollable, false);
+    });
+
+    it("requires a callback, because an unread outcome is no outcome", () => {
+        assert.throws(() => harness().submitter.requestResult("job-1", null), TypeError);
+    });
+
+    it("cancels a poll where the gateway can, and says so where it cannot", () => {
+        const {submitter, events} = harness();
+
+        assert.equal(submitter.cancelResult(), true);
+        assert.ok(events.some(([name]) => name === "cancelResult"));
+        assert.equal(harness({noCancelResult: true}).submitter.cancelResult(), false);
     });
 });

@@ -24,6 +24,7 @@ const CONTROL_INTERFACE = "org.cinnamon.OmniTensor1";
 const CONTROL_METHOD = "ApplyCommand";
 const CONTRACT_METHOD = "DescribeContract";
 const SUBMIT_JOB_METHOD = "SubmitJob";
+const JOB_RESULT_METHOD = "GetJobResult";
 const CONTROL_TIMEOUT_MS = 5000;
 const MAX_PCIE_DEVICES = 8;
 const MAX_USB_DEVICES = 256;
@@ -1199,10 +1200,17 @@ function submitRuntimeJobText(text, options, callback, environment) {
     return callRuntimeMethod(SUBMIT_JOB_METHOD, text, options, callback, environment);
 }
 
+function requestRuntimeJobResultText(text, options, callback, environment) {
+    return callRuntimeMethod(JOB_RESULT_METHOD, text, options, callback, environment);
+}
+
 function createRuntimeJobGateway(environment) {
     return new RuntimeJob.RuntimeJobGateway({
         cancellableFactory: createCancellableFactory(environment),
         sendText: (text, options, callback) => submitRuntimeJobText(
+            text, options, callback, environment,
+        ),
+        sendResultText: (text, options, callback) => requestRuntimeJobResultText(
             text, options, callback, environment,
         ),
     });
@@ -1229,6 +1237,7 @@ module.exports = {
     IMAGE_SUFFIXES,
     MAX_IMAGE_BYTES,
     MAX_INPUT_FILES,
+    JOB_RESULT_METHOD,
     SUBMIT_JOB_METHOD,
     MAX_PCIE_DEVICES,
     MAX_USB_DEVICES,
@@ -1292,6 +1301,7 @@ module.exports = {
     requestRuntimeContractText,
     sameIdentity,
     sendRuntimeCommandText,
+    requestRuntimeJobResultText,
     submitRuntimeJobText,
     removeFile,
     writeBufferAsync,

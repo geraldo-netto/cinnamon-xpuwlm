@@ -501,3 +501,48 @@ test("the job gateway reaches the same endpoint through its own transport", () =
     assert.deepEqual(calls, [Cinnamon.SUBMIT_JOB_METHOD]);
     assert.equal(replies[0][1].jobId, "job-1");
 });
+
+test("a poll reaches the versioned GetJobResult endpoint", () => {
+    const env = environment();
+    const calls = [];
+    env.Gio.DBusCallFlags = {NONE: 0};
+    env.Gio.DBus = {
+        session: {
+            call(...args) {
+                calls.push(args[3]);
+                args.at(-1)({call_finish: () => ({deep_unpack: () => ["{}"]})}, {});
+            },
+        },
+    };
+    env.GLib.Variant = class {
+        constructor(signature, values) {
+            this.signature = signature;
+            this.values = values;
+        }
+    };
+    env.GLib.VariantType = class {
+        constructor(signature) {
+            this.signature = signature;
+        }
+    };
+    const completions = [];
+
+    Cinnamon.requestRuntimeJobResultText("request", {cancellable: null}, (...args) => {
+        completions.push(args);
+    }, env);
+
+    assert.deepEqual(calls, [Cinnamon.JOB_RESULT_METHOD]);
+    assert.deepEqual(completions, [[null, "{}"]]);
+
+    // The gateway's own result channel reaches the same endpoint, so the
+    // factory is wired to the method and not merely capable of being.
+    env.Gio.Cancellable = class {
+        cancel() {
+            this.cancelled = true;
+        }
+    };
+    const gateway = Cinnamon.createRuntimeJobGateway(env);
+    assert.equal(gateway.pollable, true);
+    gateway.requestResult({requestId: "tpuwm-1-2", jobId: "job-1"}, () => {});
+    assert.deepEqual(calls, [Cinnamon.JOB_RESULT_METHOD, Cinnamon.JOB_RESULT_METHOD]);
+});

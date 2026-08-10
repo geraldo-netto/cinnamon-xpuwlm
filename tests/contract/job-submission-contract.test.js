@@ -88,6 +88,67 @@ test("the acknowledgement contract is the service's schema, field for field", (t
     assert.equal(schema.properties.version.const, Job.JOB_VERSION);
 });
 
+test("the result request and result are the service's schemas, field for field", (t) => {
+    const root = skipWithoutService(t);
+    if (root === null) {
+        return;
+    }
+    const request = readJson(root, "schemas/runtime-job-result-request.schema.json");
+    const result = readJson(root, "schemas/runtime-job-result.schema.json");
+
+    assert.deepEqual(
+        [...Job.RESULT_REQUEST_PROPERTIES].sort(),
+        Object.keys(request.properties).sort(),
+    );
+    assert.deepEqual([...Job.RESULT_PROPERTIES].sort(), Object.keys(result.properties).sort());
+    assert.deepEqual([...Job.RESULT_STATES].sort(), [...result.properties.state.enum].sort());
+    assert.deepEqual(
+        [...Job.PROGRESS_PROPERTIES].sort(),
+        Object.keys(result.properties.progress.properties).sort(),
+    );
+    assert.equal(result.properties.message.maxLength, Job.MAX_RESULT_MESSAGE_LENGTH);
+    assert.equal(
+        result.properties.progress.properties.detail.maxLength,
+        Job.MAX_PROGRESS_DETAIL_LENGTH,
+    );
+});
+
+test("the states the applet stops polling on are states the service reports", (t) => {
+    const root = skipWithoutService(t);
+    if (root === null) {
+        return;
+    }
+    const declared = new Set(
+        readJson(root, "schemas/runtime-job-result.schema.json").properties.state.enum,
+    );
+
+    for (const state of Job.TERMINAL_STATES) {
+        assert.ok(declared.has(state), `${state} is not a state the runtime reports`);
+    }
+    // `running` is the only state a job can leave; treating it as terminal
+    // would stop polling exactly when there is still something to learn.
+    assert.ok(!Job.isTerminalState("running"));
+    assert.equal(declared.size, Job.RESULT_STATES.size);
+});
+
+test("the reduction the applet renders is the one the service publishes", (t) => {
+    const root = skipWithoutService(t);
+    if (root === null) {
+        return;
+    }
+    const source = readSource(root, "src/omnitensor/outputcontract.py");
+
+    assert.match(source, /"kind": spec\.kind/u);
+    assert.match(source, /"top": \[/u);
+    assert.match(source, /entry = \{"index": index, "score": score\}/u);
+    assert.match(source, /entry\["label"\] = labels\[index\]/u);
+    assert.match(
+        readSource(root, "src/omnitensor/plugins/orchestration.py"),
+        /"reading"/u,
+        "the reduction still travels under the key the applet reads",
+    );
+});
+
 test("a reference is bounded by the service's own reference limits", (t) => {
     const root = skipWithoutService(t);
     if (root === null) {

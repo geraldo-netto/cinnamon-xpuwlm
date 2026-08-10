@@ -271,3 +271,112 @@ test("the overview and alerts screens carry no run surface", () => {
         assert.deepEqual(runRows(root), [], tab);
     }
 });
+
+test("an accepted job that has not finished does not read as finished", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(state({
+        job: {
+            pending: false,
+            profileId: RUNNABLE,
+            sourceName: "cat.png",
+            jobId: "job-1",
+            status: "accepted",
+            code: "job-accepted",
+            message: "Job accepted",
+            state: "running",
+            progress: {fraction: 0.5, detail: "infer"},
+            reading: null,
+        },
+    }), NOW));
+
+    const outcome = textWithClass(root, "tpuwm-job-outcome")[0];
+    assert.match(outcome, /Running/u);
+    assert.match(outcome, /50%/u);
+    assert.match(outcome, /infer/u);
+    assert.deepEqual(textWithClass(root, "tpuwm-job-reading"), []);
+});
+
+test("a finished job prints the candidates it was run for", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(state({
+        job: {
+            pending: false,
+            profileId: RUNNABLE,
+            sourceName: "cat.png",
+            jobId: "job-1",
+            status: "accepted",
+            code: "job-succeeded",
+            message: "Job finished",
+            state: "succeeded",
+            progress: null,
+            reading: {
+                kind: "classification",
+                top: [{index: 669, score: 0.0918}, {index: 2, score: 0.0411, label: "beacon"}],
+            },
+        },
+    }), NOW));
+
+    const rows = textWithClass(root, "tpuwm-job-reading");
+    assert.equal(rows.length, 2);
+    assert.match(rows[0], /class 669/u, "an index with no labels file stays an index");
+    assert.match(rows[0], /0\.092/u);
+    assert.match(rows[1], /^beacon/u, "a verified label is used where one exists");
+});
+
+test("the reading is bounded however many candidates the runtime returned", () => {
+    const many = Array.from({length: ViewModel.MAX_READING_ROWS + 5}, (unused, index) => ({
+        index,
+        score: 0.1,
+    }));
+
+    const reading = ViewModel.readingModel({kind: "classification", top: many});
+
+    assert.equal(reading.entries.length, ViewModel.MAX_READING_ROWS);
+});
+
+test("only a reduction that means something is rendered as one", () => {
+    assert.equal(ViewModel.readingModel(null), null);
+    assert.equal(ViewModel.readingModel(undefined), null);
+    assert.equal(ViewModel.readingModel({kind: "embedding", top: []}), null);
+    assert.deepEqual(ViewModel.readingModel({kind: "classification", top: []}).entries, []);
+});
+
+test("every state the runtime reports has words a user can read", () => {
+    const profiles = [];
+    for (const reported of ["running", "succeeded", "failed", "cancelled", "unknown"]) {
+        const job = ViewModel.jobModel({pending: false, profileId: "x", state: reported}, profiles);
+        assert.notEqual(job.stateText, "", reported);
+    }
+    assert.equal(
+        ViewModel.jobModel({pending: false, profileId: "x", state: ""}, profiles).stateText,
+        "",
+        "a job with no reported state says nothing about one",
+    );
+});
+
+test("a job that failed after acceptance is toned for attention", () => {
+    const profiles = [];
+
+    assert.equal(ViewModel.jobModel({pending: false, profileId: "x", status: "accepted", state: "failed"}, profiles).tone, "attention");
+    assert.equal(ViewModel.jobModel({pending: false, profileId: "x", status: "accepted", state: "unknown"}, profiles).tone, "attention");
+    assert.equal(ViewModel.jobModel({pending: false, profileId: "x", status: "accepted", state: "running"}, profiles).tone, "pending");
+    assert.equal(ViewModel.jobModel({pending: false, profileId: "x", status: "accepted", state: "succeeded"}, profiles).tone, "normal");
+});
+
+test("progress is printed only when there is progress to print", () => {
+    assert.equal(ViewModel.progressText(null), "");
+    assert.equal(ViewModel.progressText({fraction: "half", detail: ""}), "");
+    assert.equal(ViewModel.progressText({fraction: 0.25, detail: ""}), "25%");
+    assert.equal(ViewModel.progressText({fraction: 1, detail: "done"}), "100% · done");
+});
+
+test("the outcome line omits what is not known rather than printing gaps", () => {
+    assert.equal(
+        Menu.jobDetail({message: "Job accepted", stateText: "", progressText: "", jobId: "job-1"}),
+        "Job accepted · job-1",
+    );
+    assert.equal(
+        Menu.jobDetail({message: "", stateText: "Finished", progressText: "", jobId: ""}),
+        "Finished",
+    );
+});

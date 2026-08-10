@@ -225,6 +225,10 @@ msgid "Available"
 msgstr ""
 
 #: lib/view-model.js
+msgid "Cancelled"
+msgstr ""
+
+#: lib/view-model.js
 msgid "Check device access"
 msgstr ""
 
@@ -338,6 +342,14 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Every workload profile can run"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Failed"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Finished"
 msgstr ""
 
 #: lib/view-model.js
@@ -462,6 +474,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "No installed profile states what input it needs, so no picture can be prepared"
+msgstr ""
+
+#: lib/view-model.js
+msgid "No longer known to the runtime"
 msgstr ""
 
 #: lib/view-model.js
@@ -852,6 +868,10 @@ msgstr ""
 msgid "The runtime cannot run this profile"
 msgstr ""
 
+#: lib/manager.js
+msgid "The runtime did not report an outcome for this job; it may still be running"
+msgstr ""
+
 #: lib/view-model.js
 msgid "The runtime refused these profiles for a reason this applet does not recognise, so its own words are repeated below without interpretation."
 msgstr ""
@@ -980,6 +1000,10 @@ msgstr ""
 msgid "This profile's normalisation does not match its channel count"
 msgstr ""
 
+#: lib/manager.js
+msgid "This runtime cannot report job outcomes; the job was accepted"
+msgstr ""
+
 #: lib/menu-view.js lib/view-model.js
 msgid "Unavailable"
 msgstr ""
@@ -1050,6 +1074,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "advisory"
+msgstr ""
+
+#: lib/view-model.js
+msgid "class %d · %s"
 msgstr ""
 
 #: lib/view-model.js

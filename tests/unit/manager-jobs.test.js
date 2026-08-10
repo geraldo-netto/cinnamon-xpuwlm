@@ -70,6 +70,19 @@ function catalog() {
     return new Domain.WorkloadCatalog(Registry.profileDefinitions(registry()));
 }
 
+function jobResult(overrides = {}) {
+    return {
+        version: 1,
+        requestId: "tpuwm-1-2",
+        jobId: "job-1",
+        state: "succeeded",
+        code: "job-succeeded",
+        message: "Job finished",
+        timestamp: NOW,
+        ...overrides,
+    };
+}
+
 function acknowledgement(overrides = {}) {
     return {
         version: 1,
@@ -81,6 +94,39 @@ function acknowledgement(overrides = {}) {
         timestamp: NOW,
         stagedPath: `${ROOT}/.tpuwm-staged/runnable-tpuwm-1-1.f32`,
         ...overrides,
+    };
+}
+
+function fakeScheduler() {
+    return {
+        scheduled: [],
+        cancelled: [],
+        next: 1,
+        schedule(delayMs, callback) {
+            const handle = this.next;
+            this.next += 1;
+            this.scheduled.push({handle, delayMs, callback});
+            return handle;
+        },
+        cancel(handle) {
+            this.cancelled.push(handle);
+            const index = this.scheduled.findIndex((entry) => entry.handle === handle);
+            if (index >= 0) {
+                this.scheduled.splice(index, 1);
+            }
+            return true;
+        },
+        // The manager also arms a freshness-expiry timer on this scheduler, so
+        // a poll is selected by its own interval rather than by being last.
+        pending() {
+            return this.scheduled.filter((entry) => entry.delayMs === Manager.JOB_POLL_INTERVAL_MS);
+        },
+        fire() {
+            const entry = this.pending().at(-1);
+            this.scheduled.splice(this.scheduled.indexOf(entry), 1);
+            entry.callback();
+            return entry;
+        },
     };
 }
 
@@ -104,6 +150,27 @@ function harness(options = {}) {
             submissions.push("cancel");
             return true;
         },
+        discard(path) {
+            submissions.push(["discard", path]);
+            return true;
+        },
+        get pollable() {
+            return options.pollable !== false;
+        },
+        requestResult(jobId, callback) {
+            submissions.push(["poll", jobId]);
+            const answers = options.results ?? [];
+            const answer = answers.shift();
+            if (answer === undefined) {
+                return true;
+            }
+            callback(answer.error ?? null, answer.error ? null : jobResult(answer));
+            return true;
+        },
+        cancelResult() {
+            submissions.push("cancelResult");
+            return true;
+        },
     };
     const inputCatalog = options.inputCatalog === null ? null : {
         pictures(roots) {
@@ -114,6 +181,7 @@ function harness(options = {}) {
                 .map((name) => ({root, name, path: `${root}/${name}`})));
         },
     };
+    options.scheduler = options.scheduler || fakeScheduler();
     const manager = new Manager.WorkloadManager({
         repository: {load: () => ({portfolio: null, selectedTab: "profiles"}), save() {}},
         runtimeGateway: {
@@ -127,10 +195,11 @@ function harness(options = {}) {
             logger: {warn: (m) => warnings.push(m), error: (m) => errors.push(m)},
         }),
         logger: {warn: (m) => warnings.push(m), error: (m) => errors.push(m)},
+        scheduler: options.scheduler,
         workloadRegistry: registry(),
     });
     manager.start();
-    return {manager, submissions, errors, warnings};
+    return {manager, submissions, errors, warnings, scheduler: options.scheduler};
 }
 
 test("a profile that states its input is offered and one that does not is not", () => {
@@ -244,7 +313,13 @@ test("a job is refused before the bus when the service is known to be gone", () 
         runtimeGateway: {read: (unused, callback) => callback(snapshotWith([ROOT]))},
         controlGateway: {send() {}, cancel: () => false},
         controlWatch: {watch: (listener) => watchers.push(listener)},
-        jobSubmitter: {submit() { throw new Error("must not be called"); }, cancel: () => false},
+        jobSubmitter: {
+            submit() { throw new Error("must not be called"); },
+            cancel: () => false,
+            discard: () => false,
+            requestResult() { throw new Error("must not be called"); },
+            cancelResult: () => false,
+        },
         inputCatalog: {pictures: () => []},
         clock: {now: () => NOW},
         errorReporter: new FailureBackoff.FailureErrorBackoff({
@@ -346,4 +421,153 @@ test("a registry of descriptors without input contracts maps every profile to nu
     });
 
     assert.equal(contracts.get("legacy"), null);
+});
+
+test("an accepted job is polled until the runtime says what became of it", () => {
+    const {manager, submissions, scheduler} = harness({
+        results: [
+            {state: "running", code: "job-running", message: "", progress: {fraction: 0.5, detail: "infer"}},
+            {state: "succeeded", code: "job-succeeded", message: "Job finished", output: {
+                reading: {kind: "classification", top: [{index: 669, score: 0.0918}]},
+            }},
+        ],
+    });
+
+    manager.submitJob("runnable", PICTURE);
+    assert.equal(manager.state().job.state, "", "an acknowledgement is not an outcome");
+
+    scheduler.fire();
+    assert.equal(manager.state().job.state, "running");
+    assert.deepEqual(manager.state().job.progress, {fraction: 0.5, detail: "infer"});
+
+    scheduler.fire();
+    const job = manager.state().job;
+    assert.equal(job.state, "succeeded");
+    assert.deepEqual(job.reading, {kind: "classification", top: [{index: 669, score: 0.0918}]});
+    assert.deepEqual(submissions.filter((entry) => entry[0] === "poll").length, 2);
+});
+
+test("the staged buffer is removed once the job can no longer read it", () => {
+    const {manager, submissions, scheduler} = harness({results: [{state: "succeeded"}]});
+
+    manager.submitJob("runnable", PICTURE);
+    assert.ok(!submissions.some((entry) => entry[0] === "discard"), "an accepted job still reads it");
+
+    scheduler.fire();
+
+    assert.ok(submissions.some(
+        (entry) => entry[0] === "discard" && entry[1].endsWith(".f32"),
+    ));
+});
+
+test("a job that fails after acceptance stops reading as accepted", () => {
+    const {manager, errors, scheduler} = harness({
+        results: [{state: "failed", code: "no-backend-available", message: "no lane"}],
+    });
+
+    manager.submitJob("runnable", PICTURE);
+    scheduler.fire();
+
+    assert.equal(manager.state().job.state, "failed");
+    assert.equal(manager.state().job.code, "no-backend-available");
+    assert.ok(errors.some((message) => message.includes("failed")));
+});
+
+test("one unreadable poll is retried rather than treated as an outcome", () => {
+    const {manager, scheduler} = harness({
+        results: [{error: new Error("TimedOut")}, {state: "succeeded"}],
+    });
+
+    manager.submitJob("runnable", PICTURE);
+    scheduler.fire();
+    assert.equal(manager.state().job.state, "", "a failed poll says nothing about the job");
+
+    scheduler.fire();
+    assert.equal(manager.state().job.state, "succeeded");
+});
+
+test("polling stops rather than running forever, and says that it stopped", () => {
+    // A job that never leaves `running` is the case the ceiling exists for: the
+    // runtime is answering, so nothing errors, and without a bound the applet
+    // would ask every 400 ms until the session ended.
+    const running = Array.from({length: Manager.MAX_JOB_POLLS + 2}, () => ({state: "running"}));
+    const {manager, submissions, scheduler} = harness({results: running});
+
+    manager.submitJob("runnable", PICTURE);
+    for (let attempt = 0; attempt < Manager.MAX_JOB_POLLS + 1; attempt += 1) {
+        scheduler.fire();
+    }
+
+    assert.match(manager.state().job.message, /did not report an outcome/u);
+    assert.equal(manager.state().job.state, "running", "the last thing known is still said");
+    assert.equal(
+        submissions.filter((entry) => entry[0] === "poll").length,
+        Manager.MAX_JOB_POLLS,
+    );
+    assert.deepEqual(scheduler.pending(), [], "nothing is left armed");
+});
+
+test("an accepted job with no id is not polled, because there is nothing to ask about", () => {
+    const {manager, submissions, scheduler} = harness({acknowledgement: {jobId: null}});
+
+    manager.submitJob("runnable", PICTURE);
+
+    assert.ok(!submissions.some((entry) => entry[0] === "poll"));
+    assert.deepEqual(scheduler.pending(), []);
+    assert.match(manager.state().job.message, /Job accepted/u);
+});
+
+test("a runtime that cannot report outcomes is said so, not polled", () => {
+    const {manager, submissions, scheduler} = harness({pollable: false});
+
+    manager.submitJob("runnable", PICTURE);
+
+    assert.match(manager.state().job.message, /cannot report job outcomes/u);
+    assert.ok(!submissions.some((entry) => entry[0] === "poll"));
+    assert.deepEqual(scheduler.pending(), []);
+});
+
+test("a refused job releases its staged buffer immediately", () => {
+    const {manager, submissions} = harness({
+        acknowledgement: {status: "rejected", jobId: null, code: "input-contract-mismatch", message: "no"},
+    });
+
+    manager.submitJob("runnable", PICTURE);
+
+    assert.ok(submissions.some((entry) => entry[0] === "discard"));
+});
+
+test("a new job abandons the poll for the one before it", () => {
+    const {manager, submissions, scheduler} = harness({results: []});
+
+    manager.submitJob("runnable", PICTURE);
+    assert.equal(scheduler.pending().length, 1);
+    manager.submitJob("runnable", PICTURE);
+
+    assert.ok(submissions.includes("cancelResult"));
+    assert.equal(scheduler.cancelled.length >= 1, true);
+});
+
+test("polling stops at disposal rather than firing into a dead manager", () => {
+    const {manager, scheduler} = harness({results: []});
+
+    manager.submitJob("runnable", PICTURE);
+    manager.dispose();
+
+    assert.deepEqual(scheduler.pending(), [], "the pending poll was cancelled");
+});
+
+test("the submitter port is validated in full, not by two of its five methods", () => {
+    assert.deepEqual(Manager.JOB_SUBMITTER_METHODS, [
+        "submit", "cancel", "discard", "requestResult", "cancelResult",
+    ]);
+    for (const missing of Manager.JOB_SUBMITTER_METHODS) {
+        const port = {};
+        for (const name of Manager.JOB_SUBMITTER_METHODS) {
+            if (name !== missing) {
+                port[name] = () => {};
+            }
+        }
+        assert.throws(() => Manager.requireJobSubmitter(port), TypeError, missing);
+    }
 });

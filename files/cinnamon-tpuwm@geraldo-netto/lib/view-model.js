@@ -358,6 +358,7 @@ function setupModel(profiles) {
 // own snapshot and the contracts from the manifests — so nothing here guesses
 // a path or a normalisation.
 const MAX_RUN_PICTURES = 24;
+const MAX_READING_ROWS = 5;
 const RUN_TITLE = N_("Run a picture");
 const NO_ROOTS_TEXT = N_("The runtime service is not configured to read input files, so no picture can be submitted");
 const NO_RUNNABLE_TEXT = N_("No installed profile states what input it needs, so no picture can be prepared");
@@ -375,11 +376,67 @@ function runReason(runnable, inputs) {
         : "";
 }
 
+// What the runtime says became of the job, in the words a user reads. `unknown`
+// answers both a job that never existed and one belonging to another caller,
+// so it is worded as an absence rather than as a failure.
+const JOB_STATE_LABELS = Object.freeze({
+    running: N_("Running"),
+    succeeded: N_("Finished"),
+    failed: N_("Failed"),
+    cancelled: N_("Cancelled"),
+    unknown: N_("No longer known to the runtime"),
+});
+
+// A job that was accepted has not succeeded, and saying otherwise is the whole
+// defect this surface removes: the acknowledgement is a receipt, and only a
+// terminal state is an outcome.
+const ATTENTION_STATES = new Set(["failed", "cancelled", "unknown"]);
+
 function jobTone(job) {
-    if (job.pending === true) {
+    if (job.pending === true || job.state === "running") {
         return "pending";
     }
+    if (ATTENTION_STATES.has(job.state)) {
+        return "attention";
+    }
+    if (job.state === "succeeded") {
+        return "normal";
+    }
     return job.status === "accepted" ? "normal" : "attention";
+}
+
+function jobStateText(job) {
+    const label = JOB_STATE_LABELS[job.state];
+    return label === undefined ? "" : _(label);
+}
+
+function progressText(progress) {
+    if (!progress || !Number.isFinite(progress.fraction)) {
+        return "";
+    }
+    const percent = `${Math.round(progress.fraction * 100)}%`;
+    return progress.detail ? `${percent} · ${progress.detail}` : percent;
+}
+
+// The reading is the point of running the job at all. An index with no label is
+// printed as an index: the runtime reports names only where a labels file was
+// installed and digest-verified beside the weights, and inventing one here
+// would be wrong in a form that reads as right.
+function readingEntryText(entry) {
+    const score = entry.score.toFixed(3);
+    return entry.label === undefined
+        ? format(_("class %d · %s"), entry.index, score)
+        : `${entry.label} · ${score}`;
+}
+
+function readingModel(reading) {
+    if (reading === null || reading === undefined || reading.kind !== "classification") {
+        return null;
+    }
+    return {
+        kind: reading.kind,
+        entries: reading.top.slice(0, MAX_READING_ROWS).map(readingEntryText),
+    };
 }
 
 function jobModel(job, profiles) {
@@ -394,6 +451,9 @@ function jobModel(job, profiles) {
         message: job.message || "",
         jobId: job.jobId || "",
         tone: jobTone(job),
+        stateText: jobStateText(job),
+        progressText: progressText(job.progress),
+        reading: readingModel(job.reading),
     };
 }
 
@@ -777,6 +837,8 @@ module.exports = {
     RUNTIME_STATUS_LABELS,
     SETUP_KIND_ORDER,
     SETUP_SECTIONS,
+    JOB_STATE_LABELS,
+    MAX_READING_ROWS,
     MAX_RUN_PICTURES,
     SEVERITY_LABELS,
     STATUS_LABELS,
@@ -812,6 +874,8 @@ module.exports = {
     setupSummary,
     severityText,
     jobModel,
+    progressText,
+    readingModel,
     runModel,
     runReason,
     toViewModel,

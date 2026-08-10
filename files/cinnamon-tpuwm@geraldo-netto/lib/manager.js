@@ -3,6 +3,7 @@
 const Domain = require("./domain.js");
 const FailureReporter = require("./failure-reporter.js");
 const I18n = require("./i18n.js");
+const Job = require("./runtime-job-contract.js");
 const JobSubmission = require("./job-submission.js");
 const RuntimeContract = require("./runtime-contract.js");
 const RuntimeControl = require("./runtime-control-contract.js");
@@ -28,7 +29,21 @@ const NO_JOB = Object.freeze({
     status: "",
     code: "",
     message: "",
+    state: "",
+    progress: null,
+    reading: null,
 });
+
+// A job is accepted in milliseconds and finishes when it finishes: the queue
+// is shared with every other profile and the model may still be loading. The
+// interval is short enough that a 20 ms inference reads as immediate and the
+// ceiling long enough to outlast a cold model load, after which the applet
+// stops asking and says so rather than polling a runtime that has forgotten
+// the job.
+const JOB_POLL_INTERVAL_MS = 400;
+const MAX_JOB_POLLS = 150;
+const JOB_ABANDONED_TEXT = N_("The runtime did not report an outcome for this job; it may still be running");
+const JOB_UNPOLLABLE_TEXT = N_("This runtime cannot report job outcomes; the job was accepted");
 
 // Why a picture could not be turned into this profile's input. Every one of
 // these is a fact the manifest states or fails to state, so the sentence names
@@ -142,11 +157,18 @@ function sanitizeTab(value) {
     return TAB_SET.has(value) ? value : "overview";
 }
 
+// Every method the manager calls, checked at construction. A port that is
+// missing one fails here rather than at the moment a user is waiting for the
+// outcome of a job that has already run.
+const JOB_SUBMITTER_METHODS = Object.freeze([
+    "submit", "cancel", "discard", "requestResult", "cancelResult",
+]);
+
 function requireJobSubmitter(candidate) {
-    if (!candidate
-        || typeof candidate.submit !== "function"
-        || typeof candidate.cancel !== "function") {
-        throw new TypeError("A job submitter with submit/cancel is required");
+    if (!candidate || JOB_SUBMITTER_METHODS.some((name) => typeof candidate[name] !== "function")) {
+        throw new TypeError(
+            `A job submitter with ${JOB_SUBMITTER_METHODS.join("/")} is required`,
+        );
     }
     return candidate;
 }
@@ -303,6 +325,8 @@ class WorkloadManager {
         this._job = NO_JOB;
         this._jobPending = null;
         this._jobSequence = 0;
+        this._polling = null;
+        this._pollHandle = null;
     }
 
     start() {
@@ -705,7 +729,7 @@ class WorkloadManager {
             return false;
         }
         this._job = {
-            pending: false,
+            ...NO_JOB,
             profileId: pending.profileId,
             sourceName: pending.sourceName,
             jobId: acknowledgement.jobId || "",
@@ -721,9 +745,125 @@ class WorkloadManager {
     _settleJobOutcome(acknowledgement) {
         if (acknowledgement.status === "accepted") {
             this._errors.recover(RUNTIME_JOB_FAILURE);
+            this._startPolling(acknowledgement);
             return;
         }
+        // A refused job never ran, so the buffer staged for it will never be
+        // read; the accepted case keeps it until the job reaches a state it
+        // cannot leave.
+        this._discardStaged(acknowledgement);
         this._errors.report(RUNTIME_JOB_FAILURE, acknowledgement.message, this._clock.now());
+    }
+
+    _discardStaged(acknowledgement) {
+        const staged = acknowledgement?.stagedPath;
+        if (this._jobSubmitter !== null && typeof staged === "string") {
+            this._jobSubmitter.discard(staged);
+        }
+    }
+
+    // An acknowledgement says the runtime took the job, not that it worked. A
+    // job that is accepted and then fails during inference used to read as
+    // accepted forever, which is the failure this surface exists to remove.
+    _startPolling(acknowledgement) {
+        this._cancelPolling();
+        if (!acknowledgement.jobId || this._jobSubmitter.pollable !== true) {
+            this._job = {...this._job, message: acknowledgement.jobId
+                ? _(JOB_UNPOLLABLE_TEXT)
+                : this._job.message};
+            return false;
+        }
+        this._polling = {
+            jobId: acknowledgement.jobId,
+            stagedPath: acknowledgement.stagedPath ?? null,
+            attempts: 0,
+            sequence: this._jobSequence,
+        };
+        this._schedulePoll();
+        return true;
+    }
+
+    _schedulePoll() {
+        this._pollHandle = this._scheduler.schedule(JOB_POLL_INTERVAL_MS, () => {
+            this._pollHandle = null;
+            this._pollJob();
+        });
+    }
+
+    _pollJob() {
+        const polling = this._polling;
+        if (this._disposed || polling === null) {
+            return false;
+        }
+        polling.attempts += 1;
+        if (polling.attempts > MAX_JOB_POLLS) {
+            return this._abandonPolling();
+        }
+        this._jobSubmitter.requestResult(polling.jobId, (error, result) => {
+            this._acceptResult(polling.sequence, error, result);
+        });
+        return true;
+    }
+
+    // Giving up is reported rather than hidden: the job may still be running,
+    // and saying nothing would leave the last message claiming it was accepted
+    // while the applet quietly stopped caring.
+    _abandonPolling() {
+        this._job = {...this._job, message: _(JOB_ABANDONED_TEXT)};
+        this._cancelPolling();
+        this._publish();
+        return false;
+    }
+
+    _acceptResult(sequence, error, result) {
+        if (this._disposed || this._polling === null || this._polling.sequence !== sequence) {
+            return false;
+        }
+        if (error) {
+            // One unreadable poll is not an outcome; the next one may answer.
+            this._schedulePoll();
+            return false;
+        }
+        this._job = {
+            ...this._job,
+            state: result.state,
+            code: result.code,
+            message: result.message || this._job.message,
+            progress: result.progress ?? null,
+            reading: Job.readingOf(result.output),
+        };
+        this._settleResult(result);
+        this._publish();
+        return true;
+    }
+
+    _settleResult(result) {
+        if (!Job.isTerminalState(result.state)) {
+            this._schedulePoll();
+            return false;
+        }
+        // The job will not read its input again, whatever it decided.
+        this._discardStaged({stagedPath: this._polling.stagedPath});
+        this._cancelPolling();
+        if (result.state === "succeeded") {
+            this._errors.recover(RUNTIME_JOB_FAILURE);
+        } else {
+            this._errors.report(
+                RUNTIME_JOB_FAILURE,
+                `Job ${result.jobId} ${result.state}: ${result.code}`,
+                this._clock.now(),
+            );
+        }
+        return true;
+    }
+
+    _cancelPolling() {
+        this._polling = null;
+        if (this._pollHandle !== null) {
+            this._scheduler.cancel(this._pollHandle);
+            this._pollHandle = null;
+        }
+        return this._jobSubmitter === null ? false : this._jobSubmitter.cancelResult();
     }
 
     _reportJobFailure(message, logged = null) {
@@ -956,6 +1096,7 @@ class WorkloadManager {
     _cancelJob() {
         this._jobSequence += 1;
         this._jobPending = null;
+        this._cancelPolling();
         return this._jobSubmitter === null ? false : this._jobSubmitter.cancel();
     }
 
@@ -1018,7 +1159,11 @@ module.exports = {
     SERVICE_STOPPED_TEXT,
     TRANSPORT_FAILURES,
     UNINTELLIGIBLE_REPLY_TEXT,
+    JOB_ABANDONED_TEXT,
+    JOB_SUBMITTER_METHODS,
+    JOB_POLL_INTERVAL_MS,
     JOB_REFUSAL_TEXTS,
+    MAX_JOB_POLLS,
     NO_JOB,
     controlFailureText,
     inputContracts,

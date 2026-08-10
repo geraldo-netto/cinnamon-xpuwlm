@@ -555,3 +555,11 @@
 .tpuwm-job-attention {
     font-weight: bold;
 }
+
+/* The answer the job was run for, one candidate per row. Indices where no
+   labels file was installed, names where one was — never a guessed name. */
+.tpuwm-job-reading {
+    font-size: 0.82em;
+    padding: 2px 18px;
+    opacity: 0.85;
+}
