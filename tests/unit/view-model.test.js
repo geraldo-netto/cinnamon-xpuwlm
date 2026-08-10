@@ -360,6 +360,69 @@ test("the blocked group derives its own size from the live snapshot", () => {
     assert.equal(shipped.blockedGroup.summary, `${state().profiles.length - 1} profiles cannot run yet`);
 });
 
+test("the setup projection groups blocked profiles by the remedy they need", () => {
+    const details = {
+        "hardware-health": "Ready on gpu; no model bundled",
+        "storage-intelligence": "Ready on gpu; no model bundled",
+        "desktop-context": "gpu: ncnn is not installed",
+        "build-advisor": "tpu: No Coral Edge TPU device detected",
+        "document-intelligence": "gpu: a reason with no label",
+    };
+    const profiles = new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog())
+        .list(BuiltIns.servingProfiles())
+        .map((profile) => (Object.hasOwn(details, profile.id)
+            ? {...profile, status: "unavailable", detail: details[profile.id]}
+            : profile));
+    const setup = ViewModel.toViewModel(state({profiles}), NOW).setup;
+
+    assert.equal(setup.resolved, false);
+    assert.equal(setup.title, "What these profiles need");
+    assert.equal(setup.summary, "3 of 8 workload profiles can run on this machine");
+    // Ordered by how reachable the remedy is: a package first, an artifact
+    // next, hardware that cannot be installed after them.
+    assert.deepEqual(setup.sections.map((section) => section.kind), [
+        "runtime", "model", "hardware", "unknown",
+    ]);
+    assert.deepEqual(
+        setup.sections.map((section) => section.profiles.map((profile) => profile.id)),
+        [
+            ["desktop-context"],
+            ["hardware-health", "storage-intelligence"],
+            ["build-advisor"],
+            ["document-intelligence"],
+        ],
+    );
+
+    const [runtime, model, hardware, unknown] = setup.sections;
+    assert.match(runtime.command, /^pip install 'omnitensor\[gpu\]'$/u);
+    assert.match(model.command, /^omnitensor-prepare-artifact /u);
+    assert.match(model.command, /--install-root ~\/\.local\/share\/omnitensor\/artifacts$/u);
+    // No command exists for missing hardware, and none is invented.
+    assert.equal(hardware.command, "");
+    assert.equal(hardware.note, "");
+    assert.equal(unknown.command, "");
+    // The unrecognised reason survives into the tab that explains it.
+    assert.equal(unknown.profiles[0].reason, "gpu: a reason with no label");
+});
+
+test("the setup projection is useful when nothing is missing at all", () => {
+    const serving = state({
+        profiles: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog())
+            .list(BuiltIns.servingProfiles()),
+    });
+    const setup = ViewModel.toViewModel(serving, NOW).setup;
+    assert.equal(setup.resolved, true);
+    assert.deepEqual(setup.sections, []);
+    assert.equal(setup.title, "Nothing is missing");
+    assert.equal(setup.summary, "8 of 8 workload profiles can run on this machine");
+
+    // A catalog with nothing in it is not "everything works".
+    assert.equal(ViewModel.setupModel([]).summary, "No workload profiles are installed.");
+    assert.equal(ViewModel.setupSummary(1, 1), "1 of 1 workload profile can run on this machine");
+    // An unrecognised class still gets a section rather than being dropped.
+    assert.equal(ViewModel.setupSection("invented", []).title, "Reported by the runtime");
+});
+
 test("discarded runtime content is stated in words instead of vanishing", () => {
     assert.equal(ViewModel.unknownContentNotice(state()), null);
     assert.equal(ViewModel.unknownContentNotice(state({unknownContent: {profiles: 0, alerts: 0}})), null);

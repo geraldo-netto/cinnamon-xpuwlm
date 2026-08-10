@@ -125,6 +125,7 @@ test("menu chrome renders translated labels and accessible names", () => {
             "[%s tab, selected]".replace("%s", "[Overview]"),
             "[%s tab]".replace("%s", "[Profiles]"),
             "[%s tab]".replace("%s", "[Alerts]"),
+            "[%s tab]".replace("%s", "[Setup]"),
         ]);
     } finally {
         I18n.reset();

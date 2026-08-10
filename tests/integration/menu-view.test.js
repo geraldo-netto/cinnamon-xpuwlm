@@ -517,6 +517,146 @@ test("a catalog nothing can run says so instead of showing an empty tab", () => 
     assert.equal(blockedList(root).children.length, state.profiles.length);
 });
 
+test("the collapsed group and the setup tab report what they did", () => {
+    const {view, root} = harness();
+    const blocked = ViewModel.toViewModel(blockedState(), NOW);
+
+    // No group on a screen that has none, and no stale reference left behind
+    // by the screen that did.
+    view.render(ViewModel.toViewModel(baseState(), NOW));
+    assert.equal(view._applyBlockedExpansion(), false);
+    assert.equal(view._toggleBlockedProfiles(), false);
+    assert.equal(view._renderBlockedProfiles({blockedGroup: null}), false);
+    assert.equal(view._renderBlockedProfiles({blockedGroup: undefined}), false);
+
+    view.render(blocked);
+    assert.equal(view._applyBlockedExpansion(), false, "the group starts collapsed");
+    assert.equal(view._toggleBlockedProfiles(), true);
+
+    // The disclosure stacks its title over its summary and takes the free
+    // width, so the arrow keeps its own edge.
+    const copy = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-disclosure-title"))[0].parent;
+    assert.equal(copy.vertical, true);
+    assert.equal(copy.x_expand, true);
+    // The arrow sits beside that column, and the rows stack under the button.
+    const arrowRow = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-disclosure-row"))[0];
+    assert.equal(arrowRow.vertical, false);
+    assert.equal(blockedList(root).vertical, true);
+
+    view.render(ViewModel.toViewModel(blockedState("setup"), NOW));
+    const setupCopy = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-setup-row"))[0].children[0];
+    assert.equal(setupCopy.vertical, true);
+    assert.equal(setupCopy.x_expand, true);
+
+    assert.equal(view._renderSetup(blocked), true);
+    assert.equal(view._renderSetup(ViewModel.toViewModel(baseState(), NOW)), false);
+    assert.equal(view._renderBlockedProfiles(blocked), true);
+    assert.deepEqual(
+        blocked.setup.sections.map((section) => view._renderSetupSection(section)),
+        ["runtime", "model", "hardware", "unknown"],
+    );
+});
+
+test("the setup tab explains each remedy once, for every profile that needs it", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(blockedState("setup"), NOW));
+
+    const titles = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-group-title")).map((actor) => actor.text);
+    assert.deepEqual(titles, [
+        "Install the accelerator runtime",
+        "Install a model",
+        "Connect supported hardware",
+        "Reported by the runtime",
+    ]);
+    const counts = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-group-value")).map((actor) => actor.text);
+    assert.deepEqual(counts, ["1 profile", "1 profile", "1 profile", "1 profile"]);
+
+    // Every affected profile is named under its own remedy.
+    const rows = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-setup-row"));
+    assert.deepEqual(
+        rows.map((row) => findActors(row, (actor) => actor.styleClasses
+            && actor.styleClasses.has("tpuwm-profile-title"))[0].text),
+        ["Desktop context", "Hardware health", "Storage intelligence", "Build advisor"],
+    );
+    assert.equal(
+        findActors(root, (actor) => actor.text === "gpu: a reason nobody wrote a label for").length,
+        1,
+        "an unrecognised reason reaches the tab that explains it, unaltered",
+    );
+
+    // Only the two remedies that have a reference carry a note; the section
+    // for hardware that cannot be installed adds nothing after its rows.
+    assert.equal(
+        findActors(root, (actor) => actor.styleClasses
+            && actor.styleClasses.has("tpuwm-setup-note")).length,
+        2,
+    );
+    assert.equal(
+        findActors(root, (actor) => actor.styleClasses
+            && actor.styleClasses.has("tpuwm-setup-description")).length,
+        4,
+    );
+
+    // Two remedies are a command; missing hardware has none and none is faked.
+    const commands = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-command"));
+    assert.deepEqual(commands.map((actor) => actor.text), [
+        "pip install 'omnitensor[gpu]'",
+        "omnitensor-prepare-artifact <model>.param --id <id> --version <v> --format ncnn"
+        + " --install-root ~/.local/share/omnitensor/artifacts",
+    ]);
+    // Selectable rather than a Copy button St cannot honour, and never
+    // ellipsized: a truncated command is one the user cannot retype.
+    for (const command of commands) {
+        assert.equal(command.reactive, true);
+        assert.equal(command.can_focus, true);
+        assert.equal(command.clutter_text.selectable, true);
+        assert.equal(command.clutter_text.editable, false);
+        assert.equal(command.clutter_text.line_wrap, true);
+        assert.equal(command.clutter_text.ellipsize, 0);
+    }
+});
+
+test("the setup tab says so when nothing needs installing", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(baseState({selectedTab: "setup"}), NOW));
+
+    assert.equal(findActors(root, (actor) => actor.text === "Every workload profile can run").length, 1);
+    assert.equal(
+        findActors(root, (actor) => actor.text === "8 of 8 workload profiles can run on this machine").length,
+        1,
+    );
+    assert.equal(
+        findActors(root, (actor) => actor.styleClasses && actor.styleClasses.has("tpuwm-command")).length,
+        0,
+    );
+    assert.equal(
+        findActors(root, (actor) => actor.styleClasses && actor.styleClasses.has("tpuwm-setup-row")).length,
+        0,
+    );
+});
+
+test("the setup tab joins the strip and is reachable from the collapsed group", () => {
+    const {calls, view, root} = harness();
+    view.render(ViewModel.toViewModel(blockedState(), NOW));
+
+    // The terse group names Setup, and Setup is a tab the user can reach.
+    const limitation = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-profile-limitation"))[0];
+    assert.match(limitation.text, /see Setup$/u);
+    button(root, "Setup tab").click();
+    assert.deepEqual(calls, [["selectTab", "setup"]]);
+
+    view.render(ViewModel.toViewModel(blockedState("setup"), NOW));
+    assert.equal(button(root, "Setup tab, selected").styleClasses.has("tpuwm-tab-active"), true);
+});
+
 test("the alerts screen states runtime content it could not render", () => {
     const {view, root} = harness();
     const sectionTitles = () => findActors(root, (actor) => actor.styleClasses

@@ -116,6 +116,40 @@ test("the wide layout keeps one metric row and single-line rows", () => {
     assert.equal(evidence.vertical, false);
 });
 
+// Nothing in the shipped catalog declares a model, so this state is a popup
+// with a full collapsed group and every setup section that has copy.
+test("a narrow popup wraps the wording that explains a profile it cannot run", () => {
+    const {view, root} = harness(COMPACT);
+    view.render(ViewModel.toViewModel(alertState({selectedTab: "profiles"}), NOW));
+
+    const wrapping = findActors(root, (actor) => actor.styleClasses.has("tpuwm-profile-limitation")
+        || actor.styleClasses.has("tpuwm-disclosure-summary")
+        || actor.styleClasses.has("tpuwm-empty-note"));
+    assert.equal(wrapping.length, BuiltIns.coreCatalog().size + 2);
+    assert.equal(wrapping.every((label) => label.clutter_text.line_wrap === true), true);
+
+    view.render(ViewModel.toViewModel(alertState({selectedTab: "setup"}), NOW));
+    const setup = findActors(root, (actor) => actor.styleClasses.has("tpuwm-setup-description")
+        || actor.styleClasses.has("tpuwm-setup-note")
+        || actor.styleClasses.has("tpuwm-profile-title")
+        || actor.styleClasses.has("tpuwm-profile-description"));
+    assert.equal(setup.length, BuiltIns.coreCatalog().size * 2 + 2);
+    assert.equal(setup.every((label) => label.clutter_text.line_wrap === true), true);
+});
+
+// A command is the one string a wide popup must not shorten: an ellipsized
+// command is one the user cannot retype or select whole.
+test("a command always wraps, whatever the popup mode decides for prose", () => {
+    for (const layout of [WIDE, COMPACT, DENSE]) {
+        const {view, root} = harness(layout);
+        view.render(ViewModel.toViewModel(alertState({selectedTab: "setup"}), NOW));
+        const commands = findActors(root, (actor) => actor.styleClasses.has("tpuwm-command"));
+        assert.equal(commands.length, 1, layout.mode);
+        assert.equal(commands[0].clutter_text.line_wrap, true, layout.mode);
+        assert.equal(commands[0].clutter_text.ellipsize, 0, layout.mode);
+    }
+});
+
 test("a narrow work area reflows metrics, wraps text, and shrinks the scroll", () => {
     const {view, root} = harness(COMPACT);
     view.render(ViewModel.toViewModel(alertState(), NOW));

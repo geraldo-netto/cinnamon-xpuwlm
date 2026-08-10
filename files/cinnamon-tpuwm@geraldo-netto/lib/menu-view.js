@@ -9,11 +9,14 @@ const {_, N_, format, ngettext} = I18n;
 // Initial placeholders only: render() updates each tile name from the view
 // model, so the first tile can follow the active backend (TPU/NPU/GPU).
 const METRIC_NAMES = Object.freeze([N_("Accelerator load"), N_("Queue"), N_("Running"), N_("Attention")]);
-const TAB_NAMES = Object.freeze(["overview", "profiles", "alerts"]);
+// Setup sits last: it is a reference screen, consulted when something is
+// missing, not part of the daily loop the first three tabs cover.
+const TAB_NAMES = Object.freeze(["overview", "profiles", "alerts", "setup"]);
 const TAB_LABELS = Object.freeze({
     overview: N_("Overview"),
     profiles: N_("Profiles"),
     alerts: N_("Alerts"),
+    setup: N_("Setup"),
 });
 
 // Tab-strip key handling, kept pure so the expected arrow, Home, and End
@@ -450,6 +453,8 @@ class MenuView {
             this._renderProfiles(model);
         } else if (model.screen === "alerts") {
             this._renderAlerts(model);
+        } else if (model.screen === "setup") {
+            this._renderSetup(model);
         } else {
             this._renderOverview(model);
         }
@@ -564,7 +569,12 @@ class MenuView {
         return true;
     }
 
+    // Guarded rather than assumed: flipping the flag with no group on screen
+    // would leave the next screen that has one already open.
     _toggleBlockedProfiles() {
+        if (this._blocked === null) {
+            return false;
+        }
         this._blockedExpanded = !this._blockedExpanded;
         return this._applyBlockedExpansion();
     }
@@ -584,6 +594,70 @@ class MenuView {
         this._setAccessibleState(disclosure, "EXPANDED", expanded);
         setStyleClass(disclosure, "tpuwm-disclosure-open", expanded);
         return expanded;
+    }
+
+    // The detail the collapsed group deliberately leaves out. Grouped by
+    // remedy rather than by profile, because one package or one artifact
+    // usually unblocks several profiles at once, and because two of the three
+    // remedies are a command while the third is the absence of one.
+    _renderSetup(model) {
+        const setup = model.setup;
+        this._addSectionHeading(setup.title, setup.summary);
+        if (setup.resolved) {
+            this._body.add_child(this._hero(
+                "emblem-ok-symbolic",
+                _("Ready"),
+                _("Every workload profile can run"),
+                _("The runtime resolved a model and an accelerator lane for each installed profile. There is nothing to install here."),
+                "tpuwm-hero-ok",
+            ));
+            return false;
+        }
+        for (const section of setup.sections) {
+            this._renderSetupSection(section);
+        }
+        return true;
+    }
+
+    _renderSetupSection(section) {
+        this._addGroupHeading(section.title, format(
+            ngettext("%d profile", "%d profiles", section.profiles.length),
+            section.profiles.length,
+        ));
+        this._body.add_child(this._label(section.description, "tpuwm-setup-description", true));
+        for (const profile of section.profiles) {
+            const row = this._box("tpuwm-setup-row");
+            const copy = this._box("tpuwm-profile-copy", true, true);
+            copy.add_child(this._label(profile.title, "tpuwm-profile-title", true));
+            copy.add_child(this._label(profile.reason, "tpuwm-profile-description", true));
+            row.add_child(copy);
+            this._body.add_child(row);
+        }
+        if (section.command !== "") {
+            this._body.add_child(this._commandLabel(section.command));
+        }
+        if (section.note !== "") {
+            this._body.add_child(this._label(section.note, "tpuwm-setup-note", true));
+        }
+        return section.kind;
+    }
+
+    // A command the user has to retype is a command they will get wrong, and a
+    // Copy button that did nothing would be exactly the dead control this
+    // screen exists to remove. St offers no clipboard action here, so the text
+    // is made selectable instead and Clutter's own selection copies it. It
+    // always wraps: ellipsizing a command hides the argument that matters.
+    _commandLabel(text) {
+        const label = this._label(text, "tpuwm-command", true);
+        label.reactive = true;
+        label.can_focus = true;
+        if (label.clutter_text) {
+            label.clutter_text.selectable = true;
+            label.clutter_text.editable = false;
+            label.clutter_text.line_wrap = true;
+            label.clutter_text.ellipsize = 0;
+        }
+        return label;
     }
 
     _renderAlerts(model) {

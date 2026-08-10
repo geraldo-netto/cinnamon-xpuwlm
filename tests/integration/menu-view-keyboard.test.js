@@ -76,13 +76,15 @@ test("key symbols map to the expected tab movements", () => {
 
 test("tab movement wraps in both directions and jumps to the ends", () => {
     const count = Menu.TAB_NAMES.length;
-    assert.deepEqual(Menu.TAB_NAMES, ["overview", "profiles", "alerts"]);
+    assert.deepEqual(Menu.TAB_NAMES, ["overview", "profiles", "alerts", "setup"]);
     assert.equal(Menu.movedTabIndex("next", 0, count), 1);
     assert.equal(Menu.movedTabIndex("next", count - 1, count), 0);
     assert.equal(Menu.movedTabIndex("previous", 0, count), count - 1);
     assert.equal(Menu.movedTabIndex("previous", 1, count), 0);
     assert.equal(Menu.movedTabIndex("first", 2, count), 0);
+    assert.equal(Menu.movedTabIndex("first", count - 1, count), 0);
     assert.equal(Menu.movedTabIndex("last", 0, count), count - 1);
+    assert.equal(Menu.movedTabIndex("last", 1, count), count - 1);
     assert.equal(Menu.movedTabIndex("next", -1, count), 1);
     assert.equal(Menu.movedTabIndex("next", 99, count), 1);
     assert.equal(Menu.movedTabIndex("unknown", 2, count), 2);
@@ -92,7 +94,7 @@ test("tab movement wraps in both directions and jumps to the ends", () => {
 test("arrow keys select and focus the neighbouring tab", () => {
     const {calls, view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
-    const [overview, profiles, alerts] = tabs(root);
+    const [overview, profiles, alerts, setup] = tabs(root);
 
     assert.deepEqual(overview.pressKey(CLUTTER.KEY_Right), [true]);
     assert.deepEqual(calls, [["selectTab", "profiles"]]);
@@ -100,6 +102,7 @@ test("arrow keys select and focus the neighbouring tab", () => {
     assert.equal(profiles.can_focus, true);
     assert.equal(overview.can_focus, false);
     assert.equal(alerts.can_focus, false);
+    assert.equal(setup.can_focus, false);
 
     view.render(ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW));
     profiles.pressKey(CLUTTER.KEY_Left);
@@ -110,28 +113,28 @@ test("arrow keys select and focus the neighbouring tab", () => {
 test("arrow selection wraps around the tab strip", () => {
     const {calls, view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
-    const [overview, , alerts] = tabs(root);
+    const [overview, , , setup] = tabs(root);
 
     overview.pressKey(CLUTTER.KEY_Left);
-    assert.deepEqual(calls.at(-1), ["selectTab", "alerts"]);
-    assert.equal(alerts.focused, true);
+    assert.deepEqual(calls.at(-1), ["selectTab", "setup"]);
+    assert.equal(setup.focused, true);
 
-    view.render(ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW));
-    alerts.pressKey(CLUTTER.KEY_Down);
+    view.render(ViewModel.toViewModel(baseState({selectedTab: "setup"}), NOW));
+    setup.pressKey(CLUTTER.KEY_Down);
     assert.deepEqual(calls.at(-1), ["selectTab", "overview"]);
 });
 
 test("Home and End reach the first and last tab directly", () => {
     const {calls, view, root} = harness();
     view.render(ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW));
-    const [overview, profiles, alerts] = tabs(root);
+    const [overview, profiles, , setup] = tabs(root);
 
     profiles.pressKey(CLUTTER.KEY_End);
-    assert.deepEqual(calls.at(-1), ["selectTab", "alerts"]);
-    assert.equal(alerts.focused, true);
+    assert.deepEqual(calls.at(-1), ["selectTab", "setup"]);
+    assert.equal(setup.focused, true);
 
-    view.render(ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW));
-    alerts.pressKey(CLUTTER.KEY_Home);
+    view.render(ViewModel.toViewModel(baseState({selectedTab: "setup"}), NOW));
+    setup.pressKey(CLUTTER.KEY_Home);
     assert.deepEqual(calls.at(-1), ["selectTab", "overview"]);
     assert.equal(overview.focused, true);
 });
@@ -159,7 +162,7 @@ test("unhandled keys propagate so Cinnamon keeps its own shortcuts", () => {
 test("only the selected tab stays reachable with the Tab key", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW));
-    assert.deepEqual(tabs(root).map((tab) => tab.can_focus), [false, false, true]);
+    assert.deepEqual(tabs(root).map((tab) => tab.can_focus), [false, false, true, false]);
 });
 
 test("a Clutter build without key constants leaves the tab strip inert", () => {

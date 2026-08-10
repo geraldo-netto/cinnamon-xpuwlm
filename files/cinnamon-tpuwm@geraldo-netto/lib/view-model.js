@@ -271,6 +271,87 @@ function recoveryModel(state) {
     };
 }
 
+// The Setup tab is organised by remedy, not by profile, because one package or
+// one artifact usually unblocks several profiles at once, and because the three
+// remedies are what actually differ: two of them are a command, and the third
+// is an admission that no command exists. Every string here is the applet's
+// own; the runtime's words are repeated per profile beside them.
+const SETUP_KIND_ORDER = Object.freeze(["runtime", "model", "hardware", "unknown"]);
+
+const SETUP_SECTIONS = Object.freeze({
+    runtime: Object.freeze({
+        title: N_("Install the accelerator runtime"),
+        description: N_("The accelerator is present, but the Python package that drives it cannot be imported, so the runtime has no lane to run these profiles on. Install the matching extra and restart the service."),
+        command: N_("pip install 'omnitensor[gpu]'"),
+        note: N_("Which extra depends on the accelerator: see the Dependencies table in the OmniTensor installation guide."),
+    }),
+    model: Object.freeze({
+        title: N_("Install a model"),
+        description: N_("These profiles declare no model, so the runtime refuses to build a pipeline for them. Install the artifact, then declare the requirements.model block the command prints in the profile's manifest."),
+        command: N_("omnitensor-prepare-artifact <model>.param --id <id> --version <v> --format ncnn --install-root ~/.local/share/omnitensor/artifacts"),
+        note: N_("See “Installing a model” in the OmniTensor installation guide. The model format has to match the accelerator the profile declares."),
+    }),
+    hardware: Object.freeze({
+        title: N_("Connect supported hardware"),
+        description: N_("No accelerator these profiles can use is attached to this machine. There is nothing to install: they stay unavailable until supported hardware is present."),
+        command: "",
+        note: "",
+    }),
+    unknown: Object.freeze({
+        title: N_("Reported by the runtime"),
+        description: N_("The runtime refused these profiles for a reason this applet does not recognise, so its own words are repeated below without interpretation."),
+        command: "",
+        note: "",
+    }),
+});
+
+function setupSection(kind, members) {
+    const copy = SETUP_SECTIONS[kind] || SETUP_SECTIONS.unknown;
+    return {
+        kind,
+        title: _(copy.title),
+        description: _(copy.description),
+        command: copy.command === "" ? "" : _(copy.command),
+        note: copy.note === "" ? "" : _(copy.note),
+        profiles: members.map((profile) => ({
+            id: profile.id,
+            title: profile.title,
+            reason: profile.blocker.reason,
+        })),
+    };
+}
+
+function setupSummary(total, runnable) {
+    if (total === 0) {
+        return _("No workload profiles are installed.");
+    }
+    return format(
+        ngettext(
+            "%d of %d workload profile can run on this machine",
+            "%d of %d workload profiles can run on this machine",
+            total,
+        ),
+        runnable,
+        total,
+    );
+}
+
+// Useful when nothing is wrong, too: a screen that renders empty on a healthy
+// host reads as broken rather than as finished.
+function setupModel(profiles) {
+    const blocked = profiles.filter((profile) => profile.blocker !== null);
+    const sections = SETUP_KIND_ORDER
+        .map((kind) => [kind, blocked.filter((profile) => profile.blocker.kind === kind)])
+        .filter(([, members]) => members.length > 0)
+        .map(([kind, members]) => setupSection(kind, members));
+    return {
+        resolved: blocked.length === 0,
+        title: blocked.length === 0 ? _("Nothing is missing") : _("What these profiles need"),
+        summary: setupSummary(profiles.length, profiles.length - blocked.length),
+        sections,
+    };
+}
+
 function formatLoad(value) {
     return typeof value === "number" && Number.isFinite(value)
         ? `${Math.round(value)}%`
@@ -591,6 +672,7 @@ function toViewModel(state, nowMs = Date.now()) {
         runnableGroups: groupModels(profiles.filter((profile) => profile.blocker === null)),
         blockedProfiles: blocked,
         blockedGroup: blockedGroupModel(blocked),
+        setup: setupModel(profiles),
         inexecutableCount: blocked.length,
         pausedProfiles,
         activeAlerts,
@@ -627,6 +709,8 @@ module.exports = {
     NO_BLOCKER_DETAIL_TEXT,
     RUNTIME_RECOVERY,
     RUNTIME_STATUS_LABELS,
+    SETUP_KIND_ORDER,
+    SETUP_SECTIONS,
     SEVERITY_LABELS,
     STATUS_LABELS,
     BACKEND_LABELS,
@@ -656,6 +740,9 @@ module.exports = {
     metricModels,
     profileModel,
     panelModel,
+    setupModel,
+    setupSection,
+    setupSummary,
     severityText,
     toViewModel,
     unavailablePanel,

@@ -98,7 +98,7 @@ test("the accepted enumerations stay closed and exact", () => {
         "hardware-health", "storage-intelligence", "resource-scheduler", "build-advisor",
         "visual-library", "network-peripherals", "desktop-context", "document-intelligence",
     ]);
-    assert.deepEqual(Manager.TABS, ["overview", "profiles", "alerts"]);
+    assert.deepEqual(Manager.TABS, ["overview", "profiles", "alerts", "setup"]);
     assert.deepEqual(Object.keys(ViewModel.STATUS_LABELS), [...Domain.PROFILE_STATUSES]);
     assert.deepEqual(ViewModel.STATUS_LABELS, {
         healthy: "Healthy",

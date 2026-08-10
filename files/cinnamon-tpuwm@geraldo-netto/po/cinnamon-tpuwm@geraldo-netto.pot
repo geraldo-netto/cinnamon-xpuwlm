@@ -38,6 +38,12 @@ msgstr ""
 msgid "%d of %d available"
 msgstr ""
 
+#: lib/view-model.js
+msgid "%d of %d workload profile can run on this machine"
+msgid_plural "%d of %d workload profiles can run on this machine"
+msgstr[0] ""
+msgstr[1] ""
+
 #: lib/menu-view.js
 msgid "%d paused profile"
 msgid_plural "%d paused profiles"
@@ -273,6 +279,10 @@ msgid "Connect a supported TPU, NPU, or GPU accelerator."
 msgstr ""
 
 #: lib/view-model.js
+msgid "Connect supported hardware"
+msgstr ""
+
+#: lib/view-model.js
 msgid "Connection required"
 msgstr ""
 
@@ -320,6 +330,10 @@ msgstr ""
 msgid "Enable %s"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Every workload profile can run"
+msgstr ""
+
 #: lib/view-model.js
 msgid "GPU"
 msgstr ""
@@ -342,6 +356,14 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Inspect the document"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Install a model"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Install the accelerator runtime"
 msgstr ""
 
 #: lib/view-model.js
@@ -412,6 +434,10 @@ msgstr ""
 msgid "No accelerator detected"
 msgstr ""
 
+#: lib/view-model.js
+msgid "No accelerator these profiles can use is attached to this machine. There is nothing to install: they stay unavailable until supported hardware is present."
+msgstr ""
+
 #: lib/menu-view.js
 msgid "No active alerts"
 msgstr ""
@@ -449,6 +475,10 @@ msgid "No workload profile can run on this machine yet. Open the Setup tab to se
 msgstr ""
 
 #: lib/view-model.js
+msgid "No workload profiles are installed."
+msgstr ""
+
+#: lib/view-model.js
 msgid "Not available"
 msgstr ""
 
@@ -466,6 +496,10 @@ msgstr[1] ""
 
 #: lib/view-model.js
 msgid "Not shown: %d profile update(s), %d alert(s). Install the missing workload plug-in to see them."
+msgstr ""
+
+#: lib/view-model.js
+msgid "Nothing is missing"
 msgstr ""
 
 #: lib/menu-view.js
@@ -529,6 +563,10 @@ msgid "Reading the snapshot failed, so device and workload telemetry are unknown
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Ready"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Recently resolved"
 msgstr ""
 
@@ -546,6 +584,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Removed"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Reported by the runtime"
 msgstr ""
 
 #: lib/menu-view.js
@@ -644,6 +686,14 @@ msgstr ""
 msgid "Safety rules remain active"
 msgstr ""
 
+#: lib/view-model.js
+msgid "See “Installing a model” in the OmniTensor installation guide. The model format has to match the accelerator the profile declares."
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Setup"
+msgstr ""
+
 #: settings-schema.json
 msgid "Show TPU status beside the panel icon"
 msgstr ""
@@ -724,6 +774,10 @@ msgstr ""
 msgid "TPU critical alert — %s"
 msgstr ""
 
+#: lib/view-model.js
+msgid "The accelerator is present, but the Python package that drives it cannot be imported, so the runtime has no lane to run these profiles on. Install the matching extra and restart the service."
+msgstr ""
+
 #: settings-schema.json
 msgid "The applet reads this file but never executes content from it. If it is absent, hardware discovery provides a safe device-only status."
 msgstr ""
@@ -738,6 +792,14 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "The runtime cannot run this profile"
+msgstr ""
+
+#: lib/view-model.js
+msgid "The runtime refused these profiles for a reason this applet does not recognise, so its own words are repeated below without interpretation."
+msgstr ""
+
+#: lib/menu-view.js
+msgid "The runtime resolved a model and an accelerator lane for each installed profile. There is nothing to install here."
 msgstr ""
 
 #: lib/manager.js
@@ -808,6 +870,10 @@ msgstr ""
 msgid "The service must publish the version 1 snapshot contract."
 msgstr ""
 
+#: lib/view-model.js
+msgid "These profiles declare no model, so the runtime refuses to build a pipeline for them. Install the artifact, then declare the requirements.model block the command prints in the profile's manifest."
+msgstr ""
+
 #: lib/menu-view.js lib/view-model.js
 msgid "Unavailable"
 msgstr ""
@@ -846,6 +912,14 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Weights apply only when queues contend"
+msgstr ""
+
+#: lib/view-model.js
+msgid "What these profiles need"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Which extra depends on the accelerator: see the Dependencies table in the OmniTensor installation guide."
 msgstr ""
 
 #: lib/menu-view.js
@@ -900,6 +974,14 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "none"
+msgstr ""
+
+#: lib/view-model.js
+msgid "omnitensor-prepare-artifact <model>.param --id <id> --version <v> --format ncnn --install-root ~/.local/share/omnitensor/artifacts"
+msgstr ""
+
+#: lib/view-model.js
+msgid "pip install 'omnitensor[gpu]'"
 msgstr ""
 
 #: lib/view-model.js

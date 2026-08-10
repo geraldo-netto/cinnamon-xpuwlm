@@ -62,6 +62,50 @@ is bounded to the work-area height so the footer actions stay visible, and
 navigation, pause/resume, recovery, and manager actions remain present in every
 mode. An unusable measurement falls back to the default desktop layout.
 
+## Profiles that cannot run, and the Setup tab
+
+The runtime refuses to serve a profile for three genuinely different reasons,
+and the user's next action differs in each:
+
+| Reason the runtime publishes | Class | Remedy |
+| --- | --- | --- |
+| `no model bundled` | needs a model | Install an artifact with `omnitensor-prepare-artifact`, then declare the printed `requirements.model` block in the profile's manifest |
+| `ncnn is not installed`, `onnxruntime is not installed`, `openvino is not installed`, `tflite-runtime is not installed` | needs an accelerator runtime | Install the matching Python extra, for example `pip install 'omnitensor[gpu]'` |
+| `No Coral Edge TPU device detected`, `No /dev/accel …`, `No GPU render node detected` | needs hardware | None. The profile stays unavailable until supported hardware is attached |
+
+`lib/profile-blockers.js` classifies these from the sentence the service
+publishes in `profiles[].detail`, not from the manifest shipped here: the
+service owns the catalog that decides what executes, so a manifest in this tree
+can be older than the one it loaded. The bundled `requirements.model` flag is
+the fallback for the two cases the snapshot cannot answer — no runtime has
+published anything for the profile, or the only thing it published is the
+user's own policy decision (`Runtime paused by policy`, `Profile disabled by
+policy`), which is reported before the service looks at a backend and therefore
+says nothing about executability. A sentence the applet does not recognise is
+repeated verbatim rather than relabelled or dropped.
+`tests/contract/profile-blocker-reason-contract.test.js` pins each phrase
+against the service sources wherever both checkouts are present.
+
+The Profiles tab lists the profiles that run first, grouped as before, and
+collapses everything else into a single `Not available (n)` group at the
+bottom. Every count is derived from the live snapshot, so the group shrinks by
+itself as models and runtimes are installed and is correct on a host where more
+or fewer profiles run. Its rows keep their enable and weight controls, because
+the profile is still part of the catalog, but the controls are insensitive:
+they would change a policy the scheduler will never read. The reason is in the
+row, in each control's accessible name, and in a tooltip on the row, which
+stays reactive so the pointer falls through the disabled controls and still
+gets an answer.
+
+The Setup tab holds the detail the collapsed group deliberately leaves out. It
+is organised by remedy rather than by profile, because one package or one
+artifact usually unblocks several profiles at once, and it names every affected
+profile under the remedy it needs. Commands are selectable labels rather than a
+Copy button, because St offers no clipboard action here and a control that does
+nothing is exactly what these two changes exist to remove. When nothing is
+missing the tab says so and states how many profiles run, rather than rendering
+empty.
+
 ## Accessible semantics
 
 Controls expose their ATK role and state, not only an accessible name: the tab
@@ -71,13 +115,9 @@ unavailable weight control drops its sensitive state. Names still spell the
 state out in text, so nothing depends on role support alone, and a Cinnamon
 build that does not expose a role or state simply renders without it.
 
-A workload whose manifest declares no model cannot be executed by the runtime,
-which refuses to build a pipeline for it. The popup states that on the profile
-row and in the profile switch's accessible name, and counts the affected
-profiles in the section heading, rather than presenting the same controls for a
-profile that can never run. The controls stay live: enabling such a profile is
-still a policy statement, and installing the missing model must not require
-first recovering a control the applet took away.
+The collapsed group of profiles that cannot run is a toggle button carrying the
+expanded state, and it says "collapsed" or "expanded" in its accessible name as
+well, so the arrow glyph is never the only cue.
 
 The tab strip uses roving focus: only the selected tab is reachable with Tab,
 Left/Up and Right/Down move to the neighbouring tab and wrap, and Home and End

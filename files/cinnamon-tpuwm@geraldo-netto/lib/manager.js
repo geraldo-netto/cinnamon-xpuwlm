@@ -10,7 +10,7 @@ const WorkloadRegistry = require("./workload-registry.js");
 
 const {_, N_} = I18n;
 
-const TABS = Object.freeze(["overview", "profiles", "alerts"]);
+const TABS = Object.freeze(["overview", "profiles", "alerts", "setup"]);
 const TAB_SET = new Set(TABS);
 const RUNTIME_READ_FAILURE = "runtime-read";
 const STATE_SAVE_FAILURE = "state-save";

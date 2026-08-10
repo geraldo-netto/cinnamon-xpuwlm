@@ -123,6 +123,38 @@
     padding: 12px 10px;
 }
 
+/* Setup: what the collapsed group deliberately leaves out. The command is
+   selectable text rather than a copy control, so nothing here promises an
+   action the toolkit cannot perform. */
+.tpuwm-setup-description,
+.tpuwm-setup-note {
+    padding: 6px 10px;
+    font-size: 0.82em;
+    opacity: 0.72;
+}
+
+.tpuwm-setup-row {
+    min-height: 44px;
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(127, 127, 127, 0.16);
+    spacing: 8px;
+}
+
+.tpuwm-command {
+    margin: 4px 0 2px 0;
+    padding: 9px 11px;
+    border: 1px solid rgba(127, 127, 127, 0.28);
+    border-radius: 7px;
+    background-color: rgba(127, 127, 127, 0.14);
+    font-family: monospace;
+    font-size: 0.82em;
+}
+
+.tpuwm-command:focus {
+    border-width: 2px;
+    border-color: symbolic;
+}
+
 .tpuwm-status {
     padding: 2px 5px;
     border-radius: 4px;

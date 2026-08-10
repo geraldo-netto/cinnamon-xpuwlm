@@ -70,7 +70,7 @@ test("the tab strip exposes a tab list containing page tabs", () => {
     const strip = findActors(root, (actor) => actor.styleClasses.has("tpuwm-tabs"))[0];
     assert.equal(strip.accessibleRole, "page-tab-list");
     assert.deepEqual(tabs(root).map((tab) => tab.accessibleRole), [
-        "page-tab", "page-tab", "page-tab",
+        "page-tab", "page-tab", "page-tab", "page-tab",
     ]);
 });
 
@@ -79,16 +79,16 @@ test("the selected state follows the active tab in both directions", () => {
     view.render(ViewModel.toViewModel(baseState(), NOW));
     assert.deepEqual(
         tabs(root).map((tab) => tab.accessibleStates.has("selected")),
-        [true, false, false],
+        [true, false, false, false],
     );
 
     view.render(ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW));
     assert.deepEqual(
         tabs(root).map((tab) => tab.accessibleStates.has("selected")),
-        [false, false, true],
+        [false, false, true, false],
     );
     assert.deepEqual(tabs(root).map((tab) => tab.accessibleName), [
-        "Overview tab", "Profiles tab", "Alerts tab, selected",
+        "Overview tab", "Profiles tab", "Alerts tab, selected", "Setup tab",
     ]);
 });
 
