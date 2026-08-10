@@ -29,18 +29,22 @@ function readText(...segments) {
 // The service repository is a sibling checkout, not a dependency: the
 // cross-repository half of the gate runs wherever both are present and is
 // reported as unavailable, never as passing, where only one is.
-function serviceSourcePath() {
+function serviceFile(relativePath) {
     const configured = process.env.TPUWM_OMNITENSOR_ROOT;
     const roots = configured
         ? [configured]
         : [path.resolve(repositoryRoot, "../omnitensor")];
     for (const root of roots) {
-        const candidate = path.join(root, "src/omnitensor/service.py");
+        const candidate = path.join(root, relativePath);
         if (fs.existsSync(candidate)) {
             return candidate;
         }
     }
     return null;
+}
+
+function serviceSourcePath() {
+    return serviceFile("src/omnitensor/service.py");
 }
 
 test("the applet defaults to the agreed runtime snapshot path", () => {
@@ -64,6 +68,31 @@ test("the applet documents both names an operator has to change to move the file
         documentation.includes("runtime-state-path"),
         true,
         "docs/applet.md must name the applet setting that has to match it",
+    );
+});
+
+// An operator installing the service reads the service's own guide, not the
+// applet's. Documenting the two-sided edit only here left the variable
+// discoverable exclusively from the side that cannot set it.
+test("the service installation guide names the variable that moves the file", (t) => {
+    const guide = serviceFile("docs/installation.md");
+    if (guide === null) {
+        t.skip(
+            "the OmniTensor checkout is not available; "
+            + "set TPUWM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
+        );
+        return;
+    }
+    const text = fs.readFileSync(guide, "utf8");
+    assert.equal(
+        text.includes(SERVICE_OVERRIDE),
+        true,
+        `${guide} must name ${SERVICE_OVERRIDE}, not only the file it defaults to`,
+    );
+    assert.equal(
+        text.includes("runtime-state-path"),
+        true,
+        `${guide} must name the applet setting that has to be changed with it`,
     );
 });
 
