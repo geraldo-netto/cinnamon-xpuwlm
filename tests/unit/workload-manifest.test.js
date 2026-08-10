@@ -30,7 +30,8 @@ test("version 1 workload manifest matches authoritative schema boundaries", () =
         ["not object", null, false],
         ["unknown root", {...valid, unknown: true}, false],
         ["missing root", (({id: _id, ...rest}) => rest)(valid), false],
-        ["manifest version", {...valid, manifestVersion: 2}, false],
+        ["version 2 without the plug-in subtree", {...valid, manifestVersion: 2}, false],
+        ["version 3", {...valid, manifestVersion: 3}, false],
         ["identifier", {...valid, id: "Bad ID"}, false],
         ["identifier length", {...valid, id: "a".repeat(81)}, false],
         ["version", {...valid, version: "01.0.0"}, false],
@@ -96,6 +97,95 @@ test("version 1 workload manifest matches authoritative schema boundaries", () =
     }
 });
 
+function pluginCase(overrides) {
+    const value = Fixtures.validPluginWorkloadManifest();
+    value.plugin = {...value.plugin, ...overrides};
+    return value;
+}
+
+test("version 2 workload manifest matches authoritative schema boundaries", () => {
+    const valid = Fixtures.validPluginWorkloadManifest();
+    const subtree = valid.plugin;
+    const cases = [
+        ["valid", valid, true],
+        ["version 1 may not carry the subtree", {...valid, manifestVersion: 1}, false],
+        ["unknown plug-in key", pluginCase({unexpected: true}), false],
+        ["missing plug-in key", pluginCase({permissions: undefined}), false],
+        ["entry point identifier", pluginCase({entryPoint: "Bad Entry"}), false],
+        ["protocol optional capabilities", pluginCase({protocol: {minimum: 1, maximum: 2}}), true],
+        ["protocol capability trailing hyphen", pluginCase({protocol: {...subtree.protocol, capabilities: ["stream-"]}}), true],
+        ["protocol capability leading digit", pluginCase({protocol: {...subtree.protocol, capabilities: ["1stream"]}}), false],
+        ["protocol capability duplicate", pluginCase({protocol: {...subtree.protocol, capabilities: ["a", "a"]}}), false],
+        ["protocol lower bound", pluginCase({protocol: {minimum: 0, maximum: 2}}), false],
+        ["protocol upper bound", pluginCase({protocol: {minimum: 1, maximum: 65536}}), false],
+        ["protocol fractional", pluginCase({protocol: {minimum: 1.5, maximum: 2}}), false],
+        ["protocol missing maximum", pluginCase({protocol: {minimum: 1}}), false],
+        ["schemas incomplete", pluginCase({schemas: {configuration: {}, input: {}}}), false],
+        ["schemas carry opaque JSON", pluginCase({schemas: {configuration: {type: "object"}, input: {}, output: {}}}), true],
+        ["schemas non-object member", pluginCase({schemas: {configuration: [], input: {}, output: {}}}), false],
+        ["triggers empty", pluginCase({triggers: []}), false],
+        ["triggers unknown", pluginCase({triggers: ["startup"]}), false],
+        ["triggers duplicate", pluginCase({triggers: ["manual", "manual"]}), false],
+        ["artifacts empty", pluginCase({artifacts: []}), true],
+        ["artifact digest", pluginCase({artifacts: [{...subtree.artifacts[0], sha256: "z".repeat(64)}]}), false],
+        ["artifact digest length", pluginCase({artifacts: [{...subtree.artifacts[0], sha256: "a".repeat(63)}]}), false],
+        ["artifact format", pluginCase({artifacts: [{...subtree.artifacts[0], format: "coreml"}]}), false],
+        ["artifact version", pluginCase({artifacts: [{...subtree.artifacts[0], version: "1"}]}), false],
+        ["artifact unknown key", pluginCase({artifacts: [{...subtree.artifacts[0], extra: 1}]}), false],
+        ["artifact duplicate", pluginCase({artifacts: [subtree.artifacts[0], {...subtree.artifacts[0]}]}), false],
+        ["permission shape", pluginCase({permissions: ["fsread"]}), false],
+        ["permission duplicate", pluginCase({permissions: ["fs:read/a", "fs:read/a"]}), false],
+        ["permissions empty", pluginCase({permissions: []}), true],
+    ];
+
+    for (const [name, value, expected] of cases) {
+        if (value.plugin.permissions === undefined) {
+            delete value.plugin.permissions;
+        }
+        assert.equal(Contract.isWorkloadManifest(value), expected, name);
+        assert.equal(Boolean(oracle(value)), expected, `${name}: schema`);
+    }
+});
+
+test("a version 2 descriptor carries an immutable, independent plug-in subtree", () => {
+    const source = Fixtures.validPluginWorkloadManifest();
+    const descriptor = new Contract.WorkloadDescriptor(source);
+    source.plugin.triggers.push("event");
+    source.plugin.artifacts[0].id = "mutated";
+    source.plugin.schemas.input.injected = true;
+
+    const plugin = descriptor.manifest().plugin;
+    assert.deepEqual(plugin.triggers, ["manual", "periodic"]);
+    assert.equal(plugin.artifacts[0].id, "sample-model");
+    assert.deepEqual(plugin.schemas.input, {});
+    assert.equal(Object.isFrozen(plugin), true);
+    assert.equal(Object.isFrozen(plugin.protocol), true);
+    assert.equal(Object.isFrozen(plugin.protocol.capabilities), true);
+    assert.equal(Object.isFrozen(plugin.schemas), true);
+    assert.equal(Object.isFrozen(plugin.triggers), true);
+    assert.equal(Object.isFrozen(plugin.artifacts), true);
+    assert.equal(Object.isFrozen(plugin.artifacts[0]), true);
+    assert.equal(Object.isFrozen(plugin.permissions), true);
+    // The profile projection is version-independent: the popup shows the same
+    // fields whichever manifest version declared them.
+    assert.equal(descriptor.profileDefinition().id, "sample-workload");
+
+    const withoutCapabilities = Fixtures.validPluginWorkloadManifest();
+    delete withoutCapabilities.plugin.protocol.capabilities;
+    const frozen = new Contract.WorkloadDescriptor(withoutCapabilities).manifest();
+    assert.equal(Object.hasOwn(frozen.plugin.protocol, "capabilities"), false);
+    assert.equal(Object.isFrozen(frozen.plugin.protocol), true);
+});
+
+test("record uniqueness compares structure, not key order or identity", () => {
+    assert.equal(Contract.uniqueItems([{a: 1, b: 2}, {b: 2, a: 1}]), false);
+    assert.equal(Contract.uniqueItems([{a: 1}, {a: 2}]), true);
+    assert.equal(Contract.uniqueItems([[1, 2], [1, 2]]), false);
+    assert.equal(Contract.uniqueItems([]), true);
+    assert.equal(Contract.canonicalJson(undefined), "null");
+    assert.equal(Contract.canonicalJson([{b: 1, a: 2}]), '[{"a":2,"b":1}]');
+});
+
 test("workload descriptor owns immutable contract data and profile projection", () => {
     const source = Fixtures.validWorkloadManifest();
     const descriptor = new Contract.WorkloadDescriptor(source);
@@ -121,7 +211,7 @@ test("workload descriptor owns immutable contract data and profile projection", 
         defaultWeight: 2,
     });
     assert.equal(Object.isFrozen(descriptor.profileDefinition()), true);
-    assert.throws(() => new Contract.WorkloadDescriptor({}), /version 1 contract/u);
+    assert.throws(() => new Contract.WorkloadDescriptor({}), /version 1 or 2 contract/u);
 });
 
 test("manifest primitives enforce code-point, collection, and numeric contracts", () => {

@@ -121,7 +121,7 @@ test("directory registry rejects malformed discovery results", () => {
     );
     assert.throws(
         () => new Registry.ManifestDirectoryRegistry({...base, readText: () => "{}"}).descriptors(),
-        /version 1 contract/u,
+        /version 1 or 2 contract/u,
     );
     assert.throws(
         () => new Registry.ManifestDirectoryRegistry({

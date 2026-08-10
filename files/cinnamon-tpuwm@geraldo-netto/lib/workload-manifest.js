@@ -1,16 +1,39 @@
 "use strict";
 
+// Version 2 adds the `plugin` subtree and nothing else: the subtree is what
+// the version means, so a version 1 manifest may not carry one and a version 2
+// manifest must. The runtime rewrites manifests to version 2, so an applet
+// that only knows version 1 rejects catalogs the runtime considers valid.
 const MANIFEST_VERSION = 1;
+const PLUGIN_MANIFEST_VERSION = 2;
+const MANIFEST_VERSIONS = new Set([MANIFEST_VERSION, PLUGIN_MANIFEST_VERSION]);
 const RUNTIME_API_VERSION = 1;
 const MIN_WEIGHT = 1;
 const MAX_WEIGHT = 5;
 const IDENTIFIER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const SEMANTIC_VERSION = /^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/u;
 const COMPARATORS = new Set(["at-least", "at-most", "equal"]);
-const ROOT_PROPERTIES = new Set([
+const REQUIRED_ROOT_PROPERTIES = Object.freeze([
     "manifestVersion", "id", "version", "capabilities", "requirements", "ui",
     "defaults", "pipeline", "acceptance",
 ]);
+const ROOT_PROPERTIES = new Set([...REQUIRED_ROOT_PROPERTIES, "plugin"]);
+const PLUGIN_REQUIRED = Object.freeze([
+    "entryPoint", "protocol", "schemas", "triggers", "artifacts", "permissions",
+]);
+const PLUGIN_PROPERTIES = new Set(PLUGIN_REQUIRED);
+const PROTOCOL_REQUIRED = Object.freeze(["minimum", "maximum"]);
+const PROTOCOL_PROPERTIES = new Set([...PROTOCOL_REQUIRED, "capabilities"]);
+const PLUGIN_SCHEMA_PROPERTIES = new Set(["configuration", "input", "output"]);
+const PLUGIN_TRIGGERS = new Set(["manual", "periodic", "event"]);
+const ARTIFACT_PROPERTIES = new Set(["id", "version", "format", "sha256"]);
+// Deliberately laxer than IDENTIFIER: the runtime's protocol capability names
+// permit trailing and repeated hyphens, and a mirror that is stricter than the
+// contract rejects documents the runtime accepts.
+const PROTOCOL_CAPABILITY = /^[a-z][a-z0-9-]*$/u;
+const PERMISSION_NAME = /^[a-z][a-z0-9-]*:[a-zA-Z0-9*._/-]+$/u;
+const MAX_PROTOCOL_VERSION = 65535;
+const MAX_SCHEMA_PROPERTIES = 64;
 const REQUIRED_REQUIREMENT_PROPERTIES = Object.freeze(["runtimeApi", "accelerator", "minimumDevices", "model"]);
 const REQUIREMENT_PROPERTIES = new Set([...REQUIRED_REQUIREMENT_PROPERTIES, "acceleratorPreference"]);
 const ACCELERATORS = new Set(["tpu", "npu", "gpu"]);
@@ -181,8 +204,105 @@ function isAcceptance(value) {
         && value.every(isAcceptanceCriterion);
 }
 
+// JSON Schema treats a property whose value is `undefined` as absent, so an
+// optional-property mirror has to agree or it rejects documents the contract
+// accepts.
+function declared(value, name) {
+    return Object.hasOwn(value, name) && value[name] !== undefined;
+}
+
+// Ajv compares array members structurally; a mirror that compared references
+// would accept duplicate records the contract forbids.
+function canonicalJson(value) {
+    if (Array.isArray(value)) {
+        return `[${value.map(canonicalJson).join(",")}]`;
+    }
+    if (isRecord(value)) {
+        return `{${Object.keys(value).sort()
+            .map((name) => `${JSON.stringify(name)}:${canonicalJson(value[name])}`)
+            .join(",")}}`;
+    }
+    return JSON.stringify(value) ?? "null";
+}
+
+function uniqueItems(values) {
+    return new Set(values.map(canonicalJson)).size === values.length;
+}
+
+function isProtocolRange(value) {
+    return boundedProperties(value, PROTOCOL_REQUIRED, PROTOCOL_PROPERTIES)
+        && isProtocolVersion(value.minimum)
+        && isProtocolVersion(value.maximum)
+        && (!declared(value, "capabilities")
+            || uniqueBoundedTextList(value.capabilities, 32, 64, (item) => PROTOCOL_CAPABILITY.test(item)));
+}
+
+function isProtocolVersion(value) {
+    return Number.isInteger(value) && value >= 1 && value <= MAX_PROTOCOL_VERSION;
+}
+
+function isBoundedSchemaRecord(value) {
+    return isRecord(value) && Object.keys(value).length <= MAX_SCHEMA_PROPERTIES;
+}
+
+function isPluginSchemas(value) {
+    return exactProperties(value, PLUGIN_SCHEMA_PROPERTIES)
+        && isBoundedSchemaRecord(value.configuration)
+        && isBoundedSchemaRecord(value.input)
+        && isBoundedSchemaRecord(value.output);
+}
+
+function isPluginTriggers(value) {
+    return Array.isArray(value)
+        && value.length >= 1
+        && value.length <= 8
+        && uniqueItems(value)
+        && value.every((item) => PLUGIN_TRIGGERS.has(item));
+}
+
+function isPluginArtifact(value) {
+    return exactProperties(value, ARTIFACT_PROPERTIES)
+        && identifier(value.id, 120)
+        && semanticVersion(value.version)
+        && MODEL_FORMATS.has(value.format)
+        && boundedText(value.sha256, 64, 64)
+        && MODEL_DIGEST.test(value.sha256);
+}
+
+function isPluginArtifacts(value) {
+    return Array.isArray(value)
+        && value.length <= 16
+        && uniqueItems(value)
+        && value.every(isPluginArtifact);
+}
+
+function isPluginPermissions(value) {
+    return uniqueBoundedTextList(value, 32, 160, (item) => (
+        [...item].length >= 3 && PERMISSION_NAME.test(item)
+    ));
+}
+
+function isPlugin(value) {
+    return boundedProperties(value, PLUGIN_REQUIRED, PLUGIN_PROPERTIES)
+        && identifier(value.entryPoint)
+        && isProtocolRange(value.protocol)
+        && isPluginSchemas(value.schemas)
+        && isPluginTriggers(value.triggers)
+        && isPluginArtifacts(value.artifacts)
+        && isPluginPermissions(value.permissions);
+}
+
+// The subtree is the version discriminator, so its presence and the declared
+// version have to agree in both directions.
+function hasPluginSubtree(value) {
+    const present = declared(value, "plugin");
+    return value.manifestVersion === PLUGIN_MANIFEST_VERSION
+        ? present && isPlugin(value.plugin)
+        : !present;
+}
+
 function hasManifestIdentity(value) {
-    return value.manifestVersion === MANIFEST_VERSION
+    return MANIFEST_VERSIONS.has(value.manifestVersion)
         && identifier(value.id)
         && semanticVersion(value.version)
         && uniqueBoundedTextList(value.capabilities, 32, 80, (item) => IDENTIFIER.test(item))
@@ -198,14 +318,57 @@ function hasManifestDetails(value) {
 }
 
 function isWorkloadManifest(value) {
-    return exactProperties(value, ROOT_PROPERTIES)
+    return boundedProperties(value, REQUIRED_ROOT_PROPERTIES, ROOT_PROPERTIES)
         && hasManifestIdentity(value)
-        && hasManifestDetails(value);
+        && hasManifestDetails(value)
+        && hasPluginSubtree(value);
+}
+
+function clonePlugin(plugin) {
+    return {
+        ...plugin,
+        protocol: {
+            ...plugin.protocol,
+            ...(declared(plugin.protocol, "capabilities")
+                ? {capabilities: [...plugin.protocol.capabilities]}
+                : {}),
+        },
+        schemas: {
+            configuration: structuredCloneRecord(plugin.schemas.configuration),
+            input: structuredCloneRecord(plugin.schemas.input),
+            output: structuredCloneRecord(plugin.schemas.output),
+        },
+        triggers: [...plugin.triggers],
+        artifacts: plugin.artifacts.map((artifact) => ({...artifact})),
+        permissions: [...plugin.permissions],
+    };
+}
+
+// The plug-in schemas are opaque JSON the applet only carries; a structural
+// copy keeps a caller from reaching back into the descriptor through them.
+function structuredCloneRecord(value) {
+    return JSON.parse(JSON.stringify(value));
+}
+
+function freezePlugin(plugin) {
+    if (declared(plugin.protocol, "capabilities")) {
+        Object.freeze(plugin.protocol.capabilities);
+    }
+    Object.freeze(plugin.protocol);
+    Object.freeze(plugin.schemas);
+    Object.freeze(plugin.triggers);
+    for (const artifact of plugin.artifacts) {
+        Object.freeze(artifact);
+    }
+    Object.freeze(plugin.artifacts);
+    Object.freeze(plugin.permissions);
+    return Object.freeze(plugin);
 }
 
 function cloneManifest(manifest) {
     return {
         ...manifest,
+        ...(declared(manifest, "plugin") ? {plugin: clonePlugin(manifest.plugin)} : {}),
         capabilities: [...manifest.capabilities],
         requirements: {
             ...manifest.requirements,
@@ -223,6 +386,9 @@ function cloneManifest(manifest) {
 
 function freezeManifest(manifest) {
     Object.freeze(manifest.capabilities);
+    if (declared(manifest, "plugin")) {
+        freezePlugin(manifest.plugin);
+    }
     if (manifest.requirements.model !== null) {
         Object.freeze(manifest.requirements.model);
     }
@@ -244,7 +410,7 @@ function freezeManifest(manifest) {
 class WorkloadDescriptor {
     constructor(manifest) {
         if (!isWorkloadManifest(manifest)) {
-            throw new TypeError("Workload manifest does not match version 1 contract");
+            throw new TypeError("Workload manifest does not match the version 1 or 2 contract");
         }
         this._manifest = freezeManifest(cloneManifest(manifest));
     }
@@ -278,19 +444,26 @@ class WorkloadDescriptor {
 module.exports = {
     ACCELERATORS,
     MANIFEST_VERSION,
+    MANIFEST_VERSIONS,
     MODEL_FORMATS,
     MAX_WEIGHT,
     MIN_WEIGHT,
+    PLUGIN_MANIFEST_VERSION,
     RUNTIME_API_VERSION,
     WorkloadDescriptor,
     boundedProperties,
     boundedText,
+    canonicalJson,
     cloneManifest,
+    clonePlugin,
     codePointLength,
+    declared,
     exactProperties,
     freezeManifest,
+    freezePlugin,
     hasManifestDetails,
     hasManifestIdentity,
+    hasPluginSubtree,
     hasUiIdentity,
     hasUiOrder,
     hasUiText,
@@ -298,14 +471,24 @@ module.exports = {
     isAcceleratorPreference,
     isAcceptance,
     isAcceptanceCriterion,
+    isBoundedSchemaRecord,
     isDefaults,
     isModel,
     isModelArtifact,
     isPipeline,
+    isPlugin,
+    isPluginArtifact,
+    isPluginArtifacts,
+    isPluginPermissions,
+    isPluginSchemas,
+    isPluginTriggers,
+    isProtocolRange,
+    isProtocolVersion,
     isRecord,
     isRequirements,
     isUi,
     isWorkloadManifest,
     semanticVersion,
     uniqueBoundedTextList,
+    uniqueItems,
 };

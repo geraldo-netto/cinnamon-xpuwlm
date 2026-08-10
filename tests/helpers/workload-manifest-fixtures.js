@@ -40,4 +40,31 @@ function validWorkloadManifest(overrides = {}) {
     };
 }
 
-module.exports = {validWorkloadManifest};
+function validPluginSubtree(overrides = {}) {
+    return {
+        entryPoint: "sample-worker",
+        protocol: {minimum: 1, maximum: 2, capabilities: ["stream-input"]},
+        schemas: {configuration: {}, input: {}, output: {}},
+        triggers: ["manual", "periodic"],
+        artifacts: [{
+            id: "sample-model",
+            version: "1.0.0",
+            format: "tflite-edgetpu",
+            sha256: "a".repeat(64),
+        }],
+        permissions: ["fs:read/tmp/sample"],
+        ...overrides,
+    };
+}
+
+// A version 2 manifest is a version 1 manifest plus the `plugin` subtree: the
+// subtree is what the version number means.
+function validPluginWorkloadManifest(overrides = {}) {
+    return validWorkloadManifest({
+        manifestVersion: 2,
+        plugin: validPluginSubtree(),
+        ...overrides,
+    });
+}
+
+module.exports = {validPluginSubtree, validPluginWorkloadManifest, validWorkloadManifest};

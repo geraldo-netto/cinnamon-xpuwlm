@@ -51,6 +51,40 @@ test("fuzz: manifest predicate stays equivalent to authoritative schema", () => 
     }
 });
 
+test("fuzz: the plug-in subtree predicate stays equivalent to the schema", () => {
+    const next = random(0x21b10c);
+    const paths = [
+        ["manifestVersion"], ["plugin"],
+        ["plugin", "entryPoint"], ["plugin", "protocol"],
+        ["plugin", "protocol", "minimum"], ["plugin", "protocol", "maximum"],
+        ["plugin", "protocol", "capabilities"],
+        ["plugin", "schemas"], ["plugin", "schemas", "configuration"],
+        ["plugin", "schemas", "input"], ["plugin", "schemas", "output"],
+        ["plugin", "triggers"], ["plugin", "artifacts"],
+        ["plugin", "artifacts", 0], ["plugin", "permissions"],
+    ];
+    const hostile = [
+        null, undefined, true, false, -1, 0, 1, 2, 3, 1.5, 65535, 65536,
+        "", "Bad Value", "manual", "stream-", "1stream", "fs:read/tmp", "fsread",
+        [], ["manual"], ["manual", "manual"], {}, {unexpected: true}, () => {},
+    ];
+
+    for (let iteration = 0; iteration < 3000; iteration += 1) {
+        const candidate = Fixtures.validPluginWorkloadManifest();
+        const pathParts = paths[Math.floor(next() * paths.length)];
+        let owner = candidate;
+        for (const part of pathParts.slice(0, -1)) {
+            owner = owner[part];
+        }
+        owner[pathParts.at(-1)] = hostile[Math.floor(next() * hostile.length)];
+        assert.equal(
+            Contract.isWorkloadManifest(candidate),
+            Boolean(oracle(candidate)),
+            `iteration ${iteration}: ${pathParts.join(".")}`,
+        );
+    }
+});
+
 // `requirements.model.sha256` is optional, so the exact key-count rule no
 // longer applies to the model record. Both the schema and the predicate must
 // agree on absent, well-formed, and malformed digests alike.
