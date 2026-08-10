@@ -361,4 +361,31 @@ test("portfolio applies idempotent profile, weight, and global pause changes", (
     assert.equal(portfolio.profile("hardware-health").weight, 5);
 });
 
+test("unknown-content counting tolerates every hostile collection shape", () => {
+    const catalog = BuiltIns.coreCatalog();
+    assert.equal(Domain.unknownProfileCount(null, catalog), 0);
+    assert.equal(Domain.unknownProfileCount("profiles", catalog), 0);
+    assert.equal(Domain.unknownProfileCount([], catalog), 0);
+    assert.equal(Domain.unknownProfileCount({}, catalog), 0);
+    assert.equal(Domain.unknownProfileCount({"hardware-health": {}}, catalog), 0);
+    assert.equal(Domain.unknownProfileCount({missing: {}, "also-missing": {}}, catalog), 2);
+    assert.equal(Domain.unknownProfileCount({missing: {}}), 1, "an empty catalog knows nobody");
+
+    assert.equal(Domain.unknownAlertCount(null, catalog), 0);
+    assert.equal(Domain.unknownAlertCount({}, catalog), 0);
+    assert.equal(Domain.unknownAlertCount([null, 7, "alert"], catalog), 0);
+    assert.equal(Domain.unknownAlertCount([{profileId: "hardware-health"}], catalog), 0);
+    assert.equal(Domain.unknownAlertCount([{profileId: "missing"}, {}], catalog), 2);
+    assert.equal(Domain.unknownAlertCount([{profileId: "hardware-health"}]), 1);
+    // Only the alerts the contract admits are counted, matching what
+    // normalization actually walks.
+    assert.equal(
+        Domain.unknownAlertCount(
+            Array.from({length: Domain.MAX_ALERTS + 5}, () => ({profileId: "missing"})),
+            catalog,
+        ),
+        Domain.MAX_ALERTS,
+    );
+});
+
 module.exports = {NOW, validSnapshot};

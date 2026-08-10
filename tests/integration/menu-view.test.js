@@ -332,6 +332,33 @@ test("the catalog notice appears with named plug-ins and dismisses on demand", (
     assert.equal(notice.visible, false);
 });
 
+test("the alerts screen states runtime content it could not render", () => {
+    const {view, root} = harness();
+    const sectionTitles = () => findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-section-title")).map((actor) => actor.text);
+
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "alerts",
+        unknownContent: {profiles: 1, alerts: 2},
+    }), NOW));
+    const notice = sectionTitles().find((text) => text.includes("not installed here"));
+    assert.equal(notice, "3 runtime items name workloads that are not installed here");
+    const heading = findActors(root, (actor) => actor.accessibleName
+        && actor.accessibleName.includes("Install the missing workload plug-in"));
+    assert.equal(heading.length, 1);
+
+    view.render(ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW));
+    assert.equal(sectionTitles().some((text) => text.includes("not installed here")), false);
+
+    // A model built before this notice existed carries no field at all.
+    view.render({
+        ...ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW),
+        unknownContent: undefined,
+        bodyKey: "forced-rebuild",
+    });
+    assert.equal(sectionTitles().some((text) => text.includes("not installed here")), false);
+});
+
 // The notice sits outside the tab body so a plug-in change is still reported
 // while the popup is showing a safety state.
 test("the catalog notice survives the unavailable and paused screens", () => {

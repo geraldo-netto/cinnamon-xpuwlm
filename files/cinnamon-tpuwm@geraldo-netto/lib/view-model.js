@@ -205,6 +205,33 @@ function catalogNoticeModel(state) {
     };
 }
 
+// The runtime can publish profiles and alerts for plug-ins this applet does
+// not ship. They are dropped, because the applet has no title, icon, or
+// description to render them with, but the drop is stated rather than silent:
+// a disagreement between the two catalogs is exactly what the user needs to
+// know when an expected alert never appears.
+function unknownContentNotice(state) {
+    const unknown = state.unknownContent || {profiles: 0, alerts: 0};
+    const total = unknown.profiles + unknown.alerts;
+    if (total === 0) {
+        return null;
+    }
+    const title = format(
+        ngettext(
+            "%d runtime item names a workload that is not installed here",
+            "%d runtime items name workloads that are not installed here",
+            total,
+        ),
+        total,
+    );
+    const detail = format(
+        _("Not shown: %d profile update(s), %d alert(s). Install the missing workload plug-in to see them."),
+        unknown.profiles,
+        unknown.alerts,
+    );
+    return {title, detail, accessibleName: `${title}. ${detail}`};
+}
+
 function healthOf(state) {
     return state.health || {device: "unknown", runtime: "unreadable", detail: ""};
 }
@@ -459,6 +486,7 @@ function toViewModel(state, nowMs = Date.now()) {
             : `${runtimeStatusText(state)} · ${healthOf(state).detail || state.device.reason} · ${format(_("Last update %s"), formatRelativeTime(state.generatedAt, nowMs))}`,
         panel: panelModel(state),
         catalogNotice: catalogNoticeModel(state),
+        unknownContent: unknownContentNotice(state),
         metrics: metricModels(state),
         enabledGroups: groupProfiles(enabledProfiles),
         allGroups: groupProfiles(state.profiles),
@@ -475,6 +503,7 @@ function toViewModel(state, nowMs = Date.now()) {
         recovery: recoveryModel(state),
         bodyKey: JSON.stringify({
             screen,
+            unknownContent: state.unknownContent,
             profiles: state.profiles,
             alerts: activeAlerts.concat(resolvedAlerts),
             device: state.device,
@@ -519,4 +548,5 @@ module.exports = {
     severityText,
     toViewModel,
     unavailablePanel,
+    unknownContentNotice,
 };

@@ -585,6 +585,52 @@ test("a cold resend that is rejected again reports instead of retrying forever",
     assert.match(manager.state().control.message, /revision changed/u);
 });
 
+test("snapshot content addressed to unknown workloads is counted and logged once", () => {
+    const document = {
+        version: Domain.SNAPSHOT_VERSION,
+        generatedAt: NOW,
+        devices: [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral USB", kind: "usb"}],
+        metrics: {queueDepth: 0, runningProfiles: 0},
+        profiles: {
+            "hardware-health": {status: "running", queued: 1, detail: ""},
+            "not-installed": {status: "running", queued: 4, detail: "invisible"},
+            "also-missing": {status: "idle", queued: 0, detail: ""},
+        },
+        alerts: [
+            {id: "a1", profileId: "hardware-health", title: "Known", summary: "", severity: "warning", timestamp: NOW},
+            {id: "a2", profileId: "not-installed", title: "Hidden", summary: "", severity: "critical", timestamp: NOW},
+        ],
+    };
+    const catalog = BuiltIns.coreCatalog();
+    const {manager, warnings} = harness({
+        runtimeGateway: {
+            read: (_options, callback) => callback(Domain.normalizeSnapshot(
+                document,
+                NOW,
+                Domain.DEFAULT_STALE_AFTER_MS,
+                catalog,
+            )),
+        },
+    });
+    manager.start();
+
+    const state = manager.state();
+    assert.deepEqual(state.unknownContent, {profiles: 2, alerts: 1});
+    assert.equal(state.alerts.length, 1, "an alert for a missing workload is still not rendered");
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /2 profile\(s\) and 1 alert\(s\)/u);
+
+    manager.refresh();
+    assert.equal(warnings.length, 1, "an unchanged disagreement is not logged every poll");
+});
+
+test("a snapshot addressed only to known workloads reports and logs nothing", () => {
+    const {manager, warnings} = harness();
+    manager.start();
+    assert.deepEqual(manager.state().unknownContent, {profiles: 0, alerts: 0});
+    assert.deepEqual(warnings, []);
+});
+
 test("control transport failures surface plain guidance, never raw D-Bus errors", () => {
     assert.equal(
         Manager.controlFailureText(new Error("GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.cinnamon.OmniTensor1 was not provided by any .service files")),

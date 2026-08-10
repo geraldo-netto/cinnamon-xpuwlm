@@ -185,6 +185,7 @@ class WorkloadManager {
         this._catalogChanges = NO_CATALOG_CHANGES;
         this._portfolio = new Domain.WorkloadPortfolio(null, this._catalog);
         this._selectedTab = "overview";
+        this._unknownContentKey = null;
         this._snapshot = Domain.unavailableSnapshot(_("Monitoring has not started"), this._clock.now());
         this._listeners = new Set();
         this._started = false;
@@ -302,11 +303,32 @@ class WorkloadManager {
             return false;
         }
         this._snapshot = snapshot;
+        this._reportUnknownContent(snapshot);
         if (recovered) {
             this._errors.recover(RUNTIME_READ_FAILURE);
         }
         this._scheduleExpiry();
         this._publish();
+        return true;
+    }
+
+    // Logged once per change rather than once per poll: a runtime and an applet
+    // whose catalogs disagree stay disagreeing for as long as the plug-in is
+    // missing, and a line every refresh interval would bury everything else.
+    _reportUnknownContent(snapshot) {
+        const unknown = snapshot.unknownContent || Domain.NO_UNKNOWN_CONTENT;
+        const key = `${unknown.profiles}:${unknown.alerts}`;
+        if (key === this._unknownContentKey) {
+            return false;
+        }
+        this._unknownContentKey = key;
+        if (unknown.profiles + unknown.alerts === 0) {
+            return false;
+        }
+        this._logger.warn(
+            `Runtime snapshot describes ${unknown.profiles} profile(s) and ${unknown.alerts} `
+            + "alert(s) for workloads this applet does not have installed",
+        );
         return true;
     }
 
@@ -456,6 +478,7 @@ class WorkloadManager {
             metrics: {...snapshot.metrics},
             alerts: snapshot.alerts.map((alert) => ({...alert})),
             attentionCount: activeAlerts.length,
+            unknownContent: {...(snapshot.unknownContent || Domain.NO_UNKNOWN_CONTENT)},
             stale: snapshot.stale,
             source: snapshot.source,
             generatedAt: snapshot.generatedAt,

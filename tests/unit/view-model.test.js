@@ -267,6 +267,31 @@ test("body key tracks every rendered field of a same-identity alert", () => {
     }
 });
 
+test("discarded runtime content is stated in words instead of vanishing", () => {
+    assert.equal(ViewModel.unknownContentNotice(state()), null);
+    assert.equal(ViewModel.unknownContentNotice(state({unknownContent: {profiles: 0, alerts: 0}})), null);
+    assert.equal(ViewModel.toViewModel(state(), NOW).unknownContent, null);
+
+    const single = ViewModel.unknownContentNotice(state({unknownContent: {profiles: 0, alerts: 1}}));
+    assert.equal(single.title, "1 runtime item names a workload that is not installed here");
+    assert.equal(
+        single.detail,
+        "Not shown: 0 profile update(s), 1 alert(s). Install the missing workload plug-in to see them.",
+    );
+    assert.equal(single.accessibleName, `${single.title}. ${single.detail}`);
+
+    const many = ViewModel.unknownContentNotice(state({unknownContent: {profiles: 2, alerts: 3}}));
+    assert.equal(many.title, "5 runtime items name workloads that are not installed here");
+    assert.match(many.detail, /2 profile update\(s\), 3 alert\(s\)/u);
+
+    // The notice is part of the body identity: it must not be lost to a
+    // skipped rebuild when the rest of the state is unchanged.
+    assert.notEqual(
+        ViewModel.toViewModel(state({unknownContent: {profiles: 1, alerts: 0}}), NOW).bodyKey,
+        ViewModel.toViewModel(state(), NOW).bodyKey,
+    );
+});
+
 test("the catalog notice names plug-ins in words and stays absent when nothing changed", () => {
     assert.equal(ViewModel.catalogNoticeModel(state()), null);
     assert.equal(ViewModel.catalogNoticeModel(state({catalogChanges: {}})), null);

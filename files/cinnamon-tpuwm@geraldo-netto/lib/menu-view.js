@@ -505,6 +505,7 @@ class MenuView {
     }
 
     _renderAlerts(model) {
+        this._renderUnknownContent(model.unknownContent);
         if (model.activeAlerts.length === 0) {
             const hero = this._hero(
                 "emblem-ok-symbolic",
@@ -673,6 +674,18 @@ class MenuView {
         return card;
     }
 
+    // Stated as words in the alerts screen, where the discarded alerts would
+    // have appeared, so an alert that never arrives has a visible explanation
+    // rather than only a line in the system log.
+    _renderUnknownContent(notice) {
+        if (notice === null || notice === undefined) {
+            return false;
+        }
+        const heading = this._addSectionHeading(notice.title, notice.detail);
+        heading.set_accessible_name(notice.accessibleName);
+        return true;
+    }
+
     _addSectionHeading(title, description) {
         const heading = this._box("tpuwm-section-heading");
         const copy = this._box("tpuwm-profile-copy", true, true);
@@ -680,6 +693,7 @@ class MenuView {
         copy.add_child(this._label(description, "tpuwm-section-description", true));
         heading.add_child(copy);
         this._body.add_child(heading);
+        return heading;
     }
 
     _addGroupHeading(title, value) {

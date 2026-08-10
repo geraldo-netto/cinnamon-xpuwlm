@@ -358,6 +358,29 @@ function normalizeAlert(candidate, nowMs, catalog = EMPTY_WORKLOAD_CATALOG) {
     };
 }
 
+// The runtime validates `profileId` as a well-formed plug-in id, not as one
+// this applet ships, so a catalog the runtime has and the applet does not
+// produces content addressed to nobody. It used to vanish; the counts make the
+// disagreement observable without inventing state for a workload that is not
+// installed.
+const NO_UNKNOWN_CONTENT = Object.freeze({profiles: 0, alerts: 0});
+
+function unknownProfileCount(candidate, catalog = EMPTY_WORKLOAD_CATALOG) {
+    const supplied = isPlainObject(candidate) ? candidate : {};
+    return Object.keys(supplied)
+        .filter((id) => !requireWorkloadCatalog(catalog).has(id))
+        .length;
+}
+
+function unknownAlertCount(candidate, catalog = EMPTY_WORKLOAD_CATALOG) {
+    const supplied = Array.isArray(candidate) ? candidate : [];
+    return supplied
+        .slice(0, MAX_ALERTS)
+        .filter((alert) => isPlainObject(alert)
+            && !requireWorkloadCatalog(catalog).has(safeText(alert.profileId, 80)))
+        .length;
+}
+
 function unavailableSnapshot(reason, nowMs, source = "fallback") {
     const detail = safeText(reason, 240, _("Runtime state is unknown"));
     return {
@@ -370,6 +393,7 @@ function unavailableSnapshot(reason, nowMs, source = "fallback") {
         metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
+        unknownContent: NO_UNKNOWN_CONTENT,
     };
 }
 
@@ -426,6 +450,7 @@ function probeSnapshot(devices, nowMs) {
         metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
+        unknownContent: NO_UNKNOWN_CONTENT,
     };
 }
 
@@ -496,6 +521,10 @@ function normalizeSnapshot(
         metrics: normalizeMetrics(candidate.metrics, catalog),
         profiles,
         alerts,
+        unknownContent: Object.freeze({
+            profiles: unknownProfileCount(candidate.profiles, catalog),
+            alerts: unknownAlertCount(candidate.alerts, catalog),
+        }),
     };
 }
 
@@ -586,6 +615,7 @@ module.exports = {
     MAX_WEIGHT,
     MIN_GENERATED_AT,
     MIN_WEIGHT,
+    NO_UNKNOWN_CONTENT,
     PROFILE_STATUSES,
     RUNTIME_STATES,
     SNAPSHOT_VERSION,
@@ -626,4 +656,6 @@ module.exports = {
     snapshotExpiryDelayMs,
     staleSnapshot,
     unavailableSnapshot,
+    unknownAlertCount,
+    unknownProfileCount,
 };

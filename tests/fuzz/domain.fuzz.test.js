@@ -172,3 +172,61 @@ test("fuzz: portfolio operations preserve invariants", () => {
         assert.equal(typeof state.profiles[id].enabled, "boolean");
     }
 });
+
+// Whatever the runtime publishes, what the applet keeps plus what it reports
+// as unrenderable must account for every addressed item, so nothing can go
+// missing between the snapshot and the popup again.
+test("fuzz: kept and reported content account for every addressed profile and alert", () => {
+    const random = generator(0x1055c07);
+    const catalog = BuiltIns.coreCatalog();
+    const known = catalog.definitions().map((definition) => definition.id);
+    const unknown = ["third-party-vision", "missing-plugin", "not-installed", ""];
+    const now = 1_700_000_000_000;
+
+    for (let iteration = 0; iteration < 1000; iteration += 1) {
+        const identifiers = [];
+        const profiles = {};
+        const alerts = [];
+        const count = Math.floor(random() * 8);
+        for (let index = 0; index < count; index += 1) {
+            const pool = random() < 0.5 ? known : unknown;
+            const id = pool[Math.floor(random() * pool.length)];
+            identifiers.push(id);
+            profiles[id] = {status: "running", queued: index};
+            alerts.push({
+                id: `alert-${index}`,
+                profileId: id,
+                title: "Something happened",
+                summary: "",
+                severity: "warning",
+                timestamp: now,
+            });
+        }
+        const snapshot = Domain.normalizeSnapshot({
+            version: Domain.SNAPSHOT_VERSION,
+            generatedAt: now,
+            devices: [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral", kind: "usb"}],
+            metrics: {queueDepth: 0, runningProfiles: 0},
+            profiles,
+            alerts,
+        }, now, Domain.DEFAULT_STALE_AFTER_MS, catalog);
+
+        const addressedProfiles = Object.keys(profiles).length;
+        const keptProfiles = Object.keys(snapshot.profiles).length;
+        assert.equal(
+            keptProfiles + snapshot.unknownContent.profiles,
+            addressedProfiles,
+            `iteration ${iteration}: profiles`,
+        );
+        assert.equal(
+            snapshot.alerts.length + snapshot.unknownContent.alerts,
+            alerts.length,
+            `iteration ${iteration}: alerts`,
+        );
+        assert.equal(
+            snapshot.unknownContent.profiles,
+            new Set(identifiers.filter((id) => !catalog.has(id))).size,
+            `iteration ${iteration}: distinct unknown profiles`,
+        );
+    }
+});

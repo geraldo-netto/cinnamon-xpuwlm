@@ -55,6 +55,12 @@ msgid "%d queued"
 msgstr ""
 
 #: lib/view-model.js
+msgid "%d runtime item names a workload that is not installed here"
+msgid_plural "%d runtime items name workloads that are not installed here"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/view-model.js
 msgid "%d workload plug-in changed"
 msgid_plural "%d workload plug-ins changed"
 msgstr[0] ""
@@ -410,6 +416,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "No runtime state has been read yet. Local profile intent is unchanged."
+msgstr ""
+
+#: lib/view-model.js
+msgid "Not shown: %d profile update(s), %d alert(s). Install the missing workload plug-in to see them."
 msgstr ""
 
 #: lib/menu-view.js

@@ -126,6 +126,7 @@ test("fallback, probe, and stale snapshots carry the complete snapshot structure
         metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
+        unknownContent: {profiles: 0, alerts: 0},
     });
 
     const probed = {id: "tpu-usb", backend: "tpu", available: true, name: "Coral USB", kind: "usb"};
@@ -153,6 +154,7 @@ test("fallback, probe, and stale snapshots carry the complete snapshot structure
         metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
+        unknownContent: {profiles: 0, alerts: 0},
     });
     assert.deepEqual(Domain.probeSnapshot(probed, NOW).health.device, "present");
     assert.deepEqual(Domain.probeSnapshot([], NOW).health.device, "absent");
@@ -168,6 +170,7 @@ test("fallback, probe, and stale snapshots carry the complete snapshot structure
         metrics: {queueDepth: null, runningProfiles: null},
         profiles: {},
         alerts: [],
+        unknownContent: {profiles: 0, alerts: 0},
     });
 });
 
@@ -272,7 +275,8 @@ test("manager projections are complete and isolated from listener mutation", () 
     const state = manager.state();
     assert.deepEqual(Object.keys(state), [
         "selectedTab", "paused", "profiles", "device", "devices", "health", "metrics", "alerts",
-        "attentionCount", "stale", "source", "generatedAt", "catalogChanges", "control",
+        "attentionCount", "unknownContent", "stale", "source", "generatedAt", "catalogChanges",
+        "control",
     ]);
     assert.deepEqual(state.device, {
         id: "tpu-usb",
