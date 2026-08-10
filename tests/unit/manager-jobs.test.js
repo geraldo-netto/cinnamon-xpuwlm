@@ -571,3 +571,38 @@ test("the submitter port is validated in full, not by two of its five methods", 
         assert.throws(() => Manager.requireJobSubmitter(port), TypeError, missing);
     }
 });
+
+test("a failed result poll is not reported as a failed policy change", () => {
+    // Asking what became of a job changes nothing, so the control vocabulary's
+    // "could not apply the change" describes a failure that never happened.
+    const Submission = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/job-submission.js");
+
+    const text = Manager.jobFailureText(Submission.resultFailure(new Error("NoReply")));
+
+    assert.match(text, /what became of this job/u);
+    assert.doesNotMatch(text, /apply the change/u);
+    assert.ok(Object.hasOwn(Manager.JOB_REFUSAL_TEXTS, "job-result-unavailable"));
+});
+
+test("every code the submitter can raise has words of its own", () => {
+    const Encoder = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/tensor-encoder.js");
+    const Submission = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/job-submission.js");
+
+    const raised = [
+        ...Object.keys(Encoder.REFUSAL_KINDS),
+        "image-invalid",
+        "image-size-mismatch",
+        "image-truncated",
+        Submission.decodeFailure("x").code,
+        Submission.writeFailure("x").code,
+        Submission.resultFailure("x").code,
+        "staging-name-invalid",
+    ];
+
+    for (const code of raised) {
+        assert.ok(
+            Object.hasOwn(Manager.JOB_REFUSAL_TEXTS, code),
+            `${code} would fall through to the policy-change vocabulary`,
+        );
+    }
+});

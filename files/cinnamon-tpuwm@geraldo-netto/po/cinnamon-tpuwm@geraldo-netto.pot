@@ -880,6 +880,10 @@ msgstr ""
 msgid "The runtime did not report an outcome for this job; it may still be running"
 msgstr ""
 
+#: lib/manager.js
+msgid "The runtime did not say what became of this job; it may still be running"
+msgstr ""
+
 #: lib/view-model.js
 msgid "The runtime refused these profiles for a reason this applet does not recognise, so its own words are repeated below without interpretation."
 msgstr ""

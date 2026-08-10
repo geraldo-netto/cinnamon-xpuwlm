@@ -65,6 +65,10 @@ const JOB_REFUSAL_TEXTS = Object.freeze({
     "image-size-mismatch": N_("That picture could not be resized to what this profile needs"),
     "staging-write-failed": N_("The input buffer could not be written where the runtime reads"),
     "staging-name-invalid": N_("The input buffer could not be given a usable name"),
+    // Asking what became of a job changes nothing, so the control vocabulary's
+    // "could not apply the change" would describe a failure that never
+    // happened.
+    "job-result-unavailable": N_("The runtime did not say what became of this job; it may still be running"),
 });
 
 const NO_INPUT_ROOTS_TEXT
