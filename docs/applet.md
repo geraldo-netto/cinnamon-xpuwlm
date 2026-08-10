@@ -67,24 +67,35 @@ mode. An unusable measurement falls back to the default desktop layout.
 The runtime refuses to serve a profile for three genuinely different reasons,
 and the user's next action differs in each:
 
-| Reason the runtime publishes | Class | Remedy |
+| `profiles[].reason` | Class | Remedy |
 | --- | --- | --- |
-| `no model bundled` | needs a model | Install an artifact with `omnitensor-prepare-artifact`, then declare the printed `requirements.model` block in the profile's manifest |
-| `ncnn is not installed`, `onnxruntime is not installed`, `openvino is not installed`, `tflite-runtime is not installed` | needs an accelerator runtime | Install the matching Python extra, for example `pip install 'omnitensor[gpu]'` |
-| `No Coral Edge TPU device detected`, `No /dev/accel …`, `No GPU render node detected` | needs hardware | None. The profile stays unavailable until supported hardware is attached |
+| `no-model`, `artifact-unavailable`, `format-unsupported` | needs a model | Install an artifact with `omnitensor-prepare-artifact`, then declare the printed `requirements.model` block in the profile's manifest |
+| `runtime-missing`, `runtime-unusable` | needs an accelerator runtime | Install the matching Python extra, for example `pip install 'omnitensor[gpu]'` |
+| `device-absent`, `no-executor`, `no-preference` | needs hardware | None. The profile stays unavailable until supported hardware is attached |
+| `serving`, `paused-by-policy`, `profile-disabled` | not blocked | Nothing to install; the profile runs, or the user's own policy stopped it |
 
-`lib/profile-blockers.js` classifies these from the sentence the service
-publishes in `profiles[].detail`, not from the manifest shipped here: the
-service owns the catalog that decides what executes, so a manifest in this tree
-can be older than the one it loaded. The bundled `requirements.model` flag is
-the fallback for the two cases the snapshot cannot answer — no runtime has
-published anything for the profile, or the only thing it published is the
-user's own policy decision (`Runtime paused by policy`, `Profile disabled by
-policy`), which is reported before the service looks at a backend and therefore
-says nothing about executability. A sentence the applet does not recognise is
-repeated verbatim rather than relabelled or dropped.
-`tests/contract/profile-blocker-reason-contract.test.js` pins each phrase
-against the service sources wherever both checkouts are present.
+`lib/profile-blockers.js` classifies from `profiles[].reason`, the
+machine-readable code the service publishes beside the sentence. It used to
+classify from the sentence in `profiles[].detail`, which made the exact wording
+a contract: rewording or localising a service message demoted every affected
+profile to "unrecognised" and named no remedy at all, with nothing on either
+side able to catch it. The sentence is still shown, because it names *which*
+device or package, which the code deliberately does not; it is also still the
+classifier's fallback for a snapshot that carries no code, such as one written
+by a service older than this contract.
+
+Neither is read from the manifest shipped here: the service owns the catalog
+that decides what executes, so a manifest in this tree can be older than the
+one it loaded. The bundled `requirements.model` flag answers only where the
+snapshot cannot — no runtime has published anything for the profile, or the
+only thing it published is the user's own policy decision, which is reported
+before the service looks at a backend and therefore says nothing about whether
+the profile could run if it were enabled. A code this build does not recognise
+leaves the profile `unknown` with its sentence repeated verbatim, rather than
+relabelled or dropped.
+`tests/contract/profile-blocker-reason-contract.test.js` pins the codes, the
+fallback phrases, and the mirrored schema against the service sources wherever
+both checkouts are present.
 
 The Profiles tab lists the profiles that run first, grouped as before, and
 collapses everything else into a single `Not available (n)` group at the

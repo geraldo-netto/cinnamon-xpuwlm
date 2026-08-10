@@ -46,7 +46,23 @@
         "properties": {
           "status": {"enum": ["healthy", "running", "watching", "idle", "paused", "unavailable"]},
           "queued": {"type": "integer", "minimum": 0, "maximum": 1000000},
-          "detail": {"type": "string", "maxLength": 240}
+          "detail": {"type": "string", "maxLength": 240},
+          "reason": {
+            "description": "Machine-readable counterpart to detail: what kind of problem this is, so a consumer chooses a remedy without matching English prose.",
+            "enum": [
+              "serving",
+              "paused-by-policy",
+              "profile-disabled",
+              "no-model",
+              "artifact-unavailable",
+              "device-absent",
+              "runtime-missing",
+              "runtime-unusable",
+              "format-unsupported",
+              "no-executor",
+              "no-preference"
+            ]
+          }
         }
       }
     },

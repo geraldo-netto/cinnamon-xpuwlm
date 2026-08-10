@@ -125,3 +125,109 @@ test("the helpers tolerate absent, malformed, and non-object input", () => {
     assert.equal(Blockers.classifyProfileBlocker(null), null);
     assert.equal(Blockers.classifyProfileBlocker(undefined), null);
 });
+
+test("the reason code decides the remedy, and the sentence is not consulted", () => {
+    // The whole point: a reworded, translated, or simply wrong sentence must
+    // not change the remedy once the service has published a code.
+    const misleading = "tpu: No Coral Edge TPU device detected";
+    const blocker = Blockers.classifyProfileBlocker(profile({
+        detail: misleading,
+        status: "unavailable",
+        reason: "runtime-missing",
+    }));
+    assert.deepEqual(blocker, {kind: "runtime", detail: misleading});
+});
+
+test("every code the snapshot schema allows is classified", () => {
+    const schema = require("../../files/cinnamon-tpuwm@geraldo-netto/runtime-snapshot.schema.json");
+    const published = schema.properties.profiles.additionalProperties.properties.reason.enum;
+    for (const code of published) {
+        const known = Object.prototype.hasOwnProperty.call(Blockers.REASON_CODE_KINDS, code)
+            || Blockers.NON_BLOCKING_REASON_CODES.includes(code);
+        assert.equal(known, true, `${code} is publishable but unclassified`);
+    }
+    for (const code of Object.keys(Blockers.REASON_CODE_KINDS)) {
+        assert.equal(published.includes(code), true, `${code} is classified but unpublishable`);
+        assert.equal(
+            Blockers.BLOCKER_KINDS.includes(Blockers.REASON_CODE_KINDS[code]),
+            true,
+            code,
+        );
+    }
+});
+
+test("each code maps to the remedy its name implies", () => {
+    const cases = [
+        ["no-model", "model"],
+        ["artifact-unavailable", "model"],
+        ["format-unsupported", "model"],
+        ["runtime-missing", "runtime"],
+        ["runtime-unusable", "runtime"],
+        ["device-absent", "hardware"],
+        ["no-executor", "hardware"],
+        ["no-preference", "hardware"],
+    ];
+    for (const [reason, kind] of cases) {
+        assert.equal(
+            Blockers.classifyProfileBlocker(profile({reason, status: "unavailable"})).kind,
+            kind,
+            reason,
+        );
+    }
+});
+
+test("a serving code clears the profile even where the manifest disagrees", () => {
+    assert.equal(
+        Blockers.classifyProfileBlocker(profile({
+            reason: "serving",
+            status: "watching",
+            detail: "Serving on gpu",
+            executable: false,
+        })),
+        null,
+    );
+});
+
+test("a policy code still lets the bundled manifest answer", () => {
+    // Pausing a profile says nothing about whether it could run if enabled,
+    // so the one thing the manifest does know is still worth reporting.
+    for (const reason of ["paused-by-policy", "profile-disabled"]) {
+        assert.equal(
+            Blockers.classifyProfileBlocker(profile({reason, status: "paused"})),
+            null,
+            reason,
+        );
+        assert.deepEqual(
+            Blockers.classifyProfileBlocker(profile({reason, status: "paused", executable: false})),
+            {kind: "model", detail: ""},
+            reason,
+        );
+    }
+});
+
+test("a code this build does not know stays unknown rather than guessing", () => {
+    // A newer service naming a state this applet has never heard of must not
+    // be silently mapped onto whichever remedy happens to be nearest.
+    const detail = "gpu: something this build predates";
+    assert.deepEqual(
+        Blockers.classifyProfileBlocker(profile({
+            reason: "thermally-throttled",
+            status: "unavailable",
+            detail,
+        })),
+        {kind: "unknown", detail},
+    );
+});
+
+test("a snapshot with no code at all still classifies by sentence", () => {
+    // Older services, and replayed snapshots, publish no code.
+    assert.equal(Blockers.reasonCodeOf({reason: 42}), "");
+    assert.equal(Blockers.reasonCodeKind({}), null);
+    assert.equal(
+        Blockers.classifyProfileBlocker(profile({
+            detail: "gpu: ncnn is not installed",
+            status: "unavailable",
+        })).kind,
+        "runtime",
+    );
+});

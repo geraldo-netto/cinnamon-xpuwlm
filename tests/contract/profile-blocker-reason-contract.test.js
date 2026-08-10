@@ -18,6 +18,8 @@ const repositoryRoot = path.resolve(__dirname, "../..");
 const SERVICE_SOURCES = Object.freeze([
     "src/omnitensor/service.py",
     "src/omnitensor/scheduler.py",
+    // Where the machine-readable codes are declared, beside the sentences.
+    "src/omnitensor/executors/base.py",
     "src/omnitensor/executors/tpu.py",
     "src/omnitensor/executors/npu.py",
     "src/omnitensor/executors/gpu.py",
@@ -77,6 +79,62 @@ test("the policy sentences the popup ignores are still policy sentences", (t) =>
             status,
             new RegExp(`"status": "paused"[^}]*"detail": "${phrase}"`, "u"),
             `"${phrase}" is no longer published as a paused status`,
+        );
+    }
+});
+
+// The code is now the contract and the sentence is only its fallback, so the
+// codes need the stronger gate: the applet must classify exactly what the
+// service can publish, and the two schemas must agree on the closed set.
+test("the applet classifies exactly the codes the service can publish", (t) => {
+    const root = serviceRoot();
+    if (root === null) {
+        t.skip("the OmniTensor checkout is not available");
+        return;
+    }
+    const schema = JSON.parse(fs.readFileSync(
+        path.join(root, "schemas/runtime-snapshot.schema.json"),
+        "utf8",
+    ));
+    const service = schema.properties.profiles.additionalProperties.properties.reason;
+    assert.notEqual(service, undefined, "the service no longer publishes a reason code");
+
+    const mirrored = require(
+        "../../files/cinnamon-tpuwm@geraldo-netto/runtime-snapshot.schema.json",
+    ).properties.profiles.additionalProperties.properties.reason;
+    assert.deepEqual(
+        mirrored,
+        service,
+        "the mirrored schema drifted; the applet would reject every snapshot",
+    );
+
+    const classified = new Set([
+        ...Object.keys(Blockers.REASON_CODE_KINDS),
+        ...Blockers.NON_BLOCKING_REASON_CODES,
+    ]);
+    assert.deepEqual(
+        [...service.enum].sort(),
+        [...classified].sort(),
+        "a code the service can publish has no remedy here, or vice versa",
+    );
+});
+
+test("every code the applet classifies is a literal the service emits", (t) => {
+    const root = serviceRoot();
+    if (root === null) {
+        t.skip("the OmniTensor checkout is not available");
+        return;
+    }
+    // The schema alone would pass if the enum listed a code no branch sets.
+    const source = serviceText(root);
+    for (const code of [
+        ...Object.keys(Blockers.REASON_CODE_KINDS),
+        ...Blockers.NON_BLOCKING_REASON_CODES,
+    ]) {
+        assert.equal(
+            source.includes(`"${code}"`),
+            true,
+            `no service branch emits "${code}"; the popup classifies a state that cannot occur`,
         );
     }
 });
