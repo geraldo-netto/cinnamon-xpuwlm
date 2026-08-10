@@ -3,6 +3,7 @@
 const Domain = require("./domain.js");
 const FailureReporter = require("./failure-reporter.js");
 const I18n = require("./i18n.js");
+const RuntimeContract = require("./runtime-contract.js");
 const RuntimeControl = require("./runtime-control-contract.js");
 const RuntimeRefusal = require("./runtime-refusal-contract.js");
 const WorkloadReconciliation = require("./workload-reconciliation.js");
@@ -15,6 +16,7 @@ const TAB_SET = new Set(TABS);
 const RUNTIME_READ_FAILURE = "runtime-read";
 const STATE_SAVE_FAILURE = "state-save";
 const RUNTIME_CONTROL_FAILURE = "runtime-control";
+const RUNTIME_CONTRACT_FAILURE = "runtime-contract";
 
 const NO_CATALOG_CHANGES = Object.freeze({
     installed: Object.freeze([]),
@@ -63,6 +65,10 @@ const TRANSPORT_FAILURES = Object.freeze([
 ]);
 
 const UNINTELLIGIBLE_REPLY_TEXT = N_("The runtime service replied in a form this applet cannot read");
+// Said before anything is attempted, which is the whole point: after the fact
+// a version mismatch is indistinguishable from a service that is simply down.
+const CONTRACT_MISMATCH_TEXT
+    = N_("This applet and the runtime service speak different versions; update whichever is older");
 const SERVICE_STOPPED_TEXT = N_("The runtime service stopped; changes are not being applied");
 
 // Transport failures reach the user as plain guidance; the raw error text
@@ -127,6 +133,15 @@ function optionalPort(candidate, requirePort) {
 
 // The bus tells the applet when the control service appears and disappears;
 // without that it only ever finds out by failing a command the user issued.
+function requireContractGateway(candidate) {
+    if (!candidate
+        || typeof candidate.describe !== "function"
+        || typeof candidate.cancel !== "function") {
+        throw new TypeError("A runtime contract gateway with describe/cancel is required");
+    }
+    return candidate;
+}
+
 function requireControlWatch(candidate) {
     if (!candidate || typeof candidate.watch !== "function") {
         throw new TypeError("A control service watch with watch is required");
@@ -147,6 +162,7 @@ class WorkloadManager {
     constructor({
         repository,
         runtimeGateway,
+        contractGateway = null,
         controlGateway = null,
         controlWatch = null,
         errorReporter,
@@ -161,6 +177,9 @@ class WorkloadManager {
         requireClock(clock);
         this._runtimeGateway = runtimeGateway;
         this._controlGateway = optionalPort(controlGateway, RuntimeControl.requireControlGateway);
+        this._contractGateway = optionalPort(contractGateway, requireContractGateway);
+        this._contract = RuntimeContract.RuntimeContract.unknown();
+        this._contractSequence = 0;
         this._controlWatch = optionalPort(controlWatch, requireControlWatch);
         this._unwatchControl = null;
         // Tri-state: null until the bus has said anything, so an applet built
@@ -221,7 +240,57 @@ class WorkloadManager {
         }
         this._started = true;
         this._startControlWatch();
+        this._describeContract();
         this.refresh();
+        return true;
+    }
+
+    // Asked once when the applet starts and again whenever the name changes
+    // owner, because a service that has just appeared may be a different build
+    // from the one that answered before. Nothing waits on the answer: an
+    // applet that blocked its first paint on a handshake would show nothing at
+    // all against a service that is merely slow.
+    _describeContract() {
+        if (this._contractGateway === null) {
+            return false;
+        }
+        this._contractSequence += 1;
+        const sequence = this._contractSequence;
+        try {
+            this._contractGateway.describe((error, contract) => {
+                this._acceptContract(sequence, error, contract);
+            });
+        } catch (error) {
+            this._acceptContract(sequence, error, null);
+        }
+        return true;
+    }
+
+    // A handshake that fails is not reported. It leaves the applet knowing no
+    // less than before it asked, and every reason it can fail — an older
+    // service without the method, a refusal, a service that stopped mid-call —
+    // is already reported by whichever call actually needed it.
+    _acceptContract(sequence, error, contract) {
+        if (this._disposed || sequence !== this._contractSequence) {
+            return false;
+        }
+        if (error || !contract) {
+            this._contract = RuntimeContract.RuntimeContract.unknown();
+            this._errors.recover(RUNTIME_CONTRACT_FAILURE);
+            this._publish();
+            return false;
+        }
+        this._contract = contract;
+        if (contract.compatible) {
+            this._errors.recover(RUNTIME_CONTRACT_FAILURE);
+        } else {
+            this._errors.report(
+                RUNTIME_CONTRACT_FAILURE,
+                _(CONTRACT_MISMATCH_TEXT),
+                this._clock.now(),
+            );
+        }
+        this._publish();
         return true;
     }
 
@@ -251,6 +320,7 @@ class WorkloadManager {
         if (next) {
             this._runtimeRevision = 0;
             this._revisionKnown = false;
+            this._describeContract();
             if (this._controlPending === null) {
                 this._controlMessage = "";
                 this._errors.recover(RUNTIME_CONTROL_FAILURE);
@@ -492,6 +562,7 @@ class WorkloadManager {
                 message: this._controlMessage,
                 available: this._controlServiceAvailable,
             },
+            contract: this._contract.describe(),
         };
     }
 
@@ -503,10 +574,12 @@ class WorkloadManager {
         this._cancelExpiry();
         this._cancelRuntimeRead();
         this._cancelRuntimeControl();
+        this._cancelContract();
         this._stopControlWatch();
         this._errors.recover(RUNTIME_READ_FAILURE);
         this._errors.recover(STATE_SAVE_FAILURE);
         this._errors.recover(RUNTIME_CONTROL_FAILURE);
+        this._errors.recover(RUNTIME_CONTRACT_FAILURE);
         for (const listener of this._listeners) {
             this._errors.recover(listener);
         }
@@ -627,6 +700,11 @@ class WorkloadManager {
         this._controlSequence += 1;
         this._controlPending = null;
         return this._controlGateway === null ? false : this._controlGateway.cancel();
+    }
+
+    _cancelContract() {
+        this._contractSequence += 1;
+        return this._contractGateway === null ? false : this._contractGateway.cancel();
     }
 
     _persist() {

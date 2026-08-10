@@ -3,6 +3,7 @@
 const FailureBackoff = require("./failure-log-backoff.js");
 const Domain = require("./domain.js");
 const Runtime = require("./runtime-gateway.js");
+const RuntimeContract = require("./runtime-contract-gateway.js");
 const RuntimeControl = require("./runtime-control-gateway.js");
 const RuntimeSchema = require("./runtime-snapshot-schema-validator.js");
 const WorkloadRegistry = require("./workload-registry.js");
@@ -20,6 +21,7 @@ const CONTROL_BUS_NAME = "org.cinnamon.OmniTensor1";
 const CONTROL_OBJECT_PATH = "/org/cinnamon/OmniTensor1";
 const CONTROL_INTERFACE = "org.cinnamon.OmniTensor1";
 const CONTROL_METHOD = "ApplyCommand";
+const CONTRACT_METHOD = "DescribeContract";
 const CONTROL_TIMEOUT_MS = 5000;
 const MAX_PCIE_DEVICES = 8;
 const MAX_USB_DEVICES = 256;
@@ -920,14 +922,16 @@ function createRuntimeGateway({
     });
 }
 
-function sendRuntimeCommandText(text, {cancellable}, callback, environment) {
+function callRuntimeMethod(method, argument, {cancellable}, callback, environment) {
     const connection = environment.Gio.DBus.session;
     connection.call(
         CONTROL_BUS_NAME,
         CONTROL_OBJECT_PATH,
         CONTROL_INTERFACE,
-        CONTROL_METHOD,
-        new environment.GLib.Variant("(s)", [text]),
+        method,
+        argument === null
+            ? null
+            : new environment.GLib.Variant("(s)", [argument]),
         new environment.GLib.VariantType("(s)"),
         environment.Gio.DBusCallFlags.NONE,
         CONTROL_TIMEOUT_MS,
@@ -942,6 +946,17 @@ function sendRuntimeCommandText(text, {cancellable}, callback, environment) {
             }
         },
     );
+}
+
+function sendRuntimeCommandText(text, options, callback, environment) {
+    return callRuntimeMethod(CONTROL_METHOD, text, options, callback, environment);
+}
+
+// The handshake takes no arguments, so the variant is empty rather than an
+// empty string: a service reading "" as a request body would be answering a
+// different question from the one asked.
+function requestRuntimeContractText(options, callback, environment) {
+    return callRuntimeMethod(CONTRACT_METHOD, null, options, callback, environment);
 }
 
 // Name ownership is the only signal that says the control service started or
@@ -967,6 +982,15 @@ function createControlServiceWatch(environment) {
     };
 }
 
+function createRuntimeContractGateway(environment) {
+    return new RuntimeContract.RuntimeContractGateway({
+        cancellableFactory: createCancellableFactory(environment),
+        sendText: (options, callback) => requestRuntimeContractText(
+            options, callback, environment,
+        ),
+    });
+}
+
 function createRuntimeControlGateway(environment) {
     return new RuntimeControl.RuntimeControlGateway({
         cancellableFactory: createCancellableFactory(environment),
@@ -983,6 +1007,7 @@ module.exports = {
     CONTROL_METHOD,
     CONTROL_OBJECT_PATH,
     CONTROL_TIMEOUT_MS,
+    CONTRACT_METHOD,
     DEVICE_CACHE_MS,
     MAX_PCIE_DEVICES,
     MAX_USB_DEVICES,
@@ -1002,7 +1027,9 @@ module.exports = {
     createLayoutProvider,
     createLogger,
     createMergedWorkloadRegistry,
+    callRuntimeMethod,
     createRuntimeGateway,
+    createRuntimeContractGateway,
     createRuntimeControlGateway,
     createUserWorkloadRegistry,
     createWorkloadRegistry,
@@ -1034,6 +1061,7 @@ module.exports = {
     readTrimmed,
     readTrimmedAsync,
     finishIo,
+    requestRuntimeContractText,
     sameIdentity,
     sendRuntimeCommandText,
 };

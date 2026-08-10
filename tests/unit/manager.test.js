@@ -6,6 +6,7 @@ const test = require("node:test");
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
+const RuntimeContract = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-contract.js");
 const RuntimeControl = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-contract.js");
 const RuntimeControlService = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-service.js");
 const RuntimeRefusal = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-refusal-contract.js");
@@ -91,6 +92,7 @@ function harness(overrides = {}) {
         repository,
         runtimeGateway,
         controlGateway,
+        contractGateway: overrides.contractGateway || null,
         controlWatch: overrides.controlWatch || null,
         clock,
         errorReporter: new FailureBackoff.FailureErrorBackoff({logger}),
@@ -99,7 +101,16 @@ function harness(overrides = {}) {
         staleAfterMs: overrides.staleAfterMs,
         workloadRegistry: overrides.workloadRegistry || BuiltIns.coreRegistry(),
     });
-    return {clock, controlGateway, manager, saves, warnings, errors, scheduler};
+    return {
+        clock,
+        contractGateway: overrides.contractGateway || null,
+        controlGateway,
+        manager,
+        saves,
+        warnings,
+        errors,
+        scheduler,
+    };
 }
 
 function connectedSnapshot(generatedAt) {
@@ -842,4 +853,171 @@ test("a refused command surfaces its code and leaves the local policy untouched"
     assert.equal(after.control.pending, false);
     assert.equal(after.control.message, Manager.REFUSAL_TEXTS["rate-limit-exceeded"]);
     assert.deepEqual(after.profiles.map((profile) => profile.enabled), before);
+});
+
+function contractDocument(overrides = {}) {
+    return {
+        version: 1,
+        methods: ["ApplyCommand", "DescribeContract"],
+        schemas: {
+            "runtime-command": 1,
+            "runtime-acknowledgement": 1,
+            "runtime-refusal": 1,
+            "runtime-snapshot": 1,
+        },
+        ...overrides,
+    };
+}
+
+function recordingContractGateway() {
+    const calls = [];
+    return {
+        calls,
+        cancelled: 0,
+        describe(callback) {
+            calls.push(callback);
+            return true;
+        },
+        cancel() {
+            this.cancelled += 1;
+            return true;
+        },
+    };
+}
+
+test("the manager rejects a contract gateway that cannot describe or cancel", () => {
+    const base = {
+        repository: {load() {}, save() {}},
+        runtimeGateway: {read() {}},
+        errorReporter: {report() {}, recover() {}},
+        workloadRegistry: BuiltIns.coreRegistry(),
+    };
+    assert.throws(
+        () => new Manager.WorkloadManager({...base, contractGateway: {describe() {}}}),
+        /contract gateway/u,
+    );
+});
+
+test("the handshake is issued on start and its answer reaches the view", () => {
+    const contractGateway = recordingContractGateway();
+    const {manager} = harness({contractGateway});
+
+    manager.start();
+    assert.equal(contractGateway.calls.length, 1);
+    // Nothing has answered yet, and the applet must not claim it knows.
+    assert.equal(manager.state().contract.known, false);
+
+    contractGateway.calls[0](null, new RuntimeContract.RuntimeContract(contractDocument()));
+
+    const {contract} = manager.state();
+    assert.equal(contract.known, true);
+    assert.equal(contract.compatible, true);
+    assert.deepEqual(contract.methods, ["ApplyCommand", "DescribeContract"]);
+});
+
+test("a version disagreement is reported before anything is attempted", () => {
+    // The whole point: after the fact, a mismatch is indistinguishable from a
+    // service that is simply down.
+    const contractGateway = recordingContractGateway();
+    const {manager, errors} = harness({contractGateway});
+    manager.start();
+
+    contractGateway.calls[0](null, new RuntimeContract.RuntimeContract(contractDocument({
+        schemas: {...contractDocument().schemas, "runtime-command": 2},
+    })));
+
+    assert.equal(manager.state().contract.compatible, false);
+    assert.equal(errors.some((entry) => /different versions/u.test(entry.message || entry)), true);
+});
+
+test("a failed handshake is silent, because it leaves the applet no worse off", () => {
+    // Every reason it can fail is already reported by the call that needed it,
+    // and an applet that cannot ask knows exactly what it knew before asking.
+    const contractGateway = recordingContractGateway();
+    const {manager, errors} = harness({contractGateway});
+    manager.start();
+    const before = errors.length;
+
+    contractGateway.calls[0](new Error("UnknownMethod"), null);
+
+    assert.equal(manager.state().contract.known, false);
+    assert.equal(errors.length, before);
+});
+
+test("a gateway that throws synchronously does not stop the applet starting", () => {
+    const contractGateway = {
+        describe() {
+            throw new Error("bus is gone");
+        },
+        cancel: () => false,
+    };
+    const {manager} = harness({contractGateway});
+
+    assert.equal(manager.start(), true);
+    assert.equal(manager.state().contract.known, false);
+});
+
+test("a service that reappears is asked again rather than assumed unchanged", () => {
+    // A name that changed owner may be a different build from the one that
+    // answered, so the previous answer describes a service that is not there.
+    const contractGateway = recordingContractGateway();
+    let listener = null;
+    const {manager} = harness({
+        contractGateway,
+        controlWatch: {
+            watch(callback) {
+                listener = callback;
+                return () => true;
+            },
+        },
+    });
+    manager.start();
+    assert.equal(contractGateway.calls.length, 1);
+
+    listener(true);
+    assert.equal(contractGateway.calls.length, 2);
+    listener(false);
+    assert.equal(contractGateway.calls.length, 2);
+});
+
+test("a late answer from a superseded handshake is ignored", () => {
+    const contractGateway = recordingContractGateway();
+    let listener = null;
+    const {manager} = harness({
+        contractGateway,
+        controlWatch: {
+            watch(callback) {
+                listener = callback;
+                return () => true;
+            },
+        },
+    });
+    manager.start();
+    listener(true);
+
+    contractGateway.calls[0](null, new RuntimeContract.RuntimeContract(contractDocument()));
+
+    assert.equal(manager.state().contract.known, false);
+});
+
+test("disposing cancels the outstanding handshake and clears its report", () => {
+    const contractGateway = recordingContractGateway();
+    const {manager} = harness({contractGateway});
+    manager.start();
+
+    manager.dispose();
+
+    assert.equal(contractGateway.cancelled, 1);
+    contractGateway.calls[0](null, new RuntimeContract.RuntimeContract(contractDocument()));
+    assert.equal(contractGateway.calls.length, 1);
+});
+
+test("an applet built with no contract gateway simply never knows", () => {
+    const {manager} = harness({});
+
+    manager.start();
+
+    assert.equal(manager.state().contract.known, false);
+    assert.equal(manager.state().contract.compatible, true);
+    assert.equal(manager.dispose(), true);
 });

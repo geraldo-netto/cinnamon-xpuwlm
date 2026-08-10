@@ -941,3 +941,61 @@ test("merged registry composition keeps bundled workloads authoritative", () => 
     assert.equal(warnings.length, 1);
     assert.match(warnings[0], /shadowed/u);
 });
+
+test("the contract handshake calls the same interface with no argument", () => {
+    // A service reading "" as a request body would be answering a different
+    // question from the one asked, so the variant is absent rather than empty.
+    const calls = [];
+    const description = JSON.stringify({
+        version: 1,
+        methods: ["ApplyCommand", "DescribeContract"],
+        schemas: {
+            "runtime-command": 1,
+            "runtime-acknowledgement": 1,
+            "runtime-refusal": 1,
+            "runtime-snapshot": 1,
+        },
+    });
+    const env = environment();
+    env.Gio.DBusCallFlags = {NONE: 0};
+    env.Gio.DBus = {session: {
+        call(...args) {
+            calls.push(args);
+            args.at(-1)({call_finish: () => ({deep_unpack: () => [description]})}, {});
+        },
+    }};
+    env.GLib.Variant = class { constructor(signature, values) { this.signature = signature; this.values = values; } };
+    env.GLib.VariantType = class { constructor(signature) { this.signature = signature; } };
+
+    const completions = [];
+    Cinnamon.requestRuntimeContractText(
+        {cancellable: null},
+        (...args) => completions.push(args),
+        env,
+    );
+
+    assert.deepEqual(calls[0].slice(0, 4), [
+        Cinnamon.CONTROL_BUS_NAME,
+        Cinnamon.CONTROL_OBJECT_PATH,
+        Cinnamon.CONTROL_INTERFACE,
+        Cinnamon.CONTRACT_METHOD,
+    ]);
+    assert.equal(calls[0][4], null);
+    assert.deepEqual(completions, [[null, description]]);
+
+    const gatewayCompletions = [];
+    Cinnamon.createRuntimeContractGateway(env).describe(
+        (...args) => gatewayCompletions.push(args),
+    );
+    assert.equal(gatewayCompletions[0][1].supports("DescribeContract"), true);
+
+    env.Gio.DBus.session.call = (...args) => args.at(-1)({
+        call_finish() { throw new Error("bus unavailable"); },
+    }, {});
+    Cinnamon.requestRuntimeContractText(
+        {cancellable: null},
+        (...args) => completions.push(args),
+        env,
+    );
+    assert.match(completions.at(-1)[0].message, /unavailable/u);
+});

@@ -874,6 +874,10 @@ msgstr ""
 msgid "These profiles declare no model, so the runtime refuses to build a pipeline for them. Install the artifact, then declare the requirements.model block the command prints in the profile's manifest."
 msgstr ""
 
+#: lib/manager.js
+msgid "This applet and the runtime service speak different versions; update whichever is older"
+msgstr ""
+
 #: lib/menu-view.js lib/view-model.js
 msgid "Unavailable"
 msgstr ""

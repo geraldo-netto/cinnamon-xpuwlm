@@ -277,7 +277,7 @@ test("manager projections are complete and isolated from listener mutation", () 
     assert.deepEqual(Object.keys(state), [
         "selectedTab", "paused", "profiles", "device", "devices", "health", "metrics", "alerts",
         "attentionCount", "unknownContent", "stale", "source", "generatedAt", "catalogChanges",
-        "control",
+        "control", "contract",
     ]);
     assert.deepEqual(state.device, {
         id: "tpu-usb",
@@ -297,6 +297,14 @@ test("manager projections are complete and isolated from listener mutation", () 
     assert.equal(state.alerts.length, 1);
     assert.equal(state.attentionCount, 1);
     assert.deepEqual(state.control, {pending: false, message: "", available: null});
+    // Nothing has answered yet, and "not known" is never reported as a mismatch.
+    assert.deepEqual(state.contract, {
+        known: false,
+        compatible: true,
+        methods: [],
+        schemas: {},
+        incompatibilities: [],
+    });
 
     state.device.name = "mutated";
     state.devices[0].load = 99;

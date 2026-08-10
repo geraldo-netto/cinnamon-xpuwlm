@@ -28,6 +28,9 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "runtime-control-contract.js",
     "runtime-control-gateway.js",
     "runtime-control-service.js",
+    "runtime-contract.js",
+    "runtime-contract-gateway.js",
+    "runtime-contract.schema.json",
     "runtime-command.schema.json",
     "runtime-acknowledgement.schema.json",
     "runtime-refusal-contract.js",
@@ -130,6 +133,7 @@ function validateJsonArtifacts() {
     const commandSchema = readJson(appletRoot, "runtime-command.schema.json");
     const acknowledgementSchema = readJson(appletRoot, "runtime-acknowledgement.schema.json");
     const refusalSchema = readJson(appletRoot, "runtime-refusal.schema.json");
+    const contractSchema = readJson(appletRoot, "runtime-contract.schema.json");
     const packageJson = readJson(repositoryRoot, "package.json");
     const stryker = readJson(repositoryRoot, "stryker.config.json");
     const Domain = require(path.join(appletRoot, "lib/domain.js"));
@@ -148,6 +152,17 @@ function validateJsonArtifacts() {
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(commandSchema));
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(acknowledgementSchema));
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(refusalSchema));
+    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(contractSchema));
+    // The predicate and the mirrored schema must agree on the bounds, or a
+    // document one accepts is a document the other rejects.
+    const Contract = require(path.join(appletRoot, "lib/runtime-contract.js"));
+    assert.equal(contractSchema.properties.version.const, Contract.CONTRACT_DOCUMENT_VERSION);
+    assert.equal(contractSchema.properties.methods.maxItems, Contract.MAX_METHODS);
+    assert.equal(contractSchema.properties.schemas.maxProperties, Contract.MAX_CONTRACTS);
+    assert.equal(
+        contractSchema.properties.schemas.additionalProperties.maximum,
+        Contract.MAX_CONTRACT_VERSION,
+    );
     assert.deepEqual(
         refusalSchema.properties.code.enum,
         [...require(path.join(appletRoot, "lib/runtime-refusal-contract.js")).REFUSAL_CODES],

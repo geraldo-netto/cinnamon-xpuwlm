@@ -160,19 +160,23 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             || new CinnamonRuntime.CinnamonPoller(Mainloop, () => this._refresh());
     }
 
-    // Both control ports address the same bus name: the gateway calls it, the
-    // watch reports whether anything owns it.
+    // All three ports address the same bus name: the control gateway changes
+    // policy on it, the watch reports whether anything owns it, and the
+    // contract gateway asks what the owner speaks before either is used.
     _createControlPorts(overrides) {
         this._controlGateway = overrides.controlGateway
             || CinnamonRuntime.createRuntimeControlGateway(this._environment);
         this._controlWatch = overrides.controlWatch
             || CinnamonRuntime.createControlServiceWatch(this._environment);
+        this._contractGateway = overrides.contractGateway
+            || CinnamonRuntime.createRuntimeContractGateway(this._environment);
     }
 
     _createManager(overrides) {
         return overrides.manager || new Manager.WorkloadManager({
             repository: this._repository,
             runtimeGateway: this._runtimeGateway,
+            contractGateway: this._contractGateway,
             controlGateway: this._controlGateway,
             controlWatch: this._controlWatch,
             errorReporter: overrides.errorReporter
