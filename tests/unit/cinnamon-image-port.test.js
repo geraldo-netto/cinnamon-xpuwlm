@@ -646,3 +646,37 @@ test("the cover geometry covers both axes and never shrinks below the target", (
     assert.deepEqual(Cinnamon.coverGeometry({width: 50, height: 50}, {width: 100, height: 100}),
         {width: 100, height: 100});
 });
+
+test("staged buffers a previous session abandoned are swept", () => {
+    const env = environment();
+    const staged = `${ROOT}/.tpuwm-staged`;
+    env.directories.add(staged);
+    env.listings[staged] = [
+        {name: "visual-library-tpuwm-1-1.f32"},
+        {name: "visual-library-tpuwm-2-1.f32"},
+        {name: "notes.txt"},
+        {name: "nested", type: env.Gio.FileType.DIRECTORY},
+    ];
+
+    const removed = Cinnamon.sweepStagedBuffers(staged, env, ".f32");
+
+    assert.equal(removed, 2, "only the buffers, and only the regular files");
+    assert.deepEqual(env.deleted.sort(), [
+        `${staged}/visual-library-tpuwm-1-1.f32`,
+        `${staged}/visual-library-tpuwm-2-1.f32`,
+    ]);
+    assert.equal(env.closed, 1);
+});
+
+test("a staging directory that was never created sweeps nothing", () => {
+    assert.equal(Cinnamon.sweepStagedBuffers("/absent/.tpuwm-staged", environment(), ".f32"), 0);
+});
+
+test("the image port can sweep as well as stage", () => {
+    const env = environment();
+    const staged = `${ROOT}/.tpuwm-staged`;
+    env.directories.add(staged);
+    env.listings[staged] = [{name: "x.f32"}];
+
+    assert.equal(Cinnamon.createImagePort(env).sweep(staged, ".f32"), 1);
+});

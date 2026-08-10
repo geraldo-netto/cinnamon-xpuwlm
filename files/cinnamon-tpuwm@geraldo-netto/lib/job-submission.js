@@ -62,7 +62,7 @@ function encodingRefusalFor(spec) {
 }
 
 function requireImagePort(candidate) {
-    const required = ["decode", "write", "remove", "digest"];
+    const required = ["decode", "write", "remove", "digest", "sweep"];
     if (!candidate || required.some((name) => typeof candidate[name] !== "function")) {
         throw new TypeError("An image port with decode/write/remove/digest is required");
     }
@@ -237,6 +237,21 @@ class JobSubmitter {
             callback(resultFailure(error), null);
         }
         return true;
+    }
+
+    // Buffers left by a session that never saw its jobs finish. Swept when the
+    // applet starts, because nothing else ever reads that directory and a
+    // crash between submission and outcome leaves the file behind for good.
+    sweepStaged(roots) {
+        let removed = 0;
+        for (const root of roots) {
+            try {
+                removed += this._images.sweep(`${root}/${STAGING_DIRECTORY}`, STAGED_SUFFIX);
+            } catch {
+                // A directory that cannot be swept is litter, not a failure.
+            }
+        }
+        return removed;
     }
 
     cancelResult() {

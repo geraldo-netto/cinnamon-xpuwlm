@@ -171,6 +171,10 @@ function harness(options = {}) {
             submissions.push("cancelResult");
             return true;
         },
+        sweepStaged(roots) {
+            submissions.push(["sweep", [...roots]]);
+            return options.swept ?? 0;
+        },
     };
     const inputCatalog = options.inputCatalog === null ? null : {
         pictures(roots) {
@@ -237,7 +241,7 @@ test("submitting sends the profile's own contract, its picture, and its root", (
 
     assert.equal(manager.submitJob("runnable", PICTURE), true);
 
-    assert.deepEqual(submissions[0], {
+    assert.deepEqual(submissions.find((entry) => !Array.isArray(entry)), {
         workloadId: "runnable",
         spec: CONTRACT.inputs[0],
         sourcePath: `${ROOT}/cat.png`,
@@ -322,6 +326,7 @@ test("a job is refused before the bus when the service is known to be gone", () 
             discard: () => false,
             requestResult() { throw new Error("must not be called"); },
             cancelResult: () => false,
+            sweepStaged: () => 0,
         },
         inputCatalog: {pictures: () => ({pictures: [], omitted: 0})},
         clock: {now: () => NOW},
@@ -351,7 +356,7 @@ test("a submission without a picture is refused before anything is prepared", ()
     assert.equal(manager.submitJob("runnable", null), false);
     assert.equal(manager.submitJob("runnable", {name: "cat.png"}), false);
     assert.match(manager.state().job.message, /No picture was chosen/u);
-    assert.deepEqual(submissions, []);
+    assert.deepEqual(submissions.filter((entry) => !Array.isArray(entry)), []);
 });
 
 test("relisting happens on demand and when the published roots change", () => {
@@ -407,7 +412,7 @@ test("a picture with no name still submits, and is reported without one", () => 
 
     assert.equal(manager.submitJob("runnable", {root: ROOT, path: `${ROOT}/cat.png`}), true);
 
-    assert.equal(submissions[0].sourcePath, `${ROOT}/cat.png`);
+    assert.equal(submissions.find((entry) => !Array.isArray(entry)).sourcePath, `${ROOT}/cat.png`);
     assert.equal(manager.state().job.sourceName, "");
 });
 
@@ -560,9 +565,9 @@ test("polling stops at disposal rather than firing into a dead manager", () => {
     assert.deepEqual(scheduler.pending(), [], "the pending poll was cancelled");
 });
 
-test("the submitter port is validated in full, not by two of its five methods", () => {
+test("the submitter port is validated in full, not by two of its methods", () => {
     assert.deepEqual(Manager.JOB_SUBMITTER_METHODS, [
-        "submit", "cancel", "discard", "requestResult", "cancelResult",
+        "submit", "cancel", "discard", "requestResult", "cancelResult", "sweepStaged",
     ]);
     for (const missing of Manager.JOB_SUBMITTER_METHODS) {
         const port = {};
@@ -608,4 +613,52 @@ test("every code the submitter can raise has words of its own", () => {
             `${code} would fall through to the policy-change vocabulary`,
         );
     }
+});
+
+test("buffers a previous session never finished are swept once at startup", () => {
+    // Nothing else ever reads the staging directory, so a crash between
+    // submission and outcome leaves the file there for good.
+    const {manager, submissions} = harness({swept: 3});
+
+    const sweeps = submissions.filter((entry) => Array.isArray(entry) && entry[0] === "sweep");
+    assert.equal(sweeps.length, 1, "once per session, not once per refresh");
+    assert.deepEqual(sweeps[0][1], [ROOT]);
+
+    manager.refreshInputs();
+    assert.equal(
+        submissions.filter((entry) => Array.isArray(entry) && entry[0] === "sweep").length,
+        1,
+    );
+});
+
+test("nothing is swept before the runtime says where its roots are", () => {
+    const {submissions} = harness({roots: []});
+
+    assert.deepEqual(submissions.filter((entry) => Array.isArray(entry)), []);
+});
+
+test("abandoning a poll releases the buffer nothing will read", () => {
+    // The applet will never learn this job's outcome, so its staged input has
+    // no remaining reader here; dispatch re-reads at execution, so removing it
+    // can only race a job that is already failing.
+    const {manager, submissions} = harness({deferSubmit: true, results: []});
+
+    manager.submitJob("runnable", PICTURE);
+    submissions.pending(null, acknowledgement());
+    const before = submissions.filter((e) => Array.isArray(e) && e[0] === "discard").length;
+
+    manager.dispose();
+
+    const after = submissions.filter((e) => Array.isArray(e) && e[0] === "discard").length;
+    assert.equal(after, before + 1, "the abandoned poll discarded its buffer");
+});
+
+test("a terminal outcome discards once, not twice", () => {
+    const {manager, submissions} = harness({results: [{state: "succeeded"}], scheduler: undefined});
+
+    manager.submitJob("runnable", PICTURE);
+    manager.state();
+
+    const discards = submissions.filter((e) => Array.isArray(e) && e[0] === "discard");
+    assert.equal(discards.length, 0, "nothing discarded before the poll fires");
 });

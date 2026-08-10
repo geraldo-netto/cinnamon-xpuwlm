@@ -57,6 +57,13 @@ function harness(options = {}) {
         digest() {
             return "c".repeat(64);
         },
+        sweep(root, suffix) {
+            events.push(["sweep", root, suffix]);
+            if (options.sweepThrows) {
+                throw new Error("unreadable");
+            }
+            return options.swept ?? 0;
+        },
     };
     const gateway = {
         submissions: [],
@@ -343,5 +350,29 @@ describe("asking what became of a job", () => {
         assert.equal(submitter.cancelResult(), true);
         assert.ok(events.some(([name]) => name === "cancelResult"));
         assert.equal(harness({noCancelResult: true}).submitter.cancelResult(), false);
+    });
+});
+
+describe("sweeping what a previous session left", () => {
+    it("sweeps the staging directory under every published root", () => {
+        const {submitter, events} = harness({swept: 2});
+
+        assert.equal(submitter.sweepStaged(["/root-a", "/root-b"]), 4);
+        assert.deepEqual(events.filter(([name]) => name === "sweep"), [
+            ["sweep", `/root-a/${Submission.STAGING_DIRECTORY}`, Submission.STAGED_SUFFIX],
+            ["sweep", `/root-b/${Submission.STAGING_DIRECTORY}`, Submission.STAGED_SUFFIX],
+        ]);
+    });
+
+    it("treats a directory it cannot read as litter, not as a failure", () => {
+        const {submitter} = harness({sweepThrows: true});
+
+        assert.equal(submitter.sweepStaged(["/root-a"]), 0);
+    });
+
+    it("requires a port that can sweep", () => {
+        assert.throws(() => Submission.requireImagePort({
+            decode() {}, write() {}, remove() {}, digest() {},
+        }), TypeError);
     });
 });

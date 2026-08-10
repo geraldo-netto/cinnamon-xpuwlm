@@ -1149,6 +1149,37 @@ function digestBytes(bytes, environment) {
     );
 }
 
+// Buffers a previous session staged and never finished. A crash, a reload, or
+// a logout between submission and outcome leaves the file behind, and nothing
+// else ever looks at that directory — so an interrupted session accumulates
+// them silently in a directory the user owns.
+function sweepStagedBuffers(root, environment, suffix) {
+    const Gio = environment.Gio;
+    const directory = Gio.File.new_for_path(root);
+    if (!directory.query_exists(null)) {
+        return 0;
+    }
+    const enumerator = directory.enumerate_children(
+        "standard::name,standard::type",
+        Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
+        null,
+    );
+    let removed = 0;
+    try {
+        let info = enumerator.next_file(null);
+        while (info !== null) {
+            const name = info.get_name();
+            if (info.get_file_type() === Gio.FileType.REGULAR && name.endsWith(suffix)) {
+                removed += removeFile(`${root}/${name}`, environment) ? 1 : 0;
+            }
+            info = enumerator.next_file(null);
+        }
+    } finally {
+        enumerator.close(null);
+    }
+    return removed;
+}
+
 function createImagePort(environment) {
     return {
         decode(path, geometry, resize, callback) {
@@ -1162,6 +1193,9 @@ function createImagePort(environment) {
         },
         digest(bytes) {
             return digestBytes(bytes, environment);
+        },
+        sweep(root, suffix) {
+            return sweepStagedBuffers(root, environment, suffix);
         },
     };
 }
@@ -1394,6 +1428,7 @@ module.exports = {
     isImageFilename,
     isIoError,
     listInputImages,
+    sweepStagedBuffers,
     listWorkloadDirectories,
     listUsbDeviceNamesAsync,
     joinChunks,

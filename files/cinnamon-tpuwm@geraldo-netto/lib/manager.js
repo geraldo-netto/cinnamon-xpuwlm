@@ -165,7 +165,7 @@ function sanitizeTab(value) {
 // missing one fails here rather than at the moment a user is waiting for the
 // outcome of a job that has already run.
 const JOB_SUBMITTER_METHODS = Object.freeze([
-    "submit", "cancel", "discard", "requestResult", "cancelResult",
+    "submit", "cancel", "discard", "requestResult", "cancelResult", "sweepStaged",
 ]);
 
 function requireJobSubmitter(candidate) {
@@ -332,6 +332,7 @@ class WorkloadManager {
         this._jobSequence = 0;
         this._polling = null;
         this._pollHandle = null;
+        this._swept = false;
     }
 
     start() {
@@ -619,6 +620,7 @@ class WorkloadManager {
     // surface that shows it — not on every poll, and never on every render.
     _relistPictures(force) {
         const roots = this._inputRoots();
+        this._sweepOnce(roots);
         const key = JSON.stringify(roots);
         if (this._inputCatalog === null || (!force && key === this._listedRoots)) {
             return false;
@@ -647,6 +649,22 @@ class WorkloadManager {
             }
         }
         return runnable;
+    }
+
+    // Once per session, the first time the runtime tells us where its roots
+    // are: before that there is no directory to sweep.
+    _sweepOnce(roots) {
+        if (this._swept || this._jobSubmitter === null || roots.length === 0) {
+            return false;
+        }
+        this._swept = true;
+        const removed = this._jobSubmitter.sweepStaged(roots);
+        if (removed > 0) {
+            this._logger.warn(
+                `Removed ${removed} input buffer(s) left by a job that never reported an outcome`,
+            );
+        }
+        return true;
     }
 
     _inputRoots() {
@@ -852,7 +870,7 @@ class WorkloadManager {
         }
         // The job will not read its input again, whatever it decided.
         this._discardStaged({stagedPath: this._polling.stagedPath});
-        this._cancelPolling();
+        this._cancelPolling(false);
         if (result.state === "succeeded") {
             this._errors.recover(RUNTIME_JOB_FAILURE);
         } else {
@@ -865,13 +883,26 @@ class WorkloadManager {
         return true;
     }
 
-    _cancelPolling() {
+    // `discardStaged` is deliberate rather than incidental: abandoning a poll
+    // means this applet will never learn the outcome, so the buffer it staged
+    // has no remaining reader here. Dispatch re-reads the file at execution,
+    // so removing it can only race a job that is already failing — whereas
+    // leaving it orphans ~600 KB in a directory the user owns, every time the
+    // applet reloads mid-job.
+    _cancelPolling(discardStaged = true) {
+        const polling = this._polling;
         this._polling = null;
         if (this._pollHandle !== null) {
             this._scheduler.cancel(this._pollHandle);
             this._pollHandle = null;
         }
-        return this._jobSubmitter === null ? false : this._jobSubmitter.cancelResult();
+        if (this._jobSubmitter === null) {
+            return false;
+        }
+        if (discardStaged && polling !== null && polling.stagedPath) {
+            this._jobSubmitter.discard(polling.stagedPath);
+        }
+        return this._jobSubmitter.cancelResult();
     }
 
     _reportJobFailure(message, logged = null) {
