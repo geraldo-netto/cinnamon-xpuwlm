@@ -827,6 +827,35 @@ test("runtime control transport calls the versioned D-Bus endpoint", () => {
     assert.match(completions.at(-1)[0].message, /unavailable/u);
 });
 
+test("the control service watch reports name ownership and releases its handle", () => {
+    const env = environment();
+    const watches = [];
+    let unwatched = null;
+    env.Gio.BusType = {SESSION: "session"};
+    env.Gio.BusNameWatcherFlags = {NONE: 0};
+    env.Gio.bus_watch_name = (busType, name, flags, appeared, vanished) => {
+        watches.push({busType, name, flags, appeared, vanished});
+        return 42;
+    };
+    env.Gio.bus_unwatch_name = (id) => { unwatched = id; };
+
+    const reported = [];
+    const unwatch = Cinnamon.createControlServiceWatch(env).watch((value) => reported.push(value));
+    assert.equal(watches[0].name, Cinnamon.CONTROL_BUS_NAME);
+    assert.equal(watches[0].busType, "session");
+    watches[0].appeared();
+    watches[0].vanished();
+    assert.deepEqual(reported, [true, false]);
+    unwatch();
+    assert.equal(unwatched, 42);
+});
+
+test("an environment without the name-watch API reports nothing rather than absence", () => {
+    const env = environment();
+    assert.equal(Cinnamon.createControlServiceWatch(env).watch(() => {}), null);
+    assert.equal(Cinnamon.createControlServiceWatch({}).watch(() => {}), null);
+});
+
 test("user plug-in root resolves through the XDG data dir with a home fallback", () => {
     const env = environment();
     env.GLib.get_user_data_dir = () => "/home/tester/.xdg-data";

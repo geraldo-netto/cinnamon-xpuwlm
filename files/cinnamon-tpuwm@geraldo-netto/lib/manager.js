@@ -39,6 +39,32 @@ const REFUSAL_TEXTS = Object.freeze({
     "quota-invalid": N_("The runtime service has an invalid request quota; the change was not applied"),
 });
 
+// A missing service, an unreachable one, an older one that never learned the
+// method, and one that answers with something else are four different
+// problems with four different remedies. They used to collapse into one
+// sentence, which told the user nothing about which of them they had.
+const TRANSPORT_FAILURES = Object.freeze([
+    Object.freeze([
+        /ServiceUnknown|NameHasNoOwner|NoServer/u,
+        N_("The runtime service is not running; the change was not applied"),
+    ]),
+    Object.freeze([
+        /TimedOut|Timeout|NoReply/u,
+        N_("The runtime service did not respond; the change was not applied"),
+    ]),
+    Object.freeze([
+        /UnknownMethod|UnknownInterface|UnknownObject|UnknownProperty/u,
+        N_("The runtime service does not support this request; it may be an older version"),
+    ]),
+    Object.freeze([
+        /AccessDenied|AuthFailed/u,
+        N_("The runtime service refused access; the change was not applied"),
+    ]),
+]);
+
+const UNINTELLIGIBLE_REPLY_TEXT = N_("The runtime service replied in a form this applet cannot read");
+const SERVICE_STOPPED_TEXT = N_("The runtime service stopped; changes are not being applied");
+
 // Transport failures reach the user as plain guidance; the raw error text
 // stays in the log where it belongs.
 function controlFailureText(error) {
@@ -46,12 +72,14 @@ function controlFailureText(error) {
     if (refusal !== null) {
         return _(REFUSAL_TEXTS[refusal.code]);
     }
-    const text = String(error);
-    if (text.includes("ServiceUnknown") || text.includes("NameHasNoOwner")) {
-        return _("The runtime service is not running; the change was not applied");
+    if (RuntimeControl.isContractViolation(error)) {
+        return _(UNINTELLIGIBLE_REPLY_TEXT);
     }
-    if (text.includes("TimedOut") || text.includes("Timeout")) {
-        return _("The runtime service did not respond; the change was not applied");
+    const text = String(error);
+    for (const [pattern, message] of TRANSPORT_FAILURES) {
+        if (pattern.test(text)) {
+            return _(message);
+        }
     }
     return _("The runtime service could not apply the change");
 }
@@ -91,6 +119,21 @@ function requireRuntimeGateway(candidate) {
     return candidate;
 }
 
+// An optional collaborator is either absent or valid: a present but malformed
+// one must still fail loudly at construction rather than at first use.
+function optionalPort(candidate, requirePort) {
+    return candidate === null ? null : requirePort(candidate);
+}
+
+// The bus tells the applet when the control service appears and disappears;
+// without that it only ever finds out by failing a command the user issued.
+function requireControlWatch(candidate) {
+    if (!candidate || typeof candidate.watch !== "function") {
+        throw new TypeError("A control service watch with watch is required");
+    }
+    return candidate;
+}
+
 function requireScheduler(candidate) {
     if (!candidate
         || typeof candidate.schedule !== "function"
@@ -105,6 +148,7 @@ class WorkloadManager {
         repository,
         runtimeGateway,
         controlGateway = null,
+        controlWatch = null,
         errorReporter,
         clock = Date,
         logger = createSilentLogger(),
@@ -116,9 +160,12 @@ class WorkloadManager {
         requireRuntimeGateway(runtimeGateway);
         requireClock(clock);
         this._runtimeGateway = runtimeGateway;
-        this._controlGateway = controlGateway === null
-            ? null
-            : RuntimeControl.requireControlGateway(controlGateway);
+        this._controlGateway = optionalPort(controlGateway, RuntimeControl.requireControlGateway);
+        this._controlWatch = optionalPort(controlWatch, requireControlWatch);
+        this._unwatchControl = null;
+        // Tri-state: null until the bus has said anything, so an applet built
+        // without a watch never claims the service is absent.
+        this._controlServiceAvailable = null;
         this._clock = clock;
         this._logger = logger;
         this._scheduler = requireScheduler(scheduler);
@@ -172,7 +219,46 @@ class WorkloadManager {
             this._selectedTab = "overview";
         }
         this._started = true;
+        this._startControlWatch();
         this.refresh();
+        return true;
+    }
+
+    _startControlWatch() {
+        if (this._controlWatch === null) {
+            return false;
+        }
+        const unwatch = this._controlWatch.watch(
+            (available) => this._acceptControlAvailability(available),
+        );
+        this._unwatchControl = typeof unwatch === "function" ? unwatch : null;
+        return true;
+    }
+
+    // A control service that has just appeared is a fresh instance: its policy
+    // revision starts over, so the revision learned from the previous one is
+    // forgotten rather than replayed against a runtime that never issued it.
+    _acceptControlAvailability(available) {
+        if (this._disposed) {
+            return false;
+        }
+        const next = available === true;
+        if (this._controlServiceAvailable === next) {
+            return false;
+        }
+        this._controlServiceAvailable = next;
+        if (next) {
+            this._runtimeRevision = 0;
+            this._revisionKnown = false;
+            if (this._controlPending === null) {
+                this._controlMessage = "";
+                this._errors.recover(RUNTIME_CONTROL_FAILURE);
+            }
+        } else {
+            this._controlMessage = _(SERVICE_STOPPED_TEXT);
+            this._errors.report(RUNTIME_CONTROL_FAILURE, this._controlMessage, this._clock.now());
+        }
+        this._publish();
         return true;
     }
 
@@ -381,6 +467,7 @@ class WorkloadManager {
             control: {
                 pending: this._controlPending !== null,
                 message: this._controlMessage,
+                available: this._controlServiceAvailable,
             },
         };
     }
@@ -393,6 +480,7 @@ class WorkloadManager {
         this._cancelExpiry();
         this._cancelRuntimeRead();
         this._cancelRuntimeControl();
+        this._stopControlWatch();
         this._errors.recover(RUNTIME_READ_FAILURE);
         this._errors.recover(STATE_SAVE_FAILURE);
         this._errors.recover(RUNTIME_CONTROL_FAILURE);
@@ -409,6 +497,14 @@ class WorkloadManager {
         }
         if (this._controlGateway === null) {
             this._controlMessage = _("Runtime control service is unavailable; start it and retry");
+            this._errors.report(RUNTIME_CONTROL_FAILURE, this._controlMessage, this._clock.now());
+            this._publish();
+            return false;
+        }
+        // The bus already told the applet the name has no owner, so the call
+        // would only buy the same answer after a five-second timeout.
+        if (this._controlServiceAvailable === false) {
+            this._controlMessage = _(SERVICE_STOPPED_TEXT);
             this._errors.report(RUNTIME_CONTROL_FAILURE, this._controlMessage, this._clock.now());
             this._publish();
             return false;
@@ -494,6 +590,16 @@ class WorkloadManager {
         return acknowledgement.status === "applied";
     }
 
+    _stopControlWatch() {
+        if (this._unwatchControl === null) {
+            return false;
+        }
+        const unwatch = this._unwatchControl;
+        this._unwatchControl = null;
+        unwatch();
+        return true;
+    }
+
     _cancelRuntimeControl() {
         this._controlSequence += 1;
         this._controlPending = null;
@@ -550,6 +656,9 @@ module.exports = {
     REFUSAL_TEXTS,
     RUNTIME_READ_FAILURE,
     RUNTIME_CONTROL_FAILURE,
+    SERVICE_STOPPED_TEXT,
+    TRANSPORT_FAILURES,
+    UNINTELLIGIBLE_REPLY_TEXT,
     controlFailureText,
     STATE_SAVE_FAILURE,
     TABS,
@@ -557,7 +666,9 @@ module.exports = {
     createInertScheduler,
     createSilentLogger,
     hasCatalogChanges,
+    optionalPort,
     requireClock,
+    requireControlWatch,
     requireRepository,
     requireRuntimeGateway,
     requireScheduler,

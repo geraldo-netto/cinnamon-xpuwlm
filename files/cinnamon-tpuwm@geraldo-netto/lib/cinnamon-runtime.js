@@ -944,6 +944,29 @@ function sendRuntimeCommandText(text, {cancellable}, callback, environment) {
     );
 }
 
+// Name ownership is the only signal that says the control service started or
+// stopped without the applet having to fail a command first. An environment
+// without the watch API (older GJS, test harnesses) reports nothing rather
+// than claiming the service is absent.
+function createControlServiceWatch(environment) {
+    return {
+        watch(listener) {
+            const Gio = environment.Gio;
+            if (!Gio || typeof Gio.bus_watch_name !== "function") {
+                return null;
+            }
+            const id = Gio.bus_watch_name(
+                Gio.BusType.SESSION,
+                CONTROL_BUS_NAME,
+                Gio.BusNameWatcherFlags.NONE,
+                () => listener(true),
+                () => listener(false),
+            );
+            return () => Gio.bus_unwatch_name(id);
+        },
+    };
+}
+
 function createRuntimeControlGateway(environment) {
     return new RuntimeControl.RuntimeControlGateway({
         cancellableFactory: createCancellableFactory(environment),
@@ -974,6 +997,7 @@ module.exports = {
     CinnamonScheduler,
     CinnamonSettingsRepository,
     createCancellableFactory,
+    createControlServiceWatch,
     createCriticalNotifications,
     createLayoutProvider,
     createLogger,

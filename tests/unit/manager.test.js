@@ -6,6 +6,7 @@ const test = require("node:test");
 const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
+const RuntimeControl = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-contract.js");
 const RuntimeControlService = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-service.js");
 const RuntimeRefusal = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-refusal-contract.js");
 const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
@@ -90,6 +91,7 @@ function harness(overrides = {}) {
         repository,
         runtimeGateway,
         controlGateway,
+        controlWatch: overrides.controlWatch || null,
         clock,
         errorReporter: new FailureBackoff.FailureErrorBackoff({logger}),
         logger,
@@ -605,6 +607,150 @@ test("control transport failures surface plain guidance, never raw D-Bus errors"
         "The runtime service could not apply the change",
     );
     assert.doesNotMatch(Manager.controlFailureText(new Error("GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown")), /GDBus/u);
+});
+
+test("an older service and an unreadable reply are told apart from an absent one", () => {
+    const distinct = new Map([
+        ["GDBus.Error:org.freedesktop.DBus.Error.UnknownMethod: No such method", "does not support this request"],
+        ["GDBus.Error:org.freedesktop.DBus.Error.UnknownInterface: x", "does not support this request"],
+        ["GDBus.Error:org.freedesktop.DBus.Error.UnknownObject: x", "does not support this request"],
+        ["GDBus.Error:org.freedesktop.DBus.Error.AccessDenied: x", "refused access"],
+        ["GDBus.Error:org.freedesktop.DBus.Error.NoReply: x", "did not respond"],
+    ]);
+    for (const [raw, expected] of distinct) {
+        const text = Manager.controlFailureText(new Error(raw));
+        assert.match(text, new RegExp(expected, "u"), raw);
+        assert.doesNotMatch(text, /GDBus/u, raw);
+    }
+
+    for (const violation of [
+        RuntimeControl.contractViolation(TypeError, "Runtime acknowledgement is not text"),
+        RuntimeControl.contractViolation(SyntaxError, "Runtime acknowledgement contains invalid JSON"),
+        RuntimeControl.contractViolation(TypeError, "Runtime acknowledgement does not match version 1 contract"),
+        RuntimeControl.contractViolation(RangeError, "Runtime acknowledgement command ID does not match request"),
+    ]) {
+        assert.equal(
+            Manager.controlFailureText(violation),
+            Manager.UNINTELLIGIBLE_REPLY_TEXT,
+            String(violation),
+        );
+    }
+    assert.equal(RuntimeControl.isContractViolation(new Error("plain")), false);
+    assert.equal(RuntimeControl.isContractViolation(null), false);
+    assert.equal(RuntimeControl.isContractViolation("text"), false);
+});
+
+function watchHarness(overrides = {}) {
+    let listener = null;
+    let unwatched = 0;
+    const controlWatch = {
+        watch(candidate) {
+            listener = candidate;
+            return () => { unwatched += 1; };
+        },
+    };
+    const requests = [];
+    const built = harness({
+        ...overrides,
+        controlGateway: overrides.controlGateway || {
+            send(command, callback) { requests.push({command, callback}); },
+            cancel: () => false,
+        },
+        controlWatch,
+    });
+    return {
+        ...built,
+        announce: (available) => listener(available),
+        requests,
+        unwatchedCount: () => unwatched,
+    };
+}
+
+test("the manager validates and releases an injected control service watch", () => {
+    assert.throws(() => harness({controlWatch: {}}), /control service watch/u);
+    assert.equal(Manager.optionalPort(null, () => { throw new Error("unreachable"); }), null);
+
+    const {manager, unwatchedCount} = watchHarness();
+    assert.equal(manager.state().control.available, null, "nothing is claimed before the bus speaks");
+    manager.start();
+    assert.equal(manager.dispose(), true);
+    assert.equal(unwatchedCount(), 1);
+});
+
+test("a watch that reports no handle is still safe to dispose", () => {
+    const {manager} = harness({controlWatch: {watch: () => null}});
+    manager.start();
+    assert.equal(manager.dispose(), true);
+});
+
+test("the applet notices the control service stopping and starting", () => {
+    const {announce, manager, requests} = watchHarness();
+    manager.start();
+
+    announce(true);
+    assert.equal(manager.state().control.available, true);
+    assert.equal(announce(true), false, "a repeated announcement changes nothing");
+
+    announce(false);
+    const stopped = manager.state();
+    assert.equal(stopped.control.available, false);
+    assert.equal(stopped.control.message, Manager.SERVICE_STOPPED_TEXT);
+    assert.equal(
+        manager.toggleProfile("hardware-health"),
+        false,
+        "a known-absent service is not called at all",
+    );
+    assert.deepEqual(requests, [], "no round trip is spent waiting for a timeout");
+
+    announce(true);
+    const restarted = manager.state();
+    assert.equal(restarted.control.available, true);
+    assert.equal(restarted.control.message, "", "the stale failure is cleared");
+    assert.equal(manager.toggleProfile("hardware-health"), true);
+    assert.equal(requests.length, 1);
+});
+
+test("a restarted service has its policy revision relearned, not replayed", () => {
+    const {announce, manager, requests} = watchHarness();
+    manager.start();
+    announce(true);
+    manager.toggleProfile("hardware-health");
+    requests[0].callback(null, {
+        version: 1,
+        commandId: requests[0].command.id,
+        status: "applied",
+        revision: 12,
+        appliedAt: NOW,
+        message: "",
+        portfolio: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).serialize(),
+    });
+    manager.toggleProfile("hardware-health");
+    assert.equal(requests[1].command.expectedRevision, 12);
+
+    requests[1].callback(null, {
+        version: 1,
+        commandId: requests[1].command.id,
+        status: "applied",
+        revision: 13,
+        appliedAt: NOW,
+        message: "",
+        portfolio: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).serialize(),
+    });
+    announce(false);
+    announce(true);
+    manager.toggleProfile("hardware-health");
+    assert.equal(
+        requests[2].command.expectedRevision,
+        0,
+        "a fresh service instance starts its revisions over",
+    );
+});
+
+test("an announcement after disposal is ignored", () => {
+    const {announce, manager} = watchHarness();
+    manager.start();
+    manager.dispose();
+    assert.equal(announce(true), false);
 });
 
 test("every guard refusal code reaches the user as its own sentence", () => {

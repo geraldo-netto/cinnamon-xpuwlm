@@ -150,8 +150,7 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             || CinnamonRuntime.createStateRepository(this._environment, this.settings);
         this._runtimeGateway = overrides.runtimeGateway
             || this._runtimeGatewayFactory(this.runtimeStatePath);
-        this._controlGateway = overrides.controlGateway
-            || CinnamonRuntime.createRuntimeControlGateway(this._environment);
+        this._createControlPorts(overrides);
         this._clock = overrides.clock || Date;
         this._scheduler = overrides.scheduler || new CinnamonRuntime.CinnamonScheduler(Mainloop);
         this._manager = this._createManager(overrides);
@@ -160,11 +159,21 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             || new CinnamonRuntime.CinnamonPoller(Mainloop, () => this._refresh());
     }
 
+    // Both control ports address the same bus name: the gateway calls it, the
+    // watch reports whether anything owns it.
+    _createControlPorts(overrides) {
+        this._controlGateway = overrides.controlGateway
+            || CinnamonRuntime.createRuntimeControlGateway(this._environment);
+        this._controlWatch = overrides.controlWatch
+            || CinnamonRuntime.createControlServiceWatch(this._environment);
+    }
+
     _createManager(overrides) {
         return overrides.manager || new Manager.WorkloadManager({
             repository: this._repository,
             runtimeGateway: this._runtimeGateway,
             controlGateway: this._controlGateway,
+            controlWatch: this._controlWatch,
             errorReporter: overrides.errorReporter
                 || new FailureBackoff.FailureErrorBackoff({logger: this._logger}),
             logger: this._logger,

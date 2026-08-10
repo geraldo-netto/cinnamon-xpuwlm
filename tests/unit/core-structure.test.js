@@ -291,7 +291,7 @@ test("manager projections are complete and isolated from listener mutation", () 
     assert.equal(state.profiles.length, DEFINITIONS.length);
     assert.equal(state.alerts.length, 1);
     assert.equal(state.attentionCount, 1);
-    assert.deepEqual(state.control, {pending: false, message: ""});
+    assert.deepEqual(state.control, {pending: false, message: "", available: null});
 
     state.device.name = "mutated";
     state.devices[0].load = 99;

@@ -109,6 +109,23 @@ function hasAcknowledgementEnvelope(value) {
         && Domain.safeText(value.message, 240) === value.message;
 }
 
+// A reply the applet cannot read is a different failure from a service that is
+// absent, slow, or refusing, and a caller has to tell them apart without
+// matching on English error text. The marker travels with the error, so the
+// transport raises it and the presentation layer classifies it structurally
+// without either depending on the other.
+function contractViolation(ErrorType, message) {
+    const error = new ErrorType(message);
+    error.controlContractViolation = true;
+    return error;
+}
+
+function isContractViolation(error) {
+    return error !== null
+        && typeof error === "object"
+        && error.controlContractViolation === true;
+}
+
 function requireControlGateway(candidate) {
     if (!candidate
         || typeof candidate.send !== "function"
@@ -124,10 +141,12 @@ module.exports = {
     OPERATIONS,
     boundedProfileId,
     commandIdentity,
+    contractViolation,
     exactRecord,
     hasAcknowledgementEnvelope,
     hasCommandEnvelope,
     isCommandOperation,
+    isContractViolation,
     isEnabledCommand,
     isPauseCommand,
     isPortfolio,

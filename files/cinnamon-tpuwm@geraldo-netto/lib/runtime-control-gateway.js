@@ -12,15 +12,17 @@ function requirePorts(sendText, cancellableFactory) {
     }
 }
 
+const contractViolation = Contract.contractViolation;
+
 function parseAcknowledgement(text) {
     if (typeof text !== "string") {
-        throw new TypeError("Runtime acknowledgement is not text");
+        throw contractViolation(TypeError, "Runtime acknowledgement is not text");
     }
     let reply;
     try {
         reply = JSON.parse(text);
     } catch {
-        throw new SyntaxError("Runtime acknowledgement contains invalid JSON");
+        throw contractViolation(SyntaxError, "Runtime acknowledgement contains invalid JSON");
     }
     // A guarded method answers with the transport refusal envelope in place of
     // its acknowledgement, so the refusal is recognised before the
@@ -29,7 +31,10 @@ function parseAcknowledgement(text) {
         throw new Refusal.RuntimeRefusedError(reply);
     }
     if (!Contract.isRuntimeAcknowledgement(reply)) {
-        throw new TypeError("Runtime acknowledgement does not match version 1 contract");
+        throw contractViolation(
+            TypeError,
+            "Runtime acknowledgement does not match version 1 contract",
+        );
     }
     return reply;
 }
@@ -91,7 +96,10 @@ class RuntimeControlGateway {
         try {
             const acknowledgement = parseAcknowledgement(text);
             if (acknowledgement.commandId !== pending.commandId) {
-                throw new RangeError("Runtime acknowledgement command ID does not match request");
+                throw contractViolation(
+                    RangeError,
+                    "Runtime acknowledgement command ID does not match request",
+                );
             }
             callback(null, acknowledgement);
         } catch (parseError) {

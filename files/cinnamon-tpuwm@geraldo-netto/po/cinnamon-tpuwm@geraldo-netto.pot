@@ -709,6 +709,10 @@ msgid "The runtime service is rate limiting requests; wait and retry"
 msgstr ""
 
 #: lib/manager.js
+msgid "The runtime service refused access; the change was not applied"
+msgstr ""
+
+#: lib/manager.js
 msgid "The runtime service rejected a request that asserts its own caller identity"
 msgstr ""
 
@@ -718,6 +722,14 @@ msgstr ""
 
 #: lib/manager.js
 msgid "The runtime service rejected the request as too large"
+msgstr ""
+
+#: lib/manager.js
+msgid "The runtime service replied in a form this applet cannot read"
+msgstr ""
+
+#: lib/manager.js
+msgid "The runtime service stopped; changes are not being applied"
 msgstr ""
 
 #: lib/view-model.js
