@@ -1,6 +1,7 @@
 "use strict";
 
 const Domain = require("./domain.js");
+const ProfileBlockers = require("./profile-blockers.js");
 const SnapshotValidator = require("./snapshot-validator.js");
 const WorkloadRegistry = require("./workload-registry.js");
 
@@ -16,7 +17,16 @@ const DEVICE_REQUIRED = Object.freeze(["id", "backend", "available", "name", "ki
 const MAX_DEVICE_ENTRIES = 16;
 const METRIC_PROPERTIES = new Set(["queueDepth", "runningProfiles"]);
 const METRIC_REQUIRED = Object.freeze([...METRIC_PROPERTIES]);
-const PROFILE_PROPERTIES = new Set(["status", "queued", "detail"]);
+const PROFILE_PROPERTIES = new Set(["status", "queued", "detail", "reason"]);
+// The machine-readable counterpart to `detail`. Read from the classifier
+// rather than restated, because a second copy of this list is a second thing
+// to forget: the runtime adding a state the validator does not know would
+// make the applet reject every snapshot rather than report one profile it
+// does not recognise.
+const PROFILE_REASONS = new Set([
+    ...Object.keys(ProfileBlockers.REASON_CODE_KINDS),
+    ...ProfileBlockers.NON_BLOCKING_REASON_CODES,
+]);
 // The runtime bounds how many profiles one snapshot may describe, matching the
 // plug-in ceiling the registry enforces. Without the bound a hostile snapshot
 // could make the applet walk an unbounded map before anything rejected it.
@@ -141,7 +151,8 @@ function isProfile(value) {
         && hasContractProperties(value, [], PROFILE_PROPERTIES)
         && optionalProperty(value, "status", (status) => PROFILE_STATUSES.has(status))
         && optionalProperty(value, "queued", (queued) => isIntegerBetween(queued, 0, 1_000_000))
-        && optionalProperty(value, "detail", (detail) => hasCodePointLength(detail, 0, 240));
+        && optionalProperty(value, "detail", (detail) => hasCodePointLength(detail, 0, 240))
+        && optionalProperty(value, "reason", (reason) => PROFILE_REASONS.has(reason));
 }
 
 function isProfiles(value) {
@@ -265,8 +276,29 @@ class RuntimeSnapshotSchemaValidator {
     }
 }
 
+const CONTRACT_ALLOWLISTS = Object.freeze({
+    root: ROOT_PROPERTIES,
+    device: DEVICE_PROPERTIES,
+    metric: METRIC_PROPERTIES,
+    profile: PROFILE_PROPERTIES,
+    alert: ALERT_PROPERTIES,
+    telemetry: TELEMETRY_PROPERTIES,
+    telemetryPlugin: TELEMETRY_PLUGIN_PROPERTIES,
+});
+
+const CONTRACT_ENUMS = Object.freeze({
+    profileStatus: PROFILE_STATUSES,
+    profileReason: PROFILE_REASONS,
+    alertSeverity: ALERT_SEVERITIES,
+    deviceKind: DEVICE_KINDS,
+    deviceBackend: DEVICE_BACKENDS,
+});
+
 module.exports = {
+    CONTRACT_ALLOWLISTS,
+    CONTRACT_ENUMS,
     MAX_PROFILE_ENTRIES,
+    PROFILE_REASONS,
     MAX_TELEMETRY_PLUGINS,
     RuntimeSnapshotSchemaValidator,
     isPluginTelemetry,

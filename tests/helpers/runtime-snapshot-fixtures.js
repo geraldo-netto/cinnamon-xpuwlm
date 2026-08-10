@@ -333,6 +333,19 @@ function runtimeSnapshotSchemaCases() {
         snapshotCase("alert result reference", true, (value) => {
             value.alerts[0].resultRef = "result-x";
         }),
+        // The machine-readable blocker code. Absent from the fixtures, a new
+        // optional field is invisible to the equivalence fuzz test, which is
+        // how the validator came to reject every snapshot the runtime
+        // published while the fuzz test stayed green.
+        snapshotCase("profile reason code", true, (value) => {
+            value.profiles["hardware-health"].reason = "serving";
+        }),
+        snapshotCase("profile reason the applet does not know", false, (value) => {
+            value.profiles["hardware-health"].reason = "invented";
+        }),
+        snapshotCase("profile reason of the wrong type", false, (value) => {
+            value.profiles["hardware-health"].reason = 1;
+        }),
         snapshotCase("alert result reference at the maximum", true, (value) => {
             value.alerts[0].resultRef = `result-${"a".repeat(113)}`;
         }),
