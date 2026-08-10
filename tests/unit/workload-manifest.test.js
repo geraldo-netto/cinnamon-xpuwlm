@@ -209,6 +209,7 @@ test("workload descriptor owns immutable contract data and profile projection", 
         order: 10,
         defaultEnabled: false,
         defaultWeight: 2,
+        executable: true,
     });
     assert.equal(Object.isFrozen(descriptor.profileDefinition()), true);
     assert.throws(() => new Contract.WorkloadDescriptor({}), /version 1 or 2 contract/u);

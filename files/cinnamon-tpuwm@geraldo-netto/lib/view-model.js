@@ -301,6 +301,21 @@ function formatFraction(value) {
         : "—";
 }
 
+// Eight of the nine bundled workloads declare no model, and the runtime
+// refuses to build a pipeline for any of them. Their rows used to look exactly
+// like a runnable profile's, so "enabled" read as "will run". The limitation is
+// named in words next to the profile it applies to, and never by styling alone.
+const NOT_EXECUTABLE_TEXT = N_("Declares no model · the runtime cannot run it");
+
+function profileModel(profile) {
+    const executable = profile.executable !== false;
+    return {
+        ...profile,
+        executable,
+        executableText: executable ? "" : _(NOT_EXECUTABLE_TEXT),
+    };
+}
+
 function groupProfiles(profiles) {
     const groups = [];
     const byName = new Map();
@@ -310,9 +325,13 @@ function groupProfiles(profiles) {
             groups.push(group);
             byName.set(profile.group, group);
         }
-        byName.get(profile.group).profiles.push({...profile});
+        byName.get(profile.group).profiles.push(profileModel(profile));
     }
     return groups;
+}
+
+function inexecutableCount(profiles) {
+    return profiles.filter((profile) => profile.executable === false).length;
 }
 
 function attentionReviewText(count) {
@@ -490,6 +509,7 @@ function toViewModel(state, nowMs = Date.now()) {
         metrics: metricModels(state),
         enabledGroups: groupProfiles(enabledProfiles),
         allGroups: groupProfiles(state.profiles),
+        inexecutableCount: inexecutableCount(state.profiles),
         pausedProfiles,
         activeAlerts,
         resolvedAlerts,
@@ -520,6 +540,7 @@ module.exports = {
     CATALOG_CHANGE_KINDS,
     CATALOG_CHANGE_LABELS,
     DEVICE_STATUS_LABELS,
+    NOT_EXECUTABLE_TEXT,
     RUNTIME_RECOVERY,
     RUNTIME_STATUS_LABELS,
     SEVERITY_LABELS,
@@ -543,7 +564,9 @@ module.exports = {
     formatRelativeTime,
     groupProfiles,
     highestActiveSeverity,
+    inexecutableCount,
     metricModels,
+    profileModel,
     panelModel,
     severityText,
     toViewModel,

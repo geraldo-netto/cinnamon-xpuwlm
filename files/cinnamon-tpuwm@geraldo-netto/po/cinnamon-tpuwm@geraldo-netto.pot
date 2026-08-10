@@ -24,6 +24,10 @@ msgstr ""
 msgid "%d active · highest severity %s · no automatic action"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "%d cannot run yet"
+msgstr ""
+
 #: lib/view-model.js
 msgid "%d item needs review"
 msgid_plural "%d items need review"
@@ -256,6 +260,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Connection required"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Declares no model · the runtime cannot run it"
 msgstr ""
 
 #: lib/menu-view.js

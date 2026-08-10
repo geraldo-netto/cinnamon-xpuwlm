@@ -58,6 +58,13 @@ function button(root, accessibleName) {
     return findActors(root, (actor) => actor instanceof FakeButton && actor.accessibleName === accessibleName)[0];
 }
 
+// A profile the runtime cannot execute names the reason in its toggle, so the
+// control is found by what it does rather than by its whole announcement.
+function control(root, accessibleNamePrefix) {
+    return findActors(root, (actor) => actor instanceof FakeButton
+        && actor.accessibleName.startsWith(accessibleNamePrefix))[0];
+}
+
 test("menu validates dependencies and required actions", () => {
     const validActions = Object.fromEntries(
         ["selectTab", "toggleProfile", "changeWeight", "pauseAll", "resumeAll", "refresh", "openSettings", "acknowledgeCatalogChanges"]
@@ -105,7 +112,7 @@ test("overview exposes grouped profiles and all primary actions", () => {
     button(root, "Refresh TPU status").click();
     button(root, "Open TPU Workload Manager settings").click();
     button(root, "Pause all workloads").click();
-    button(root, "Disable Hardware health").click();
+    control(root, "Disable Hardware health").click();
     assert.deepEqual(calls, [
         ["selectTab", "profiles"],
         ["selectTab", "profiles"],
@@ -121,7 +128,7 @@ test("profiles screen offers weight and enable controls", () => {
     view.render(ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW));
     button(root, "Decrease Hardware health weight").click();
     button(root, "Increase Hardware health weight").click();
-    button(root, "Enable Network & peripherals").click();
+    control(root, "Enable Network & peripherals").click();
     assert.deepEqual(calls, [
         ["changeWeight", "hardware-health", -1],
         ["changeWeight", "hardware-health", 1],
@@ -153,7 +160,7 @@ test("pending runtime control is announced and disables policy controls", () => 
         "Increase Hardware health weight",
         "Disable Hardware health",
     ]) {
-        assert.equal(button(root, accessibleName).reactive, false, accessibleName);
+        assert.equal(control(root, accessibleName).reactive, false, accessibleName);
     }
 
     view.render(ViewModel.toViewModel(baseState({
@@ -330,6 +337,59 @@ test("the catalog notice appears with named plug-ins and dismisses on demand", (
     // row must stay hidden rather than render an undefined change set.
     view.render({...ViewModel.toViewModel(baseState(), NOW), catalogNotice: undefined});
     assert.equal(notice.visible, false);
+});
+
+test("a profile the runtime cannot execute says so instead of looking runnable", () => {
+    const {calls, view, root} = harness();
+    const state = baseState({selectedTab: "profiles"});
+    // The bundled catalog declares no model for these workloads, so the
+    // runtime refuses to build a pipeline for either of them.
+    state.profiles = state.profiles.map((profile) => ({
+        ...profile,
+        executable: profile.id !== "hardware-health",
+    }));
+    view.render(ViewModel.toViewModel(state, NOW));
+
+    const limitation = ViewModel.NOT_EXECUTABLE_TEXT;
+    const notes = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-profile-limitation"));
+    assert.equal(notes.length, 1, "only the profile that cannot run is annotated");
+    assert.equal(notes[0].text, limitation);
+    assert.equal(
+        findActors(root, (actor) => actor.styleClasses
+            && actor.styleClasses.has("tpuwm-profile-inert")).length,
+        1,
+    );
+
+    // The reason travels with the control, not only with the row beside it.
+    const inert = control(root, "Disable Hardware health");
+    assert.equal(inert.accessibleName, `Disable Hardware health — ${limitation}`);
+    assert.equal(inert.reactive, true, "policy intent is still editable");
+    inert.click();
+    assert.deepEqual(calls, [["toggleProfile", "hardware-health"]]);
+
+    const runnable = control(root, "Disable Storage intelligence");
+    assert.equal(runnable.accessibleName, "Disable Storage intelligence");
+
+    const heading = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-section-description"))[0];
+    assert.match(heading.text, /1 cannot run yet/u);
+});
+
+test("a fully executable catalog carries no limitation wording at all", () => {
+    const {view, root} = harness();
+    const state = baseState({selectedTab: "profiles"});
+    state.profiles = state.profiles.map((profile) => ({...profile, executable: true}));
+    view.render(ViewModel.toViewModel(state, NOW));
+
+    assert.equal(
+        findActors(root, (actor) => actor.styleClasses
+            && actor.styleClasses.has("tpuwm-profile-limitation")).length,
+        0,
+    );
+    const heading = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-section-description"))[0];
+    assert.doesNotMatch(heading.text, /cannot run/u);
 });
 
 test("the alerts screen states runtime content it could not render", () => {

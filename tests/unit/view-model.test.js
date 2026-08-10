@@ -267,6 +267,39 @@ test("body key tracks every rendered field of a same-identity alert", () => {
     }
 });
 
+test("a profile the runtime cannot execute is labelled, not merely styled", () => {
+    const runnable = ViewModel.profileModel({id: "a", group: "g", executable: true});
+    assert.equal(runnable.executable, true);
+    assert.equal(runnable.executableText, "");
+
+    const inert = ViewModel.profileModel({id: "b", group: "g", executable: false});
+    assert.equal(inert.executable, false);
+    assert.equal(inert.executableText, ViewModel.NOT_EXECUTABLE_TEXT);
+    assert.match(inert.executableText, /no model/u, "the reason, not just the verdict");
+
+    // A projection built before this field existed must not be reported as
+    // unrunnable on the strength of a missing property.
+    assert.equal(ViewModel.profileModel({id: "c", group: "g"}).executable, true);
+
+    assert.equal(ViewModel.inexecutableCount([]), 0);
+    assert.equal(ViewModel.inexecutableCount([{executable: true}, {executable: false}, {}]), 1);
+
+    const model = ViewModel.toViewModel(state({
+        profiles: state().profiles.map((profile, index) => ({...profile, executable: index > 0})),
+    }), NOW);
+    assert.equal(model.inexecutableCount, 1);
+    assert.equal(model.allGroups[0].profiles[0].executableText, ViewModel.NOT_EXECUTABLE_TEXT);
+    assert.equal(
+        ViewModel.toViewModel(state({
+            profiles: state().profiles.map((profile) => ({...profile, executable: true})),
+        }), NOW).inexecutableCount,
+        0,
+    );
+    // Every bundled workload except low-light-enhancement declares no model,
+    // so today the whole shipped catalog is unrunnable and says so.
+    assert.equal(ViewModel.toViewModel(state(), NOW).inexecutableCount, state().profiles.length);
+});
+
 test("discarded runtime content is stated in words instead of vanishing", () => {
     assert.equal(ViewModel.unknownContentNotice(state()), null);
     assert.equal(ViewModel.unknownContentNotice(state({unknownContent: {profiles: 0, alerts: 0}})), null);

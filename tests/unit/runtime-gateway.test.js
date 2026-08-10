@@ -93,6 +93,7 @@ test("snapshot parser applies injected workload catalog", () => {
         order: 10,
         defaultEnabled: true,
         defaultWeight: 2,
+        executable: true,
     }]);
     const candidate = validSnapshot();
     candidate.metrics.runningProfiles = 8;

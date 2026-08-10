@@ -63,9 +63,16 @@
 .tpuwm-subtitle,
 .tpuwm-section-description,
 .tpuwm-profile-description,
+.tpuwm-profile-limitation,
 .tpuwm-catalog-notice-detail,
 .tpuwm-alert-kicker {
     font-size: 0.82em;
+}
+
+/* A profile the runtime cannot execute is named in words on its own line; the
+   weight is the only visual reinforcement, never the sole carrier of meaning. */
+.tpuwm-profile-limitation {
+    font-weight: bold;
 }
 
 .tpuwm-status {

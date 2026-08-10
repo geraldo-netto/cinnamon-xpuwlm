@@ -71,6 +71,14 @@ unavailable weight control drops its sensitive state. Names still spell the
 state out in text, so nothing depends on role support alone, and a Cinnamon
 build that does not expose a role or state simply renders without it.
 
+A workload whose manifest declares no model cannot be executed by the runtime,
+which refuses to build a pipeline for it. The popup states that on the profile
+row and in the profile switch's accessible name, and counts the affected
+profiles in the section heading, rather than presenting the same controls for a
+profile that can never run. The controls stay live: enabling such a profile is
+still a policy statement, and installing the missing model must not require
+first recovering a control the applet took away.
+
 The tab strip uses roving focus: only the selected tab is reachable with Tab,
 Left/Up and Right/Down move to the neighbouring tab and wrap, and Home and End
 jump to the first and last tab. Every movement selects and focuses together, and

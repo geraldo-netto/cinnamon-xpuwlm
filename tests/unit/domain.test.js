@@ -123,6 +123,7 @@ test("workload catalog injects profile identity and bounds into domain behavior"
         order: 10,
         defaultEnabled: false,
         defaultWeight: 4,
+        executable: true,
     };
     const catalog = new Domain.WorkloadCatalog([definition]);
     definition.title = "Mutated";

@@ -43,3 +43,28 @@ test("built-in registry projects complete domain defaults without fixed ordering
     );
     assert.equal(catalog.definitions().filter((definition) => definition.defaultEnabled).length, 5);
 });
+
+// The runtime refuses to build a pipeline for a profile with no model
+// (`profile-has-no-model`), so what the catalog can actually run is a fact the
+// applet must carry, not an assumption the popup makes.
+test("the shipped catalog reports which workloads the runtime can execute", () => {
+    const descriptors = BuiltIns.descriptors();
+    const executable = descriptors.filter((descriptor) => descriptor.executable);
+    assert.deepEqual(
+        executable.map((descriptor) => descriptor.id),
+        ["low-light-enhancement"],
+        "only the workload that declares a model can run",
+    );
+    for (const descriptor of descriptors) {
+        assert.equal(
+            descriptor.profileDefinition().executable,
+            descriptor.manifest().requirements.model !== null,
+            descriptor.id,
+        );
+    }
+    assert.deepEqual(
+        BuiltIns.coreCatalog().definitions().filter((definition) => definition.executable),
+        [],
+        "no core workload declares a model today",
+    );
+});

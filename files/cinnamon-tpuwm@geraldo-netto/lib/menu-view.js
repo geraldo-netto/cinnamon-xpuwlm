@@ -494,7 +494,13 @@ class MenuView {
     _renderProfiles(model) {
         const active = model.allGroups.flatMap((group) => group.profiles).filter((profile) => profile.enabled).length;
         const paused = model.pausedProfiles.length;
-        this._addSectionHeading(_("Workload profiles"), format(_("%d active · %d paused · weight 1–5"), active, paused));
+        const summary = format(_("%d active · %d paused · weight 1–5"), active, paused);
+        this._addSectionHeading(
+            _("Workload profiles"),
+            model.inexecutableCount > 0
+                ? `${summary} · ${format(_("%d cannot run yet"), model.inexecutableCount)}`
+                : summary,
+        );
         for (const group of model.allGroups) {
             const activeInGroup = group.profiles.filter((profile) => profile.enabled).length;
             this._addGroupHeading(group.name, format(_("%d of %d active"), activeInGroup, group.profiles.length));
@@ -596,7 +602,11 @@ class MenuView {
     }
 
     _profileRow(profile, editableWeight) {
-        const row = this._box(`tpuwm-profile-row${profile.enabled ? "" : " tpuwm-profile-disabled"}`);
+        const inert = profile.executable === false;
+        const row = this._box(
+            `tpuwm-profile-row${profile.enabled ? "" : " tpuwm-profile-disabled"}`
+            + `${inert ? " tpuwm-profile-inert" : ""}`,
+        );
         row.add_child(new this._St.Icon({
             icon_name: profile.icon,
             icon_type: this._St.IconType.SYMBOLIC,
@@ -610,32 +620,47 @@ class MenuView {
         copy.add_child(titleRow);
         const detail = profile.detail || profile.description;
         copy.add_child(this._label(`${detail} · ${format(_("%d queued"), profile.queued)}`, "tpuwm-profile-description", true));
-        row.add_child(copy);
-        if (editableWeight) {
-            const controls = this._box("tpuwm-weight-control");
-            const down = this._identify(
-                this._button("tpuwm-weight-button", format(_("Decrease %s weight"), profile.title), () => this._actions.changeWeight(profile.id, -1)),
-                `weight-down:${profile.id}`,
-            );
-            this._setButtonEnabled(down, this._policyControlEnabled(profile.weight > 1));
-            down.set_child(this._label("−", "tpuwm-button-label"));
-            controls.add_child(down);
-            controls.add_child(this._label(`${profile.weight}`, "tpuwm-weight-value"));
-            const up = this._identify(
-                this._button("tpuwm-weight-button", format(_("Increase %s weight"), profile.title), () => this._actions.changeWeight(profile.id, 1)),
-                `weight-up:${profile.id}`,
-            );
-            this._setButtonEnabled(up, this._policyControlEnabled(profile.weight < 5));
-            up.set_child(this._label("+", "tpuwm-button-label"));
-            controls.add_child(up);
-            row.add_child(controls);
-        } else {
-            row.add_child(this._label(format(_("Weight %d"), profile.weight), "tpuwm-weight-summary"));
+        if (inert) {
+            copy.add_child(this._label(profile.executableText, "tpuwm-profile-limitation", true));
         }
+        row.add_child(copy);
+        row.add_child(editableWeight
+            ? this._weightControls(profile)
+            : this._label(format(_("Weight %d"), profile.weight), "tpuwm-weight-summary"));
+        row.add_child(this._profileToggle(profile, inert));
+        return row;
+    }
+
+    _weightControls(profile) {
+        const controls = this._box("tpuwm-weight-control");
+        const down = this._identify(
+            this._button("tpuwm-weight-button", format(_("Decrease %s weight"), profile.title), () => this._actions.changeWeight(profile.id, -1)),
+            `weight-down:${profile.id}`,
+        );
+        this._setButtonEnabled(down, this._policyControlEnabled(profile.weight > 1));
+        down.set_child(this._label("−", "tpuwm-button-label"));
+        controls.add_child(down);
+        controls.add_child(this._label(`${profile.weight}`, "tpuwm-weight-value"));
+        const up = this._identify(
+            this._button("tpuwm-weight-button", format(_("Increase %s weight"), profile.title), () => this._actions.changeWeight(profile.id, 1)),
+            `weight-up:${profile.id}`,
+        );
+        this._setButtonEnabled(up, this._policyControlEnabled(profile.weight < 5));
+        up.set_child(this._label("+", "tpuwm-button-label"));
+        controls.add_child(up);
+        return controls;
+    }
+
+    // The control stays live for a profile the runtime cannot run: enabling one
+    // is a policy statement, and installing the missing model must not require
+    // the user to first find a control the applet took away. Only the wording
+    // changes, so the limitation is announced rather than silently enforced.
+    _profileToggle(profile, inert) {
+        const name = format(profile.enabled ? _("Disable %s") : _("Enable %s"), profile.title);
         const toggle = this._identify(
             this._button(
                 `tpuwm-toggle${profile.enabled ? " tpuwm-toggle-on" : ""}`,
-                format(profile.enabled ? _("Disable %s") : _("Enable %s"), profile.title),
+                inert ? `${name} — ${profile.executableText}` : name,
                 () => this._actions.toggleProfile(profile.id),
                 "TOGGLE_BUTTON",
             ),
@@ -644,8 +669,7 @@ class MenuView {
         this._setAccessibleState(toggle, "CHECKED", profile.enabled);
         this._setButtonEnabled(toggle, !this._controlPending);
         toggle.set_child(this._label(profile.enabled ? _("On") : _("Off"), "tpuwm-toggle-label"));
-        row.add_child(toggle);
-        return row;
+        return toggle;
     }
 
     _alertCard(alert) {

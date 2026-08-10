@@ -112,8 +112,12 @@ function safeText(value, maximumLength, fallback = "") {
     return characters.join("");
 }
 
+// `executable` states whether the runtime can build a pipeline for this
+// profile at all. It is a property of the workload, not of the user's policy,
+// so it lives on the definition beside the other manifest-derived facts.
 const PROFILE_DEFINITION_PROPERTIES = new Set([
     "id", "title", "group", "description", "icon", "order", "defaultEnabled", "defaultWeight",
+    "executable",
 ]);
 
 function hasProfileDefinitionShape(value) {
@@ -143,6 +147,7 @@ function hasProfileDefinitionDefaults(value) {
         && value.order >= 0
         && value.order <= 1000
         && typeof value.defaultEnabled === "boolean"
+        && typeof value.executable === "boolean"
         && Number.isInteger(value.defaultWeight)
         && value.defaultWeight >= MIN_WEIGHT
         && value.defaultWeight <= MAX_WEIGHT;

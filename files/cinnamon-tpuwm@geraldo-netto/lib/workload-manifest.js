@@ -427,6 +427,14 @@ class WorkloadDescriptor {
         return this._manifest;
     }
 
+    // A workload that declares no model has no inference stage, so the runtime
+    // refuses to build a pipeline for it (`profile-has-no-model`). That is a
+    // fact the manifest already states, and the popup has to state it too
+    // rather than offering the same controls for a profile that can never run.
+    get executable() {
+        return this._manifest.requirements.model !== null;
+    }
+
     profileDefinition() {
         return Object.freeze({
             id: this._manifest.id,
@@ -437,6 +445,7 @@ class WorkloadDescriptor {
             order: this._manifest.ui.order,
             defaultEnabled: this._manifest.defaults.enabled,
             defaultWeight: this._manifest.defaults.weight,
+            executable: this.executable,
         });
     }
 }
