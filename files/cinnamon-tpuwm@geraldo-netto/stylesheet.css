@@ -13,6 +13,7 @@
 .tpuwm-footer,
 .tpuwm-profile-row,
 .tpuwm-profile-title-row,
+.tpuwm-catalog-notice,
 .tpuwm-section-heading,
 .tpuwm-group-heading,
 .tpuwm-alert-heading,
@@ -52,6 +53,7 @@
 .tpuwm-subtitle,
 .tpuwm-section-description,
 .tpuwm-profile-description,
+.tpuwm-catalog-notice-detail,
 .tpuwm-alert-kicker,
 .tpuwm-alert-summary,
 .tpuwm-hero-description {
@@ -61,6 +63,7 @@
 .tpuwm-subtitle,
 .tpuwm-section-description,
 .tpuwm-profile-description,
+.tpuwm-catalog-notice-detail,
 .tpuwm-alert-kicker {
     font-size: 0.82em;
 }
@@ -116,6 +119,17 @@
 .tpuwm-control-error {
     border: 2px solid symbolic;
     background-color: rgba(127, 127, 127, 0.16);
+}
+
+.tpuwm-catalog-notice {
+    padding: 8px 10px;
+    border: 1px solid rgba(127, 127, 127, 0.35);
+    border-radius: 7px;
+    background-color: rgba(127, 127, 127, 0.16);
+}
+
+.tpuwm-catalog-notice-title {
+    font-weight: bold;
 }
 
 .tpuwm-secondary-button:focus,

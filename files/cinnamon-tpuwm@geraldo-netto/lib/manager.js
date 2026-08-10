@@ -15,6 +15,16 @@ const RUNTIME_READ_FAILURE = "runtime-read";
 const STATE_SAVE_FAILURE = "state-save";
 const RUNTIME_CONTROL_FAILURE = "runtime-control";
 
+const NO_CATALOG_CHANGES = Object.freeze({
+    installed: Object.freeze([]),
+    upgraded: Object.freeze([]),
+    removed: Object.freeze([]),
+});
+
+function hasCatalogChanges(changes) {
+    return changes.installed.length + changes.upgraded.length + changes.removed.length > 0;
+}
+
 // Transport failures reach the user as plain guidance; the raw error text
 // stays in the log where it belongs.
 function controlFailureText(error) {
@@ -106,6 +116,7 @@ class WorkloadManager {
         const initial = WorkloadReconciliation.reconcilePortfolioState(null, this._workloadRegistry);
         this._catalog = initial.catalog;
         this._pluginVersions = initial.state.pluginVersions;
+        this._catalogChanges = NO_CATALOG_CHANGES;
         this._portfolio = new Domain.WorkloadPortfolio(null, this._catalog);
         this._selectedTab = "overview";
         this._snapshot = Domain.unavailableSnapshot(_("Monitoring has not started"), this._clock.now());
@@ -127,6 +138,9 @@ class WorkloadManager {
             );
             this._catalog = reconciled.catalog;
             this._pluginVersions = reconciled.state.pluginVersions;
+            // A first run installs the whole catalog; announcing that as news
+            // would bury the plug-in changes this notice exists to report.
+            this._catalogChanges = reconciled.firstRun ? NO_CATALOG_CHANGES : reconciled.changes;
             this._portfolio = new Domain.WorkloadPortfolio(reconciled.state, this._catalog);
             this._selectedTab = sanitizeTab(saved?.selectedTab);
             if (reconciled.changed) {
@@ -134,6 +148,7 @@ class WorkloadManager {
             }
         } catch (error) {
             this._logger.warn(`Could not load applet state: ${error}`);
+            this._catalogChanges = NO_CATALOG_CHANGES;
             this._portfolio = new Domain.WorkloadPortfolio(null, this._catalog);
             this._selectedTab = "overview";
         }
@@ -265,6 +280,19 @@ class WorkloadManager {
         return true;
     }
 
+    // Plug-in installs, upgrades, and removals are announced once. The
+    // acknowledgement itself is not persisted: reconciliation already saved the
+    // new versions, so the next start has nothing left to report.
+    acknowledgeCatalogChanges() {
+        this._ensureActive();
+        if (!hasCatalogChanges(this._catalogChanges)) {
+            return false;
+        }
+        this._catalogChanges = NO_CATALOG_CHANGES;
+        this._publish();
+        return true;
+    }
+
     toggleProfile(id) {
         this._ensureActive();
         const profile = this._portfolio.profile(id);
@@ -326,6 +354,11 @@ class WorkloadManager {
             stale: snapshot.stale,
             source: snapshot.source,
             generatedAt: snapshot.generatedAt,
+            catalogChanges: {
+                installed: [...this._catalogChanges.installed],
+                upgraded: [...this._catalogChanges.upgraded],
+                removed: [...this._catalogChanges.removed],
+            },
             control: {
                 pending: this._controlPending !== null,
                 message: this._controlMessage,
@@ -466,6 +499,7 @@ class WorkloadManager {
 }
 
 module.exports = {
+    NO_CATALOG_CHANGES,
     RUNTIME_READ_FAILURE,
     RUNTIME_CONTROL_FAILURE,
     controlFailureText,
@@ -474,6 +508,7 @@ module.exports = {
     WorkloadManager,
     createInertScheduler,
     createSilentLogger,
+    hasCatalogChanges,
     requireClock,
     requireRepository,
     requireRuntimeGateway,

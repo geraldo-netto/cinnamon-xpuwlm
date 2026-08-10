@@ -141,6 +141,64 @@ test("manager builds portfolio from injected workload registry", () => {
     assert.deepEqual(manager.state().profiles.map((profile) => profile.id), ["custom-workload"]);
 });
 
+// Reconciliation used to compute plug-in changes and drop them. They now
+// reach the projection so the popup can state them, and stay there until the
+// user acknowledges the notice.
+test("catalog changes are projected once and cleared on acknowledgement", () => {
+    const previous = new Manifest.WorkloadDescriptor(ManifestFixtures.validWorkloadManifest({
+        id: "retired-workload",
+    }));
+    const current = new Manifest.WorkloadDescriptor(ManifestFixtures.validWorkloadManifest({
+        id: "custom-workload",
+    }));
+    const {manager} = harness({
+        repository: {
+            load: () => ({
+                selectedTab: "overview",
+                portfolio: {
+                    paused: false,
+                    profiles: {"retired-workload": {enabled: false, weight: 1}},
+                    pluginVersions: {"retired-workload": "1.0.0"},
+                },
+            }),
+            save() {},
+        },
+        workloadRegistry: new Registry.StaticWorkloadRegistry([current]),
+    });
+    assert.deepEqual(previous.id, "retired-workload");
+    manager.start();
+    assert.deepEqual(manager.state().catalogChanges, {
+        installed: ["custom-workload"],
+        upgraded: [],
+        removed: ["retired-workload"],
+    });
+
+    const states = [];
+    manager.subscribe((state) => states.push(state));
+    assert.equal(manager.acknowledgeCatalogChanges(), true);
+    assert.deepEqual(manager.state().catalogChanges, {installed: [], upgraded: [], removed: []});
+    assert.deepEqual(states.at(-1).catalogChanges, {installed: [], upgraded: [], removed: []});
+    assert.equal(manager.acknowledgeCatalogChanges(), false);
+    assert.equal(Manager.hasCatalogChanges(Manager.NO_CATALOG_CHANGES), false);
+    assert.equal(Manager.hasCatalogChanges({installed: [], upgraded: ["a"], removed: []}), true);
+});
+
+// A first run installs the whole catalog and a failed load has no baseline;
+// neither is a plug-in change the user needs to be told about.
+test("a first run and a failed state load report no catalog changes", () => {
+    const empty = {installed: [], upgraded: [], removed: []};
+    const {manager: first} = harness({repository: {load: () => ({}), save() {}}});
+    first.start();
+    assert.deepEqual(first.state().catalogChanges, empty);
+    assert.equal(first.acknowledgeCatalogChanges(), false);
+
+    const {manager: failed} = harness({
+        repository: {load: () => { throw new Error("unreadable"); }, save() {}},
+    });
+    failed.start();
+    assert.deepEqual(failed.state().catalogChanges, empty);
+});
+
 test("start loads state once, refreshes, and publishes immutable projections", () => {
     const {manager} = harness();
     const states = [];

@@ -29,6 +29,18 @@ exactly like bundled ones: a new directory installs with schema defaults, a
 changed `version` reports an upgrade, and a removed directory drops its
 persisted profile state on the next reconciliation.
 
+## Change reporting
+
+Reconciliation runs at startup and on every applet reload. When it finds
+installed, upgraded, or removed plug-ins, the popup shows a notice above the
+metrics naming each one — installed and upgraded workloads by their title,
+removed ones by the identifier that is all the catalog has left. The notice
+stays until it is dismissed, and does not return: reconciliation has already
+persisted the new versions, so the next start has nothing left to report.
+
+A first run is deliberately silent. Every workload would be reported as newly
+installed, which would bury the plug-in changes the notice exists to show.
+
 ## Contract
 
 `workload-manifest.schema.json` is authoritative. Version 1 requires:
@@ -108,6 +120,32 @@ The checker validates every manifest, directory/manifest identity parity,
 unique workload IDs, and unique display order. Contract fixture tests prove the
 template remains loadable by the same descriptor and registry ports used by the
 applet.
+
+## Third-party tooling
+
+`npm run check:workloads` only ever sees the bundled catalog, so a plug-in
+maintained outside this repository has no gate at all. Two commands give an
+out-of-tree directory the same verdict the applet reaches at discovery time:
+
+```bash
+npm run check:plugin -- /path/to/my-plugin
+npm run package:plugin -- /path/to/my-plugin
+```
+
+`check:plugin` reports every reason the directory would not load: a missing,
+oversized, unparsable, or non-conforming `manifest.json`; a directory name that
+is not a valid identifier or disagrees with the manifest `id`; a symlink or any
+file other than `manifest.json`, which the applet ignores rather than installs;
+an identifier already used by a bundled workload, which bundled-wins merging
+would silently drop; and a `ui.order` already taken by a bundled workload.
+Unlike the repository checker it does not require `acceleratorPreference`,
+which is optional for third-party manifests.
+
+`package:plugin` validates first, then writes a deterministic ustar archive and
+its SHA-256 to `dist/plugins/<id>-<version>.tar`. Members are prefixed with the
+workload id, so extracting the archive in
+`$XDG_DATA_HOME/cinnamon-tpuwm@geraldo-netto/workloads/` produces exactly the
+directory discovery expects.
 
 Before enabling a workload, add unit and integration coverage, boundary fuzzing,
 mutation coverage for changed logic, and reproducible acceptance measurements

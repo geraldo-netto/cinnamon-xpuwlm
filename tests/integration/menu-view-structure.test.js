@@ -76,6 +76,7 @@ function harness() {
     for (const name of [
         "selectTab", "toggleProfile", "changeWeight",
         "pauseAll", "resumeAll", "refresh", "openSettings",
+        "acknowledgeCatalogChanges",
     ]) {
         actions[name] = () => {};
     }

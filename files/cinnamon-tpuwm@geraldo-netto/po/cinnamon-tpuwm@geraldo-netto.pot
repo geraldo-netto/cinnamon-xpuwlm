@@ -55,6 +55,12 @@ msgid "%d queued"
 msgstr ""
 
 #: lib/view-model.js
+msgid "%d workload plug-in changed"
+msgid_plural "%d workload plug-ins changed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/view-model.js
 msgid "%dh ago"
 msgstr ""
 
@@ -88,6 +94,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "%s, highest severity %s"
+msgstr ""
+
+#: lib/view-model.js
+msgid "%s: %s"
 msgstr ""
 
 #: lib/view-model.js
@@ -274,6 +284,14 @@ msgstr ""
 msgid "Discovery runs again on request."
 msgstr ""
 
+#: lib/menu-view.js lib/view-model.js
+msgid "Dismiss"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Dismiss the workload catalog change notice"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Enable %s"
 msgstr ""
@@ -300,6 +318,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Inspect the document"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Installed"
 msgstr ""
 
 #: lib/view-model.js
@@ -464,6 +486,10 @@ msgstr ""
 
 #: settings-schema.json
 msgid "Refresh interval"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Removed"
 msgstr ""
 
 #: lib/menu-view.js
@@ -699,6 +725,10 @@ msgid "Updated %s"
 msgstr ""
 
 #: lib/view-model.js
+msgid "Upgraded"
+msgstr ""
+
+#: lib/view-model.js
 msgid "Validate it against runtime-snapshot.schema.json."
 msgstr ""
 
@@ -716,6 +746,14 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Weights apply only when queues contend"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Workload catalog changed"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Workload catalog changed: %s"
 msgstr ""
 
 #: lib/menu-view.js

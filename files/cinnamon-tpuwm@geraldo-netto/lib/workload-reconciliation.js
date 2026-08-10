@@ -57,6 +57,14 @@ function sameState(left, right) {
     return JSON.stringify(left) === JSON.stringify(right);
 }
 
+// A first run has no catalog to compare against, so every workload would be
+// reported as newly installed. That is noise, not news: change reporting only
+// becomes meaningful once a persisted catalog exists.
+function hasPersistedCatalog(candidate) {
+    return Object.keys(persistedProfiles(candidate)).length > 0
+        || Object.keys(persistedVersions(candidate)).length > 0;
+}
+
 function reconcilePortfolioState(candidate, registry) {
     const descriptors = [...Registry.validateDescriptors(
         Registry.requireWorkloadRegistry(registry).descriptors(),
@@ -80,12 +88,14 @@ function reconcilePortfolioState(candidate, registry) {
         state,
         changes: changedIdentifiers(candidate, pluginVersions, normalized.profiles),
         changed: !sameState(candidate, state),
+        firstRun: !hasPersistedCatalog(candidate),
     });
 }
 
 module.exports = {
     changedIdentifiers,
     findInstallAndUpgrade,
+    hasPersistedCatalog,
     persistedProfiles,
     persistedVersions,
     reconcilePortfolioState,

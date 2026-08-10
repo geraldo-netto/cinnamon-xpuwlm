@@ -38,6 +38,25 @@ test("install reconciliation adds deterministic defaults and versions", () => {
     });
     assert.equal(result.changed, true);
     assert.equal(Object.isFrozen(result.changes.installed), true);
+    assert.equal(result.firstRun, true);
+});
+
+// A first run has no catalog to compare against, so its wholesale install is
+// not reportable news; anything persisted afterwards is.
+test("a persisted catalog is what makes later changes reportable", () => {
+    assert.equal(Reconciliation.hasPersistedCatalog(null), false);
+    assert.equal(Reconciliation.hasPersistedCatalog({}), false);
+    assert.equal(Reconciliation.hasPersistedCatalog({profiles: {}, pluginVersions: {}}), false);
+    assert.equal(Reconciliation.hasPersistedCatalog({profiles: {alpha: {}}}), true);
+    assert.equal(Reconciliation.hasPersistedCatalog({pluginVersions: {alpha: "1.0.0"}}), true);
+
+    const workloadRegistry = registry([descriptor("alpha", "1.0.0")]);
+    assert.equal(Reconciliation.reconcilePortfolioState(null, workloadRegistry).firstRun, true);
+    assert.equal(Reconciliation.reconcilePortfolioState({
+        paused: false,
+        profiles: {alpha: {enabled: false, weight: 1}},
+        pluginVersions: {alpha: "0.9.0"},
+    }, workloadRegistry).firstRun, false);
 });
 
 test("enable, disable, and upgrade preserve compatible preferences", () => {

@@ -266,3 +266,52 @@ test("body key tracks every rendered field of a same-identity alert", () => {
         assert.notEqual(changed.bodyKey, initial.bodyKey, field);
     }
 });
+
+test("the catalog notice names plug-ins in words and stays absent when nothing changed", () => {
+    assert.equal(ViewModel.catalogNoticeModel(state()), null);
+    assert.equal(ViewModel.catalogNoticeModel(state({catalogChanges: {}})), null);
+    assert.equal(ViewModel.catalogNoticeModel(state({
+        catalogChanges: {installed: [], upgraded: [], removed: []},
+    })), null);
+    assert.equal(ViewModel.toViewModel(state(), NOW).catalogNotice, null);
+
+    const single = ViewModel.catalogNoticeModel(state({
+        catalogChanges: {installed: ["hardware-health"], upgraded: [], removed: []},
+    }));
+    assert.equal(single.title, "1 workload plug-in changed");
+    assert.equal(single.detail, "Installed: Hardware health");
+    assert.equal(single.dismissLabel, "Dismiss");
+    assert.equal(single.accessibleName, "Workload catalog changed: Installed: Hardware health");
+
+    // A removed plug-in is gone from the catalog, so only its identifier
+    // survives; the notice must still name it rather than silently omit it.
+    const many = ViewModel.catalogNoticeModel(state({
+        catalogChanges: {
+            installed: ["hardware-health"],
+            upgraded: ["resource-scheduler"],
+            removed: ["third-party-workload"],
+        },
+    }));
+    assert.equal(many.title, "3 workload plug-ins changed");
+    assert.equal(
+        many.detail,
+        "Installed: Hardware health · Upgraded: Resource scheduler · Removed: third-party-workload",
+    );
+    assert.equal(ViewModel.toViewModel(state({
+        catalogChanges: {installed: [], upgraded: ["resource-scheduler"], removed: []},
+    }), NOW).catalogNotice.detail, "Upgraded: Resource scheduler");
+});
+
+test("catalog change grouping keeps a fixed order and rejects non-list values", () => {
+    const profiles = [{id: "alpha", title: "Alpha"}];
+    assert.deepEqual(ViewModel.catalogChangeGroups({
+        profiles,
+        catalogChanges: {removed: ["gamma"], installed: ["alpha"], upgraded: "beta"},
+    }), [
+        {kind: "installed", label: "Installed", names: ["Alpha"]},
+        {kind: "removed", label: "Removed", names: ["gamma"]},
+    ]);
+    assert.deepEqual(ViewModel.CATALOG_CHANGE_KINDS, ["installed", "upgraded", "removed"]);
+    assert.equal(ViewModel.catalogEntryName(profiles, "alpha"), "Alpha");
+    assert.equal(ViewModel.catalogEntryName(profiles, "missing"), "missing");
+});

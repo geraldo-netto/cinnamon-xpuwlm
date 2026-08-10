@@ -144,8 +144,65 @@ const RUNTIME_RECOVERY = Object.freeze({
     }),
 });
 
+// Catalog changes are reported as words, in a fixed order, never as a colour
+// or a badge alone: the user has to be able to read which plug-ins the applet
+// picked up, upgraded, or dropped.
+const CATALOG_CHANGE_KINDS = Object.freeze(["installed", "upgraded", "removed"]);
+
+const CATALOG_CHANGE_LABELS = Object.freeze({
+    installed: N_("Installed"),
+    upgraded: N_("Upgraded"),
+    removed: N_("Removed"),
+});
+
 function formatCount(value) {
     return Number.isFinite(value) ? `${value}` : "—";
+}
+
+// A removed plug-in is no longer in the catalog, so only its identifier
+// survives; a present one is named with the title the user already sees.
+function catalogEntryName(profiles, id) {
+    const profile = profiles.find((candidate) => candidate.id === id);
+    return profile ? profile.title : id;
+}
+
+function catalogChangeGroups(state) {
+    const changes = state.catalogChanges || {};
+    const groups = [];
+    for (const kind of CATALOG_CHANGE_KINDS) {
+        const identifiers = Array.isArray(changes[kind]) ? changes[kind] : [];
+        if (identifiers.length > 0) {
+            groups.push({
+                kind,
+                label: _(CATALOG_CHANGE_LABELS[kind]),
+                names: identifiers.map((id) => catalogEntryName(state.profiles, id)),
+            });
+        }
+    }
+    return groups;
+}
+
+// Reconciliation used to compute plug-in installs, upgrades, and removals and
+// then discard them. The popup states what changed until the user
+// acknowledges it: a catalog that changes silently cannot be audited.
+function catalogNoticeModel(state) {
+    const groups = catalogChangeGroups(state);
+    if (groups.length === 0) {
+        return null;
+    }
+    const count = groups.reduce((total, group) => total + group.names.length, 0);
+    const detail = groups
+        .map((group) => format(_("%s: %s"), group.label, group.names.join(", ")))
+        .join(" · ");
+    return {
+        title: format(
+            ngettext("%d workload plug-in changed", "%d workload plug-ins changed", count),
+            count,
+        ),
+        detail,
+        dismissLabel: _("Dismiss"),
+        accessibleName: format(_("Workload catalog changed: %s"), detail),
+    };
 }
 
 function healthOf(state) {
@@ -401,6 +458,7 @@ function toViewModel(state, nowMs = Date.now()) {
             ? `${state.device.name} · ${runtimeStatusText(state)} · ${format(_("Updated %s"), formatRelativeTime(state.generatedAt, nowMs))}`
             : `${runtimeStatusText(state)} · ${healthOf(state).detail || state.device.reason} · ${format(_("Last update %s"), formatRelativeTime(state.generatedAt, nowMs))}`,
         panel: panelModel(state),
+        catalogNotice: catalogNoticeModel(state),
         metrics: metricModels(state),
         enabledGroups: groupProfiles(enabledProfiles),
         allGroups: groupProfiles(state.profiles),
@@ -430,6 +488,8 @@ function toViewModel(state, nowMs = Date.now()) {
 
 module.exports = {
     ALERT_SEVERITY_PRIORITY,
+    CATALOG_CHANGE_KINDS,
+    CATALOG_CHANGE_LABELS,
     DEVICE_STATUS_LABELS,
     RUNTIME_RECOVERY,
     RUNTIME_STATUS_LABELS,
@@ -438,6 +498,9 @@ module.exports = {
     BACKEND_LABELS,
     alertModel,
     backendLabel,
+    catalogChangeGroups,
+    catalogEntryName,
+    catalogNoticeModel,
     deviceModels,
     deviceStatusText,
     formatCount,

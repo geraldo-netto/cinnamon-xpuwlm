@@ -272,7 +272,7 @@ test("manager projections are complete and isolated from listener mutation", () 
     const state = manager.state();
     assert.deepEqual(Object.keys(state), [
         "selectedTab", "paused", "profiles", "device", "devices", "health", "metrics", "alerts",
-        "attentionCount", "stale", "source", "generatedAt", "control",
+        "attentionCount", "stale", "source", "generatedAt", "catalogChanges", "control",
     ]);
     assert.deepEqual(state.device, {
         id: "tpu-usb",

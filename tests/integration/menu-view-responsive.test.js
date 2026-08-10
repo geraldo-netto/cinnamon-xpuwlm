@@ -71,6 +71,7 @@ function harness(layout) {
     for (const name of [
         "selectTab", "toggleProfile", "changeWeight",
         "pauseAll", "resumeAll", "refresh", "openSettings",
+        "acknowledgeCatalogChanges",
     ]) {
         actions[name] = () => {};
     }
@@ -132,9 +133,10 @@ test("a narrow work area reflows metrics, wraps text, and shrinks the scroll", (
     );
 
     const wrapping = findActors(root, (actor) => actor.styleClasses.has("tpuwm-subtitle")
+        || actor.styleClasses.has("tpuwm-catalog-notice-detail")
         || actor.styleClasses.has("tpuwm-alert-summary")
         || actor.styleClasses.has("tpuwm-alert-title"));
-    assert.equal(wrapping.length, 3);
+    assert.equal(wrapping.length, 4);
     assert.equal(wrapping.every((label) => label.clutter_text.line_wrap === true), true);
     assert.equal(wrapping.every((label) => label.clutter_text.ellipsize === 0), true);
 
@@ -191,11 +193,14 @@ test("re-applying a layout rebuilds structure only when it actually changes", ()
     );
     assert.equal(root.styleClasses.has("tpuwm-mode-compact"), true);
     const subtitle = findActors(root, (actor) => actor.styleClasses.has("tpuwm-subtitle"))[0];
+    const noticeDetail = findActors(root, (actor) => actor.styleClasses.has("tpuwm-catalog-notice-detail"))[0];
     assert.equal(subtitle.clutter_text.line_wrap, true);
+    assert.equal(noticeDetail.clutter_text.line_wrap, true);
 
     assert.equal(view.applyLayout(WIDE), true);
     assert.equal(metricRows(root).length, 1);
     assert.equal(subtitle.clutter_text.line_wrap, false);
+    assert.equal(noticeDetail.clutter_text.line_wrap, false);
 });
 
 test("a view without a rendered model still accepts a layout change", () => {

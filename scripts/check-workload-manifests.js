@@ -24,13 +24,17 @@ function formatErrors(errors) {
         .join("; ");
 }
 
+// The authoritative verdict of workload-manifest.schema.json, as text: empty
+// when the candidate conforms. Third-party tooling needs the same verdict
+// without the built-in-only rules this checker adds on top.
+function schemaErrors(candidate) {
+    return validate(candidate) ? "" : formatErrors(validate.errors);
+}
+
 function checkManifestFile(filename, expectedId) {
     const manifest = JSON.parse(fs.readFileSync(filename, "utf8"));
-    assert.equal(
-        validate(manifest),
-        true,
-        `${filename}: ${formatErrors(validate.errors)}`,
-    );
+    const errors = schemaErrors(manifest);
+    assert.equal(errors, "", `${filename}: ${errors}`);
     assert.equal(manifest.id, expectedId, `${filename}: id must match directory name`);
     const preference = manifest.requirements.acceleratorPreference;
     assert.equal(
@@ -68,4 +72,5 @@ module.exports = {
     checkWorkloadDirectory,
     formatErrors,
     manifestDirectories,
+    schemaErrors,
 };

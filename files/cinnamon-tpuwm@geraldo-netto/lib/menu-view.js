@@ -108,6 +108,7 @@ class MenuView {
             resumeAll: requireAction(actions, "resumeAll"),
             refresh: requireAction(actions, "refresh"),
             openSettings: requireAction(actions, "openSettings"),
+            acknowledgeCatalogChanges: requireAction(actions, "acknowledgeCatalogChanges"),
         };
         this._policyPaused = false;
         this._controlPending = false;
@@ -118,6 +119,7 @@ class MenuView {
         this._layout = layout || Layout.defaultLayout();
         this._root = this._box("tpuwm-root", true);
         this._buildHeader();
+        this._buildCatalogNotice();
         this._buildMetrics();
         this._buildTabs();
         this._buildBody();
@@ -162,6 +164,7 @@ class MenuView {
             this._metricValues[index].set_text(`${metric.value}${suffix}`);
             setStyleClass(this._metricValues[index], "tpuwm-attention", metric.tone === "attention");
         }
+        this._renderCatalogNotice(model.catalogNotice);
         this._tabs.actor.visible = model.showTabs;
         this._manageButton.visible = model.showTabs;
         this._selectedTab = model.selectedTab;
@@ -201,6 +204,7 @@ class MenuView {
         }
         this._root.add_style_class_name(this._layout.styleClass);
         this._setWrap(this._subtitleLabel, true);
+        this._setWrap(this._catalogNoticeDetail, true);
     }
 
     _buildHeader() {
@@ -231,6 +235,42 @@ class MenuView {
         this._pauseButton.set_child(this._pauseLabel);
         header.add_child(this._pauseButton);
         this._root.add_child(header);
+    }
+
+    // Plug-in installs, upgrades, and removals are reported where the change
+    // happened, above the workload data they affect, and stay until the user
+    // acknowledges them. Nothing is communicated by colour alone.
+    _buildCatalogNotice() {
+        this._catalogNotice = this._box("tpuwm-catalog-notice");
+        this._catalogNotice.visible = false;
+        const copy = this._box("tpuwm-profile-copy", true, true);
+        this._catalogNoticeTitle = this._label(_("Workload catalog changed"), "tpuwm-catalog-notice-title");
+        copy.add_child(this._catalogNoticeTitle);
+        this._catalogNoticeDetail = this._label("", "tpuwm-catalog-notice-detail", true);
+        copy.add_child(this._catalogNoticeDetail);
+        this._catalogNotice.add_child(copy);
+        const dismiss = this._button(
+            "tpuwm-secondary-button",
+            _("Dismiss the workload catalog change notice"),
+            () => this._actions.acknowledgeCatalogChanges(),
+        );
+        this._catalogNoticeDismiss = this._label(_("Dismiss"), "tpuwm-button-label");
+        dismiss.set_child(this._catalogNoticeDismiss);
+        this._catalogNotice.add_child(dismiss);
+        this._root.add_child(this._catalogNotice);
+    }
+
+    _renderCatalogNotice(notice) {
+        const present = notice !== null && notice !== undefined;
+        this._catalogNotice.visible = present;
+        if (!present) {
+            return false;
+        }
+        this._catalogNoticeTitle.set_text(notice.title);
+        this._catalogNoticeDetail.set_text(notice.detail);
+        this._catalogNoticeDismiss.set_text(notice.dismissLabel);
+        this._catalogNotice.set_accessible_name(notice.accessibleName);
+        return true;
     }
 
     _buildMetrics() {

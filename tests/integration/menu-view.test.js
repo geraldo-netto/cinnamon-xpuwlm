@@ -40,7 +40,7 @@ function baseState(overrides = {}) {
 function harness() {
     const calls = [];
     const actions = {};
-    for (const name of ["selectTab", "toggleProfile", "changeWeight", "pauseAll", "resumeAll", "refresh", "openSettings"]) {
+    for (const name of ["selectTab", "toggleProfile", "changeWeight", "pauseAll", "resumeAll", "refresh", "openSettings", "acknowledgeCatalogChanges"]) {
         actions[name] = (...args) => calls.push([name, ...args]);
     }
     const menu = new FakeMenu();
@@ -60,7 +60,7 @@ function button(root, accessibleName) {
 
 test("menu validates dependencies and required actions", () => {
     const validActions = Object.fromEntries(
-        ["selectTab", "toggleProfile", "changeWeight", "pauseAll", "resumeAll", "refresh", "openSettings"]
+        ["selectTab", "toggleProfile", "changeWeight", "pauseAll", "resumeAll", "refresh", "openSettings", "acknowledgeCatalogChanges"]
             .map((name) => [name, () => {}]),
     );
     assert.throws(() => new Menu.MenuView({}), /dependencies/);
@@ -284,4 +284,68 @@ test("labels tolerate actors without a clutter text delegate", () => {
     assert.equal(label.text, "Accessible text");
     assert.equal(view._label(null, "copy").text, "");
     view.destroy();
+});
+
+// Plug-in installs, upgrades, and removals were computed and discarded. The
+// popup now states them above the workload data they affect, in words, and
+// keeps the notice until the user acknowledges it.
+test("the catalog notice appears with named plug-ins and dismisses on demand", () => {
+    const {calls, view, root} = harness();
+    const notice = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-catalog-notice"))[0];
+    assert.equal(notice.visible, false);
+
+    view.render(ViewModel.toViewModel(baseState({
+        catalogChanges: {
+            installed: ["hardware-health"],
+            upgraded: [],
+            removed: ["third-party-workload"],
+        },
+    }), NOW));
+    assert.equal(notice.visible, true);
+    assert.equal(
+        notice.accessibleName,
+        "Workload catalog changed: Installed: Hardware health · Removed: third-party-workload",
+    );
+    const texts = findActors(notice, (actor) => typeof actor.text === "string").map((actor) => actor.text);
+    assert.deepEqual(texts, [
+        "2 workload plug-ins changed",
+        "Installed: Hardware health · Removed: third-party-workload",
+        "Dismiss",
+    ]);
+    // The copy stacks title over detail and takes the free width, so the
+    // dismiss control keeps its own edge instead of floating mid-row.
+    assert.equal(notice.children[0].vertical, true);
+    assert.equal(notice.children[0].x_expand, true);
+
+    button(root, "Dismiss the workload catalog change notice").click();
+    assert.deepEqual(calls, [["acknowledgeCatalogChanges"]]);
+
+    // Acknowledgement clears the projection, and the next render hides the row
+    // without rebuilding the body underneath it.
+    view.render(ViewModel.toViewModel(baseState(), NOW));
+    assert.equal(notice.visible, false);
+
+    // A model built before this notice existed carries no field at all; the
+    // row must stay hidden rather than render an undefined change set.
+    view.render({...ViewModel.toViewModel(baseState(), NOW), catalogNotice: undefined});
+    assert.equal(notice.visible, false);
+});
+
+// The notice sits outside the tab body so a plug-in change is still reported
+// while the popup is showing a safety state.
+test("the catalog notice survives the unavailable and paused screens", () => {
+    const {view, root} = harness();
+    const notice = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-catalog-notice"))[0];
+    for (const overrides of [
+        {paused: true},
+        {device: {available: false, state: "absent", name: "No device", kind: "unknown", reason: "No accelerator detected"}},
+    ]) {
+        view.render(ViewModel.toViewModel(baseState({
+            ...overrides,
+            catalogChanges: {installed: ["desktop-context"], upgraded: [], removed: []},
+        }), NOW));
+        assert.equal(notice.visible, true);
+    }
 });

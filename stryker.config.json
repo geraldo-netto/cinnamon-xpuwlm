@@ -12,7 +12,8 @@
     "files/cinnamon-tpuwm@geraldo-netto/lib/**/*.js",
     "scripts/check-workload-manifests.js",
     "scripts/generate-pot.js",
-    "scripts/package-applet.js"
+    "scripts/package-applet.js",
+    "scripts/package-workload-plugin.js"
   ],
   "mutator": {
     "excludedMutations": ["StringLiteral"]

@@ -42,6 +42,7 @@ function harness(Clutter = CLUTTER) {
     for (const name of [
         "selectTab", "toggleProfile", "changeWeight",
         "pauseAll", "resumeAll", "refresh", "openSettings",
+        "acknowledgeCatalogChanges",
     ]) {
         actions[name] = (...args) => calls.push([name, ...args]);
     }

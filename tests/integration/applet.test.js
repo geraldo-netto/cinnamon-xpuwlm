@@ -186,6 +186,7 @@ function managerFake(initial = liveState()) {
         changeWeight(id, delta) { this.calls.push(["changeWeight", id, delta]); },
         pauseAll() { this.calls.push(["pauseAll"]); },
         resumeAll() { this.calls.push(["resumeAll"]); },
+        acknowledgeCatalogChanges() { this.calls.push(["acknowledgeCatalogChanges"]); },
         dispose() { this.calls.push(["dispose"]); },
     };
 }
@@ -282,6 +283,7 @@ test("menu actions delegate without mixing responsibilities", () => {
     actions.resumeAll();
     actions.refresh();
     actions.openSettings();
+    actions.acknowledgeCatalogChanges();
     assert.deepEqual(manager.calls.slice(1), [
         ["selectTab", "alerts"],
         ["toggleProfile", "hardware-health"],
@@ -289,6 +291,7 @@ test("menu actions delegate without mixing responsibilities", () => {
         ["pauseAll"],
         ["resumeAll"],
         ["retryDeviceDetection"],
+        ["acknowledgeCatalogChanges"],
     ]);
     assert.equal(spawned.at(-1), `cinnamon-settings applets ${AppletModule.UUID}`);
 });
