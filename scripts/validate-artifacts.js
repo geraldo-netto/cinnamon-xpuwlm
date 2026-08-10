@@ -38,6 +38,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "runtime-acknowledgement.schema.json",
     "runtime-refusal-contract.js",
     "runtime-refusal.schema.json",
+    "runtime-snapshot-contract.js",
     "runtime-snapshot-schema-validator.js",
     "runtime-snapshot.schema.json",
     "settings-schema.json",
@@ -188,6 +189,9 @@ function validateJsonArtifacts() {
     assert.equal(packageJson.scripts["test:ci"], [
         "npm run lint",
         "npm run test:syntax",
+        // The validator's vocabulary is generated from the shipped schema, so
+        // a stale derived file has to fail before anything runs against it.
+        "npm run check:contract",
         "npm run check:workloads",
         "npm run test:coverage",
         "npm run test:fuzz",

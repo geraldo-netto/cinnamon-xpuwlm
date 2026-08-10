@@ -1,23 +1,32 @@
 "use strict";
 
+const Contract = require("./runtime-snapshot-contract.js");
 const Domain = require("./domain.js");
 const ProfileBlockers = require("./profile-blockers.js");
 const SnapshotValidator = require("./snapshot-validator.js");
 const WorkloadRegistry = require("./workload-registry.js");
 
-const ROOT_REQUIRED = Object.freeze(["version", "generatedAt", "devices", "metrics", "profiles", "alerts"]);
+// Every name, value, and bound below is derived from the shipped schema by
+// scripts/generate-snapshot-contract.js rather than written twice. The copy
+// that used to live here drifted once, and the applet reported that as a
+// runtime service which was not publishing state — indistinguishable from one
+// that had stopped. What stays hand-written is the checking itself: types,
+// structure, and the rules a JSON schema cannot express.
+const {ALLOWLISTS, BOUNDS, ENUMS, REQUIRED} = Contract;
+
+const ROOT_REQUIRED = REQUIRED.root;
 // Plug-in telemetry is an optional, independently versioned extension the
 // runtime publishes and this applet does not read. It is validated rather
 // than ignored so the concrete validator stays equivalent to the shipped
 // schema, and it stays out of ROOT_REQUIRED so a runtime that omits it is
 // still a valid snapshot.
-const ROOT_PROPERTIES = new Set([...ROOT_REQUIRED, "inputs", "pluginTelemetry"]);
-const DEVICE_PROPERTIES = new Set(["id", "backend", "available", "name", "kind", "vendor", "load", "reason"]);
-const DEVICE_REQUIRED = Object.freeze(["id", "backend", "available", "name", "kind"]);
-const MAX_DEVICE_ENTRIES = 16;
-const METRIC_PROPERTIES = new Set(["queueDepth", "runningProfiles"]);
-const METRIC_REQUIRED = Object.freeze([...METRIC_PROPERTIES]);
-const PROFILE_PROPERTIES = new Set(["status", "queued", "detail", "reason"]);
+const ROOT_PROPERTIES = ALLOWLISTS.root;
+const DEVICE_PROPERTIES = ALLOWLISTS.device;
+const DEVICE_REQUIRED = REQUIRED.device;
+const MAX_DEVICE_ENTRIES = BOUNDS.maxDevices;
+const METRIC_PROPERTIES = ALLOWLISTS.metric;
+const METRIC_REQUIRED = REQUIRED.metric;
+const PROFILE_PROPERTIES = ALLOWLISTS.profile;
 // The machine-readable counterpart to `detail`. Read from the classifier
 // rather than restated, because a second copy of this list is a second thing
 // to forget: the runtime adding a state the validator does not know would
@@ -30,35 +39,32 @@ const PROFILE_REASONS = new Set([
 // The runtime bounds how many profiles one snapshot may describe, matching the
 // plug-in ceiling the registry enforces. Without the bound a hostile snapshot
 // could make the applet walk an unbounded map before anything rejected it.
-const MAX_PROFILE_ENTRIES = WorkloadRegistry.MAX_WORKLOADS;
+const MAX_PROFILE_ENTRIES = Math.min(BOUNDS.maxProfiles, WorkloadRegistry.MAX_WORKLOADS);
 // `resultRef` is the runtime's handle for the job result behind an alert. The
 // applet does not resolve it yet, but it must be accepted: the runtime stamps
 // one on every alert it publishes.
-const ALERT_PROPERTIES = new Set([
-    "id", "profileId", "title", "summary", "severity", "timestamp",
-    "confidence", "riskScore", "resolved", "resultRef",
-]);
+const ALERT_PROPERTIES = ALLOWLISTS.alert;
 const RESULT_REFERENCE = /^result-[A-Za-z0-9._-]+$/u;
-const ALERT_REQUIRED = Object.freeze(["id", "profileId", "title", "summary", "severity", "timestamp"]);
-const DEVICE_KINDS = new Set(["usb", "pcie", "accel", "dri", "unknown"]);
-const DEVICE_BACKENDS = new Set(["tpu", "npu", "gpu"]);
-const PROFILE_STATUSES = new Set(["healthy", "running", "watching", "idle", "paused", "unavailable"]);
-const ALERT_SEVERITIES = new Set(["advisory", "warning", "critical"]);
+const ALERT_REQUIRED = REQUIRED.alert;
+const DEVICE_KINDS = ENUMS.deviceKind;
+const DEVICE_BACKENDS = ENUMS.deviceBackend;
+const PROFILE_STATUSES = ENUMS.profileStatus;
+const ALERT_SEVERITIES = ENUMS.alertSeverity;
 
 // Where the runtime will read a referenced input buffer from. Optional, so a
 // runtime that predates the field still publishes a valid snapshot, and
 // validated rather than ignored so this validator stays equivalent to the
 // shipped schema.
-const INPUTS_PROPERTIES = new Set(["roots", "maxBytes"]);
-const INPUTS_REQUIRED = Object.freeze([...INPUTS_PROPERTIES]);
-const MAX_INPUT_ROOTS = 8;
-const MAX_INPUT_ROOT_LENGTH = 4096;
-const MAX_INPUT_BYTES = 1024 * 1024 * 1024;
+const INPUTS_PROPERTIES = ALLOWLISTS.inputs;
+const INPUTS_REQUIRED = REQUIRED.inputs;
+const MAX_INPUT_ROOTS = BOUNDS.maxInputRoots;
+const MAX_INPUT_ROOT_LENGTH = BOUNDS.maxInputRootLength;
+const MAX_INPUT_BYTES = BOUNDS.maxInputBytes;
 
-const TELEMETRY_PROPERTIES = new Set(["version", "plugins"]);
-const TELEMETRY_REQUIRED = Object.freeze([...TELEMETRY_PROPERTIES]);
-const TELEMETRY_VERSION = 1;
-const MAX_TELEMETRY_PLUGINS = 128;
+const TELEMETRY_PROPERTIES = ALLOWLISTS.telemetry;
+const TELEMETRY_REQUIRED = REQUIRED.telemetry;
+const TELEMETRY_VERSION = BOUNDS.telemetryVersion;
+const MAX_TELEMETRY_PLUGINS = BOUNDS.maxTelemetryPlugins;
 const TELEMETRY_COUNTERS = Object.freeze([
     "deadlineExceeded", "retries", "cancellations", "drops", "successes", "failures",
 ]);
@@ -66,14 +72,10 @@ const TELEMETRY_PLUGIN_REQUIRED = Object.freeze([
     "id", "health", "stage", "artifactReadiness", "queuedJobs", "activeJobs",
     "lastSuccessAt", "lastErrorCode", "lastErrorAt", ...TELEMETRY_COUNTERS,
 ]);
-const TELEMETRY_PLUGIN_PROPERTIES = new Set(TELEMETRY_PLUGIN_REQUIRED);
-const TELEMETRY_HEALTH = new Set(["initializing", "healthy", "degraded", "unavailable", "stopped"]);
-const TELEMETRY_STAGES = new Set([
-    null, "collect", "preprocess", "resolve", "infer", "postprocess", "deliver", "terminal",
-]);
-const TELEMETRY_ARTIFACT_READINESS = new Set([
-    "unknown", "resolving", "ready", "missing", "rejected", "incompatible",
-]);
+const TELEMETRY_PLUGIN_PROPERTIES = ALLOWLISTS.telemetryPlugin;
+const TELEMETRY_HEALTH = ENUMS.telemetryHealth;
+const TELEMETRY_STAGES = ENUMS.telemetryStage;
+const TELEMETRY_ARTIFACT_READINESS = ENUMS.telemetryArtifactReadiness;
 const MAX_TELEMETRY_COUNTER = 1_000_000_000;
 const MAX_TELEMETRY_TIMESTAMP = Number.MAX_SAFE_INTEGER;
 // Lower-case, dash-separated identifiers; the runtime uses the same grammar

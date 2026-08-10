@@ -9,19 +9,19 @@ const Validator = require(
     "../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js",
 );
 
-// The validator restates the snapshot schema in code the applet can run
-// without a JSON-schema engine. Two statements of one contract drift, and this
-// one drifts silently in the worst direction: a field the runtime added and
-// the validator does not allow makes the applet reject *every* snapshot, which
-// it reports as "no runtime service is publishing state" — indistinguishable
-// from a service that is not running.
+// The validator has to check a snapshot without a JSON-schema engine, so its
+// vocabulary is now derived from the shipped schema by
+// scripts/generate-snapshot-contract.js rather than written a second time. The
+// hand-written copy drifted once, in the worst direction: a field the runtime
+// added and the validator did not allow made the applet reject *every*
+// snapshot, which it reported as "no runtime service is publishing state" —
+// indistinguishable from a service that is not running.
 //
-// The equivalence fuzz test cannot catch it. It compares the two against
-// generated documents, and a document carrying a field neither side has ever
-// seen is not one a fuzzer stumbles onto; a new optional property is invisible
-// to it until a fixture happens to include one. This gate is structural
-// instead: every allowlist is compared against the schema's own property
-// names, so the drift fails at the moment it is introduced.
+// With one statement and a derived file, this gate stops being a comparison of
+// two lists and becomes two narrower questions: does the validator actually use
+// what was derived, and does the derivation still cover every object the schema
+// closes? A new closed object nobody derived would otherwise be checked by
+// nothing at all.
 
 const appletRoot = path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto");
 const schema = JSON.parse(
@@ -50,23 +50,54 @@ const ENUMS = Object.freeze({
     deviceBackend: schema.properties.devices.items.properties.backend.enum,
 });
 
-test("every validator allowlist names exactly the schema's properties", () => {
+test("the validator checks against what was derived, not a copy of its own", () => {
+    const Derived = require(
+        "../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-contract.js",
+    );
+
     for (const [name, allowed] of Object.entries(Validator.CONTRACT_ALLOWLISTS)) {
-        const declared = Object.keys(OBJECTS[name].properties);
-        assert.deepEqual(
-            [...allowed].sort(),
-            [...declared].sort(),
-            `${name}: the validator and the schema disagree on which properties exist`,
+        assert.equal(
+            allowed,
+            Derived.ALLOWLISTS[name],
+            `${name}: the validator holds its own set rather than the derived one`,
+        );
+    }
+    for (const [name, allowed] of Object.entries(Validator.CONTRACT_ENUMS)) {
+        if (name === "profileReason") {
+            continue; // read from the blocker classifier, pinned by its own gate
+        }
+        assert.equal(
+            allowed,
+            Derived.ENUMS[name],
+            `${name}: the validator holds its own enumeration rather than the derived one`,
         );
     }
 });
 
-test("every validator enumeration names exactly the schema's values", () => {
-    for (const [name, allowed] of Object.entries(Validator.CONTRACT_ENUMS)) {
+test("the derived file still says what the schema says", () => {
+    // The generator is the single statement's only reader; if it stops seeing
+    // an object, that object is checked by nothing.
+    const {derive} = require("../../scripts/generate-snapshot-contract.js");
+    const derived = derive(schema);
+
+    for (const [name, object] of Object.entries(OBJECTS)) {
         assert.deepEqual(
-            [...allowed].sort(),
-            [...ENUMS[name]].sort(),
-            `${name}: the validator and the schema disagree on the allowed values`,
+            derived.allowlists[name],
+            Object.keys(object.properties).sort(),
+            `${name}: the generator and the schema disagree on which properties exist`,
+        );
+    }
+});
+
+test("every enumeration the validator uses is the schema's own", () => {
+    const {derive} = require("../../scripts/generate-snapshot-contract.js");
+    const derived = derive(schema);
+
+    for (const [name, values] of Object.entries(ENUMS)) {
+        assert.deepEqual(
+            [...derived.enums[name]].sort(),
+            [...values].sort(),
+            `${name}: the generator and the schema disagree on the allowed values`,
         );
     }
 });
