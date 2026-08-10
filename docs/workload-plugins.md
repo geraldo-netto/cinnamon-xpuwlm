@@ -80,6 +80,11 @@ with a `fullyQuantized` boolean. A tpu-designed workload must keep `model`
 null or declare `tflite-edgetpu` with `fullyQuantized: true`, because the Edge
 TPU only executes fully quantized, edgetpu-compiled TensorFlow Lite models.
 
+Optional `model.sha256` is the lower-case hexadecimal digest of the exact
+artifact the profile may run. It is optional for compatibility with manifests
+written before the runtime verified the digest; when it is absent the runtime
+can only trust the digest recorded when the artifact was installed.
+
 Use `model: null` when catalog identity does not select one concrete artifact.
 When a model is named, update its ID and version independently from workload
 identity. `fullyQuantized: true` and `tflite-edgetpu` describe contract

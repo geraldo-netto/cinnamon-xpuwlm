@@ -165,3 +165,31 @@ test("cloning and freezing support model-free manifests", () => {
     assert.equal(Contract.freezeManifest(clone), clone);
     assert.equal(Object.isFrozen(clone.requirements), true);
 });
+
+// An optional property makes an exact key count the wrong rule: a manifest
+// that pins its artifact digest was rejected outright, and one that omits it
+// must still load.
+test("optional model digests load, and malformed ones are still rejected", () => {
+    const withDigest = Fixtures.validWorkloadManifest();
+    withDigest.requirements.model.sha256 = "b".repeat(64);
+    const descriptor = new Contract.WorkloadDescriptor(withDigest);
+    assert.equal(descriptor.manifest().requirements.model.sha256, "b".repeat(64));
+    assert.equal(Object.isFrozen(descriptor.manifest().requirements.model), true);
+
+    const without = Fixtures.validWorkloadManifest();
+    assert.equal(Contract.isWorkloadManifest(without), true);
+    const bare = new Contract.WorkloadDescriptor(without).manifest();
+    assert.equal(Object.hasOwn(bare.requirements.model, "sha256"), false);
+
+    for (const value of ["B".repeat(64), "b".repeat(63), "b".repeat(65), "", null, 7]) {
+        const invalid = Fixtures.validWorkloadManifest();
+        invalid.requirements.model.sha256 = value;
+        assert.equal(Contract.isWorkloadManifest(invalid), false, `digest ${JSON.stringify(value)}`);
+    }
+
+    assert.equal(Contract.boundedProperties({a: 1}, ["a"], new Set(["a", "b"])), true);
+    assert.equal(Contract.boundedProperties({a: 1, b: 2}, ["a"], new Set(["a", "b"])), true);
+    assert.equal(Contract.boundedProperties({b: 2}, ["a"], new Set(["a", "b"])), false);
+    assert.equal(Contract.boundedProperties({a: 1, c: 3}, ["a"], new Set(["a", "b"])), false);
+    assert.equal(Contract.boundedProperties(null, [], new Set()), false);
+});

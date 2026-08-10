@@ -15,10 +15,15 @@ const REQUIRED_REQUIREMENT_PROPERTIES = Object.freeze(["runtimeApi", "accelerato
 const REQUIREMENT_PROPERTIES = new Set([...REQUIRED_REQUIREMENT_PROPERTIES, "acceleratorPreference"]);
 const ACCELERATORS = new Set(["tpu", "npu", "gpu"]);
 const MODEL_FORMATS = new Set(["tflite-edgetpu", "tflite", "onnx", "openvino", "ncnn"]);
-const MODEL_PROPERTIES = new Set([
+const MODEL_REQUIRED = Object.freeze([
     "id", "version", "format", "fullyQuantized", "minimumCompilerVersion",
     "minimumRuntimeVersion",
 ]);
+// `sha256` pins the exact artifact a profile may run. It is optional: manifests
+// written before the runtime verified the digest have none, and the runtime
+// then falls back to the digest recorded at install time.
+const MODEL_PROPERTIES = new Set([...MODEL_REQUIRED, "sha256"]);
+const MODEL_DIGEST = /^[a-f0-9]{64}$/u;
 const UI_PROPERTIES = new Set(["title", "group", "description", "icon", "order"]);
 const DEFAULT_PROPERTIES = new Set(["enabled", "weight"]);
 const PIPELINE_PROPERTIES = new Set(["hostResponsibilities"]);
@@ -34,6 +39,14 @@ function exactProperties(value, expected) {
     return isRecord(value)
         && expected.size === Object.keys(value).length
         && Object.keys(value).every((name) => expected.has(name));
+}
+
+// An exact key count is wrong wherever the contract has optional properties:
+// every required name must be present, and no name outside the allowed set.
+function boundedProperties(value, required, allowed) {
+    return isRecord(value)
+        && required.every((name) => Object.hasOwn(value, name))
+        && Object.keys(value).every((name) => allowed.has(name));
 }
 
 function codePointLength(value) {
@@ -70,16 +83,22 @@ function isModelFormat(value, accelerator) {
     return MODEL_FORMATS.has(value.format) && typeof value.fullyQuantized === "boolean";
 }
 
+function isModelArtifact(value) {
+    return boundedText(value.minimumCompilerVersion, 1, 80)
+        && boundedText(value.minimumRuntimeVersion, 1, 80)
+        && (!Object.hasOwn(value, "sha256")
+            || (boundedText(value.sha256, 64, 64) && MODEL_DIGEST.test(value.sha256)));
+}
+
 function isModel(value, accelerator) {
     if (value === null) {
         return true;
     }
-    return exactProperties(value, MODEL_PROPERTIES)
+    return boundedProperties(value, MODEL_REQUIRED, MODEL_PROPERTIES)
         && identifier(value.id, 120)
         && semanticVersion(value.version)
         && isModelFormat(value, accelerator)
-        && boundedText(value.minimumCompilerVersion, 1, 80)
-        && boundedText(value.minimumRuntimeVersion, 1, 80);
+        && isModelArtifact(value);
 }
 
 function hasRequirementProperties(value) {
@@ -264,6 +283,7 @@ module.exports = {
     MIN_WEIGHT,
     RUNTIME_API_VERSION,
     WorkloadDescriptor,
+    boundedProperties,
     boundedText,
     cloneManifest,
     codePointLength,
@@ -280,6 +300,7 @@ module.exports = {
     isAcceptanceCriterion,
     isDefaults,
     isModel,
+    isModelArtifact,
     isPipeline,
     isRecord,
     isRequirements,

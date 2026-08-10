@@ -41,7 +41,12 @@
             "format": {"enum": ["tflite-edgetpu", "tflite", "onnx", "openvino", "ncnn"]},
             "fullyQuantized": {"type": "boolean"},
             "minimumCompilerVersion": {"type": "string", "minLength": 1, "maxLength": 80},
-            "minimumRuntimeVersion": {"type": "string", "minLength": 1, "maxLength": 80}
+            "minimumRuntimeVersion": {"type": "string", "minLength": 1, "maxLength": 80},
+            "sha256": {
+              "description": "Digest of the exact artifact this profile may run. Optional for compatibility with manifests written before dispatch verified it; when absent the runtime can only trust the digest recorded when the artifact was installed.",
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
           }
         }
       },
