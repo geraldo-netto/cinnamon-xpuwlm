@@ -43,9 +43,33 @@ function applyCommand(portfolio, command) {
     }
     case "set-paused":
         return command.value ? portfolio.pauseAll() : portfolio.resumeAll();
+    case "apply-profiles":
+        return applyChanges(portfolio, command.changes);
     default:
         return false;
     }
+}
+
+// Checked whole before anything is changed, so a batch naming one unknown
+// profile does not apply the ones before it and then stop. Unknown is raised
+// rather than returned: a `false` here means "changed nothing", which is a
+// legitimate outcome for the single-setting operations and would let a batch
+// naming a profile that does not exist spend a revision and alter nothing.
+function applyChanges(portfolio, changes) {
+    const unknown = changes.find((change) => !portfolio.has(change.profileId));
+    if (unknown !== undefined) {
+        throw new RangeError(`Unknown workload profile: ${unknown.profileId}`);
+    }
+    for (const change of changes) {
+        if (Object.hasOwn(change, "enabled")) {
+            portfolio.setEnabled(change.profileId, change.enabled);
+        }
+        if (Object.hasOwn(change, "weight")) {
+            const current = portfolio.profile(change.profileId).weight;
+            portfolio.adjustWeight(change.profileId, change.weight - current);
+        }
+    }
+    return true;
 }
 
 class RuntimeControlService {

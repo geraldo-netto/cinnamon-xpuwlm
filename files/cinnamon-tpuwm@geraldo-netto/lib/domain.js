@@ -636,8 +636,14 @@ class WorkloadPortfolio {
         });
     }
 
+    // Asked rather than assumed by a batch, which has to know whether every
+    // profile it names exists before it changes any of them.
+    has(id) {
+        return this._catalog.has(id);
+    }
+
     _assertProfile(id) {
-        if (!this._catalog.has(id)) {
+        if (!this.has(id)) {
             throw new RangeError(`Unknown workload profile: ${id}`);
         }
     }

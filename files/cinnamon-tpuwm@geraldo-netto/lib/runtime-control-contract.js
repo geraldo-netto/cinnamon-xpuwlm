@@ -8,11 +8,18 @@ const OPERATIONS = new Set([
     "set-profile-enabled",
     "set-profile-weight",
     "set-paused",
+    "apply-profiles",
 ]);
+// Several profile settings as one command, one revision, one acknowledgement.
+// Sending them separately spends a revision each and leaves policy
+// half-applied when one fails, with nothing to retry as a unit.
+const CHANGE_PROPERTIES = new Set(["profileId", "enabled", "weight"]);
+const MAX_CHANGES = 128;
 const ACKNOWLEDGEMENT_STATUSES = new Set(["applied", "rejected"]);
 const COMMAND_PROPERTIES = new Set([
     "version", "id", "issuedAt", "expectedRevision", "operation", "profileId", "value",
 ]);
+const BATCH_COMMAND_PROPERTIES = new Set([...COMMAND_PROPERTIES, "changes"]);
 const ACKNOWLEDGEMENT_PROPERTIES = new Set([
     "version", "commandId", "status", "revision", "appliedAt", "message", "portfolio",
 ]);
@@ -48,6 +55,34 @@ function isPauseCommand(value) {
         && typeof value.value === "boolean";
 }
 
+// A change that sets neither is a caller mistake worth refusing: accepting it
+// would spend a revision and alter nothing.
+function changesSomething(value) {
+    return (Object.hasOwn(value, "enabled") || Object.hasOwn(value, "weight"))
+        && (!Object.hasOwn(value, "enabled") || typeof value.enabled === "boolean")
+        && (!Object.hasOwn(value, "weight") || isWeightValue(value.weight));
+}
+
+function isProfileChange(value) {
+    return Domain.isPlainObject(value)
+        && Object.keys(value).every((name) => CHANGE_PROPERTIES.has(name))
+        && boundedProfileId(value.profileId)
+        && changesSomething(value);
+}
+
+function isWeightValue(value) {
+    return Number.isInteger(value) && value >= Domain.MIN_WEIGHT && value <= Domain.MAX_WEIGHT;
+}
+
+function isBatchCommand(value) {
+    return value.profileId === null
+        && value.value === null
+        && Array.isArray(value.changes)
+        && value.changes.length >= 1
+        && value.changes.length <= MAX_CHANGES
+        && value.changes.every(isProfileChange);
+}
+
 function isCommandOperation(value) {
     switch (value.operation) {
     case "set-profile-enabled":
@@ -56,6 +91,8 @@ function isCommandOperation(value) {
         return isWeightCommand(value);
     case "set-paused":
         return isPauseCommand(value);
+    case "apply-profiles":
+        return isBatchCommand(value);
     default:
         return false;
     }
@@ -72,7 +109,10 @@ function hasCommandEnvelope(value) {
 }
 
 function isRuntimeCommand(value) {
-    return exactRecord(value, COMMAND_PROPERTIES)
+    const expected = Domain.isPlainObject(value) && value.operation === "apply-profiles"
+        ? BATCH_COMMAND_PROPERTIES
+        : COMMAND_PROPERTIES;
+    return exactRecord(value, expected)
         && hasCommandEnvelope(value)
         && isCommandOperation(value);
 }
@@ -137,6 +177,8 @@ function requireControlGateway(candidate) {
 
 module.exports = {
     ACKNOWLEDGEMENT_STATUSES,
+    CHANGE_PROPERTIES,
+    MAX_CHANGES,
     CONTROL_VERSION,
     OPERATIONS,
     boundedProfileId,
@@ -145,7 +187,10 @@ module.exports = {
     exactRecord,
     hasAcknowledgementEnvelope,
     hasCommandEnvelope,
+    changesSomething,
+    isBatchCommand,
     isCommandOperation,
+    isProfileChange,
     isContractViolation,
     isEnabledCommand,
     isPauseCommand,

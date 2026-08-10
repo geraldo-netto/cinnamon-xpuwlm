@@ -21,6 +21,19 @@ function command(overrides = {}) {
     };
 }
 
+function batch(changes, expectedRevision = 0, id = "b-1") {
+    return {
+        version: 1,
+        id,
+        issuedAt: NOW,
+        expectedRevision,
+        operation: "apply-profiles",
+        profileId: null,
+        value: null,
+        changes,
+    };
+}
+
 function harness(overrides = {}) {
     const saves = [];
     const repository = overrides.repository || {
@@ -111,4 +124,65 @@ test("runtime service rejects malformed commands before policy access", () => {
         4,
     );
     assert.equal(rejected.message, "Runtime rejected the command");
+});
+
+test("a batch is one call, one revision, and all-or-nothing", () => {
+    const {service} = harness();
+
+    const applied = service.handle(batch([
+        {profileId: "visual-library", enabled: true, weight: 5},
+        {profileId: "hardware-health", enabled: false},
+    ]));
+
+    assert.equal(applied.status, "applied");
+    assert.equal(applied.revision, 1);
+    assert.deepEqual(applied.portfolio.profiles["visual-library"], {enabled: true, weight: 5});
+    assert.equal(applied.portfolio.profiles["hardware-health"].enabled, false);
+
+    const refused = service.handle(batch(
+        [{profileId: "visual-library", enabled: false}, {profileId: "no-such", enabled: true}],
+        1,
+        "b-2",
+    ));
+
+    assert.equal(refused.status, "rejected");
+    assert.equal(refused.revision, 1, "a refused batch spends no revision");
+    assert.deepEqual(
+        refused.portfolio.profiles["visual-library"],
+        {enabled: true, weight: 5},
+        "the change before the unknown profile was never applied",
+    );
+});
+
+test("the contract refuses a batch the service should never see", () => {
+    const Contract = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-contract.js");
+    const envelope = {version: 1, id: "b-1", issuedAt: 1, expectedRevision: 0};
+
+    assert.equal(Contract.isRuntimeCommand({
+        ...envelope, operation: "apply-profiles", profileId: null, value: null,
+        changes: [{profileId: "a", enabled: true}],
+    }), true);
+
+    for (const changes of [
+        [],
+        [{profileId: "a"}],
+        [{profileId: "a", weight: 9}],
+        [{profileId: "a", enabled: "yes"}],
+        [{weight: 1}],
+        [{profileId: "a", enabled: true, extra: 1}],
+        new Array(Contract.MAX_CHANGES + 1).fill({profileId: "a", enabled: true}),
+    ]) {
+        assert.equal(Contract.isRuntimeCommand({
+            ...envelope, operation: "apply-profiles", profileId: null, value: null, changes,
+        }), false, JSON.stringify(changes).slice(0, 60));
+    }
+
+    assert.equal(Contract.isRuntimeCommand({
+        ...envelope, operation: "apply-profiles", profileId: "a", value: null,
+        changes: [{profileId: "a", enabled: true}],
+    }), false, "a batch names no single profile");
+    assert.equal(Contract.isRuntimeCommand({
+        ...envelope, operation: "set-paused", profileId: null, value: true,
+        changes: [{profileId: "a", enabled: true}],
+    }), false, "changes belong to the batch operation alone");
 });
