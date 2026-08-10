@@ -4,8 +4,13 @@ const Domain = require("./domain.js");
 const SnapshotValidator = require("./snapshot-validator.js");
 const WorkloadRegistry = require("./workload-registry.js");
 
-const ROOT_PROPERTIES = new Set(["version", "generatedAt", "devices", "metrics", "profiles", "alerts"]);
-const ROOT_REQUIRED = Object.freeze([...ROOT_PROPERTIES]);
+const ROOT_REQUIRED = Object.freeze(["version", "generatedAt", "devices", "metrics", "profiles", "alerts"]);
+// Plug-in telemetry is an optional, independently versioned extension the
+// runtime publishes and this applet does not read. It is validated rather
+// than ignored so the concrete validator stays equivalent to the shipped
+// schema, and it stays out of ROOT_REQUIRED so a runtime that omits it is
+// still a valid snapshot.
+const ROOT_PROPERTIES = new Set([...ROOT_REQUIRED, "pluginTelemetry"]);
 const DEVICE_PROPERTIES = new Set(["id", "backend", "available", "name", "kind", "vendor", "load", "reason"]);
 const DEVICE_REQUIRED = Object.freeze(["id", "backend", "available", "name", "kind"]);
 const MAX_DEVICE_ENTRIES = 16;
@@ -21,6 +26,31 @@ const DEVICE_KINDS = new Set(["usb", "pcie", "accel", "dri", "unknown"]);
 const DEVICE_BACKENDS = new Set(["tpu", "npu", "gpu"]);
 const PROFILE_STATUSES = new Set(["healthy", "running", "watching", "idle", "paused", "unavailable"]);
 const ALERT_SEVERITIES = new Set(["advisory", "warning", "critical"]);
+
+const TELEMETRY_PROPERTIES = new Set(["version", "plugins"]);
+const TELEMETRY_REQUIRED = Object.freeze([...TELEMETRY_PROPERTIES]);
+const TELEMETRY_VERSION = 1;
+const MAX_TELEMETRY_PLUGINS = 128;
+const TELEMETRY_COUNTERS = Object.freeze([
+    "deadlineExceeded", "retries", "cancellations", "drops", "successes", "failures",
+]);
+const TELEMETRY_PLUGIN_REQUIRED = Object.freeze([
+    "id", "health", "stage", "artifactReadiness", "queuedJobs", "activeJobs",
+    "lastSuccessAt", "lastErrorCode", "lastErrorAt", ...TELEMETRY_COUNTERS,
+]);
+const TELEMETRY_PLUGIN_PROPERTIES = new Set(TELEMETRY_PLUGIN_REQUIRED);
+const TELEMETRY_HEALTH = new Set(["initializing", "healthy", "degraded", "unavailable", "stopped"]);
+const TELEMETRY_STAGES = new Set([
+    null, "collect", "preprocess", "resolve", "infer", "postprocess", "deliver", "terminal",
+]);
+const TELEMETRY_ARTIFACT_READINESS = new Set([
+    "unknown", "resolving", "ready", "missing", "rejected", "incompatible",
+]);
+const MAX_TELEMETRY_COUNTER = 1_000_000_000;
+const MAX_TELEMETRY_TIMESTAMP = Number.MAX_SAFE_INTEGER;
+// Lower-case, dash-separated identifiers; the runtime uses the same grammar
+// for plug-in ids and error codes.
+const TELEMETRY_IDENTIFIER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 
 function isRecord(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -144,15 +174,72 @@ function isAlerts(value) {
     return Array.isArray(value) && value.length <= 100 && value.every(isAlert);
 }
 
+function isTelemetryIdentifier(value, minimum, maximum) {
+    return hasCodePointLength(value, minimum, maximum) && TELEMETRY_IDENTIFIER.test(value);
+}
+
+// `null` carries no string or numeric facets in JSON Schema, so a nullable
+// field is either absent of value or fully constrained, never half-checked.
+function isNullableTelemetryCode(value) {
+    return value === null || isTelemetryIdentifier(value, 1, 80);
+}
+
+function isNullableTelemetryTimestamp(value) {
+    return value === null || isIntegerBetween(value, 0, MAX_TELEMETRY_TIMESTAMP);
+}
+
+function hasTelemetryState(value) {
+    return isTelemetryIdentifier(value.id, 1, 80)
+        && TELEMETRY_HEALTH.has(value.health)
+        && TELEMETRY_STAGES.has(value.stage)
+        && TELEMETRY_ARTIFACT_READINESS.has(value.artifactReadiness);
+}
+
+function hasTelemetryWorkload(value) {
+    return isIntegerBetween(value.queuedJobs, 0, 1_000_000)
+        && isIntegerBetween(value.activeJobs, 0, 1024)
+        && isNullableTelemetryTimestamp(value.lastSuccessAt)
+        && isNullableTelemetryTimestamp(value.lastErrorAt)
+        && isNullableTelemetryCode(value.lastErrorCode);
+}
+
+function hasTelemetryCounters(value) {
+    return TELEMETRY_COUNTERS.every(
+        (name) => isIntegerBetween(value[name], 0, MAX_TELEMETRY_COUNTER),
+    );
+}
+
+function isTelemetryPlugin(value) {
+    return isRecord(value)
+        && hasContractProperties(value, TELEMETRY_PLUGIN_REQUIRED, TELEMETRY_PLUGIN_PROPERTIES)
+        && hasTelemetryState(value)
+        && hasTelemetryWorkload(value)
+        && hasTelemetryCounters(value);
+}
+
+function isPluginTelemetry(value) {
+    return isRecord(value)
+        && hasContractProperties(value, TELEMETRY_REQUIRED, TELEMETRY_PROPERTIES)
+        && value.version === TELEMETRY_VERSION
+        && Array.isArray(value.plugins)
+        && value.plugins.length <= MAX_TELEMETRY_PLUGINS
+        && value.plugins.every(isTelemetryPlugin);
+}
+
+function hasSnapshotCollections(value) {
+    return isDevices(value.devices)
+        && isMetrics(value.metrics)
+        && isProfiles(value.profiles)
+        && isAlerts(value.alerts)
+        && optionalProperty(value, "pluginTelemetry", isPluginTelemetry);
+}
+
 function isRuntimeSnapshot(value) {
     return isRecord(value)
         && hasContractProperties(value, ROOT_REQUIRED, ROOT_PROPERTIES)
         && value.version === Domain.SNAPSHOT_VERSION
         && isIntegerAtLeast(value.generatedAt, Domain.MIN_GENERATED_AT)
-        && isDevices(value.devices)
-        && isMetrics(value.metrics)
-        && isProfiles(value.profiles)
-        && isAlerts(value.alerts);
+        && hasSnapshotCollections(value);
 }
 
 class RuntimeSnapshotSchemaValidator {
@@ -164,6 +251,9 @@ class RuntimeSnapshotSchemaValidator {
 }
 
 module.exports = {
+    MAX_TELEMETRY_PLUGINS,
     RuntimeSnapshotSchemaValidator,
+    isPluginTelemetry,
     isRuntimeSnapshot,
+    isTelemetryPlugin,
 };

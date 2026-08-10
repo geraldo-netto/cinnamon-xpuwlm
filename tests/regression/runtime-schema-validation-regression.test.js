@@ -77,3 +77,28 @@ test("regression: a present non-string read result cannot masquerade as a missin
     assert.deepEqual(snapshot.devices, []);
     assert.equal(probes, 0);
 });
+
+// The runtime attaches pluginTelemetry to every snapshot it publishes. The
+// applet's root property set was closed over the older six-key document, so
+// every real snapshot was discarded as schema-invalid before a single value
+// was read, and the popup showed an unavailable runtime beside a running one.
+test("regression: a snapshot carrying plug-in telemetry is accepted, not discarded", () => {
+    const candidate = Fixtures.validRuntimeSnapshot();
+    candidate.pluginTelemetry = Fixtures.pluginTelemetry();
+    const snapshot = parse(candidate);
+    assert.equal(snapshot.source, "runtime");
+    assert.equal(snapshot.health.runtime, "connected");
+    assert.equal(snapshot.devices.length, 2);
+    assert.equal(snapshot.alerts.length, 0);
+
+    // The extension is validated, never consumed: it must not reach the
+    // normalized snapshot the view renders.
+    assert.equal(Object.hasOwn(snapshot, "pluginTelemetry"), false);
+
+    // An omitted extension stays valid, and a malformed one still fails loudly
+    // rather than being waved through as an unknown key.
+    const without = Fixtures.validRuntimeSnapshot();
+    assert.equal(parse(without).source, "runtime");
+    candidate.pluginTelemetry = Fixtures.pluginTelemetry({version: 2});
+    assert.equal(parse(candidate).source, "invalid");
+});

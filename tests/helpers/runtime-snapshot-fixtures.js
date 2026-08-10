@@ -84,6 +84,190 @@ function deviceEntry(overrides = {}) {
     };
 }
 
+// The runtime publishes plug-in telemetry as an optional root extension. The
+// applet never reads it, but it must validate it exactly as the schema does,
+// or a snapshot carrying it is discarded whole.
+function pluginTelemetryEntry(overrides = {}) {
+    return {
+        id: "low-light-enhancement",
+        health: "healthy",
+        stage: "infer",
+        artifactReadiness: "ready",
+        queuedJobs: 2,
+        activeJobs: 1,
+        lastSuccessAt: NOW - 2000,
+        lastErrorCode: null,
+        lastErrorAt: null,
+        deadlineExceeded: 0,
+        retries: 3,
+        cancellations: 0,
+        drops: 0,
+        successes: 41,
+        failures: 1,
+        ...overrides,
+    };
+}
+
+function pluginTelemetry(overrides = {}) {
+    return {version: 1, plugins: [pluginTelemetryEntry()], ...overrides};
+}
+
+function telemetryPluginKeys() {
+    return Object.keys(pluginTelemetryEntry());
+}
+
+function acceptedTelemetryCases() {
+    return [
+        snapshotCase("plug-in telemetry present", true, (value) => {
+            value.pluginTelemetry = pluginTelemetry();
+        }),
+        snapshotCase("plug-in telemetry with no plug-ins", true, (value) => {
+            value.pluginTelemetry = pluginTelemetry({plugins: []});
+        }),
+        snapshotCase("one hundred and twenty-eight telemetry plug-ins", true, (value) => {
+            value.pluginTelemetry = pluginTelemetry({
+                plugins: Array.from({length: 128}, (_, index) =>
+                    pluginTelemetryEntry({id: `plugin-${index}`})),
+            });
+        }),
+        snapshotCase("telemetry nullable fields null", true, (value) => {
+            value.pluginTelemetry = pluginTelemetry({
+                plugins: [pluginTelemetryEntry({
+                    stage: null,
+                    lastSuccessAt: null,
+                    lastErrorAt: null,
+                    lastErrorCode: null,
+                })],
+            });
+        }),
+        snapshotCase("telemetry numeric bounds", true, (value) => {
+            value.pluginTelemetry = pluginTelemetry({
+                plugins: [
+                    pluginTelemetryEntry({
+                        queuedJobs: 0,
+                        activeJobs: 0,
+                        lastSuccessAt: 0,
+                        lastErrorAt: 0,
+                        deadlineExceeded: 0,
+                        retries: 0,
+                        cancellations: 0,
+                        drops: 0,
+                        successes: 0,
+                        failures: 0,
+                    }),
+                    pluginTelemetryEntry({
+                        id: "b",
+                        queuedJobs: 1_000_000,
+                        activeJobs: 1024,
+                        lastSuccessAt: Number.MAX_SAFE_INTEGER,
+                        lastErrorAt: Number.MAX_SAFE_INTEGER,
+                        lastErrorCode: "a".repeat(80),
+                        deadlineExceeded: 1_000_000_000,
+                        retries: 1_000_000_000,
+                        cancellations: 1_000_000_000,
+                        drops: 1_000_000_000,
+                        successes: 1_000_000_000,
+                        failures: 1_000_000_000,
+                    }),
+                ],
+            });
+        }),
+        snapshotCase("every telemetry health, stage, and readiness value", true, (value) => {
+            const healths = ["initializing", "healthy", "degraded", "unavailable", "stopped"];
+            const stages = [
+                null, "collect", "preprocess", "resolve", "infer", "postprocess", "deliver",
+                "terminal",
+            ];
+            const readiness = [
+                "unknown", "resolving", "ready", "missing", "rejected", "incompatible",
+            ];
+            value.pluginTelemetry = pluginTelemetry({
+                plugins: stages.map((stage, index) => pluginTelemetryEntry({
+                    id: `plugin-${index}`,
+                    stage,
+                    health: healths[index % healths.length],
+                    artifactReadiness: readiness[index % readiness.length],
+                })),
+            });
+        }),
+    ];
+}
+
+function rejectedTelemetryCases() {
+    const cases = [
+        snapshotCase("telemetry scalar", false, (value) => {
+            value.pluginTelemetry = "on";
+        }),
+        snapshotCase("telemetry array", false, (value) => {
+            value.pluginTelemetry = [];
+        }),
+        snapshotCase("telemetry wrong version", false, (value) => {
+            value.pluginTelemetry = pluginTelemetry({version: 2});
+        }),
+        snapshotCase("telemetry missing plugins", false, (value) => {
+            value.pluginTelemetry = {version: 1};
+        }),
+        snapshotCase("telemetry additional property", false, (value) => {
+            value.pluginTelemetry = pluginTelemetry({unexpected: true});
+        }),
+        snapshotCase("telemetry plugins object", false, (value) => {
+            value.pluginTelemetry = pluginTelemetry({plugins: {}});
+        }),
+        snapshotCase("telemetry plug-in scalar", false, (value) => {
+            value.pluginTelemetry = pluginTelemetry({plugins: [null]});
+        }),
+        snapshotCase("more than one hundred and twenty-eight telemetry plug-ins", false, (value) => {
+            value.pluginTelemetry = pluginTelemetry({
+                plugins: Array.from({length: 129}, (_, index) =>
+                    pluginTelemetryEntry({id: `plugin-${index}`})),
+            });
+        }),
+        snapshotCase("telemetry plug-in additional property", false, (value) => {
+            value.pluginTelemetry = pluginTelemetry({
+                plugins: [pluginTelemetryEntry({unexpected: true})],
+            });
+        }),
+    ];
+    const replacements = [
+        ["telemetry id empty", {id: ""}],
+        ["telemetry id uppercase", {id: "Low-Light"}],
+        ["telemetry id trailing dash", {id: "low-"}],
+        ["telemetry id above maximum", {id: `a${"-a".repeat(40)}`}],
+        ["telemetry id non-string", {id: 7}],
+        ["telemetry health unknown", {health: "future"}],
+        ["telemetry stage unknown", {stage: "future"}],
+        ["telemetry readiness unknown", {artifactReadiness: "future"}],
+        ["telemetry queued fractional", {queuedJobs: 1.5}],
+        ["telemetry queued negative", {queuedJobs: -1}],
+        ["telemetry queued above maximum", {queuedJobs: 1_000_001}],
+        ["telemetry active above maximum", {activeJobs: 1025}],
+        ["telemetry last success fractional", {lastSuccessAt: 1.5}],
+        ["telemetry last success negative", {lastSuccessAt: -1}],
+        ["telemetry last success above maximum", {lastSuccessAt: Number.MAX_SAFE_INTEGER + 2}],
+        ["telemetry last error at wrong type", {lastErrorAt: "now"}],
+        ["telemetry error code empty", {lastErrorCode: ""}],
+        ["telemetry error code uppercase", {lastErrorCode: "Timeout"}],
+        ["telemetry error code wrong type", {lastErrorCode: 7}],
+        ["telemetry counter fractional", {retries: 1.5}],
+        ["telemetry counter negative", {drops: -1}],
+        ["telemetry counter above maximum", {successes: 1_000_000_001}],
+        ["telemetry counter wrong type", {failures: "1"}],
+    ];
+    for (const [name, overrides] of replacements) {
+        cases.push(snapshotCase(name, false, (value) => {
+            value.pluginTelemetry = pluginTelemetry({plugins: [pluginTelemetryEntry(overrides)]});
+        }));
+    }
+    for (const key of telemetryPluginKeys()) {
+        cases.push(snapshotCase(`missing telemetry plug-in ${key}`, false, (value) => {
+            const entry = pluginTelemetryEntry();
+            delete entry[key];
+            value.pluginTelemetry = pluginTelemetry({plugins: [entry]});
+        }));
+    }
+    return cases;
+}
+
 function runtimeSnapshotSchemaCases() {
     const cases = [
         {name: "complete snapshot", expected: true, value: validRuntimeSnapshot()},
@@ -279,13 +463,19 @@ function runtimeSnapshotSchemaCases() {
             id: `alert-${index}`,
         }));
     }));
+    cases.push(...acceptedTelemetryCases(), ...rejectedTelemetryCases());
     return cases;
 }
 
 module.exports = {
     NOW,
+    acceptedTelemetryCases,
     deviceEntry,
     generatedAtParityCases,
+    pluginTelemetry,
+    pluginTelemetryEntry,
+    rejectedTelemetryCases,
+    telemetryPluginKeys,
     runtimeSnapshotSchemaCases,
     snapshotCase,
     validRuntimeSnapshot,
