@@ -512,3 +512,42 @@ test("exactly one spelling states which model a profile runs", () => {
     assert.equal(Contract.hasOneModelDeclaration({model, models: [model]}), false);
     assert.equal(Contract.hasOneModelDeclaration({}), false);
 });
+
+test("two entries state one contract however they spell it", () => {
+    // The service compares with json.dumps(sort_keys=True). Comparing raw
+    // JSON.stringify made this mirror stricter than the contract, and a mirror
+    // that refuses what the runtime loads is the one failure it must not have.
+    const gpu = {
+        id: "m",
+        version: "1.0.0",
+        format: "ncnn",
+        fullyQuantized: false,
+        minimumCompilerVersion: "1.0",
+        minimumRuntimeVersion: "1.0",
+        tensorContract: {inputs: [{shape: [1, 3, 8, 8], dtype: "float32"}]},
+    };
+    const reordered = {
+        ...gpu,
+        id: "n",
+        format: "openvino",
+        tensorContract: {inputs: [{dtype: "float32", shape: [1, 3, 8, 8]}]},
+    };
+
+    assert.equal(Contract.isModelSet([gpu, reordered], "gpu"), true);
+
+    const different = {
+        ...reordered,
+        tensorContract: {inputs: [{dtype: "float32", shape: [1, 3, 9, 9]}]},
+    };
+    assert.equal(Contract.isModelSet([gpu, different], "gpu"), false);
+});
+
+test("canonical ordering reaches nested objects and survives arrays", () => {
+    assert.deepEqual(
+        JSON.stringify(Contract.canonical({b: 1, a: {d: 2, c: [{f: 3, e: 4}]}})),
+        JSON.stringify({a: {c: [{e: 4, f: 3}], d: 2}, b: 1}),
+    );
+    assert.equal(Contract.canonical(null), null);
+    assert.equal(Contract.canonical(7), 7);
+    assert.deepEqual(Contract.canonical([2, 1]), [2, 1], "array order is meaning, not spelling");
+});

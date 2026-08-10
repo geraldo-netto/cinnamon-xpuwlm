@@ -282,9 +282,29 @@ function isModelSet(value, accelerator) {
     return new Set(formats).size === formats.length && agreeOnContracts(value);
 }
 
+// Compared by value, not by spelling. The service decides this with
+// `json.dumps(sort_keys=True)`, so comparing raw JSON.stringify output made
+// this mirror stricter than the contract: two entries stating the same
+// contract in a different property order would be refused here and accepted
+// there, and a mirror that rejects what the runtime loads is the one failure
+// mode a mirror must not have.
+function canonical(value) {
+    if (Array.isArray(value)) {
+        return value.map(canonical);
+    }
+    if (!isRecord(value)) {
+        return value;
+    }
+    const ordered = {};
+    for (const key of Object.keys(value).sort()) {
+        ordered[key] = canonical(value[key]);
+    }
+    return ordered;
+}
+
 function agreeOnContracts(models) {
     return ["tensorContract", "outputContract"].every((field) => {
-        const stated = new Set(models.map((model) => JSON.stringify(model[field] ?? null)));
+        const stated = new Set(models.map((model) => JSON.stringify(canonical(model[field] ?? null))));
         return stated.size === 1;
     });
 }
@@ -660,6 +680,7 @@ const MANIFEST_ALLOWLISTS = Object.freeze({
 
 module.exports = {
     ACCELERATORS,
+    canonical,
     isModelSet,
     MAX_MODELS,
     hasOneModelDeclaration,
