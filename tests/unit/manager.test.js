@@ -271,11 +271,13 @@ test("runtime controls wait for acknowledgement and roll back failures", () => {
     assert.equal(saves.length, 0);
 
     assert.equal(manager.toggleProfile("hardware-health"), true);
+    // The revision matches what was sent, so this is a refusal to apply, not
+    // revision drift, and it is reported instead of resynchronised.
     requests[1].callback(null, {
         version: 1,
         commandId: requests[1].command.id,
         status: "rejected",
-        revision: 4,
+        revision: requests[1].command.expectedRevision,
         appliedAt: NOW,
         message: "",
         portfolio: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).serialize(),
@@ -486,6 +488,99 @@ test("dispose is idempotent and blocks subsequent work", () => {
     assert.throws(() => manager.refresh(), /disposed/);
     assert.throws(() => manager.retryDeviceDetection(), /disposed/);
     assert.throws(() => manager.subscribe(() => {}), /disposed/);
+});
+
+function revisionHarness() {
+    const requests = [];
+    const {manager, saves} = harness({
+        controlGateway: {
+            send(command, callback) { requests.push({command, callback}); },
+            cancel: () => false,
+        },
+    });
+    const reject = (index, revision) => requests[index].callback(null, {
+        version: 1,
+        commandId: requests[index].command.id,
+        status: "rejected",
+        revision,
+        appliedAt: NOW,
+        message: "Runtime policy revision changed; refresh and retry",
+        portfolio: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).serialize(),
+    });
+    const apply = (index, revision) => requests[index].callback(null, {
+        version: 1,
+        commandId: requests[index].command.id,
+        status: "applied",
+        revision,
+        appliedAt: NOW,
+        message: "",
+        portfolio: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).serialize(),
+    });
+    return {apply, manager, reject, requests, saves};
+}
+
+test("the cold revision guess is corrected and the command resent, not surfaced", () => {
+    const {apply, manager, reject, requests, saves} = revisionHarness();
+    manager.start();
+    assert.equal(manager.toggleProfile("hardware-health"), true);
+    assert.equal(requests[0].command.expectedRevision, 0);
+
+    reject(0, 7);
+    assert.equal(requests.length, 2, "the rejected command is resent once");
+    assert.equal(requests[1].command.expectedRevision, 7, "with the revision the runtime reported");
+    assert.deepEqual(
+        [requests[1].command.operation, requests[1].command.profileId, requests[1].command.value],
+        [requests[0].command.operation, requests[0].command.profileId, requests[0].command.value],
+        "the user's intent is resent verbatim",
+    );
+    assert.notEqual(requests[1].command.id, requests[0].command.id);
+    assert.equal(manager.state().control.pending, true, "the resend is still one pending change");
+    assert.equal(manager.state().control.message, "Applying change in runtime…");
+
+    apply(1, 8);
+    assert.equal(manager.state().control.pending, false);
+    assert.equal(manager.state().control.message, "");
+    assert.equal(saves.length, 1);
+});
+
+test("a transport that throws on send completes the change instead of hanging it", () => {
+    const {manager, errors} = harness({
+        controlGateway: {
+            send() { throw new Error("the session bus is gone"); },
+            cancel: () => false,
+        },
+    });
+    manager.start();
+    assert.equal(manager.toggleProfile("hardware-health"), true);
+    assert.equal(manager.state().control.pending, false, "no change is left pending");
+    assert.equal(manager.state().control.message, "The runtime service could not apply the change");
+    assert.equal(errors.some((message) => message.includes("the session bus is gone")), true);
+    assert.equal(manager.toggleProfile("hardware-health"), true, "the next change is not blocked");
+});
+
+test("revision drift after the runtime is known is reported, never silently resent", () => {
+    const {apply, manager, reject, requests} = revisionHarness();
+    manager.start();
+    manager.toggleProfile("hardware-health");
+    apply(0, 3);
+    assert.equal(manager.toggleProfile("hardware-health"), true);
+    assert.equal(requests[1].command.expectedRevision, 3, "the learned revision is reused");
+
+    reject(1, 9);
+    assert.equal(requests.length, 2, "a conflict with another writer is not overwritten");
+    assert.equal(manager.state().control.pending, false);
+    assert.match(manager.state().control.message, /revision changed/u);
+});
+
+test("a cold resend that is rejected again reports instead of retrying forever", () => {
+    const {manager, reject, requests} = revisionHarness();
+    manager.start();
+    manager.toggleProfile("hardware-health");
+    reject(0, 7);
+    reject(1, 11);
+    assert.equal(requests.length, 2);
+    assert.equal(manager.state().control.pending, false);
+    assert.match(manager.state().control.message, /revision changed/u);
 });
 
 test("control transport failures surface plain guidance, never raw D-Bus errors", () => {

@@ -125,6 +125,7 @@ class WorkloadManager {
         this._refreshSequence = 0;
         this._controlSequence = 0;
         this._runtimeRevision = 0;
+        this._revisionKnown = false;
         this._controlPending = null;
         this._controlMessage = "";
         this._staleAfterMs = Domain.normalizeStaleAfterMs(staleAfterMs);
@@ -412,6 +413,14 @@ class WorkloadManager {
             this._publish();
             return false;
         }
+        this._controlMessage = _("Applying change in runtime…");
+        return this._dispatchControl({operation, profileId, value}, false);
+    }
+
+    // The command is rebuilt on every attempt because `expectedRevision` and
+    // the command id must both describe the attempt actually being made, not
+    // the one that was rejected.
+    _dispatchControl(intent, resynchronised) {
         this._controlSequence += 1;
         const sequence = this._controlSequence;
         const command = {
@@ -419,12 +428,11 @@ class WorkloadManager {
             id: `tpuwm-${this._clock.now()}-${sequence}`,
             issuedAt: this._clock.now(),
             expectedRevision: this._runtimeRevision,
-            operation,
-            profileId,
-            value,
+            operation: intent.operation,
+            profileId: intent.profileId,
+            value: intent.value,
         };
-        this._controlPending = {sequence, command};
-        this._controlMessage = _("Applying change in runtime…");
+        this._controlPending = {sequence, command, intent, resynchronised};
         this._publish();
         try {
             this._controlGateway.send(command, (error, acknowledgement) => {
@@ -436,10 +444,25 @@ class WorkloadManager {
         return true;
     }
 
+    // Nothing tells the applet the runtime's policy revision before it has
+    // spoken to the runtime: the snapshot carries no `revision`, so the first
+    // command of every session guesses 0 and is rejected for revision drift.
+    // That rejection carries the real revision, so the cold guess is corrected
+    // and the command is resent once, spending a round trip instead of the
+    // user's click. Later drift is a genuine conflict with another writer and
+    // is still reported rather than silently overwritten.
+    _shouldResynchronise(pending, acknowledgement, revisionKnown) {
+        return !revisionKnown
+            && !pending.resynchronised
+            && acknowledgement.status === "rejected"
+            && acknowledgement.revision !== pending.command.expectedRevision;
+    }
+
     _acceptControl(sequence, error, acknowledgement) {
         if (this._disposed || this._controlPending?.sequence !== sequence) {
             return false;
         }
+        const pending = this._controlPending;
         this._controlPending = null;
         if (error) {
             this._controlMessage = controlFailureText(error);
@@ -451,8 +474,14 @@ class WorkloadManager {
             this._publish();
             return false;
         }
+        const revisionKnown = this._revisionKnown;
+        this._revisionKnown = true;
         this._runtimeRevision = acknowledgement.revision;
         this._portfolio = new Domain.WorkloadPortfolio(acknowledgement.portfolio, this._catalog);
+        if (this._shouldResynchronise(pending, acknowledgement, revisionKnown)) {
+            this._dispatchControl(pending.intent, true);
+            return false;
+        }
         if (acknowledgement.status === "rejected") {
             this._controlMessage = acknowledgement.message || _("Runtime rejected the change; retry");
             this._errors.report(RUNTIME_CONTROL_FAILURE, this._controlMessage, this._clock.now());
