@@ -12,6 +12,12 @@ const test = require("node:test");
 // state" rather than as the configuration mistake it is.
 const SHARED_SNAPSHOT_PATH = "~/.local/state/tpu-workload-manager/state.json";
 const SERVICE_DEFAULT = /^DEFAULT_STATE_PATH = "(?<path>[^"]+)"$/mu;
+// The default is only half the contract: an operator who moves the file has to
+// name the new path on both sides, and the service side is an environment
+// variable rather than a setting the applet can read.
+const SERVICE_OVERRIDE = "OMNITENSOR_STATE_PATH";
+const SERVICE_SNAPSHOT_SOURCE
+    = /snapshot_path=_env_path\("(?<variable>[A-Z_]+)", DEFAULT_STATE_PATH\)/u;
 
 const repositoryRoot = path.resolve(__dirname, "../..");
 const appletRoot = path.join(repositoryRoot, "files/cinnamon-tpuwm@geraldo-netto");
@@ -47,6 +53,20 @@ test("the applet defaults to the agreed runtime snapshot path", () => {
     );
 });
 
+test("the applet documents both names an operator has to change to move the file", () => {
+    const documentation = readText(repositoryRoot, "docs/applet.md");
+    assert.equal(
+        documentation.includes(SERVICE_OVERRIDE),
+        true,
+        `docs/applet.md must name ${SERVICE_OVERRIDE}, the only way to move the service side`,
+    );
+    assert.equal(
+        documentation.includes("runtime-state-path"),
+        true,
+        "docs/applet.md must name the applet setting that has to match it",
+    );
+});
+
 test("the runtime service default matches the applet default", (t) => {
     const source = serviceSourcePath();
     if (source === null) {
@@ -56,11 +76,23 @@ test("the runtime service default matches the applet default", (t) => {
         );
         return;
     }
-    const match = SERVICE_DEFAULT.exec(fs.readFileSync(source, "utf8"));
+    const text = fs.readFileSync(source, "utf8");
+    const match = SERVICE_DEFAULT.exec(text);
     assert.notEqual(match, null, `${source} no longer declares DEFAULT_STATE_PATH`);
     assert.equal(
         match.groups.path,
         SHARED_SNAPSHOT_PATH,
         "the applet and the runtime service disagree on the snapshot path",
+    );
+    const override = SERVICE_SNAPSHOT_SOURCE.exec(text);
+    assert.notEqual(
+        override,
+        null,
+        `${source} no longer reads the snapshot path from the environment`,
+    );
+    assert.equal(
+        override.groups.variable,
+        SERVICE_OVERRIDE,
+        "the documented override no longer names the variable the service reads",
     );
 });

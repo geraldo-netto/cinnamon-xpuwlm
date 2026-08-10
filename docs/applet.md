@@ -141,6 +141,30 @@ live in the OmniTensor repository and the applet ships mirror copies. The
 applet validates the complete document before normalizing or displaying any
 runtime field; it never executes its content.
 
+### Where the snapshot path is configured
+
+That file is the only place the two sides meet, and each side names it
+independently, so a move has to be made twice:
+
+| Side | What names the path | Default |
+| --- | --- | --- |
+| Applet | The `runtime-state-path` setting, shown as "Runtime snapshot file" in the applet settings | `~/.local/state/tpu-workload-manager/state.json` |
+| OmniTensor service | The `OMNITENSOR_STATE_PATH` environment variable | the same path when the variable is unset |
+
+Both sides expand a leading `~` to the invoking user's home directory, and both
+read and write as the session user, so the snapshot stays inside the user's own
+state directory by default.
+
+To move it, set `OMNITENSOR_STATE_PATH` where the service is started — for a
+systemd user unit, `systemctl --user edit`, an
+`Environment=OMNITENSOR_STATE_PATH=/new/path/state.json` line, and
+`systemctl --user restart`, so the change survives the next start — and set the
+same path in the applet setting. Changing only one side leaves the applet
+reading a file nobody writes: it reports "No runtime service is publishing
+state" and drops to device-only probing, which is indistinguishable from a
+service that is not running at all, so check both names before concluding the
+service is down.
+
 A version 1 snapshot carries a `devices` array of 1–16 accelerator entries
 rather than a single `device` object. Each entry requires `id`, `backend`
 (`tpu`, `npu`, or `gpu`), `available`, `name`, and `kind` (`usb`, `pcie`,
