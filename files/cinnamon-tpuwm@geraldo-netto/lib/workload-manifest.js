@@ -63,7 +63,14 @@ const TENSOR_INPUT_PROPERTIES = new Set([...TENSOR_INPUT_REQUIRED, "layout", "pr
 const TENSOR_DTYPES = new Set(["float32", "float64", "int32", "int64", "uint8"]);
 const TENSOR_LAYOUTS = new Set(["NCHW", "NHWC", "NC", "N"]);
 const PREPROCESS_REQUIRED = Object.freeze(["channelOrder", "mean", "scale"]);
-const PREPROCESS_PROPERTIES = new Set(PREPROCESS_REQUIRED);
+// `resize` is optional: a manifest written before the field still loads, and
+// absent means the consumer decides — which is exactly the convention-by-
+// accident the field exists to replace where a publisher cares.
+const PREPROCESS_PROPERTIES = new Set([...PREPROCESS_REQUIRED, "resize"]);
+const RESIZE_REQUIRED = Object.freeze(["filter", "fit"]);
+const RESIZE_PROPERTIES = new Set(RESIZE_REQUIRED);
+const RESIZE_FILTERS = new Set(["nearest", "bilinear", "bicubic"]);
+const RESIZE_FITS = new Set(["exact", "cover"]);
 const CHANNEL_ORDERS = new Set(["RGB", "BGR", "GRAY"]);
 const MAX_TENSOR_INPUTS = 8;
 const MAX_TENSOR_RANK = 6;
@@ -144,11 +151,18 @@ function isFiniteNumberArray(value, minimum, maximum, positive) {
             && (!positive || item > 0));
 }
 
+function isResize(value) {
+    return boundedProperties(value, RESIZE_REQUIRED, RESIZE_PROPERTIES)
+        && RESIZE_FILTERS.has(value.filter)
+        && RESIZE_FITS.has(value.fit);
+}
+
 function isPreprocess(value) {
     return boundedProperties(value, PREPROCESS_REQUIRED, PREPROCESS_PROPERTIES)
         && CHANNEL_ORDERS.has(value.channelOrder)
         && isFiniteNumberArray(value.mean, 1, MAX_CHANNELS, false)
-        && isFiniteNumberArray(value.scale, 1, MAX_CHANNELS, true);
+        && isFiniteNumberArray(value.scale, 1, MAX_CHANNELS, true)
+        && (!declared(value, "resize") || isResize(value.resize));
 }
 
 function isTensorShape(value) {
@@ -576,6 +590,7 @@ const MANIFEST_ALLOWLISTS = Object.freeze({
     tensorContract: TENSOR_CONTRACT_PROPERTIES,
     tensorInput: TENSOR_INPUT_PROPERTIES,
     preprocess: PREPROCESS_PROPERTIES,
+    resize: RESIZE_PROPERTIES,
     requirements: REQUIREMENT_PROPERTIES,
     ui: UI_PROPERTIES,
     defaults: DEFAULT_PROPERTIES,

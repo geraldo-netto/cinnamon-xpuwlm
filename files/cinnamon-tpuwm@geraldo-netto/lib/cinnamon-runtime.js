@@ -945,6 +945,78 @@ function isImageFilename(name) {
         && IMAGE_SUFFIXES.some((suffix) => lowered.endsWith(suffix));
 }
 
+// GdkPixbuf's own filters, named by the contract rather than by this enum, so
+// a manifest asking for bicubic gets gdk's high-quality resampler and not
+// whichever constant happened to be first.
+const RESIZE_INTERPOLATION = Object.freeze({
+    nearest: "NEAREST",
+    bilinear: "BILINEAR",
+    bicubic: "HYPER",
+});
+// `new_from_stream_at_scale_async` scales while it decodes, which is what keeps
+// a 9600x5400 picture from becoming a 155 MB allocation — but it is always
+// bilinear. Honouring any other declared filter means decoding above the target
+// and resampling once, and this bounds how far above.
+const RESAMPLE_HEADROOM = 4;
+
+function interpolation(environment, filter) {
+    const names = environment.GdkPixbuf.InterpType;
+    return names[RESIZE_INTERPOLATION[filter] || "BILINEAR"];
+}
+
+// The smallest size covering both axes of the target: what `cover` decodes to
+// before its crop.
+function coverGeometry(source, geometry) {
+    const scale = Math.max(geometry.width / source.width, geometry.height / source.height);
+    return {
+        width: Math.max(geometry.width, Math.round(source.width * scale)),
+        height: Math.max(geometry.height, Math.round(source.height * scale)),
+    };
+}
+
+// The size to ask the decoder for. Bilinear lands straight on the size the fit
+// resolved to, because the streaming scaler already is bilinear; every other
+// filter needs pixels above the target to resample from.
+function decodeSize(source, geometry, resize) {
+    if (source === null) {
+        return geometry;
+    }
+    const headroom = resize.filter === "bilinear" ? 1 : RESAMPLE_HEADROOM;
+    const covered = resize.fit === "cover" ? coverGeometry(source, geometry) : geometry;
+    return {
+        width: Math.min(source.width, covered.width * headroom),
+        height: Math.min(source.height, covered.height * headroom),
+    };
+}
+
+// The largest centred rectangle with the target's aspect ratio. Taken before
+// the final scale so `cover` discards the edges rather than squashing them.
+function aspectCrop(pixbuf, geometry) {
+    const width = pixbuf.get_width();
+    const height = pixbuf.get_height();
+    const scale = Math.min(width / geometry.width, height / geometry.height);
+    const cropWidth = Math.max(1, Math.min(width, Math.round(geometry.width * scale)));
+    const cropHeight = Math.max(1, Math.min(height, Math.round(geometry.height * scale)));
+    return pixbuf.new_subpixbuf(
+        Math.floor((width - cropWidth) / 2),
+        Math.floor((height - cropHeight) / 2),
+        cropWidth,
+        cropHeight,
+    );
+}
+
+function resolvedPixbuf(environment, pixbuf, geometry, resize) {
+    const cropped = resize.fit === "cover" ? aspectCrop(pixbuf, geometry) : pixbuf;
+    if (cropped.get_width() === geometry.width && cropped.get_height() === geometry.height) {
+        return cropped;
+    }
+    return cropped.scale_simple(
+        geometry.width,
+        geometry.height,
+        interpolation(environment, resize.filter),
+    );
+}
+
 function pixbufImage(pixbuf) {
     return {
         width: pixbuf.get_width(),
@@ -953,6 +1025,15 @@ function pixbufImage(pixbuf) {
         rowstride: pixbuf.get_rowstride(),
         pixels: pixbuf.get_pixels(),
     };
+}
+
+function sourceGeometry(environment, path) {
+    const info = environment.GdkPixbuf.Pixbuf.get_file_info(path);
+    const width = info[1];
+    const height = info[2];
+    return Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0
+        ? {width, height}
+        : null;
 }
 
 function decodeImageAsync(path, geometry, environment, options, callback) {
@@ -985,26 +1066,32 @@ function decodeImageAsync(path, geometry, environment, options, callback) {
         if (info.get_size() > MAX_IMAGE_BYTES) {
             throw new RangeError(`Picture exceeds ${MAX_IMAGE_BYTES} bytes: ${path}`);
         }
+        const resize = options?.resize || {filter: "bilinear", fit: "exact"};
+        const decoded = decodeSize(sourceGeometry(environment, path), geometry, resize);
         file.read_async(0, cancellable, (source, result) => guarded(() => {
-            scaleStreamAsync(source.read_finish(result), geometry, environment, cancellable, callback);
+            scaleStreamAsync(source.read_finish(result), decoded, environment, cancellable, {
+                geometry, resize, callback,
+            });
         }));
     });
 }
 
-function scaleStreamAsync(stream, geometry, environment, cancellable, callback) {
+function scaleStreamAsync(stream, decoded, environment, cancellable, request) {
+    const {geometry, resize, callback} = request;
     environment.GdkPixbuf.Pixbuf.new_from_stream_at_scale_async(
         stream,
-        geometry.width,
-        geometry.height,
-        // Never preserve the aspect ratio: the model declares one exact size and
-        // a letterboxed picture would be a different tensor from the one it
-        // asked for.
+        decoded.width,
+        decoded.height,
+        // Never preserve the aspect ratio here: the size asked for is already
+        // the one the declared fit resolved to, so letting gdk letterbox it
+        // would silently overrule the publisher's choice.
         false,
         cancellable,
         (source, result) => {
             try {
+                const pixbuf = environment.GdkPixbuf.Pixbuf.new_from_stream_finish(result);
                 callback(null, pixbufImage(
-                    environment.GdkPixbuf.Pixbuf.new_from_stream_finish(result),
+                    resolvedPixbuf(environment, pixbuf, geometry, resize),
                 ));
             } catch (error) {
                 if (!isIoError(environment, error, "CANCELLED")) {
@@ -1064,8 +1151,8 @@ function digestBytes(bytes, environment) {
 
 function createImagePort(environment) {
     return {
-        decode(path, geometry, callback) {
-            decodeImageAsync(path, geometry, environment, {}, callback);
+        decode(path, geometry, resize, callback) {
+            decodeImageAsync(path, geometry, environment, {resize}, callback);
         },
         write(path, bytes, callback) {
             writeBufferAsync(path, bytes, environment, callback);
@@ -1235,6 +1322,8 @@ module.exports = {
     CONTRACT_METHOD,
     DEVICE_CACHE_MS,
     IMAGE_SUFFIXES,
+    RESAMPLE_HEADROOM,
+    RESIZE_INTERPOLATION,
     MAX_IMAGE_BYTES,
     MAX_INPUT_FILES,
     JOB_RESULT_METHOD,
@@ -1268,7 +1357,10 @@ module.exports = {
     createWorkloadRegistry,
     userWorkloadRoot,
     decodeBytes,
+    aspectCrop,
+    coverGeometry,
     decodeImageAsync,
+    decodeSize,
     digestBytes,
     closeEnumeratorAsync,
     collectUsbNames,
@@ -1284,6 +1376,7 @@ module.exports = {
     FileStateRepository,
     findCoralUsbIdentity,
     fileIdentity,
+    interpolation,
     isImageFilename,
     isIoError,
     listInputImages,
@@ -1297,6 +1390,8 @@ module.exports = {
     readFileTextAsync,
     readTrimmed,
     readTrimmedAsync,
+    resolvedPixbuf,
+    sourceGeometry,
     finishIo,
     requestRuntimeContractText,
     sameIdentity,

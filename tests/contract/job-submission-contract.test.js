@@ -228,6 +228,26 @@ test("the bundled manifest declares an input this applet can actually prepare", 
     );
 });
 
+test("the bundled profile states its resize rather than inheriting one", (t) => {
+    const root = skipWithoutService(t);
+    if (root === null) {
+        return;
+    }
+    const declared = readJson(appletRoot, "workloads/visual-library/manifest.json")
+        .requirements.model.tensorContract.inputs[0];
+    const resize = Encoder.declaredResize(declared);
+
+    assert.equal(resize.declared, true, "the publisher owns the choice, not the consumer");
+    assert.ok(Encoder.RESIZE_FILTERS.has(resize.filter));
+    assert.ok(Encoder.RESIZE_FITS.has(resize.fit));
+    assert.deepEqual(
+        declared.preprocess.resize,
+        readJson(root, "workloads/visual-library/manifest.json")
+            .requirements.model.tensorContract.inputs[0].preprocess.resize,
+        "both repositories describe the same resize for the same model",
+    );
+});
+
 test("a staged buffer is written inside the boundary that makes it readable", () => {
     const staged = Submission.stagedPath("/home/user/omnitensor-inputs", "visual-library", "tpuwm-1-1");
 

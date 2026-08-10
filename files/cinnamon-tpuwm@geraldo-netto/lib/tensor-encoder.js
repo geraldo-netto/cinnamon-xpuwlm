@@ -30,6 +30,14 @@ const RANK = 4;
 const BATCH = 1;
 
 const LAYOUTS = new Set(["NCHW", "NHWC"]);
+// How a picture becomes the declared shape. `exact` scales to the declared
+// width and height and distorts the aspect ratio; `cover` scales until both
+// axes are covered and centre-crops the rest. A manifest that declares neither
+// gets the default below, and that default is a convention this applet chose
+// rather than one the publisher agreed to — which is why the field exists.
+const RESIZE_FILTERS = new Set(["nearest", "bilinear", "bicubic"]);
+const RESIZE_FITS = new Set(["exact", "cover"]);
+const DEFAULT_RESIZE = Object.freeze({filter: "bilinear", fit: "exact", declared: false});
 const CHANNEL_ORDERS = new Set(["RGB", "BGR", "GRAY"]);
 const ORDER_CHANNELS = Object.freeze({RGB: 3, BGR: 3, GRAY: 1});
 
@@ -103,6 +111,18 @@ function targetGeometry(spec) {
     return spec.layout === "NCHW"
         ? {channels: first, height: second, width: third}
         : {height: first, width: second, channels: third};
+}
+
+// The resize this contract asks for, or the applet's own default marked as
+// undeclared so a caller can tell an agreement from an assumption.
+function declaredResize(spec) {
+    const resize = isRecord(spec) && isRecord(spec.preprocess)
+        ? spec.preprocess.resize
+        : null;
+    if (!isRecord(resize) || !RESIZE_FILTERS.has(resize.filter) || !RESIZE_FITS.has(resize.fit)) {
+        return DEFAULT_RESIZE;
+    }
+    return Object.freeze({filter: resize.filter, fit: resize.fit, declared: true});
 }
 
 function shapeRefusal(spec) {
@@ -274,7 +294,10 @@ function tensorBytes(values) {
 module.exports = {
     BYTES_PER_FLOAT,
     CHANNEL_ORDERS,
+    DEFAULT_RESIZE,
     LAYOUTS,
+    RESIZE_FILTERS,
+    RESIZE_FITS,
     LUMA_BLUE,
     LUMA_GREEN,
     LUMA_RED,
@@ -283,6 +306,7 @@ module.exports = {
     REFUSAL_KINDS,
     TensorEncodingError,
     channelValue,
+    declaredResize,
     encodeTensor,
     encodingRefusal,
     isRefusal,

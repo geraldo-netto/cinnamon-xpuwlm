@@ -27,8 +27,8 @@ function image() {
 function harness(options = {}) {
     const events = [];
     const imagePort = {
-        decode(path, geometry, callback) {
-            events.push(["decode", path, geometry]);
+        decode(path, geometry, resize, callback) {
+            events.push(["decode", path, geometry, resize]);
             if (options.decodeError) {
                 callback(options.decodeError, null);
                 return;
@@ -148,7 +148,12 @@ describe("submitting a picture as a job", () => {
             received = {error, reply};
         });
 
-        assert.deepEqual(events[0], ["decode", `${ROOT}/cat.png`, {channels: 3, height: 2, width: 2}]);
+        assert.deepEqual(events[0], [
+            "decode",
+            `${ROOT}/cat.png`,
+            {channels: 3, height: 2, width: 2},
+            {filter: "bilinear", fit: "exact", declared: false},
+        ]);
         assert.equal(events[1][0], "write");
         assert.equal(events[1][2], 48, "twelve floats");
         const reference = gateway.submissions[0].payload.inputRefs[0];

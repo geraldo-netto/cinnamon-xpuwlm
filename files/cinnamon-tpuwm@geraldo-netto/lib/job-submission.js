@@ -26,11 +26,10 @@ const STAGING_DIRECTORY = ".tpuwm-staged";
 const STAGED_SUFFIX = ".f32";
 const STAGED_FILENAME = /^[A-Za-z0-9._-]+$/u;
 
-// Deterministic squash to the declared size, not a fit-and-crop. The contract
-// states one shape and no resize policy, so the applet states its own: the
-// picture is scaled to exactly the declared width and height. Upstream Caffe
-// and ncnn classifier examples do the same, and a crop would silently discard
-// whatever the user framed.
+// The resize is the publisher's to choose. When `preprocess.resize` states one
+// it is honoured; when it does not, the encoder's own default applies and says
+// so, because a default nobody agreed to is exactly the disagreement the field
+// exists to remove.
 const PRESERVE_ASPECT_RATIO = false;
 
 class JobStagingError extends Error {
@@ -139,6 +138,7 @@ class JobSubmitter {
         this._images.decode(
             request.sourcePath,
             Encoder.targetGeometry(request.spec),
+            Encoder.declaredResize(request.spec),
             (error, image) => this._encoded(request, callback, error, image),
         );
     }

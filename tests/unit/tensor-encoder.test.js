@@ -254,3 +254,44 @@ describe("tensor bytes", () => {
         assert.throws(() => Encoder.tensorBytes(new Uint8Array(4)), TypeError);
     });
 });
+
+describe("the declared resize", () => {
+    it("reads the policy a publisher stated", () => {
+        assert.deepEqual(
+            Encoder.declaredResize(spec({
+                preprocess: {...CAFFE.preprocess, resize: {filter: "bicubic", fit: "cover"}},
+            })),
+            {filter: "bicubic", fit: "cover", declared: true},
+        );
+    });
+
+    it("falls back to a default that says it is one", () => {
+        // A default nobody agreed to is the disagreement the field removes, so
+        // the caller can tell an agreement from an assumption.
+        for (const candidate of [
+            CAFFE,
+            null,
+            spec({preprocess: {...CAFFE.preprocess, resize: {filter: "lanczos", fit: "exact"}}}),
+            spec({preprocess: {...CAFFE.preprocess, resize: {filter: "bilinear", fit: "letterbox"}}}),
+            spec({preprocess: {...CAFFE.preprocess, resize: "bilinear"}}),
+        ]) {
+            assert.deepEqual(Encoder.declaredResize(candidate), Encoder.DEFAULT_RESIZE, JSON.stringify(candidate));
+        }
+    });
+
+    it("names only policies a consumer can actually carry out", () => {
+        assert.deepEqual([...Encoder.RESIZE_FILTERS].sort(), ["bicubic", "bilinear", "nearest"]);
+        assert.deepEqual([...Encoder.RESIZE_FITS].sort(), ["cover", "exact"]);
+        assert.equal(Encoder.DEFAULT_RESIZE.declared, false);
+    });
+
+    it("does not change what a declared shape means", () => {
+        // The resize decides which pixels reach the encoder, never how many.
+        const withResize = spec({
+            preprocess: {...CAFFE.preprocess, resize: {filter: "nearest", fit: "cover"}},
+        });
+
+        assert.equal(Encoder.encodingRefusal(withResize), null);
+        assert.deepEqual(Encoder.targetGeometry(withResize), Encoder.targetGeometry(CAFFE));
+    });
+});

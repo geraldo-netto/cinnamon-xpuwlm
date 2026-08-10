@@ -114,6 +114,26 @@ class FakeFile {
     }
 }
 
+function pixbuf(env, width, height) {
+    const channels = env.channels ?? 3;
+    const rowstride = (width * channels) + (env.padding ?? 0);
+    return {
+        get_width: () => width,
+        get_height: () => height,
+        get_n_channels: () => channels,
+        get_rowstride: () => rowstride,
+        get_pixels: () => new Uint8Array(((height - 1) * rowstride) + (width * channels)),
+        new_subpixbuf(x, y, w, h) {
+            env.crops.push({x, y, w, h});
+            return pixbuf(env, w, h);
+        },
+        scale_simple(w, h, interp) {
+            env.resamples.push({w, h, interp});
+            return pixbuf(env, w, h);
+        },
+    };
+}
+
 function environment(overrides = {}) {
     const env = {
         files: new Map(),
@@ -127,6 +147,9 @@ function environment(overrides = {}) {
         writeFails: false,
         deleteThrows: false,
         scaled: [],
+        crops: [],
+        resamples: [],
+        sourceSize: [1000, 500],
         decodeThrows: null,
         ...overrides,
     };
@@ -150,7 +173,11 @@ function environment(overrides = {}) {
         },
     };
     env.GdkPixbuf = {
+        InterpType: {NEAREST: 0, TILES: 1, BILINEAR: 2, HYPER: 3},
         Pixbuf: {
+            get_file_info() {
+                return [null, ...(env.sourceSize ?? [0, 0])];
+            },
             new_from_stream_at_scale_async(stream, width, height, preserve, cancellable, callback) {
                 env.scaled.push({stream: stream.stream, width, height, preserve});
                 callback(this, {width, height});
@@ -159,17 +186,7 @@ function environment(overrides = {}) {
                 if (env.decodeThrows !== null) {
                     throw env.decodeThrows;
                 }
-                const channels = env.channels ?? 3;
-                const rowstride = (result.width * channels) + (env.padding ?? 0);
-                return {
-                    get_width: () => result.width,
-                    get_height: () => result.height,
-                    get_n_channels: () => channels,
-                    get_rowstride: () => rowstride,
-                    get_pixels: () => new Uint8Array(
-                        ((result.height - 1) * rowstride) + (result.width * channels),
-                    ),
-                };
+                return pixbuf(env, result.width, result.height);
             },
         },
     };
@@ -395,7 +412,8 @@ test("the image port exposes exactly what a submitter needs", async () => {
     const completions = [];
 
     const image = await new Promise((resolve) => {
-        port.decode(`${ROOT}/cat.png`, {width: 2, height: 2}, (error, decoded) => resolve(decoded));
+        port.decode(`${ROOT}/cat.png`, {width: 2, height: 2},
+            {filter: "bilinear", fit: "exact"}, (error, decoded) => resolve(decoded));
     });
     port.write(`${ROOT}/.tpuwm-staged/x.f32`, new Uint8Array(8), (error) => completions.push(error));
 
@@ -545,4 +563,81 @@ test("a poll reaches the versioned GetJobResult endpoint", () => {
     assert.equal(gateway.pollable, true);
     gateway.requestResult({requestId: "tpuwm-1-2", jobId: "job-1"}, () => {});
     assert.deepEqual(calls, [Cinnamon.JOB_RESULT_METHOD, Cinnamon.JOB_RESULT_METHOD]);
+});
+
+test("a bilinear exact resize decodes straight to the declared shape", async () => {
+    const env = environment();
+    picture(env, `${ROOT}/cat.png`);
+
+    await decode(env, `${ROOT}/cat.png`, {width: 227, height: 227});
+
+    assert.deepEqual(env.scaled[0], {stream: `${ROOT}/cat.png`, width: 227, height: 227, preserve: false});
+    assert.deepEqual(env.crops, [], "nothing is cropped");
+    assert.deepEqual(env.resamples, [], "the streaming scaler is already bilinear");
+});
+
+test("a cover fit decodes to the covering size and centre-crops the rest", async () => {
+    const env = environment({sourceSize: [1000, 500]});
+    picture(env, `${ROOT}/wide.png`);
+
+    const {image} = await new Promise((resolve) => {
+        Cinnamon.decodeImageAsync(`${ROOT}/wide.png`, {width: 100, height: 100}, env,
+            {resize: {filter: "bilinear", fit: "cover"}},
+            (error, decoded) => resolve({error, image: decoded}));
+    });
+
+    // 1000x500 covering a 100x100 target scales by 100/500 = 0.2 -> 200x100.
+    assert.deepEqual(env.scaled[0].width, 200);
+    assert.deepEqual(env.scaled[0].height, 100);
+    assert.deepEqual(env.crops[0], {x: 50, y: 0, w: 100, h: 100}, "centred on the long axis");
+    assert.equal(image.width, 100);
+    assert.equal(image.height, 100);
+});
+
+test("a declared filter is honoured by resampling above the target", async () => {
+    const env = environment({sourceSize: [4000, 4000]});
+    picture(env, `${ROOT}/cat.png`);
+
+    await new Promise((resolve) => {
+        Cinnamon.decodeImageAsync(`${ROOT}/cat.png`, {width: 227, height: 227}, env,
+            {resize: {filter: "bicubic", fit: "exact"}}, () => resolve());
+    });
+
+    assert.equal(env.scaled[0].width, 227 * Cinnamon.RESAMPLE_HEADROOM, "headroom to resample from");
+    assert.deepEqual(env.resamples[0], {w: 227, h: 227, interp: env.GdkPixbuf.InterpType.HYPER});
+});
+
+test("the headroom never exceeds the picture that exists", () => {
+    assert.deepEqual(
+        Cinnamon.decodeSize({width: 300, height: 300}, {width: 227, height: 227},
+            {filter: "bicubic", fit: "exact"}),
+        {width: 300, height: 300},
+    );
+    assert.deepEqual(
+        Cinnamon.decodeSize(null, {width: 227, height: 227}, {filter: "bicubic", fit: "exact"}),
+        {width: 227, height: 227},
+        "a header this decoder cannot read falls back to the target",
+    );
+});
+
+test("every declared filter maps to a real GdkPixbuf resampler", () => {
+    const env = environment();
+
+    for (const [name, constant] of Object.entries(Cinnamon.RESIZE_INTERPOLATION)) {
+        assert.equal(Cinnamon.interpolation(env, name), env.GdkPixbuf.InterpType[constant], name);
+    }
+    assert.equal(Cinnamon.interpolation(env, "unknown"), env.GdkPixbuf.InterpType.BILINEAR);
+});
+
+test("a picture whose header cannot be read still decodes", () => {
+    const env = environment({sourceSize: [0, 0]});
+
+    assert.equal(Cinnamon.sourceGeometry(env, "/x.png"), null);
+});
+
+test("the cover geometry covers both axes and never shrinks below the target", () => {
+    assert.deepEqual(Cinnamon.coverGeometry({width: 1000, height: 500}, {width: 100, height: 100}),
+        {width: 200, height: 100});
+    assert.deepEqual(Cinnamon.coverGeometry({width: 50, height: 50}, {width: 100, height: 100}),
+        {width: 100, height: 100});
 });
