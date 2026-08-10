@@ -416,3 +416,58 @@ test("omission counts what the catalog dropped and what this surface trims", () 
     assert.equal(ViewModel.omittedCount({pictures: new Array(30), omitted: 2}), 8);
     assert.equal(ViewModel.omittedCount({}), 0);
 });
+
+test("a profile the popup calls unavailable is not offered a picture", () => {
+    // Offering it spends a decode, a staged buffer, and a bus call to learn
+    // what the row above already said.
+    const base = state();
+    const blocked = {
+        ...base,
+        profiles: base.profiles.map((profile) => (profile.id === RUNNABLE
+            ? {...profile, status: "unavailable"}
+            : profile)),
+    };
+
+    const run = ViewModel.runModel(blocked);
+
+    assert.deepEqual(run.profiles, []);
+    assert.match(run.reason, /can serve right now/u);
+});
+
+test("a paused or disabled profile is not offered one either", () => {
+    const base = state();
+    for (const change of [{status: "paused"}, {enabled: false}]) {
+        const blocked = {
+            ...base,
+            profiles: base.profiles.map((profile) => (profile.id === RUNNABLE
+                ? {...profile, ...change}
+                : profile)),
+        };
+        assert.deepEqual(ViewModel.runModel(blocked).profiles, [], JSON.stringify(change));
+    }
+});
+
+test("declaring no input and being unable to serve are different sentences", () => {
+    const base = state();
+    const noDeclaration = ViewModel.runModel(state({inputs: {runnable: []}}));
+    const blocked = ViewModel.runModel({
+        ...base,
+        profiles: base.profiles.map((profile) => (profile.id === RUNNABLE
+            ? {...profile, status: "paused"}
+            : profile)),
+    });
+
+    assert.match(noDeclaration.reason, /states what input it needs/u);
+    assert.match(blocked.reason, /can serve right now/u);
+    assert.notEqual(noDeclaration.reason, blocked.reason);
+});
+
+test("only a status that can actually run counts as serving", () => {
+    for (const status of ["healthy", "running", "watching", "idle"]) {
+        assert.equal(ViewModel.canServe({status, enabled: true}), true, status);
+    }
+    for (const status of ["paused", "unavailable", "", undefined]) {
+        assert.equal(ViewModel.canServe({status, enabled: true}), false, String(status));
+    }
+    assert.equal(ViewModel.canServe({status: "watching", enabled: false}), false);
+});

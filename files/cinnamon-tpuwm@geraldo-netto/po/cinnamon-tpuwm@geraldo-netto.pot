@@ -502,6 +502,10 @@ msgstr ""
 msgid "No picture was chosen"
 msgstr ""
 
+#: lib/view-model.js
+msgid "No profile that accepts a picture can serve right now; the Setup tab says why"
+msgstr ""
+
 #: lib/domain.js
 msgid "No runtime service is publishing a snapshot"
 msgstr ""

@@ -370,18 +370,32 @@ const MAX_READING_ROWS = 5;
 const RUN_TITLE = N_("Run a picture");
 const NO_ROOTS_TEXT = N_("The runtime service is not configured to read input files, so no picture can be submitted");
 const NO_RUNNABLE_TEXT = N_("No installed profile states what input it needs, so no picture can be prepared");
+const NONE_SERVING_TEXT = N_("No profile that accepts a picture can serve right now; the Setup tab says why");
+// A profile the same popup reports as paused, disabled, or unavailable will
+// refuse every job it is given. Offering it a picture anyway spends a decode,
+// a staged buffer, and a bus call to learn what the row above already said.
+const SERVING_STATUSES = new Set(["healthy", "running", "watching", "idle"]);
 const EMPTY_ROOT_TEXT = N_("Put a picture in %s and it will be listed here");
 
-function runReason(runnable, inputs) {
+function runReason(declared, serving, inputs) {
     if (inputs.roots.length === 0) {
         return _(NO_ROOTS_TEXT);
     }
-    if (runnable.length === 0) {
+    if (declared.length === 0) {
         return _(NO_RUNNABLE_TEXT);
+    }
+    if (serving.length === 0) {
+        // The profile can accept a picture and cannot act on one: a different
+        // fact from declaring no input, and a different remedy.
+        return _(NONE_SERVING_TEXT);
     }
     return inputs.pictures.length === 0
         ? format(_(EMPTY_ROOT_TEXT), inputs.roots[0])
         : "";
+}
+
+function canServe(profile) {
+    return SERVING_STATUSES.has(profile.status) && profile.enabled !== false;
 }
 
 // What the runtime says became of the job, in the words a user reads. `unknown`
@@ -476,12 +490,13 @@ function omittedCount(inputs) {
 function runModel(state) {
     const inputs = state.inputs || {roots: [], pictures: [], runnable: [], omitted: 0};
     const runnableIds = new Set(inputs.runnable || []);
-    const runnable = state.profiles.filter((profile) => runnableIds.has(profile.id));
+    const declared = state.profiles.filter((profile) => runnableIds.has(profile.id));
+    const serving = declared.filter(canServe);
     return {
         title: _(RUN_TITLE),
-        reason: runReason(runnable, inputs),
+        reason: runReason(declared, serving, inputs),
         roots: [...inputs.roots],
-        profiles: runnable.map((profile) => ({id: profile.id, title: profile.title})),
+        profiles: serving.map((profile) => ({id: profile.id, title: profile.title})),
         pictures: inputs.pictures.slice(0, MAX_RUN_PICTURES).map((picture) => ({...picture})),
         omitted: omittedCount(inputs),
         job: jobModel(state.job, state.profiles),
@@ -890,6 +905,7 @@ module.exports = {
     setupSection,
     setupSummary,
     severityText,
+    canServe,
     jobModel,
     omittedCount,
     progressText,
