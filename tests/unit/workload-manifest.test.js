@@ -309,3 +309,116 @@ test("optional model digests load, and malformed ones are still rejected", () =>
     assert.equal(Contract.boundedProperties({a: 1, c: 3}, ["a"], new Set(["a", "b"])), false);
     assert.equal(Contract.boundedProperties(null, [], new Set()), false);
 });
+
+function withModel(extra) {
+    const manifest = Fixtures.validWorkloadManifest();
+    manifest.requirements.model = {...manifest.requirements.model, ...extra};
+    return manifest;
+}
+
+// Both contracts are optional and both are new, so the interesting cases are
+// the ones the validator and the schema could disagree about. Every candidate
+// is checked against the Ajv oracle as well, because a mirror that is stricter
+// or laxer than the schema rejects documents the runtime accepts, or accepts
+// ones it does not.
+function agree(manifest, expected, label) {
+    assert.equal(oracle(manifest), expected, `${label}: schema`);
+    let accepted = true;
+    try {
+        new Contract.WorkloadDescriptor(manifest);
+    } catch {
+        accepted = false;
+    }
+    assert.equal(accepted, expected, `${label}: validator`);
+}
+
+test("a declared tensor contract is accepted exactly as the schema accepts it", () => {
+    const full = {
+        inputs: [{
+            shape: [1, 3, 227, 227],
+            dtype: "float32",
+            layout: "NCHW",
+            preprocess: {channelOrder: "BGR", mean: [104, 117, 123], scale: [1, 1, 1]},
+        }],
+    };
+    agree(withModel({tensorContract: full}), true, "full");
+    agree(withModel({tensorContract: {inputs: [{shape: [4], dtype: "uint8"}]}}), true, "minimal");
+
+    const cases = [
+        ["no inputs", {inputs: []}],
+        ["unknown property", {inputs: [{shape: [1], dtype: "uint8"}], extra: 1}],
+        ["missing dtype", {inputs: [{shape: [1]}]}],
+        ["unknown dtype", {inputs: [{shape: [1], dtype: "float16"}]}],
+        ["unknown layout", {inputs: [{shape: [1], dtype: "uint8", layout: "WHCN"}]}],
+        ["zero dimension", {inputs: [{shape: [0], dtype: "uint8"}]}],
+        ["fractional dimension", {inputs: [{shape: [1.5], dtype: "uint8"}]}],
+        ["oversized dimension", {inputs: [{shape: [65537], dtype: "uint8"}]}],
+        ["rank too high", {inputs: [{shape: [1, 1, 1, 1, 1, 1, 1], dtype: "uint8"}]}],
+        ["empty shape", {inputs: [{shape: [], dtype: "uint8"}]}],
+        ["shape not an array", {inputs: [{shape: 227, dtype: "uint8"}]}],
+        ["inputs not an array", {inputs: {shape: [1], dtype: "uint8"}}],
+        ["contract not an object", "float32"],
+    ];
+    for (const [label, tensorContract] of cases) {
+        agree(withModel({tensorContract}), false, label);
+    }
+});
+
+test("the preprocessing block is all-or-nothing and bounded", () => {
+    const input = {shape: [1, 3, 2, 2], dtype: "float32"};
+    const contract = (preprocess) => ({inputs: [{...input, preprocess}]});
+
+    agree(
+        withModel({tensorContract: contract({channelOrder: "GRAY", mean: [0], scale: [255]})}),
+        true,
+        "single channel",
+    );
+
+    const cases = [
+        ["partial", {channelOrder: "BGR", mean: [1, 2, 3]}],
+        ["unknown order", {channelOrder: "YUV", mean: [1], scale: [1]}],
+        ["zero scale", {channelOrder: "RGB", mean: [1], scale: [0]}],
+        ["negative scale", {channelOrder: "RGB", mean: [1], scale: [-1]}],
+        ["empty mean", {channelOrder: "RGB", mean: [], scale: [1]}],
+        ["too many channels", {channelOrder: "RGB", mean: [1, 2, 3, 4, 5], scale: [1]}],
+        ["mean not numbers", {channelOrder: "RGB", mean: ["1"], scale: [1]}],
+        ["extra property", {channelOrder: "RGB", mean: [1], scale: [1], gamma: 2.2}],
+    ];
+    for (const [label, preprocess] of cases) {
+        agree(withModel({tensorContract: contract(preprocess)}), false, label);
+    }
+});
+
+test("a declared output contract is accepted exactly as the schema accepts it", () => {
+    agree(withModel({outputContract: {kind: "classification"}}), true, "kind only");
+    agree(
+        withModel({outputContract: {kind: "classification", topK: 5, labels: "labels.txt"}}),
+        true,
+        "full",
+    );
+    for (const kind of ["embedding", "raw"]) {
+        agree(withModel({outputContract: {kind}}), true, kind);
+    }
+
+    const cases = [
+        ["no kind", {topK: 5}],
+        ["unknown kind", {kind: "detection"}],
+        ["extra property", {kind: "raw", reduction: "mean"}],
+        ["topK zero", {kind: "classification", topK: 0}],
+        ["topK too large", {kind: "classification", topK: 101}],
+        ["topK fractional", {kind: "classification", topK: 1.5}],
+        ["labels uppercase", {kind: "classification", labels: "Labels.txt"}],
+        ["labels with a path", {kind: "classification", labels: "../labels.txt"}],
+        ["labels empty", {kind: "classification", labels: ""}],
+        ["labels not text", {kind: "classification", labels: 7}],
+        ["contract not an object", "classification"],
+    ];
+    for (const [label, outputContract] of cases) {
+        agree(withModel({outputContract}), false, label);
+    }
+});
+
+test("a model declaring neither contract is unchanged", () => {
+    // Every manifest written before either field still loads.
+    agree(Fixtures.validWorkloadManifest(), true, "no contracts");
+});

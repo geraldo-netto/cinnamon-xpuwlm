@@ -122,6 +122,7 @@ test("every validator allowlist names exactly the mirrored schema's properties",
     const requirements = mirrored.properties.requirements;
     const objects = {
         model,
+        outputContract: model.outputContract.properties,
         tensorContract: contract.properties,
         tensorInput: input.properties,
         preprocess: input.properties.preprocess.properties,

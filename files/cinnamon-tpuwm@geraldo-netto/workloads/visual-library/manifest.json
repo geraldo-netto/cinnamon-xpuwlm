@@ -47,6 +47,10 @@
             }
           }
         ]
+      },
+      "outputContract": {
+        "kind": "classification",
+        "topK": 5
       }
     }
   },

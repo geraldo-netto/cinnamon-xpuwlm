@@ -48,7 +48,14 @@ const MODEL_REQUIRED = Object.freeze([
 // `tensorContract` states what the model expects of its input. Optional for
 // the same reason `sha256` is: manifests written before the field exist, and
 // absent means the runtime checks nothing, exactly as it did.
-const MODEL_PROPERTIES = new Set([...MODEL_REQUIRED, "sha256", "tensorContract"]);
+const MODEL_PROPERTIES = new Set([
+    ...MODEL_REQUIRED, "sha256", "tensorContract", "outputContract",
+]);
+const OUTPUT_CONTRACT_REQUIRED = Object.freeze(["kind"]);
+const OUTPUT_CONTRACT_PROPERTIES = new Set([...OUTPUT_CONTRACT_REQUIRED, "topK", "labels"]);
+const OUTPUT_KINDS = new Set(["classification", "embedding", "raw"]);
+const LABELS_FILENAME = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
+const MAX_TOP_K = 100;
 const MODEL_DIGEST = /^[a-f0-9]{64}$/u;
 const TENSOR_CONTRACT_PROPERTIES = new Set(["inputs"]);
 const TENSOR_INPUT_REQUIRED = Object.freeze(["shape", "dtype"]);
@@ -171,6 +178,31 @@ function isTensorContract(value) {
         && value.inputs.every(isTensorInput);
 }
 
+function isTopK(value) {
+    return !declared(value, "topK")
+        || (Number.isInteger(value.topK) && value.topK >= 1 && value.topK <= MAX_TOP_K);
+}
+
+function isLabelsFilename(value) {
+    return !declared(value, "labels")
+        || (typeof value.labels === "string" && LABELS_FILENAME.test(value.labels));
+}
+
+function isOutputContract(value) {
+    return isRecord(value)
+        && boundedProperties(value, OUTPUT_CONTRACT_REQUIRED, OUTPUT_CONTRACT_PROPERTIES)
+        && OUTPUT_KINDS.has(value.kind)
+        && isTopK(value)
+        && isLabelsFilename(value);
+}
+
+// The two optional contracts, kept together so `isModel` stays readable and
+// so adding a third has one obvious place to go.
+function hasModelContracts(value) {
+    return (!declared(value, "tensorContract") || isTensorContract(value.tensorContract))
+        && (!declared(value, "outputContract") || isOutputContract(value.outputContract));
+}
+
 function isModel(value, accelerator) {
     if (value === null) {
         return true;
@@ -180,7 +212,7 @@ function isModel(value, accelerator) {
         && semanticVersion(value.version)
         && isModelFormat(value, accelerator)
         && isModelArtifact(value)
-        && (!declared(value, "tensorContract") || isTensorContract(value.tensorContract));
+        && hasModelContracts(value);
 }
 
 function hasRequirementProperties(value) {
@@ -511,6 +543,7 @@ class WorkloadDescriptor {
 
 const MANIFEST_ALLOWLISTS = Object.freeze({
     model: MODEL_PROPERTIES,
+    outputContract: OUTPUT_CONTRACT_PROPERTIES,
     tensorContract: TENSOR_CONTRACT_PROPERTIES,
     tensorInput: TENSOR_INPUT_PROPERTIES,
     preprocess: PREPROCESS_PROPERTIES,
