@@ -29,6 +29,9 @@ test("fuzz: manifest predicate stays equivalent to authoritative schema", () => 
         ["manifestVersion"], ["id"], ["version"], ["capabilities"],
         ["requirements", "runtimeApi"], ["requirements", "accelerator"],
         ["requirements", "minimumDevices"], ["requirements", "model"],
+        // Optional properties: JSON Schema treats an explicit `undefined` as
+        // absent, and the mirror has to agree in both directions.
+        ["requirements", "acceleratorPreference"], ["requirements", "model", "sha256"],
         ["ui", "title"], ["ui", "group"], ["ui", "description"], ["ui", "icon"],
         ["defaults", "enabled"], ["defaults", "weight"],
         ["pipeline", "hostResponsibilities"], ["acceptance"],

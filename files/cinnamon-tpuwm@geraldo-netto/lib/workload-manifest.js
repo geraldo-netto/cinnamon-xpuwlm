@@ -109,7 +109,7 @@ function isModelFormat(value, accelerator) {
 function isModelArtifact(value) {
     return boundedText(value.minimumCompilerVersion, 1, 80)
         && boundedText(value.minimumRuntimeVersion, 1, 80)
-        && (!Object.hasOwn(value, "sha256")
+        && (!declared(value, "sha256")
             || (boundedText(value.sha256, 64, 64) && MODEL_DIGEST.test(value.sha256)));
 }
 
@@ -145,7 +145,7 @@ function isRequirements(value) {
     return hasRequirementProperties(value)
         && value.runtimeApi === RUNTIME_API_VERSION
         && ACCELERATORS.has(value.accelerator)
-        && (!Object.hasOwn(value, "acceleratorPreference") || isAcceleratorPreference(value.acceleratorPreference))
+        && (!declared(value, "acceleratorPreference") || isAcceleratorPreference(value.acceleratorPreference))
         && hasBoundedMinimumDevices(value)
         && isModel(value.model, value.accelerator);
 }
@@ -372,7 +372,7 @@ function cloneManifest(manifest) {
         capabilities: [...manifest.capabilities],
         requirements: {
             ...manifest.requirements,
-            ...(Object.hasOwn(manifest.requirements, "acceleratorPreference")
+            ...(declared(manifest.requirements, "acceleratorPreference")
                 ? {acceleratorPreference: [...manifest.requirements.acceleratorPreference]}
                 : {}),
             model: manifest.requirements.model === null ? null : {...manifest.requirements.model},
@@ -392,7 +392,7 @@ function freezeManifest(manifest) {
     if (manifest.requirements.model !== null) {
         Object.freeze(manifest.requirements.model);
     }
-    if (Object.hasOwn(manifest.requirements, "acceleratorPreference")) {
+    if (declared(manifest.requirements, "acceleratorPreference")) {
         Object.freeze(manifest.requirements.acceleratorPreference);
     }
     Object.freeze(manifest.requirements);

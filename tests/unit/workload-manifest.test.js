@@ -177,6 +177,31 @@ test("a version 2 descriptor carries an immutable, independent plug-in subtree",
     assert.equal(Object.isFrozen(frozen.plugin.protocol), true);
 });
 
+test("an optional property explicitly set to undefined counts as absent", () => {
+    const cases = [
+        ["accelerator preference", (value) => { value.requirements.acceleratorPreference = undefined; }],
+        ["model digest", (value) => { value.requirements.model.sha256 = undefined; }],
+    ];
+    for (const [name, mutate] of cases) {
+        const value = Fixtures.validWorkloadManifest();
+        mutate(value);
+        assert.equal(Contract.isWorkloadManifest(value), true, name);
+        assert.equal(Boolean(oracle(value)), true, `${name}: schema`);
+        assert.doesNotThrow(() => new Contract.WorkloadDescriptor(value), name);
+    }
+
+    const plugin = Fixtures.validPluginWorkloadManifest();
+    plugin.plugin.protocol.capabilities = undefined;
+    assert.equal(Contract.isWorkloadManifest(plugin), true);
+    assert.equal(Boolean(oracle(plugin)), true);
+    const frozen = new Contract.WorkloadDescriptor(plugin).manifest();
+    assert.equal(frozen.plugin.protocol.capabilities, undefined);
+
+    assert.equal(Contract.declared({a: 1}, "a"), true);
+    assert.equal(Contract.declared({a: undefined}, "a"), false);
+    assert.equal(Contract.declared({}, "a"), false);
+});
+
 test("record uniqueness compares structure, not key order or identity", () => {
     assert.equal(Contract.uniqueItems([{a: 1, b: 2}, {b: 2, a: 1}]), false);
     assert.equal(Contract.uniqueItems([{a: 1}, {a: 2}]), true);
