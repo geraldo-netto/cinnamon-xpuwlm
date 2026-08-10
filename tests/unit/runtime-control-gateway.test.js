@@ -39,6 +39,32 @@ test("control gateway validates ports, commands, callbacks, and acknowledgements
     assert.throws(() => Gateway.parseAcknowledgement("{}"), /version 1 contract/u);
 });
 
+test("control gateway reports a guard refusal as a refusal, not a parse failure", () => {
+    const refusal = {
+        version: 1,
+        status: "rejected",
+        code: "rate-limit-exceeded",
+        message: "ApplyCommand allows 30 calls per 10s",
+        method: "ApplyCommand",
+    };
+    assert.throws(() => Gateway.parseAcknowledgement(JSON.stringify(refusal)), (error) => {
+        assert.equal(error.name, "RuntimeRefusedError");
+        assert.deepEqual(error.refusal, refusal);
+        return true;
+    });
+
+    const outcomes = [];
+    let callback;
+    const gateway = new Gateway.RuntimeControlGateway({
+        sendText: (_text, _options, complete) => { callback = complete; },
+    });
+    gateway.send(command, (...values) => outcomes.push(values));
+    callback(null, JSON.stringify(refusal));
+    assert.equal(outcomes.length, 1);
+    assert.equal(outcomes[0][0].code, "rate-limit-exceeded");
+    assert.equal(outcomes[0][1], null);
+});
+
 test("control gateway sends one sequenced cancellable command", () => {
     const requests = [];
     const cancellables = [];

@@ -689,7 +689,35 @@ msgid "The runtime service did not respond; the change was not applied"
 msgstr ""
 
 #: lib/manager.js
+msgid "The runtime service does not support this request; it may be an older version"
+msgstr ""
+
+#: lib/manager.js
+msgid "The runtime service has an invalid request quota; the change was not applied"
+msgstr ""
+
+#: lib/manager.js
+msgid "The runtime service is busy with other requests; retry shortly"
+msgstr ""
+
+#: lib/manager.js
 msgid "The runtime service is not running; the change was not applied"
+msgstr ""
+
+#: lib/manager.js
+msgid "The runtime service is rate limiting requests; wait and retry"
+msgstr ""
+
+#: lib/manager.js
+msgid "The runtime service rejected a request that asserts its own caller identity"
+msgstr ""
+
+#: lib/manager.js
+msgid "The runtime service rejected the request as malformed"
+msgstr ""
+
+#: lib/manager.js
+msgid "The runtime service rejected the request as too large"
 msgstr ""
 
 #: lib/view-model.js

@@ -29,6 +29,8 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "runtime-control-service.js",
     "runtime-command.schema.json",
     "runtime-acknowledgement.schema.json",
+    "runtime-refusal-contract.js",
+    "runtime-refusal.schema.json",
     "runtime-snapshot-schema-validator.js",
     "runtime-snapshot.schema.json",
     "settings-schema.json",
@@ -126,6 +128,7 @@ function validateJsonArtifacts() {
     const workloadSchema = readJson(appletRoot, "workload-manifest.schema.json");
     const commandSchema = readJson(appletRoot, "runtime-command.schema.json");
     const acknowledgementSchema = readJson(appletRoot, "runtime-acknowledgement.schema.json");
+    const refusalSchema = readJson(appletRoot, "runtime-refusal.schema.json");
     const packageJson = readJson(repositoryRoot, "package.json");
     const stryker = readJson(repositoryRoot, "stryker.config.json");
     const Domain = require(path.join(appletRoot, "lib/domain.js"));
@@ -143,6 +146,11 @@ function validateJsonArtifacts() {
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(workloadSchema));
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(commandSchema));
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(acknowledgementSchema));
+    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(refusalSchema));
+    assert.deepEqual(
+        refusalSchema.properties.code.enum,
+        [...require(path.join(appletRoot, "lib/runtime-refusal-contract.js")).REFUSAL_CODES],
+    );
     assert.equal(settings["show-panel-label"].default, false);
     assert.deepEqual(settings["profile-state"].default.profiles, {});
     assert.equal(schema.properties.metrics.properties.runningProfiles.maximum, Registry.MAX_WORKLOADS);

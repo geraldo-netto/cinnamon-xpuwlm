@@ -1,6 +1,7 @@
 "use strict";
 
 const Contract = require("./runtime-control-contract.js");
+const Refusal = require("./runtime-refusal-contract.js");
 
 function requirePorts(sendText, cancellableFactory) {
     if (typeof sendText !== "function") {
@@ -15,16 +16,22 @@ function parseAcknowledgement(text) {
     if (typeof text !== "string") {
         throw new TypeError("Runtime acknowledgement is not text");
     }
-    let acknowledgement;
+    let reply;
     try {
-        acknowledgement = JSON.parse(text);
+        reply = JSON.parse(text);
     } catch {
         throw new SyntaxError("Runtime acknowledgement contains invalid JSON");
     }
-    if (!Contract.isRuntimeAcknowledgement(acknowledgement)) {
+    // A guarded method answers with the transport refusal envelope in place of
+    // its acknowledgement, so the refusal is recognised before the
+    // acknowledgement contract can flatten it into "malformed reply".
+    if (Refusal.isRuntimeRefusal(reply)) {
+        throw new Refusal.RuntimeRefusedError(reply);
+    }
+    if (!Contract.isRuntimeAcknowledgement(reply)) {
         throw new TypeError("Runtime acknowledgement does not match version 1 contract");
     }
-    return acknowledgement;
+    return reply;
 }
 
 class RuntimeControlGateway {

@@ -7,6 +7,7 @@ const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js")
 const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
 const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
 const RuntimeControlService = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-service.js");
+const RuntimeRefusal = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-refusal-contract.js");
 const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
 const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
 const ManifestFixtures = require("../helpers/workload-manifest-fixtures.js");
@@ -509,4 +510,49 @@ test("control transport failures surface plain guidance, never raw D-Bus errors"
         "The runtime service could not apply the change",
     );
     assert.doesNotMatch(Manager.controlFailureText(new Error("GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown")), /GDBus/u);
+});
+
+test("every guard refusal code reaches the user as its own sentence", () => {
+    const rendered = new Set();
+    for (const code of RuntimeRefusal.REFUSAL_CODES) {
+        const error = new RuntimeRefusal.RuntimeRefusedError({
+            version: 1,
+            status: "rejected",
+            code,
+            message: `ApplyCommand refused: ${code}`,
+            method: "ApplyCommand",
+        });
+        const text = Manager.controlFailureText(error);
+        assert.equal(text, Manager.REFUSAL_TEXTS[code], code);
+        assert.equal(text.length > 0, true, code);
+        assert.notEqual(text, "The runtime service could not apply the change", code);
+        rendered.add(text);
+    }
+    assert.equal(rendered.size, RuntimeRefusal.REFUSAL_CODES.size);
+});
+
+test("a refused command surfaces its code and leaves the local policy untouched", () => {
+    const refusal = {
+        version: 1,
+        status: "rejected",
+        code: "rate-limit-exceeded",
+        message: "ApplyCommand allows 30 calls per 10s",
+        method: "ApplyCommand",
+    };
+    const {manager} = harness({
+        controlGateway: {
+            send: (_command, callback) => callback(
+                new RuntimeRefusal.RuntimeRefusedError(refusal),
+                null,
+            ),
+            cancel: () => false,
+        },
+    });
+    manager.start();
+    const before = manager.state().profiles.map((profile) => profile.enabled);
+    assert.equal(manager.toggleProfile("hardware-health"), true);
+    const after = manager.state();
+    assert.equal(after.control.pending, false);
+    assert.equal(after.control.message, Manager.REFUSAL_TEXTS["rate-limit-exceeded"]);
+    assert.deepEqual(after.profiles.map((profile) => profile.enabled), before);
 });

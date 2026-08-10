@@ -19,11 +19,7 @@ const ACKNOWLEDGEMENT_PROPERTIES = new Set([
 const PORTFOLIO_PROPERTIES = new Set(["paused", "profiles"]);
 const PROFILE_PROPERTIES = new Set(["enabled", "weight"]);
 
-function exactRecord(value, properties) {
-    return Domain.isPlainObject(value)
-        && Object.keys(value).length === properties.size
-        && Object.keys(value).every((name) => properties.has(name));
-}
+const exactRecord = Domain.exactRecord;
 
 function commandIdentity(value) {
     return typeof value === "string"

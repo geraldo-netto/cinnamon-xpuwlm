@@ -4,10 +4,11 @@ const Domain = require("./domain.js");
 const FailureReporter = require("./failure-reporter.js");
 const I18n = require("./i18n.js");
 const RuntimeControl = require("./runtime-control-contract.js");
+const RuntimeRefusal = require("./runtime-refusal-contract.js");
 const WorkloadReconciliation = require("./workload-reconciliation.js");
 const WorkloadRegistry = require("./workload-registry.js");
 
-const {_} = I18n;
+const {_, N_} = I18n;
 
 const TABS = Object.freeze(["overview", "profiles", "alerts"]);
 const TAB_SET = new Set(TABS);
@@ -25,9 +26,26 @@ function hasCatalogChanges(changes) {
     return changes.installed.length + changes.upgraded.length + changes.removed.length > 0;
 }
 
+// Per-caller quotas make a refusal an ordinary outcome, not an edge case, so
+// every refusal code gets its own sentence: "could not apply the change" tells
+// a rate-limited user nothing about waiting and retrying.
+const REFUSAL_TEXTS = Object.freeze({
+    "rate-limit-exceeded": N_("The runtime service is rate limiting requests; wait and retry"),
+    "concurrency-limit-exceeded": N_("The runtime service is busy with other requests; retry shortly"),
+    "payload-too-large": N_("The runtime service rejected the request as too large"),
+    "payload-invalid": N_("The runtime service rejected the request as malformed"),
+    "identity-asserted": N_("The runtime service rejected a request that asserts its own caller identity"),
+    "method-unknown": N_("The runtime service does not support this request; it may be an older version"),
+    "quota-invalid": N_("The runtime service has an invalid request quota; the change was not applied"),
+});
+
 // Transport failures reach the user as plain guidance; the raw error text
 // stays in the log where it belongs.
 function controlFailureText(error) {
+    const refusal = RuntimeRefusal.refusalOf(error);
+    if (refusal !== null) {
+        return _(REFUSAL_TEXTS[refusal.code]);
+    }
     const text = String(error);
     if (text.includes("ServiceUnknown") || text.includes("NameHasNoOwner")) {
         return _("The runtime service is not running; the change was not applied");
@@ -500,6 +518,7 @@ class WorkloadManager {
 
 module.exports = {
     NO_CATALOG_CHANGES,
+    REFUSAL_TEXTS,
     RUNTIME_READ_FAILURE,
     RUNTIME_CONTROL_FAILURE,
     controlFailureText,

@@ -55,6 +55,15 @@ function isPlainObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+// Closed-record check shared by every wire contract the applet mirrors: a
+// document carrying an unexpected key is a different document, not a tolerated
+// superset of the one that was agreed.
+function exactRecord(value, properties) {
+    return isPlainObject(value)
+        && Object.keys(value).length === properties.size
+        && Object.keys(value).every((name) => properties.has(name));
+}
+
 function finiteNumber(value, fallback) {
     return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
@@ -586,6 +595,7 @@ module.exports = {
     boundedNumber,
     clampWeight,
     defaultProfileState,
+    exactRecord,
     expireSnapshot,
     finiteNumber,
     health,
