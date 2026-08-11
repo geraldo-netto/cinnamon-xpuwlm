@@ -119,6 +119,22 @@ class FakeLabel extends FakeActor {
     }
 }
 
+class FakeEntry extends FakeActor {
+    constructor(properties = {}) {
+        super(properties);
+        this.text = properties.text || "";
+        this.clutter_text = {line_wrap: false, ellipsize: 0};
+    }
+
+    set_text(text) {
+        this.text = String(text);
+    }
+
+    get_text() {
+        return this.text;
+    }
+}
+
 class FakeButton extends FakeActor {
     click() {
         this.emit("clicked");
@@ -382,6 +398,7 @@ function createSt() {
         IconType: {SYMBOLIC: "symbolic"},
         BoxLayout: FakeActor,
         Label: FakeLabel,
+        Entry: FakeEntry,
         Button: FakeButton,
         Icon: FakeActor,
         ScrollView: FakeScrollView,
@@ -405,6 +422,7 @@ function findActors(root, predicate) {
 module.exports = {
     FakeActor,
     FakeButton,
+    FakeEntry,
     FakeLabel,
     FakeMenu,
     FakeMenuManager,

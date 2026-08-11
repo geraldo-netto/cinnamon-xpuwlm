@@ -134,7 +134,12 @@ function matched(pending, reply) {
 }
 
 class RuntimeJobGateway {
-    constructor({sendText, sendResultText = null, cancellableFactory = () => null}) {
+    constructor({
+        sendText,
+        sendResultText = null,
+        sendCancelText = null,
+        cancellableFactory = () => null,
+    }) {
         requirePorts(sendText, cancellableFactory);
         this._submissions = new Channel(sendText, cancellableFactory);
         // Absent against a runtime that has no result method to call: the
@@ -143,6 +148,9 @@ class RuntimeJobGateway {
         this._results = sendResultText === null
             ? null
             : new Channel(sendResultText, cancellableFactory);
+        this._cancellations = sendCancelText === null
+            ? null
+            : new Channel(sendCancelText, cancellableFactory);
     }
 
     get pollable() {
@@ -179,13 +187,30 @@ class RuntimeJobGateway {
         );
     }
 
+    cancelJob(request, callback) {
+        if (typeof callback !== "function") {
+            throw new TypeError("A job cancellation callback is required");
+        }
+        if (this._cancellations === null) {
+            throw new TypeError("This runtime job gateway cannot cancel jobs");
+        }
+        const cancellation = Job.jobCancelRequest(request);
+        return this._cancellations.send(
+            cancellation.requestId,
+            JSON.stringify(cancellation),
+            parseJobAcknowledgement,
+            callback,
+        );
+    }
+
     cancelResult() {
         return this._results === null ? false : this._results.cancel();
     }
 
     cancel() {
         const results = this.cancelResult();
-        return this._submissions.cancel() || results;
+        const cancellations = this._cancellations === null ? false : this._cancellations.cancel();
+        return this._submissions.cancel() || results || cancellations;
     }
 }
 

@@ -4,7 +4,6 @@
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0050 | open | high | l | OMNI-0234 | event-extraction UX: once OmniTensor exposes the grounded workload, add an explicit user-invoked file/folder chooser, bounded progress and cancellation, editable evidence-backed event preview/deduplication, and explicit confirmation before ICS/calendar export. Default the large model to GPU; offer NPU preference only after the user installs/configures a qualified NPU variant, retain GPU as its admission/load fallback, and never offer CPU. Never scan automatically, send content through the public snapshot, or represent source-only/model-unavailable states as a runnable importer. |
 | XTPU-0051 | open | medium | s | — | Profile-management disclosure wording: the footer's “Manage profiles” action opens the correct online screen, but eight readiness-blocked rows start collapsed behind the ambiguous label “Not available (8)”, which reads like a panel/service outage. Rename it to “Needs setup”, make the footer action expand it, preserve explicit disclosure control, focus, and Setup remedies, and add regression/visual/accessibility coverage. |
 
 ## Blocked

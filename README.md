@@ -28,8 +28,9 @@ or a substitute for each workload's hardware and model acceptance evidence.
 > the client foundations are implemented. End-to-end inference requires a
 > compatible runtime service, matching hardware and runtime packages,
 > configured input roots, and exact
-> model artifacts. Most built-in profiles are readiness-gated; low-light
-> enhancement and event extraction are not operational workloads.
+> model artifacts. Most built-in profiles are readiness-gated. Event extraction
+> becomes available only when a compatible external provider is installed,
+> configured, qualified, and reported ready by the live runtime inventory.
 
 The project began as an Edge TPU integration, so the evidence and use-case
 catalog below retain detailed Coral coverage. Those hardware-specific terms
@@ -56,6 +57,7 @@ This document is application-neutral. It explains the hardware and software boun
 
 - Product artifacts
   - [Cinnamon applet](docs/applet.md) — current behavior, runtime boundary, quality gates, and installation
+  - [Private event import](docs/event-import.md) — supported sources, readiness, review, and safe export
   - [Reference UI/interaction design](design/prototype/DESIGN.md) — approved prototype rationale and states; not the live implementation
   - [Consolidated workload profiles](design/prototype/WORKLOADS.md)
   - [Prototype screen gallery](design/prototype/mockup/screens/all-screens.png)

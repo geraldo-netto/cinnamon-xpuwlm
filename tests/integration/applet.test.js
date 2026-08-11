@@ -137,6 +137,16 @@ test("workload catalog resolver projects only the injected registry", () => {
     assert.throws(() => AppletModule.resolveWorkloadCatalog(null), /registry/u);
 });
 
+test("missing GTK ports fail explicitly without opening or overwriting anything", () => {
+    const ports = AppletModule.unavailableEventFilePorts();
+    const errors = [];
+    ports.picker.chooseFiles((error) => errors.push(error));
+    ports.picker.chooseFolder((error) => errors.push(error));
+    ports.exporter.saveIcs("calendar", ["/source"], (error) => errors.push(error));
+    assert.equal(errors.length, 3);
+    assert.equal(errors.every((error) => /unavailable/u.test(String(error))), true);
+});
+
 function liveState(overrides = {}) {
     return {
         selectedTab: "overview",
@@ -301,6 +311,129 @@ test("menu actions delegate without mixing responsibilities", () => {
         ["acknowledgeCatalogChanges"],
     ]);
     assert.equal(spawned.at(-1), `cinnamon-settings applets ${AppletModule.UUID}`);
+});
+
+test("event import is gated by live plug-in readiness and actions stay local", () => {
+    const calls = [];
+    const eventImport = {
+        workflow: {
+            available: false,
+            availabilityDetail: "Event provider is not ready",
+            phase: "idle",
+            selectionKind: "",
+            sources: [],
+            jobId: "",
+            progress: null,
+            message: "",
+            candidates: [],
+            duplicatesDropped: 0,
+            exportedPath: "",
+        },
+        state() { return {...this.workflow}; },
+        subscribe(listener) { this.listener = listener; return () => calls.push(["event-unsubscribe"]); },
+        setAvailability(available, detail) {
+            this.workflow.available = available;
+            this.workflow.availabilityDetail = detail;
+            if (this.listener) {
+                this.listener();
+            }
+        },
+        chooseFiles() { calls.push(["chooseFiles"]); },
+        chooseFolder() { calls.push(["chooseFolder"]); },
+        start() { calls.push(["start"]); },
+        cancel() { calls.push(["cancel"]); },
+        edit(id, patch) { calls.push(["edit", id, patch]); },
+        decide(id, decision) { calls.push(["decide", id, decision]); },
+        beginExport() { calls.push(["beginExport"]); },
+        confirmExport() { calls.push(["confirmExport"]); },
+        backToPreview() { calls.push(["backToPreview"]); },
+        reset() { calls.push(["reset"]); },
+        dispose() { calls.push(["dispose"]); },
+    };
+    const readyPlugin = {
+        id: "event-extraction", version: "1", source: "external", distribution: "provider",
+        workerState: "ready",
+        protocol: {minimum: 1, maximum: 1, capabilities: ["execute"]},
+        triggers: ["manual"], artifacts: [],
+        permissions: [{name: "files:read-selected", granted: true}],
+        configurationSchema: {}, secretConfigurationKeys: [],
+    };
+    const inventoryGateway = {
+        describes: 0,
+        describe(callback) {
+            this.describes += 1;
+            callback(null, {version: 1, generatedAt: 1, plugins: [readyPlugin]});
+            return true;
+        },
+        cancel() { calls.push(["inventory-cancel"]); },
+    };
+    const {applet, views, menus} = appletHarness({
+        eventImportController: eventImport,
+        pluginInventoryGateway: inventoryGateway,
+    });
+
+    assert.equal(views[0].models.at(-1).eventImport.available, true);
+    assert.equal(inventoryGateway.describes, 1);
+    const actions = applet._menuActions();
+    actions.chooseEventFiles();
+    actions.chooseEventFolder();
+    actions.startEventImport();
+    actions.cancelEventImport();
+    actions.editEventCandidate("event-1", {title: "Edited"});
+    actions.decideEventCandidate("event-1", "confirmed");
+    actions.beginEventExport();
+    actions.confirmEventExport();
+    actions.backEventPreview();
+    actions.resetEventImport();
+    assert.deepEqual(calls.slice(0, 10), [
+        ["chooseFiles"], ["chooseFolder"], ["start"], ["cancel"],
+        ["edit", "event-1", {title: "Edited"}], ["decide", "event-1", "confirmed"],
+        ["beginExport"], ["confirmExport"], ["backToPreview"], ["reset"],
+    ]);
+
+    menus[0].emit("open-state-changed", true);
+    assert.equal(inventoryGateway.describes, 2, "opening the popup refreshes readiness");
+    const latest = applet._latestState;
+    applet._latestState = null;
+    assert.doesNotThrow(() => eventImport.listener());
+    applet._latestState = latest;
+    assert.equal(applet._teardown(), true);
+    assert.deepEqual(calls.slice(-3), [
+        ["event-unsubscribe"], ["inventory-cancel"], ["dispose"],
+    ]);
+});
+
+test("event readiness transport failures fail closed and late replies are ignored", () => {
+    let reply = null;
+    const pendingGateway = {
+        describe(callback) { reply = callback; return true; },
+        cancel() {},
+    };
+    const pending = appletHarness({pluginInventoryGateway: pendingGateway});
+    reply(new Error("offline"), null);
+    assert.equal(pending.applet._eventImport.state().available, false);
+    assert.equal(pending.applet._eventImport.state().availabilityDetail, "Event provider is not ready");
+    pending.applet._teardown();
+    const readyAfterTeardown = {
+        id: "event-extraction", version: "1", source: "external", distribution: "provider",
+        workerState: "ready",
+        protocol: {minimum: 1, maximum: 1, capabilities: ["execute"]},
+        triggers: ["manual"], artifacts: [],
+        permissions: [{name: "files:read-selected", granted: true}],
+        configurationSchema: {}, secretConfigurationKeys: [],
+    };
+    assert.doesNotThrow(() => reply(null, {version: 1, generatedAt: 1, plugins: [readyAfterTeardown]}));
+    assert.equal(pending.applet._eventImport.state().available, false);
+    assert.equal(pending.applet._refreshEventAvailability(), false);
+
+    const thrown = appletHarness({
+        pluginInventoryGateway: {
+            describe() { throw new Error("no bus"); },
+            cancel() {},
+        },
+    });
+    assert.equal(thrown.applet._refreshEventAvailability(), false);
+    assert.equal(thrown.applet._eventImport.state().available, false);
 });
 
 test("polling refresh remains cacheable while manual refresh requests fresh detection", () => {

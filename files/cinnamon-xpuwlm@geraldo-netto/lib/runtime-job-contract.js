@@ -52,6 +52,7 @@ const REFERENCE_PROPERTIES = new Set(["path", "shape", "dtype", "sha256"]);
 const REFERENCE_REQUIRED = Object.freeze([...REFERENCE_PROPERTIES]);
 
 const RESULT_REQUEST_PROPERTIES = new Set(["version", "requestId", "jobId"]);
+const CANCEL_REQUEST_PROPERTIES = new Set(["version", "requestId", "jobId"]);
 const RESULT_PROPERTIES = new Set([
     "version", "requestId", "jobId", "state", "code", "message", "timestamp",
     "progress", "output",
@@ -230,6 +231,16 @@ function jobResultRequest({requestId, jobId}) {
     return request;
 }
 
+function jobCancelRequest({requestId, jobId}) {
+    const request = {version: JOB_VERSION, requestId, jobId};
+    if (!exactRecord(request, CANCEL_REQUEST_PROPERTIES)
+        || !isRequestId(requestId)
+        || !isJobId(jobId)) {
+        throw new TypeError("Job cancellation request does not match the version 1 contract");
+    }
+    return request;
+}
+
 // A submission the applet builds, ready to be stringified. Built here rather
 // than at the call site so the one place that knows the envelope is the one
 // place that validates it.
@@ -312,6 +323,7 @@ const JOB_CONTRACT_ALLOWLISTS = Object.freeze({
     acknowledgement: ACKNOWLEDGEMENT_PROPERTIES,
     reference: REFERENCE_PROPERTIES,
     resultRequest: RESULT_REQUEST_PROPERTIES,
+    cancelRequest: CANCEL_REQUEST_PROPERTIES,
     result: RESULT_PROPERTIES,
     progress: PROGRESS_PROPERTIES,
 });
@@ -319,6 +331,7 @@ const JOB_CONTRACT_ALLOWLISTS = Object.freeze({
 module.exports = {
     ACKNOWLEDGEMENT_PROPERTIES,
     ACKNOWLEDGEMENT_STATUSES,
+    CANCEL_REQUEST_PROPERTIES,
     FORECAST_READING_PROPERTIES,
     MAX_FORECAST_HORIZON,
     MAX_FORECAST_TARGET_LENGTH,
@@ -354,6 +367,7 @@ module.exports = {
     isRequestId,
     isShape,
     isWorkloadId,
+    jobCancelRequest,
     jobResultRequest,
     jobSubmission,
     readingOf,

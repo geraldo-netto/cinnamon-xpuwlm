@@ -25,7 +25,9 @@ test("public README defines the applet and XPU boundary without readiness overcl
         "early preview (`0.1.0`)",
         "no CPU scheduling backend",
         "The host CPU still performs ordinary application work",
-        "low-light enhancement and event extraction are not operational workloads",
+        "Most built-in profiles are readiness-gated",
+        "Event extraction becomes available only when a compatible external provider is installed",
+        "reported ready by the live runtime inventory",
     ]) {
         assert.ok(compact.includes(statement), `README omits: ${statement}`);
     }

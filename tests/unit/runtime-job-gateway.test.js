@@ -351,3 +351,66 @@ describe("asking what became of a job", () => {
         assert.throws(() => Gateway.parseJobResult(jobResult({state: "queued"})), TypeError);
     });
 });
+
+describe("cancelling a runtime job", () => {
+    function cancelHarness({reply = acknowledgement({requestId: "xpuwlm-cancel-1"})} = {}) {
+        const calls = [];
+        const gateway = new Gateway.RuntimeJobGateway({
+            sendText() {},
+            sendCancelText(text, options, callback) {
+                calls.push({text, options});
+                callback(null, reply);
+            },
+        });
+        return {gateway, calls};
+    }
+
+    it("sends the closed cancellation envelope and validates its acknowledgement", () => {
+        const {gateway, calls} = cancelHarness();
+        let received = null;
+
+        gateway.cancelJob({requestId: "xpuwlm-cancel-1", jobId: "job-1"}, (error, reply) => {
+            received = {error, reply};
+        });
+
+        assert.deepEqual(JSON.parse(calls[0].text), {
+            version: 1,
+            requestId: "xpuwlm-cancel-1",
+            jobId: "job-1",
+        });
+        assert.equal(received.error, null);
+        assert.equal(received.reply.status, "accepted");
+    });
+
+    it("refuses invalid input, an absent channel, and mismatched replies", () => {
+        const {gateway, calls} = cancelHarness({
+            reply: acknowledgement({requestId: "xpuwlm-other-1"}),
+        });
+        let error = null;
+
+        assert.throws(() => gateway.cancelJob({requestId: "bad id", jobId: "job-1"}, () => {}), TypeError);
+        assert.throws(() => gateway.cancelJob({requestId: "xpuwlm-1", jobId: "job-1"}, null), TypeError);
+        gateway.cancelJob({requestId: "xpuwlm-cancel-1", jobId: "job-1"}, (seen) => {
+            error = seen;
+        });
+        assert.ok(RuntimeControl.isContractViolation(error));
+        assert.equal(calls.length, 1);
+
+        const unavailable = new Gateway.RuntimeJobGateway({sendText() {}});
+        assert.throws(
+            () => unavailable.cancelJob({requestId: "xpuwlm-1", jobId: "job-1"}, () => {}),
+            /cannot cancel jobs/u,
+        );
+    });
+
+    it("includes the independent cancellation channel in aggregate cancellation", () => {
+        const gateway = new Gateway.RuntimeJobGateway({
+            sendText() {},
+            sendCancelText() {},
+        });
+        assert.equal(gateway.cancel(), false);
+        gateway.cancelJob({requestId: "xpuwlm-cancel-1", jobId: "job-1"}, () => {});
+        assert.equal(gateway.cancel(), true);
+        assert.equal(gateway.cancel(), false);
+    });
+});

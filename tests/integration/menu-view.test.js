@@ -44,7 +44,13 @@ function harness() {
     const calls = [];
     const tooltips = [];
     const actions = {};
-    for (const name of ["selectTab", "toggleProfile", "changeWeight", "pauseAll", "resumeAll", "refresh", "openSettings", "acknowledgeCatalogChanges", "submitJob"]) {
+    for (const name of [
+        "selectTab", "toggleProfile", "changeWeight", "pauseAll", "resumeAll", "refresh",
+        "openSettings", "acknowledgeCatalogChanges", "submitJob", "chooseEventFiles",
+        "chooseEventFolder", "startEventImport", "cancelEventImport", "editEventCandidate",
+        "decideEventCandidate", "beginEventExport", "confirmEventExport", "backEventPreview",
+        "resetEventImport",
+    ]) {
         actions[name] = (...args) => calls.push([name, ...args]);
     }
     const menu = new FakeMenu();
@@ -63,8 +69,50 @@ function harness() {
     return {calls, menu, tooltips, view, root: menu.actors[0]};
 }
 
+function eventWorkflow(overrides = {}) {
+    return {
+        available: true,
+        availabilityDetail: "",
+        phase: "idle",
+        selectionKind: "",
+        sources: [],
+        jobId: "",
+        progress: null,
+        message: "",
+        candidates: [],
+        duplicatesDropped: 0,
+        exportedPath: "",
+        ...overrides,
+    };
+}
+
+function eventCandidate(overrides = {}) {
+    return {
+        candidateId: "event-1",
+        title: "Planning review",
+        start: "2026-08-11T10:00:00+02:00",
+        end: "2026-08-11T11:00:00+02:00",
+        timezone: "Europe/Rome",
+        location: "Studio",
+        confirmation: "pending",
+        evidence: [{
+            sourceRef: "private:job:source:1:page:2",
+            sourceSha256: "a".repeat(64),
+            page: 2,
+            span: {start: 12, end: 40},
+            textSha256: "b".repeat(64),
+        }],
+        ...overrides,
+    };
+}
+
 function button(root, accessibleName) {
     return findActors(root, (actor) => actor instanceof FakeButton && actor.accessibleName === accessibleName)[0];
+}
+
+function identities(root) {
+    return findActors(root, (actor) => typeof actor.xpuwlmIdentity === "string")
+        .map((actor) => actor.xpuwlmIdentity);
 }
 
 // A profile the runtime cannot execute names the reason in its toggle, so the
@@ -154,6 +202,310 @@ test("profiles screen offers weight and enable controls", () => {
     const maximum = button(root, "Increase Hardware health weight");
     assert.equal(maximum.reactive, false);
     assert.equal(maximum.can_focus, false);
+});
+
+test("event import stays hidden until live readiness and starts from explicit selection", () => {
+    const {calls, view, root} = harness();
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        eventImport: eventWorkflow({available: false, availabilityDetail: "Provider missing"}),
+    }), NOW));
+    assert.equal(button(root, "Choose event source files"), undefined);
+
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        eventImport: eventWorkflow({
+            available: false,
+            availabilityDetail: "Configure and qualify an event model provider",
+            phase: "error",
+            message: "Provider setup is incomplete",
+        }),
+    }), NOW));
+    assert.equal(findActors(root, (actor) => actor.text === "Configure and qualify an event model provider").length, 1);
+    assert.equal(button(root, "Choose event source files").reactive, false);
+
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        eventImport: eventWorkflow(),
+    }), NOW));
+    button(root, "Choose event source files").click();
+    button(root, "Choose one event source folder").click();
+    assert.deepEqual(calls, [["chooseEventFiles"], ["chooseEventFolder"]]);
+
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        eventImport: eventWorkflow({
+            phase: "selected",
+            sources: [{path: "/private/notes.txt", name: "notes.txt", size: 12, regular: true, symlink: false}],
+        }),
+    }), NOW));
+    assert.equal(findActors(root, (actor) => actor.text === "notes.txt").length, 1);
+    button(root, "Extract events from selected files").click();
+    assert.deepEqual(calls.at(-1), ["startEventImport"]);
+});
+
+test("event preview exposes grounded evidence, labelled edits, decisions, and confirmation", () => {
+    const {calls, view, root} = harness();
+    const source = {path: "/private/notes.pdf", name: "notes.pdf", size: 12, regular: true, symlink: false};
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        eventImport: eventWorkflow({
+            phase: "preview",
+            sources: [source],
+            candidates: [eventCandidate({confirmation: "confirmed"})],
+        }),
+    }), NOW));
+
+    for (const label of ["Title", "Starts", "Ends", "Timezone", "Location"]) {
+        assert.equal(findActors(root, (actor) => actor.text === label).length, 1, label);
+    }
+    assert.equal(findActors(root, (actor) => /notes\.pdf · page 2 · characters 12–40/u.test(actor.text)).length, 1);
+    const title = findActors(root, (actor) => actor.xpuwlmIdentity === "event-title:event-1")[0];
+    title.set_text("Edited planning review");
+    button(root, "Apply edits to Planning review").click();
+    button(root, "Keep Planning review").click();
+    button(root, "Reject Planning review").click();
+    button(root, "Review confirmed events before export").click();
+    assert.equal(calls[0][0], "editEventCandidate");
+    assert.equal(calls[0][2].title, "Edited planning review");
+    assert.equal(calls[0][2].end, "2026-08-11T11:00:00+02:00");
+    assert.equal(calls[0][2].location, "Studio");
+    assert.deepEqual(calls.slice(1), [
+        ["decideEventCandidate", "event-1", "confirmed"],
+        ["decideEventCandidate", "event-1", "rejected"],
+        ["beginEventExport"],
+    ]);
+
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        eventImport: eventWorkflow({
+            phase: "confirm-export",
+            sources: [source],
+            candidates: [eventCandidate({confirmation: "confirmed"})],
+        }),
+    }), NOW));
+    assert.equal(findActors(root, (actor) => /No source file is changed or removed/u.test(actor.text)).length, 1);
+    button(root, "Confirm and write a new calendar file").click();
+    button(root, "Return to event preview").click();
+    assert.deepEqual(calls.slice(-2), [["confirmEventExport"], ["backEventPreview"]]);
+});
+
+test("event progress is cancellable and decisions are announced without color alone", () => {
+    const {calls, view, root} = harness();
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        eventImport: eventWorkflow({
+            phase: "running",
+            progress: {fraction: 0.5, detail: "Reading sources"},
+            message: "Working",
+        }),
+    }), NOW));
+    assert.equal(findActors(root, (actor) => /50% · Reading sources/u.test(actor.text)).length, 1);
+    button(root, "Cancel event extraction").click();
+    assert.deepEqual(calls, [["cancelEventImport"]]);
+
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        eventImport: eventWorkflow({
+            phase: "preview",
+            sources: [{path: "/a.txt", name: "a.txt", size: 1, regular: true, symlink: false}],
+            candidates: [eventCandidate({confirmation: "confirmed"})],
+        }),
+    }), NOW));
+    const keep = button(root, "Keep Planning review");
+    assert.equal(keep.accessibleRole, "toggle-button");
+    assert.equal(keep.accessibleStates.has("checked"), true);
+    assert.equal(button(root, "Reject Planning review").accessibleStates.has("checked"), false);
+
+    const nullable = eventCandidate({
+        candidateId: "event-2",
+        end: null,
+        location: null,
+        evidence: [{
+            ...eventCandidate().evidence[0],
+            sourceRef: "private:job:source:1",
+            page: null,
+        }],
+    });
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        eventImport: eventWorkflow({
+            phase: "preview",
+            sources: [{path: "/a.txt", name: "a.txt", size: 1, regular: true, symlink: false}],
+            candidates: [nullable],
+            duplicatesDropped: 2,
+        }),
+    }), NOW));
+    assert.equal(findActors(root, (actor) => actor.text === "2 duplicates removed").length, 1);
+    assert.equal(findActors(root, (actor) => actor.text === "Decide whether to keep or reject every candidate").length, 1);
+    assert.equal(findActors(root, (actor) => actor.text === "Evidence: a.txt · characters 12–40").length, 1);
+    assert.equal(findActors(root, (actor) => actor.xpuwlmIdentity === "event-end:event-2")[0].get_text(), "");
+    assert.equal(findActors(root, (actor) => actor.xpuwlmIdentity === "event-location:event-2")[0].get_text(), "");
+    button(root, "Apply edits to Planning review").click();
+    assert.equal(calls.at(-1)[0], "editEventCandidate");
+    assert.equal(calls.at(-1)[2].end, null);
+    assert.equal(calls.at(-1)[2].location, null);
+});
+
+test("event render helpers preserve exact phase structure and return contracts", () => {
+    assert.equal(Menu.optionalAction(null, "missing")(), false);
+    assert.equal(Menu.optionalAction({}, "missing")(), false);
+    assert.equal(Menu.optionalAction({run: (value) => value + 1}, "run")(2), 3);
+
+    const projected = (workflow) => ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        eventImport: workflow,
+    }), NOW).eventImport;
+    const idle = projected(eventWorkflow());
+    const unavailable = {
+        ...projected(eventWorkflow({available: false, phase: "error", message: "setup"})),
+        availabilityDetail: "",
+    };
+
+    {
+        const {view} = harness();
+        view._layout = {...view._layout, wrapText: true};
+        view._body = new FakeActor();
+        assert.equal(view._renderEventImport(null), false);
+        assert.equal(view._renderEventImport(undefined), false);
+        assert.equal(view._renderEventImport(idle), true);
+        assert.equal(findActors(view._body, (actor) => actor.styleClasses.has("xpuwlm-event-message")).length, 0);
+        assert.equal(findActors(view._body, (actor) => actor.styleClasses.has("xpuwlm-event-progress")).length, 0);
+        assert.deepEqual(identities(view._body), ["event-choose-files", "event-choose-folder"]);
+        view._body = new FakeActor();
+        const running = projected(eventWorkflow({
+            phase: "running",
+            message: "Working",
+            progress: {fraction: 0.5, detail: "Reading"},
+        }));
+        assert.equal(view._renderEventImport(running), true);
+        assert.equal(findActors(view._body, (actor) => actor.text === "Working")[0].clutter_text.line_wrap, true);
+        assert.equal(findActors(view._body, (actor) => actor.text === "50% · Reading")[0]
+            .clutter_text.line_wrap, true);
+        assert.equal(findActors(view._body, (actor) => actor.text === "Confirm calendar export").length, 0);
+    }
+    {
+        const {view} = harness();
+        view._layout = {...view._layout, wrapText: true};
+        view._body = new FakeActor();
+        assert.equal(view._renderEventSources(unavailable), false);
+        const note = findActors(view._body, (actor) => actor.text === "A qualified event model is not configured")[0];
+        assert.equal(note.clutter_text.line_wrap, true);
+        const availableNoSources = {...idle, sources: []};
+        view._body = new FakeActor();
+        assert.equal(view._renderEventSources(availableNoSources), false);
+        assert.equal(findActors(view._body, (actor) => actor.styleClasses.has("xpuwlm-run-note")).length, 0);
+    }
+    {
+        const {view} = harness();
+        view._layout = {...view._layout, wrapText: true};
+        view._body = new FakeActor();
+        const selected = projected(eventWorkflow({
+            phase: "selected",
+            message: "Sources selected",
+            sources: [
+                {path: "/a.txt", name: "a.txt", size: 1, regular: true, symlink: false},
+                {path: "/b.txt", name: "b.txt", size: 1, regular: true, symlink: false},
+            ],
+        }));
+        assert.equal(view._renderEventImport(selected), true);
+        assert.deepEqual(
+            findActors(view._body, (actor) => actor.styleClasses.has("xpuwlm-event-source")).map((actor) => actor.text),
+            ["a.txt", "b.txt"],
+        );
+        assert.equal(findActors(view._body, (actor) => actor.text === "2 files").length, 1);
+        assert.equal(findActors(view._body, (actor) => actor.text === "Sources selected")[0].clutter_text.line_wrap, true);
+        assert.deepEqual(identities(view._body), ["event-choose-files", "event-choose-folder", "event-start"]);
+    }
+});
+
+test("event preview and confirmation render only grounded consequential content", () => {
+    const source = {path: "/a.txt", name: "a.txt", size: 1, regular: true, symlink: false};
+    const pending = eventCandidate({candidateId: "pending"});
+    const kept = eventCandidate({candidateId: "kept", title: "Kept event", confirmation: "confirmed"});
+    const rejected = eventCandidate({candidateId: "rejected", title: "Rejected event", confirmation: "rejected"});
+    const projected = (phase, candidates, overrides = {}) => ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        eventImport: eventWorkflow({phase, sources: [source], candidates, ...overrides}),
+    }), NOW).eventImport;
+
+    const {view} = harness();
+    view._layout = {...view._layout, wrapText: true};
+    view._body = new FakeActor();
+    const preview = projected("preview", [pending, kept, rejected], {duplicatesDropped: 0});
+    assert.equal(view._renderEventPreview(preview), true);
+    assert.equal(findActors(view._body, (actor) => actor.styleClasses.has("xpuwlm-event-dedup")).length, 0);
+    assert.equal(findActors(view._body, (actor) => actor.styleClasses.has("xpuwlm-event-card")).length, 3);
+    assert.equal(findActors(view._body, (actor) => actor.styleClasses.has("xpuwlm-event-card"))[0].vertical, true);
+    assert.equal(findActors(view._body, (actor) => actor.styleClasses.has("xpuwlm-event-field"))[0].vertical, true);
+    assert.equal(findActors(view._body, (actor) => actor.styleClasses.has("xpuwlm-event-evidence"))[0]
+        .clutter_text.line_wrap, true);
+    assert.equal(findActors(view._body, (actor) => actor.styleClasses.has("xpuwlm-run-note")).length, 1);
+
+    view._body = new FakeActor();
+    const decided = projected("preview", [kept, rejected]);
+    assert.equal(view._renderEventPreview(decided), true);
+    assert.equal(findActors(view._body, (actor) => actor.styleClasses.has("xpuwlm-run-note")).length, 0);
+
+    view._body = new FakeActor();
+    const confirm = projected("confirm-export", [kept, rejected]);
+    assert.equal(view._renderEventConfirmation(confirm), true);
+    assert.equal(findActors(view._body, (actor) => typeof actor.text === "string"
+        && actor.text.startsWith("Kept event · ")).length, 1);
+    assert.equal(findActors(view._body, (actor) => typeof actor.text === "string"
+        && actor.text.startsWith("Rejected event · ")).length, 0);
+    assert.equal(findActors(view._body, (actor) => actor.styleClasses.has("xpuwlm-event-confirmation"))[0]
+        .clutter_text.line_wrap, true);
+    assert.equal(findActors(view._body, (actor) => actor.styleClasses.has("xpuwlm-event-confirmed"))[0]
+        .clutter_text.line_wrap, true);
+});
+
+test("event action matrix and editable fields pin enablement and accessibility", () => {
+    const {view} = harness();
+    const base = {
+        available: true,
+        chooserEnabled: true,
+        startEnabled: false,
+        cancelEnabled: false,
+        exportRefusal: "",
+        complete: false,
+    };
+    const cases = [
+        ["idle", {}, ["event-choose-files", "event-choose-folder"]],
+        ["selected", {startEnabled: true}, ["event-choose-files", "event-choose-folder", "event-start"]],
+        ["submitting", {cancelEnabled: true}, ["event-cancel"]],
+        ["running", {cancelEnabled: true}, ["event-cancel"]],
+        ["preview", {}, ["event-choose-files", "event-choose-folder", "event-review-export"]],
+        ["confirm-export", {}, ["event-confirm-export", "event-back-preview"]],
+        ["complete", {complete: true}, ["event-choose-files", "event-choose-folder", "event-reset"]],
+        ["error", {}, ["event-choose-files", "event-choose-folder"]],
+        ["exporting", {}, []],
+    ];
+    for (const [phase, overrides, expected] of cases) {
+        view._body = new FakeActor();
+        assert.equal(view._renderEventActions({...base, phase, ...overrides}), true, phase);
+        assert.deepEqual(identities(view._body), expected, phase);
+        for (const actor of findActors(view._body, (candidate) => expected.includes(candidate.xpuwlmIdentity))) {
+            assert.equal(actor.reactive, true, `${phase}:${actor.xpuwlmIdentity}`);
+            assert.equal(actor.can_focus, true, `${phase}:${actor.xpuwlmIdentity}`);
+            assert.equal(actor.accessibleStates.has("sensitive"), true, `${phase}:${actor.xpuwlmIdentity}`);
+        }
+    }
+
+    view._body = new FakeActor();
+    view._renderEventActions({...base, phase: "preview", exportRefusal: "Decide first"});
+    const refused = findActors(view._body, (actor) => actor.xpuwlmIdentity === "event-review-export")[0];
+    assert.equal(refused.reactive, false);
+    assert.equal(refused.can_focus, false);
+    assert.equal(refused.styleClasses.has("xpuwlm-button-disabled"), true);
+    assert.equal(refused.accessibleStates.has("sensitive"), false);
+
+    const entry = view._entry(null, "Empty event title", "event-title:empty");
+    assert.equal(entry.text, "");
+    assert.equal(entry.can_focus, true);
+    assert.equal(entry.styleClasses.has("xpuwlm-event-entry"), true);
+    assert.equal(entry.accessibleName, "Empty event title");
+    assert.equal(entry.xpuwlmIdentity, "event-title:empty");
 });
 
 test("pending runtime control is announced and disables policy controls", () => {

@@ -1,6 +1,7 @@
 "use strict";
 
 const Domain = require("./domain.js");
+const EventImport = require("./event-import.js");
 const I18n = require("./i18n.js");
 const Job = require("./runtime-job-contract.js");
 const Manager = require("./manager.js");
@@ -551,6 +552,61 @@ function runModel(state) {
     };
 }
 
+function evidenceText(evidence, sources) {
+    const page = evidence.page === null ? "" : format(_(" · page %d"), evidence.page);
+    return format(
+        _("Evidence: %s%s · characters %d–%d"),
+        EventImport.sourceLabel(evidence, sources),
+        page,
+        evidence.span.start,
+        evidence.span.end,
+    );
+}
+
+function eventCandidateModel(candidate, sources) {
+    return {
+        ...candidate,
+        endText: candidate.end === null ? "" : candidate.end,
+        locationText: candidate.location === null ? "" : candidate.location,
+        evidenceText: candidate.evidence.map((evidence) => evidenceText(evidence, sources)),
+        kept: candidate.confirmation === "confirmed",
+        rejected: candidate.confirmation === "rejected",
+    };
+}
+
+function eventImportModel(state) {
+    const workflow = state.eventImport;
+    if (workflow === null || workflow === undefined) {
+        return null;
+    }
+    const visible = workflow.available === true || workflow.phase !== "idle";
+    if (!visible) {
+        return null;
+    }
+    const candidates = workflow.candidates.map(
+        (candidate) => eventCandidateModel(candidate, workflow.sources),
+    );
+    const confirmed = candidates.filter((candidate) => candidate.kept).length;
+    const rejected = candidates.filter((candidate) => candidate.rejected).length;
+    return {
+        ...workflow,
+        title: _("Import events"),
+        chooserEnabled: workflow.available === true
+            && !["selecting", "submitting", "running", "cancelling", "exporting"].includes(workflow.phase),
+        startEnabled: workflow.available === true && workflow.phase === "selected",
+        cancelEnabled: ["submitting", "running"].includes(workflow.phase),
+        preview: ["preview", "exporting"].includes(workflow.phase),
+        confirmation: workflow.phase === "confirm-export",
+        complete: workflow.phase === "complete",
+        candidates,
+        confirmed,
+        rejected,
+        pending: candidates.length - confirmed - rejected,
+        exportRefusal: EventImport.exportRefusal(workflow.candidates),
+        progressText: progressText(workflow.progress),
+    };
+}
+
 function formatLoad(value) {
     return typeof value === "number" && Number.isFinite(value)
         ? `${Math.round(value)}%`
@@ -873,6 +929,7 @@ function toViewModel(state, nowMs = Date.now()) {
         blockedGroup: blockedGroupModel(blocked),
         setup: setupModel(profiles),
         run: runModel(state),
+        eventImport: eventImportModel(state),
         inexecutableCount: blocked.length,
         pausedProfiles,
         activeAlerts,
@@ -901,6 +958,7 @@ function toViewModel(state, nowMs = Date.now()) {
             // outcome of the click before last.
             job: state.job,
             inputs: state.inputs,
+            eventImport: state.eventImport,
         }),
     };
 }
@@ -940,6 +998,9 @@ module.exports = {
     attentionReviewText,
     compareActiveAlerts,
     effectiveScreen,
+    eventCandidateModel,
+    eventImportModel,
+    evidenceText,
     formatFraction,
     formatLoad,
     formatRelativeTime,

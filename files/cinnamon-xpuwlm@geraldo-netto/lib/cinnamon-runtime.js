@@ -6,6 +6,7 @@ const Runtime = require("./runtime-gateway.js");
 const RuntimeContract = require("./runtime-contract-gateway.js");
 const RuntimeControl = require("./runtime-control-gateway.js");
 const RuntimeJob = require("./runtime-job-gateway.js");
+const PluginInventory = require("./plugin-inventory.js");
 const RuntimeSchema = require("./runtime-snapshot-schema-validator.js");
 const WorkloadRegistry = require("./workload-registry.js");
 
@@ -23,7 +24,9 @@ const CONTROL_OBJECT_PATH = "/org/cinnamon/OmniTensor1";
 const CONTROL_INTERFACE = "org.cinnamon.OmniTensor1";
 const CONTROL_METHOD = "ApplyCommand";
 const CONTRACT_METHOD = "DescribeContract";
+const PLUGIN_INVENTORY_METHOD = "DescribePlugins";
 const SUBMIT_JOB_METHOD = "SubmitJob";
+const CANCEL_JOB_METHOD = "CancelJob";
 const JOB_RESULT_METHOD = "GetJobResult";
 const CONTROL_TIMEOUT_MS = 5000;
 const MAX_PCIE_DEVICES = 8;
@@ -1412,6 +1415,10 @@ function requestRuntimeContractText(options, callback, environment) {
     return callRuntimeMethod(CONTRACT_METHOD, null, options, callback, environment);
 }
 
+function requestPluginInventoryText(options, callback, environment) {
+    return callRuntimeMethod(PLUGIN_INVENTORY_METHOD, null, options, callback, environment);
+}
+
 // Name ownership is the only signal that says the control service started or
 // stopped without the applet having to fail a command first. An environment
 // without the watch API (older GJS, test harnesses) reports nothing rather
@@ -1444,12 +1451,25 @@ function createRuntimeContractGateway(environment) {
     });
 }
 
+function createPluginInventoryGateway(environment) {
+    return new PluginInventory.PluginInventoryGateway({
+        cancellableFactory: createCancellableFactory(environment),
+        sendText: (options, callback) => requestPluginInventoryText(
+            options, callback, environment,
+        ),
+    });
+}
+
 function submitRuntimeJobText(text, options, callback, environment) {
     return callRuntimeMethod(SUBMIT_JOB_METHOD, text, options, callback, environment);
 }
 
 function requestRuntimeJobResultText(text, options, callback, environment) {
     return callRuntimeMethod(JOB_RESULT_METHOD, text, options, callback, environment);
+}
+
+function cancelRuntimeJobText(text, options, callback, environment) {
+    return callRuntimeMethod(CANCEL_JOB_METHOD, text, options, callback, environment);
 }
 
 function createRuntimeJobGateway(environment) {
@@ -1459,6 +1479,9 @@ function createRuntimeJobGateway(environment) {
             text, options, callback, environment,
         ),
         sendResultText: (text, options, callback) => requestRuntimeJobResultText(
+            text, options, callback, environment,
+        ),
+        sendCancelText: (text, options, callback) => cancelRuntimeJobText(
             text, options, callback, environment,
         ),
     });
@@ -1474,6 +1497,8 @@ function createRuntimeControlGateway(environment) {
 }
 
 module.exports = {
+    CANCEL_JOB_METHOD,
+    PLUGIN_INVENTORY_METHOD,
     CORAL_USB_IDENTITIES,
     CONTROL_BUS_NAME,
     CONTROL_INTERFACE,
@@ -1512,6 +1537,7 @@ module.exports = {
     createLayoutProvider,
     createLogger,
     createMergedWorkloadRegistry,
+    createPluginInventoryGateway,
     callRuntimeMethod,
     createRuntimeGateway,
     createImagePort,
@@ -1563,9 +1589,11 @@ module.exports = {
     sourceGeometry,
     finishIo,
     requestRuntimeContractText,
+    requestPluginInventoryText,
     sameIdentity,
     sendRuntimeCommandText,
     requestRuntimeJobResultText,
+    cancelRuntimeJobText,
     submitRuntimeJobText,
     removeFile,
     writeBufferAsync,

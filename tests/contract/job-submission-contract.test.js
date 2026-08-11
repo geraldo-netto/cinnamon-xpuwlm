@@ -113,6 +113,22 @@ test("the result request and result are the service's schemas, field for field",
     );
 });
 
+test("the cancellation request is the service's schema, field for field", (t) => {
+    const root = skipWithoutService(t);
+    if (root === null) {
+        return;
+    }
+    const request = readJson(root, "schemas/runtime-job-cancel.schema.json");
+
+    assert.deepEqual(
+        [...Job.CANCEL_REQUEST_PROPERTIES].sort(),
+        Object.keys(request.properties).sort(),
+    );
+    assert.deepEqual(request.required.sort(), [...Job.CANCEL_REQUEST_PROPERTIES].sort());
+    assert.equal(request.properties.version.const, Job.JOB_VERSION);
+    assert.equal(request.additionalProperties, false);
+});
+
 test("the states the applet stops polling on are states the service reports", (t) => {
     const root = skipWithoutService(t);
     if (root === null) {

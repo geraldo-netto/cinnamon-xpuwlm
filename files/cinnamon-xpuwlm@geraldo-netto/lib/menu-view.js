@@ -78,6 +78,10 @@ function requireAction(actions, name) {
     return actions[name];
 }
 
+function optionalAction(actions, name) {
+    return actions && typeof actions[name] === "function" ? actions[name] : () => false;
+}
+
 function setStyleClass(actor, className, enabled) {
     if (enabled) {
         actor.add_style_class_name(className);
@@ -126,6 +130,16 @@ class MenuView {
             openSettings: requireAction(actions, "openSettings"),
             acknowledgeCatalogChanges: requireAction(actions, "acknowledgeCatalogChanges"),
             submitJob: requireAction(actions, "submitJob"),
+            chooseEventFiles: optionalAction(actions, "chooseEventFiles"),
+            chooseEventFolder: optionalAction(actions, "chooseEventFolder"),
+            startEventImport: optionalAction(actions, "startEventImport"),
+            cancelEventImport: optionalAction(actions, "cancelEventImport"),
+            editEventCandidate: optionalAction(actions, "editEventCandidate"),
+            decideEventCandidate: optionalAction(actions, "decideEventCandidate"),
+            beginEventExport: optionalAction(actions, "beginEventExport"),
+            confirmEventExport: optionalAction(actions, "confirmEventExport"),
+            backEventPreview: optionalAction(actions, "backEventPreview"),
+            resetEventImport: optionalAction(actions, "resetEventImport"),
         };
         this._policyPaused = false;
         this._controlPending = false;
@@ -546,7 +560,215 @@ class MenuView {
         // belongs with the profiles that run, and the group of profiles that
         // cannot stays at the bottom where it was.
         this._renderRun(model.run);
+        this._renderEventImport(model.eventImport);
         this._renderBlockedProfiles(model);
+    }
+
+    _renderEventImport(model) {
+        if (model === null || model === undefined) {
+            return false;
+        }
+        this._addSectionHeading(model.title, _("Selected files stay private to the isolated workload worker"));
+        if (model.message !== "") {
+            this._body.add_child(this._label(model.message, "xpuwlm-event-message", true));
+        }
+        if (model.progressText !== "") {
+            this._body.add_child(this._label(model.progressText, "xpuwlm-event-progress", true));
+        }
+        this._renderEventSources(model);
+        if (model.preview) {
+            this._renderEventPreview(model);
+        } else if (model.confirmation) {
+            this._renderEventConfirmation(model);
+        }
+        this._renderEventActions(model);
+        return true;
+    }
+
+    _renderEventSources(model) {
+        if (model.sources.length === 0) {
+            if (!model.available) {
+                this._body.add_child(this._label(
+                    model.availabilityDetail || _("A qualified event model is not configured"),
+                    "xpuwlm-run-note",
+                    true,
+                ));
+            }
+            return false;
+        }
+        this._addGroupHeading(_("Selected sources"), format(
+            ngettext("%d file", "%d files", model.sources.length),
+            model.sources.length,
+        ));
+        for (const source of model.sources) {
+            this._body.add_child(this._label(source.name, "xpuwlm-event-source", true));
+        }
+        return true;
+    }
+
+    _renderEventPreview(model) {
+        this._addGroupHeading(_("Evidence-backed preview"), format(
+            _("%d kept · %d rejected · %d undecided"),
+            model.confirmed,
+            model.rejected,
+            model.pending,
+        ));
+        if (model.duplicatesDropped > 0) {
+            this._body.add_child(this._label(format(
+                ngettext("%d duplicate removed", "%d duplicates removed", model.duplicatesDropped),
+                model.duplicatesDropped,
+            ), "xpuwlm-event-dedup", true));
+        }
+        for (const candidate of model.candidates) {
+            this._body.add_child(this._eventCandidate(candidate));
+        }
+        if (model.exportRefusal !== "") {
+            this._body.add_child(this._label(model.exportRefusal, "xpuwlm-run-note", true));
+        }
+        return true;
+    }
+
+    _eventCandidate(candidate) {
+        const card = this._box("xpuwlm-event-card", true);
+        const fields = {
+            title: this._entry(candidate.title, format(_("%s title"), candidate.title), `event-title:${candidate.candidateId}`),
+            start: this._entry(candidate.start, format(_("%s start"), candidate.title), `event-start:${candidate.candidateId}`),
+            end: this._entry(candidate.endText, format(_("%s end"), candidate.title), `event-end:${candidate.candidateId}`),
+            timezone: this._entry(candidate.timezone, format(_("%s timezone"), candidate.title), `event-timezone:${candidate.candidateId}`),
+            location: this._entry(candidate.locationText, format(_("%s location"), candidate.title), `event-location:${candidate.candidateId}`),
+        };
+        const labels = {
+            title: _("Title"),
+            start: _("Starts"),
+            end: _("Ends"),
+            timezone: _("Timezone"),
+            location: _("Location"),
+        };
+        for (const [name, entry] of Object.entries(fields)) {
+            const field = this._box("xpuwlm-event-field", true);
+            field.add_child(this._label(labels[name], "xpuwlm-event-field-label"));
+            field.add_child(entry);
+            card.add_child(field);
+        }
+        for (const evidence of candidate.evidenceText) {
+            card.add_child(this._label(evidence, "xpuwlm-event-evidence", true));
+        }
+        const controls = this._box("xpuwlm-event-controls");
+        controls.add_child(this._eventEditButton(candidate, fields));
+        controls.add_child(this._eventDecisionButton(candidate, "confirmed", _("Keep")));
+        controls.add_child(this._eventDecisionButton(candidate, "rejected", _("Reject")));
+        card.add_child(controls);
+        return card;
+    }
+
+    _eventEditButton(candidate, fields) {
+        const button = this._identify(this._button(
+            "xpuwlm-secondary-button",
+            format(_("Apply edits to %s"), candidate.title),
+            () => this._actions.editEventCandidate(candidate.candidateId, {
+                title: fields.title.get_text(),
+                start: fields.start.get_text(),
+                end: fields.end.get_text() === "" ? null : fields.end.get_text(),
+                timezone: fields.timezone.get_text(),
+                location: fields.location.get_text() === "" ? null : fields.location.get_text(),
+            }),
+        ), `event-edit:${candidate.candidateId}`);
+        button.set_child(this._label(_("Apply edits"), "xpuwlm-button-label"));
+        return button;
+    }
+
+    _eventDecisionButton(candidate, decision, label) {
+        const selected = candidate.confirmation === decision;
+        const button = this._identify(this._button(
+            `xpuwlm-event-decision${selected ? " xpuwlm-event-decision-selected" : ""}`,
+            format(_("%s %s"), label, candidate.title),
+            () => this._actions.decideEventCandidate(candidate.candidateId, decision),
+            "TOGGLE_BUTTON",
+        ), `event-${decision}:${candidate.candidateId}`);
+        this._setAccessibleState(button, "CHECKED", selected);
+        button.set_child(this._label(label, "xpuwlm-button-label"));
+        return button;
+    }
+
+    _renderEventConfirmation(model) {
+        const confirmed = model.candidates.filter((candidate) => candidate.kept);
+        this._addGroupHeading(_("Confirm calendar export"), format(
+            ngettext("%d event will be written", "%d events will be written", confirmed.length),
+            confirmed.length,
+        ));
+        this._body.add_child(this._label(
+            _("No source file is changed or removed. The chosen output must be a new file."),
+            "xpuwlm-event-confirmation",
+            true,
+        ));
+        for (const candidate of confirmed) {
+            this._body.add_child(this._label(
+                `${candidate.title} · ${candidate.start}`,
+                "xpuwlm-event-confirmed",
+                true,
+            ));
+        }
+        return true;
+    }
+
+    _renderEventActions(model) {
+        const controls = this._box("xpuwlm-event-controls");
+        if (["idle", "selected", "preview", "complete", "error"].includes(model.phase)) {
+            controls.add_child(this._eventAction(
+                _("Choose files"), _("Choose event source files"), "event-choose-files",
+                this._actions.chooseEventFiles, model.chooserEnabled,
+            ));
+            controls.add_child(this._eventAction(
+                _("Choose folder"), _("Choose one event source folder"), "event-choose-folder",
+                this._actions.chooseEventFolder, model.chooserEnabled,
+            ));
+        }
+        if (model.phase === "selected") {
+            controls.add_child(this._eventAction(
+                _("Extract events"), _("Extract events from selected files"), "event-start",
+                this._actions.startEventImport, model.startEnabled,
+            ));
+        }
+        if (model.cancelEnabled) {
+            controls.add_child(this._eventAction(
+                _("Cancel"), _("Cancel event extraction"), "event-cancel",
+                this._actions.cancelEventImport, true,
+            ));
+        }
+        if (model.phase === "preview") {
+            controls.add_child(this._eventAction(
+                _("Review export"), _("Review confirmed events before export"), "event-review-export",
+                this._actions.beginEventExport, model.exportRefusal === "",
+            ));
+        }
+        if (model.phase === "confirm-export") {
+            controls.add_child(this._eventAction(
+                _("Write calendar file"), _("Confirm and write a new calendar file"), "event-confirm-export",
+                this._actions.confirmEventExport, true,
+            ));
+            controls.add_child(this._eventAction(
+                _("Back"), _("Return to event preview"), "event-back-preview",
+                this._actions.backEventPreview, true,
+            ));
+        }
+        if (model.complete) {
+            controls.add_child(this._eventAction(
+                _("New import"), _("Start a new event import"), "event-reset",
+                this._actions.resetEventImport, true,
+            ));
+        }
+        this._body.add_child(controls);
+        return true;
+    }
+
+    _eventAction(label, accessibleName, identity, action, enabled) {
+        const button = this._identify(
+            this._button("xpuwlm-secondary-button", accessibleName, action),
+            identity,
+        );
+        button.set_child(this._label(label, "xpuwlm-button-label"));
+        this._setButtonEnabled(button, enabled);
+        return button;
     }
 
     // The runtime's input root is both the permission boundary and the way in:
@@ -1012,6 +1234,16 @@ class MenuView {
         return label;
     }
 
+    _entry(text, accessibleName, identity) {
+        const entry = new this._St.Entry({
+            text: String(text || ""),
+            style_class: "xpuwlm-event-entry",
+            can_focus: true,
+        });
+        entry.set_accessible_name(accessibleName);
+        return this._identify(entry, identity);
+    }
+
     // Narrow, high-scale, and large-text popups wrap descriptive text instead of
     // clipping it; the wide layout keeps one-line ellipsized rows.
     _setWrap(label, wrap) {
@@ -1099,6 +1331,7 @@ module.exports = {
     destroyChildren,
     focusableControls,
     movedTabIndex,
+    optionalAction,
     requireAction,
     setStyleClass,
     tabKeyMove,

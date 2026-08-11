@@ -20,12 +20,15 @@ const Util = imports.misc.util;
 const AlertNotifier = require("./lib/alert-notifier.js");
 const CinnamonRuntime = require("./lib/cinnamon-runtime.js");
 const Domain = require("./lib/domain.js");
+const EventImport = require("./lib/event-import.js");
+const EventSourcePort = require("./lib/event-source-port.js");
 const FailureBackoff = require("./lib/failure-log-backoff.js");
 const I18n = require("./lib/i18n.js");
 const JobSubmission = require("./lib/job-submission.js");
 const Layout = require("./lib/layout.js");
 const Manager = require("./lib/manager.js");
 const Menu = require("./lib/menu-view.js");
+const PluginInventory = require("./lib/plugin-inventory.js");
 const ViewModel = require("./lib/view-model.js");
 const WorkloadRegistry = require("./lib/workload-registry.js");
 
@@ -61,7 +64,15 @@ function panelIconFilename(status) {
 }
 
 function defaultEnvironment() {
-    return {ByteArray, GdkPixbuf, Gio, GLib};
+    return {ByteArray, GdkPixbuf, Gio, GLib, Gtk};
+}
+
+function unavailableEventFilePorts() {
+    const unavailable = (callback) => callback(new Error("GTK event file access is unavailable"), null);
+    return {
+        picker: {chooseFiles: unavailable, chooseFolder: unavailable},
+        exporter: {saveIcs: (_calendar, _paths, callback) => unavailable(callback)},
+    };
 }
 
 function defaultLogger() {
@@ -98,6 +109,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._notifier = null;
         this._poller = null;
         this._unsubscribe = null;
+        this._eventUnsubscribe = null;
         try {
             this._construct(metadata, instanceId, overrides);
         } catch (error) {
@@ -113,7 +125,13 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._createServices(metadata, overrides);
         this._createPresentation(overrides);
         this._unsubscribe = this._manager.subscribe((state) => this._render(state));
+        this._eventUnsubscribe = this._eventImport.subscribe(() => {
+            if (this._latestState) {
+                this._render(this._latestState);
+            }
+        });
         this._manager.start();
+        this._refreshEventAvailability();
         this._poller.start(this.refreshInterval);
     }
 
@@ -156,9 +174,10 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             || CinnamonRuntime.createStateRepository(this._environment, this.settings);
         this._runtimeGateway = overrides.runtimeGateway
             || this._runtimeGatewayFactory(this.runtimeStatePath);
-        this._createControlPorts(overrides);
         this._clock = overrides.clock || Date;
         this._scheduler = overrides.scheduler || new CinnamonRuntime.CinnamonScheduler(Mainloop);
+        this._createControlPorts(overrides);
+        this._createEventPorts(overrides);
         this._manager = this._createManager(overrides);
         this._notifier = this._createNotifier(overrides);
         this._poller = overrides.poller
@@ -182,6 +201,31 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             || CinnamonRuntime.createControlServiceWatch(this._environment);
         this._contractGateway = overrides.contractGateway
             || CinnamonRuntime.createRuntimeContractGateway(this._environment);
+    }
+
+    _createEventPorts(overrides) {
+        this._pluginInventoryGateway = overrides.pluginInventoryGateway
+            || CinnamonRuntime.createPluginInventoryGateway(this._environment);
+        this._eventImport = overrides.eventImportController
+            || this._createEventImportController();
+    }
+
+    _createEventImportController() {
+        let ports;
+        try {
+            ports = {
+                picker: EventSourcePort.createGtkEventSourcePicker(this._environment),
+                exporter: EventSourcePort.createGtkEventExporter(this._environment),
+            };
+        } catch {
+            ports = unavailableEventFilePorts();
+        }
+        return new EventImport.EventImportController({
+            ...ports,
+            gateway: CinnamonRuntime.createRuntimeJobGateway(this._environment),
+            scheduler: this._scheduler,
+            clock: this._clock,
+        });
     }
 
     _createManager(overrides) {
@@ -288,6 +332,16 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             openSettings: () => this._openSettings(),
             acknowledgeCatalogChanges: () => this._manager.acknowledgeCatalogChanges(),
             submitJob: (id, picture) => this._manager.submitJob(id, picture),
+            chooseEventFiles: () => this._eventImport.chooseFiles(),
+            chooseEventFolder: () => this._eventImport.chooseFolder(),
+            startEventImport: () => this._eventImport.start(),
+            cancelEventImport: () => this._eventImport.cancel(),
+            editEventCandidate: (id, patch) => this._eventImport.edit(id, patch),
+            decideEventCandidate: (id, decision) => this._eventImport.decide(id, decision),
+            beginEventExport: () => this._eventImport.beginExport(),
+            confirmEventExport: () => this._eventImport.confirmExport(),
+            backEventPreview: () => this._eventImport.backToPreview(),
+            resetEventImport: () => this._eventImport.reset(),
         };
     }
 
@@ -299,6 +353,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             this.menu.connect("open-state-changed", (_menu, open) => {
                 if (open) {
                     this._applyLayout();
+                    this._refreshEventAvailability();
                     // Listing the input directory is synchronous I/O, so it
                     // happens when somebody looks at the list and not on the
                     // poll interval.
@@ -363,13 +418,35 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         if (this._destroyed) {
             return;
         }
-        this._latestState = state;
-        const model = ViewModel.toViewModel(state);
+        this._latestState = {...state, eventImport: this._eventImport.state()};
+        const model = ViewModel.toViewModel(this._latestState);
         if (this._view) {
             this._view.render(model);
         }
         this._renderPanel(model);
-        this._notifier.observe(state.alerts, state.profiles);
+        this._notifier.observe(this._latestState.alerts, this._latestState.profiles);
+    }
+
+    _refreshEventAvailability() {
+        if (this._destroyed) {
+            return false;
+        }
+        try {
+            return this._pluginInventoryGateway.describe((error, inventory) => {
+                if (this._destroyed) {
+                    return;
+                }
+                if (error) {
+                    this._eventImport.setAvailability(false, _("Event provider is not ready"));
+                    return;
+                }
+                const readiness = PluginInventory.eventReadiness(inventory);
+                this._eventImport.setAvailability(readiness.available, readiness.detail);
+            });
+        } catch {
+            this._eventImport.setAvailability(false, _("Event provider is not ready"));
+            return false;
+        }
     }
 
     _renderPanel(model = null) {
@@ -430,16 +507,21 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._destroyed = true;
         const poller = this._poller;
         const unsubscribe = this._unsubscribe;
+        const eventUnsubscribe = this._eventUnsubscribe;
         const manager = this._manager;
         const notifier = this._notifier;
         const settings = this.settings;
         this._poller = null;
         this._unsubscribe = null;
+        this._eventUnsubscribe = null;
         this._runIsolated([
             ["stop the refresh timer", () => poller && poller.stop()],
             ["release the state subscription", () => unsubscribe && unsubscribe()],
+            ["release the event subscription", () => eventUnsubscribe && eventUnsubscribe()],
+            ["cancel plug-in inventory", () => this._pluginInventoryGateway && this._pluginInventoryGateway.cancel()],
             ["destroy the popup menu", () => this._destroyMenu()],
             ["dispose the workload manager", () => manager && manager.dispose()],
+            ["dispose event import", () => this._eventImport && this._eventImport.dispose()],
             ["dispose the alert notifier", () => notifier && notifier.dispose()],
             ["finalize the applet settings", () => settings && settings.finalize()],
         ]);
@@ -464,5 +546,6 @@ if (typeof module !== "undefined") {
         panelIconFilename,
         resolveWorkloadCatalog,
         resolveWorkloadRegistry,
+        unavailableEventFilePorts,
     };
 }

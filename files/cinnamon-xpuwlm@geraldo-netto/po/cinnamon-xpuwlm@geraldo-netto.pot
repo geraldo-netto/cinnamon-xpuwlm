@@ -12,6 +12,10 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: lib/view-model.js
+msgid " · page %d"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "%d active"
 msgstr ""
@@ -24,11 +28,33 @@ msgstr ""
 msgid "%d active · highest severity %s · no automatic action"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "%d duplicate removed"
+msgid_plural "%d duplicates removed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/menu-view.js
+msgid "%d event will be written"
+msgid_plural "%d events will be written"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/menu-view.js
+msgid "%d file"
+msgid_plural "%d files"
+msgstr[0] ""
+msgstr[1] ""
+
 #: lib/view-model.js
 msgid "%d item needs review"
 msgid_plural "%d items need review"
 msgstr[0] ""
 msgstr[1] ""
+
+#: lib/menu-view.js
+msgid "%d kept · %d rejected · %d undecided"
+msgstr ""
 
 #: lib/menu-view.js
 msgid "%d more picture is not shown"
@@ -108,6 +134,10 @@ msgstr ""
 msgid "%ds ago"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "%s %s"
+msgstr ""
+
 #: lib/view-model.js
 msgid "%s (%d)"
 msgstr ""
@@ -120,8 +150,20 @@ msgstr ""
 msgid "%s accelerator"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "%s end"
+msgstr ""
+
 #: lib/view-model.js
 msgid "%s load"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "%s location"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "%s start"
 msgstr ""
 
 #: lib/menu-view.js
@@ -130,6 +172,14 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "%s tab, selected"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "%s timezone"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "%s title"
 msgstr ""
 
 #: lib/view-model.js
@@ -158,6 +208,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "A missing directory or a replaced path object also fails the read."
+msgstr ""
+
+#: lib/menu-view.js
+msgid "A qualified event model is not configured"
 msgstr ""
 
 #: settings-schema.json
@@ -228,6 +282,14 @@ msgstr ""
 msgid "All monitored signals are within their review thresholds."
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Apply edits"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Apply edits to %s"
+msgstr ""
+
 #: lib/manager.js
 msgid "Applying change in runtime…"
 msgstr ""
@@ -238,6 +300,18 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Available"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Back"
+msgstr ""
+
+#: lib/event-source-port.js lib/menu-view.js
+msgid "Cancel"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Cancel event extraction"
 msgstr ""
 
 #: lib/view-model.js
@@ -276,8 +350,32 @@ msgstr ""
 msgid "Check the runtime version"
 msgstr ""
 
+#: lib/event-source-port.js lib/menu-view.js
+msgid "Choose event source files"
+msgstr ""
+
+#: lib/event-source-port.js lib/menu-view.js
+msgid "Choose files"
+msgstr ""
+
+#: lib/event-source-port.js lib/menu-view.js
+msgid "Choose folder"
+msgstr ""
+
+#: lib/event-source-port.js lib/menu-view.js
+msgid "Choose one event source folder"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Confidence"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Confirm and write a new calendar file"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Confirm calendar export"
 msgstr ""
 
 #: lib/view-model.js
@@ -356,12 +454,40 @@ msgstr ""
 msgid "Dismiss the workload catalog change notice"
 msgstr ""
 
+#: lib/event-source-port.js
+msgid "Documents, calendars, and images"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Enable %s"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Ends"
+msgstr ""
+
+#: applet.js
+msgid "Event provider is not ready"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Every workload profile can run"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Evidence-backed preview"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Evidence: %s%s · characters %d–%d"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Extract events"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Extract events from selected files"
 msgstr ""
 
 #: lib/view-model.js
@@ -396,6 +522,10 @@ msgstr ""
 msgid "Idle"
 msgstr ""
 
+#: lib/view-model.js
+msgid "Import events"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Increase %s weight"
 msgstr ""
@@ -412,6 +542,10 @@ msgstr ""
 msgid "Installed"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Keep"
+msgstr ""
+
 #: lib/view-model.js
 msgid "Last update %s"
 msgstr ""
@@ -426,6 +560,10 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Local policy paused"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Location"
 msgstr ""
 
 #: lib/menu-view.js
@@ -466,6 +604,10 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Needs review"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "New import"
 msgstr ""
 
 #: lib/view-model.js
@@ -530,6 +672,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "No runtime state has been read yet. Local profile intent is unchanged."
+msgstr ""
+
+#: lib/menu-view.js
+msgid "No source file is changed or removed. The chosen output must be a new file."
 msgstr ""
 
 #: lib/view-model.js
@@ -660,6 +806,10 @@ msgstr ""
 msgid "Refresh interval"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Reject"
+msgstr ""
+
 #: lib/view-model.js
 msgid "Removed"
 msgstr ""
@@ -698,6 +848,18 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Retry now"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Return to event preview"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Review confirmed events before export"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Review export"
 msgstr ""
 
 #: lib/menu-view.js
@@ -784,12 +946,32 @@ msgstr ""
 msgid "Safety rules remain active"
 msgstr ""
 
+#: lib/event-source-port.js
+msgid "Save confirmed events"
+msgstr ""
+
+#: lib/event-source-port.js
+msgid "Save new file"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Selected files stay private to the isolated workload worker"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Selected sources"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Setup"
 msgstr ""
 
 #: settings-schema.json
 msgid "Show XPU status beside the panel icon"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Start a new event import"
 msgstr ""
 
 #: lib/view-model.js
@@ -802,6 +984,10 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Starting monitoring…"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Starts"
 msgstr ""
 
 #: lib/view-model.js
@@ -1000,6 +1186,14 @@ msgstr ""
 msgid "This runtime cannot report job outcomes; the job was accepted"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Timezone"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Title"
+msgstr ""
+
 #: lib/view-model.js
 msgid "Track each profile's model work in OmniTensor. Do not attach arbitrary weights or reuse Resource Scheduler's scalar forecast recipe for a different task."
 msgstr ""
@@ -1070,6 +1264,10 @@ msgstr ""
 
 #: settings-schema.json
 msgid "Workload runtime"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Write calendar file"
 msgstr ""
 
 #: lib/menu-view.js metadata.json

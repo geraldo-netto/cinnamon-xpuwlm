@@ -158,6 +158,16 @@ forecast. Their distinct corpus, privacy, task metrics, preprocessing,
 post-processing, result-consumer, signing, and acceptance work remains tracked
 in OmniTensor. Setup intentionally offers no generic artifact command for them.
 
+An installed and live-qualified external `event-extraction` worker adds a
+separate Import events surface to Profiles. It is not inferred from the bundled
+catalog: the applet checks `DescribePlugins` on startup and whenever the popup
+opens, then requires a ready executable worker, granted declared permissions,
+and ready declared artifacts. File choice is explicit, folder choice is
+non-recursive, candidate evidence and editable fields remain local to the
+popup, and export requires human Keep/Reject decisions plus a separate
+confirmation. See [Private event import](event-import.md) for dependencies,
+formats, accelerator policy, privacy, and write guarantees.
+
 ## Accessible semantics
 
 Controls expose their ATK role and state, not only an accessible name: the tab

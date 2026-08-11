@@ -570,6 +570,93 @@ test("a poll reaches the versioned GetJobResult endpoint", () => {
     assert.deepEqual(calls, [Cinnamon.JOB_RESULT_METHOD, Cinnamon.JOB_RESULT_METHOD]);
 });
 
+test("a cancellation reaches the versioned CancelJob endpoint", () => {
+    const env = environment();
+    const calls = [];
+    env.Gio.DBusCallFlags = {NONE: 0};
+    env.Gio.Cancellable = class {
+        cancel() {
+            this.cancelled = true;
+        }
+    };
+    env.Gio.DBus = {
+        session: {
+            call(...args) {
+                calls.push(args[3]);
+                args.at(-1)({
+                    call_finish: () => ({
+                        deep_unpack: () => [JSON.stringify({
+                            version: 1,
+                            requestId: "xpuwlm-cancel-1",
+                            jobId: "job-1",
+                            status: "cancelled",
+                            code: "job-cancelled",
+                            message: "Job cancelled",
+                            timestamp: 1,
+                        })],
+                    }),
+                }, {});
+            },
+        },
+    };
+    env.GLib.Variant = class {
+        constructor(signature, values) {
+            this.signature = signature;
+            this.values = values;
+        }
+    };
+    env.GLib.VariantType = class {
+        constructor(signature) {
+            this.signature = signature;
+        }
+    };
+    let received = null;
+
+    Cinnamon.createRuntimeJobGateway(env).cancelJob(
+        {requestId: "xpuwlm-cancel-1", jobId: "job-1"},
+        (error, reply) => {
+            received = {error, reply};
+        },
+    );
+
+    assert.deepEqual(calls, [Cinnamon.CANCEL_JOB_METHOD]);
+    assert.equal(received.error, null);
+    assert.equal(received.reply.status, "cancelled");
+});
+
+test("the plug-in inventory gateway reaches DescribePlugins without an argument", () => {
+    const env = environment();
+    const calls = [];
+    env.Gio.DBusCallFlags = {NONE: 0};
+    env.Gio.DBus = {
+        session: {
+            call(...args) {
+                calls.push(args);
+                args.at(-1)({
+                    call_finish: () => ({
+                        deep_unpack: () => [JSON.stringify({version: 1, generatedAt: 1, plugins: []})],
+                    }),
+                }, {});
+            },
+        },
+    };
+    env.GLib.VariantType = class {
+        constructor(signature) {
+            this.signature = signature;
+        }
+    };
+    let received = null;
+
+    Cinnamon.createPluginInventoryGateway(env).describe((error, inventory) => {
+        received = {error, inventory};
+    });
+
+    assert.equal(calls[0][3], Cinnamon.PLUGIN_INVENTORY_METHOD);
+    assert.equal(calls[0][4], null);
+    assert.equal(received.error, null);
+    assert.deepEqual(received.inventory.plugins, []);
+});
+
 test("a bilinear exact resize decodes straight to the declared shape", async () => {
     const env = environment();
     picture(env, `${ROOT}/cat.png`);

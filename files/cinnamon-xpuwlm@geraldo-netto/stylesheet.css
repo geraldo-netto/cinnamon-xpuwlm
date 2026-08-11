@@ -563,3 +563,72 @@
     padding: 2px 18px;
     opacity: 0.85;
 }
+
+/* Event import stays a deliberate, linear review: choose, extract, decide,
+   confirm, then create one new file. Cards use words and checked states, not
+   colour alone, to preserve every decision under themes and high contrast. */
+.xpuwlm-event-message,
+.xpuwlm-event-progress,
+.xpuwlm-event-source,
+.xpuwlm-event-dedup,
+.xpuwlm-event-confirmation,
+.xpuwlm-event-confirmed {
+    padding: 4px 10px;
+    font-size: 0.82em;
+}
+
+.xpuwlm-event-card {
+    spacing: 5px;
+    margin: 4px 0;
+    padding: 10px;
+    border: 1px solid rgba(127, 127, 127, 0.28);
+    border-radius: 8px;
+}
+
+.xpuwlm-event-field {
+    spacing: 3px;
+}
+
+.xpuwlm-event-field-label {
+    font-size: 0.86em;
+    opacity: 0.76;
+}
+
+.xpuwlm-event-entry {
+    min-height: 34px;
+    padding: 4px 8px;
+    border-radius: 5px;
+}
+
+.xpuwlm-event-entry:focus {
+    border: 2px solid symbolic;
+}
+
+.xpuwlm-event-evidence {
+    padding: 2px 4px;
+    opacity: 0.78;
+    font-size: 0.76em;
+}
+
+.xpuwlm-event-controls {
+    spacing: 6px;
+    padding: 4px 0;
+}
+
+.xpuwlm-event-decision {
+    min-height: 34px;
+    padding: 4px 10px;
+    border-radius: 5px;
+}
+
+.xpuwlm-event-decision-selected {
+    border: 2px solid symbolic;
+    font-weight: bold;
+}
+
+.xpuwlm-mode-compact .xpuwlm-event-entry,
+.xpuwlm-mode-dense .xpuwlm-event-entry,
+.xpuwlm-mode-compact .xpuwlm-event-decision,
+.xpuwlm-mode-dense .xpuwlm-event-decision {
+    min-height: 44px;
+}

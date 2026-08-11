@@ -250,6 +250,20 @@ describe("job result contract", () => {
         assert.throws(() => Job.jobResultRequest({requestId: "xpuwlm-1", jobId: ""}), TypeError);
     });
 
+    it("builds the cancellation envelope or refuses invalid identifiers", () => {
+        assert.deepEqual(Job.jobCancelRequest({requestId: "xpuwlm-cancel-1", jobId: "job-1"}), {
+            version: 1,
+            requestId: "xpuwlm-cancel-1",
+            jobId: "job-1",
+        });
+        assert.throws(() => Job.jobCancelRequest({requestId: "bad id", jobId: "job-1"}), TypeError);
+        assert.throws(() => Job.jobCancelRequest({requestId: "xpuwlm-1", jobId: ""}), TypeError);
+        assert.deepEqual(
+            Job.JOB_CONTRACT_ALLOWLISTS.cancelRequest,
+            Job.CANCEL_REQUEST_PROPERTIES,
+        );
+    });
+
     it("validates progress on its own, including its absence", () => {
         assert.ok(Job.isProgress(null));
         assert.ok(Job.isProgress({fraction: 0, detail: ""}));
