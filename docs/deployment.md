@@ -54,6 +54,18 @@ payload in `files/cinnamon-tpuwm@geraldo-netto/`:
   directory against the payload checksums, reporting missing, mismatched,
   and unexpected files; `verify-absent <installed-root>` proves a clean
   uninstall.
+- `npm run package:spice` stages the Linux Mint Cinnamon Spices contribution
+  at `dist/spices/cinnamon-tpuwm@geraldo-netto/`: website `info.json`, a live
+  applet `screenshot.png`, repository `README.md` and `LICENSE`, and exactly
+  one `files/cinnamon-tpuwm@geraldo-netto/` install payload.
+
+The payload also carries `LICENSE`. The website-level declaration and
+repository copy identify the MIT terms, while the payload copy keeps those
+terms attached to Cinnamon's downloadable archive. `screenshot.png` was
+captured from the installed applet on Cinnamon 6.6.9 after confirming its
+`applet.js` matched the repository byte-for-byte. Its real popup was open; the
+image was cropped to exclude unrelated desktop content and is not a prototype
+render.
 
 Identical payload bytes always produce identical staging trees, manifests,
 and archives, so releases can be rebuilt and audited offline.

@@ -13,6 +13,9 @@ const UUID = "cinnamon-tpuwm@geraldo-netto";
 const repositoryRoot = path.resolve(__dirname, "..");
 const payloadRoot = path.join(repositoryRoot, "files", UUID);
 const distRoot = path.join(repositoryRoot, "dist");
+const SPICE_METADATA_FILES = Object.freeze(["LICENSE", "README.md", "info.json", "screenshot.png"]);
+const PNG_SIGNATURE = Buffer.from("89504e470d0a1a0a", "hex");
+const MIN_SCREENSHOT_DIMENSION = 400;
 
 // Fixed archive timestamp (2000-01-01T00:00:00Z): determinism without the
 // tool-compatibility problems of a zero mtime.
@@ -80,6 +83,63 @@ function stagePayload(sourceRoot, targetRoot) {
         fs.copyFileSync(path.join(sourceRoot, relativePath), target);
     }
     return staged;
+}
+
+function regularFile(root, relativePath) {
+    const filename = path.join(root, relativePath);
+    let entry;
+    try {
+        entry = fs.lstatSync(filename);
+    } catch (error) {
+        throw new Error(`Spice release file is missing: ${relativePath}`, {cause: error});
+    }
+    if (entry.isSymbolicLink() || !entry.isFile()) {
+        throw new Error(`Spice release entry must be a regular file: ${relativePath}`);
+    }
+    return filename;
+}
+
+function pngDimensions(contents) {
+    if (contents.length < 24 || !contents.subarray(0, 8).equals(PNG_SIGNATURE)
+            || contents.subarray(12, 16).toString("ascii") !== "IHDR") {
+        throw new Error("Spice screenshot must be a PNG with an IHDR header");
+    }
+    return {width: contents.readUInt32BE(16), height: contents.readUInt32BE(20)};
+}
+
+function inspectSpiceSources(projectRoot, appletRoot) {
+    for (const relativePath of SPICE_METADATA_FILES) {
+        regularFile(projectRoot, relativePath);
+    }
+    const info = JSON.parse(fs.readFileSync(path.join(projectRoot, "info.json"), "utf8"));
+    if (info.author !== "geraldo-netto" || info.license !== "MIT") {
+        throw new Error("Spice info.json must name GitHub author geraldo-netto and MIT license");
+    }
+    const screenshot = pngDimensions(fs.readFileSync(path.join(projectRoot, "screenshot.png")));
+    if (screenshot.width < MIN_SCREENSHOT_DIMENSION
+            || screenshot.height < MIN_SCREENSHOT_DIMENSION) {
+        throw new Error(`Spice screenshot must be at least ${MIN_SCREENSHOT_DIMENSION}px per side`);
+    }
+    const rootLicense = fs.readFileSync(path.join(projectRoot, "LICENSE"));
+    const payloadLicense = fs.readFileSync(regularFile(appletRoot, "LICENSE"));
+    if (!rootLicense.equals(payloadLicense)) {
+        throw new Error("Payload LICENSE must match the Spice release LICENSE");
+    }
+    return {info, screenshot};
+}
+
+function stageSpiceRelease(projectRoot, appletRoot, targetRoot) {
+    inspectSpiceSources(projectRoot, appletRoot);
+    fs.rmSync(targetRoot, {recursive: true, force: true});
+    for (const relativePath of SPICE_METADATA_FILES) {
+        fs.mkdirSync(targetRoot, {recursive: true});
+        fs.copyFileSync(
+            regularFile(projectRoot, relativePath),
+            path.join(targetRoot, relativePath),
+        );
+    }
+    stagePayload(appletRoot, path.join(targetRoot, "files", UUID));
+    return payloadFiles(targetRoot);
 }
 
 // Compares an installed tree against the payload checksum manifest. Extra
@@ -188,6 +248,14 @@ function commandPack(log, dist = distRoot) {
     fs.writeFileSync(path.join(dist, `${UUID}.tar`), archive);
     fs.writeFileSync(path.join(dist, `${UUID}.tar.sha256`), `${sha256Hex(archive)}  ${UUID}.tar\n`);
     log(`packed ${UUID}.tar (${archive.length} bytes, sha256 ${sha256Hex(archive)})`);
+    commandSpice(log, dist);
+    return 0;
+}
+
+function commandSpice(log, dist = distRoot) {
+    const target = path.join(dist, "spices", UUID);
+    const staged = stageSpiceRelease(repositoryRoot, payloadRoot, target);
+    log(`staged ${staged.length} Spice files -> ${target}`);
     return 0;
 }
 
@@ -217,11 +285,9 @@ function commandVerifyAbsent(root, log) {
 
 function runCommand(argv, log, dist = distRoot) {
     const [command, argument] = argv;
-    if (command === "stage") {
-        return commandStage(log, dist);
-    }
-    if (command === "pack") {
-        return commandPack(log, dist);
+    const distCommands = {stage: commandStage, pack: commandPack, spice: commandSpice};
+    if (Object.hasOwn(distCommands, command)) {
+        return distCommands[command](log, dist);
     }
     if (command === "verify" && argument) {
         return commandVerify(argument, log);
@@ -229,7 +295,7 @@ function runCommand(argv, log, dist = distRoot) {
     if (command === "verify-absent" && argument) {
         return commandVerifyAbsent(argument, log);
     }
-    log("usage: package-applet.js stage | pack | verify <root> | verify-absent <root>");
+    log("usage: package-applet.js stage | pack | spice | verify <root> | verify-absent <root>");
     return 2;
 }
 
@@ -240,10 +306,13 @@ if (require.main === module) {
 module.exports = {
     ARCHIVE_MTIME,
     BLOCK_SIZE,
+    MIN_SCREENSHOT_DIMENSION,
+    SPICE_METADATA_FILES,
     UUID,
     buildArchive,
     buildChecksums,
     commandPack,
+    commandSpice,
     commandStage,
     commandVerify,
     commandVerifyAbsent,
@@ -254,9 +323,13 @@ module.exports = {
     parseChecksums,
     payloadFiles,
     payloadRoot,
+    pngDimensions,
+    inspectSpiceSources,
+    regularFile,
     runCommand,
     sha256Hex,
     stagePayload,
+    stageSpiceRelease,
     tarHeader,
     tarPadding,
     verifyAbsent,

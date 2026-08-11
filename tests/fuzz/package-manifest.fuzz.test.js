@@ -70,3 +70,18 @@ test("property: archive member names are accepted exactly up to the ustar bound"
         }
     }
 });
+
+test("property: every PNG signature or header corruption is rejected", () => {
+    const valid = Buffer.alloc(24);
+    Buffer.from("89504e470d0a1a0a", "hex").copy(valid);
+    valid.write("IHDR", 12, "ascii");
+    valid.writeUInt32BE(585, 16);
+    valid.writeUInt32BE(770, 20);
+
+    for (const index of [0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15]) {
+        const corrupted = Buffer.from(valid);
+        corrupted[index] ^= 0xff;
+        assert.throws(() => Package.pngDimensions(corrupted), /PNG with an IHDR/u);
+    }
+    assert.deepEqual(Package.pngDimensions(valid), {width: 585, height: 770});
+});

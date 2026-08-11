@@ -55,6 +55,17 @@ test("packing the real payload is deterministic across runs", () => {
     const recordedHash = fs.readFileSync(path.join(firstDist, `${Package.UUID}.tar.sha256`), "utf8");
     assert.equal(recordedHash, `${Package.sha256Hex(first)}  ${Package.UUID}.tar\n`);
     assert.equal(first.subarray(0, Package.UUID.length + 1).toString("utf8"), `${Package.UUID}/`);
+    const firstSpice = path.join(firstDist, "spices", Package.UUID);
+    const secondSpice = path.join(secondDist, "spices", Package.UUID);
+    assert.equal(Package.buildChecksums(firstSpice), Package.buildChecksums(secondSpice));
+    assert.deepEqual(fs.readdirSync(path.join(firstSpice, "files")), [Package.UUID]);
+    assert.deepEqual(Package.inspectSpiceSources(
+        firstSpice,
+        path.join(firstSpice, "files", Package.UUID),
+    ), {
+        info: {author: "geraldo-netto", license: "MIT"},
+        screenshot: {width: 585, height: 770},
+    });
     fs.rmSync(firstDist, {recursive: true, force: true});
     fs.rmSync(secondDist, {recursive: true, force: true});
 });

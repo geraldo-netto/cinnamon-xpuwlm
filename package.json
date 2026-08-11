@@ -13,6 +13,7 @@
     "generate:contract": "node scripts/generate-snapshot-contract.js",
     "check:contract": "node scripts/generate-snapshot-contract.js --check",
     "package": "node scripts/package-applet.js pack",
+    "package:spice": "node scripts/package-applet.js spice",
     "package:verify": "node scripts/package-applet.js verify",
     "package:plugin": "node scripts/package-workload-plugin.js pack",
     "test:contract": "node --test tests/contract/*.test.js",

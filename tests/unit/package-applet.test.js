@@ -20,6 +20,29 @@ function writeTree(root, files) {
     }
 }
 
+function png(width = 585, height = 770) {
+    const contents = Buffer.alloc(24);
+    Buffer.from("89504e470d0a1a0a", "hex").copy(contents);
+    contents.write("IHDR", 12, "ascii");
+    contents.writeUInt32BE(width, 16);
+    contents.writeUInt32BE(height, 20);
+    return contents;
+}
+
+function writeSpiceSources(root, overrides = {}) {
+    const license = overrides.license || "MIT text";
+    const appletLicense = overrides.appletLicense || license;
+    writeTree(root, {
+        "LICENSE": license,
+        "README.md": "# Applet",
+        "info.json": JSON.stringify(overrides.info || {author: "geraldo-netto", license: "MIT"}),
+        "screenshot.png": overrides.screenshot || png(),
+        [`files/${Package.UUID}/LICENSE`]: appletLicense,
+        [`files/${Package.UUID}/applet.js`]: "code",
+    });
+    return path.join(root, "files", Package.UUID);
+}
+
 test("payload enumeration is sorted, recursive, and rejects irregular entries", () => {
     const root = temporaryDirectory();
     writeTree(root, {"z.txt": "z", "a/b.txt": "b", "a/a.txt": "a"});
@@ -53,6 +76,78 @@ test("staging copies exactly the payload files and replaces stale targets", () =
     assert.equal(fs.existsSync(path.join(target, "stale.txt")), false);
     fs.rmSync(source, {recursive: true, force: true});
     fs.rmSync(path.dirname(target), {recursive: true, force: true});
+});
+
+test("PNG dimensions require the signature and IHDR header", () => {
+    assert.deepEqual(Package.pngDimensions(png(640, 480)), {width: 640, height: 480});
+    assert.throws(() => Package.pngDimensions(Buffer.alloc(23)), /PNG with an IHDR/u);
+    const badSignature = png();
+    badSignature[0] = 0;
+    assert.throws(() => Package.pngDimensions(badSignature), /PNG with an IHDR/u);
+    const badHeader = png();
+    badHeader.write("NOPE", 12, "ascii");
+    assert.throws(() => Package.pngDimensions(badHeader), /PNG with an IHDR/u);
+});
+
+test("Spice sources enforce author, screenshot, and matching payload license", () => {
+    const project = temporaryDirectory();
+    const applet = writeSpiceSources(project);
+    assert.deepEqual(Package.inspectSpiceSources(project, applet), {
+        info: {author: "geraldo-netto", license: "MIT"},
+        screenshot: {width: 585, height: 770},
+    });
+
+    fs.writeFileSync(path.join(project, "info.json"), JSON.stringify({author: "wrong", license: "MIT"}));
+    assert.throws(() => Package.inspectSpiceSources(project, applet), /GitHub author/u);
+    fs.writeFileSync(path.join(project, "info.json"), JSON.stringify({author: "geraldo-netto", license: "GPL"}));
+    assert.throws(() => Package.inspectSpiceSources(project, applet), /MIT license/u);
+    fs.writeFileSync(path.join(project, "info.json"), JSON.stringify({author: "geraldo-netto", license: "MIT"}));
+
+    fs.writeFileSync(path.join(project, "screenshot.png"), png(399, 770));
+    assert.throws(() => Package.inspectSpiceSources(project, applet), /at least 400px/u);
+    fs.writeFileSync(path.join(project, "screenshot.png"), png(585, 399));
+    assert.throws(() => Package.inspectSpiceSources(project, applet), /at least 400px/u);
+    fs.writeFileSync(path.join(project, "screenshot.png"), png());
+
+    fs.writeFileSync(path.join(applet, "LICENSE"), "different");
+    assert.throws(() => Package.inspectSpiceSources(project, applet), /must match/u);
+    fs.rmSync(project, {recursive: true, force: true});
+});
+
+test("Spice staging creates only the official release tree and replaces stale files", () => {
+    const project = temporaryDirectory();
+    const applet = writeSpiceSources(project);
+    const targetParent = temporaryDirectory();
+    const target = path.join(targetParent, Package.UUID);
+    writeTree(target, {"stale.txt": "stale"});
+
+    const staged = Package.stageSpiceRelease(project, applet, target);
+
+    assert.deepEqual(staged, [
+        "LICENSE",
+        "README.md",
+        `files/${Package.UUID}/LICENSE`,
+        `files/${Package.UUID}/applet.js`,
+        "info.json",
+        "screenshot.png",
+    ]);
+    assert.equal(fs.existsSync(path.join(target, "stale.txt")), false);
+    assert.deepEqual(fs.readdirSync(path.join(target, "files")), [Package.UUID]);
+    assert.equal(fs.readFileSync(path.join(target, "info.json"), "utf8"), JSON.stringify({
+        author: "geraldo-netto", license: "MIT",
+    }));
+    fs.rmSync(project, {recursive: true, force: true});
+    fs.rmSync(targetParent, {recursive: true, force: true});
+});
+
+test("Spice metadata must be present as regular files", () => {
+    const project = temporaryDirectory();
+    const applet = writeSpiceSources(project);
+    fs.rmSync(path.join(project, "README.md"));
+    assert.throws(() => Package.inspectSpiceSources(project, applet), /missing: README.md/u);
+    fs.symlinkSync(path.join(project, "LICENSE"), path.join(project, "README.md"));
+    assert.throws(() => Package.inspectSpiceSources(project, applet), /regular file: README.md/u);
+    fs.rmSync(project, {recursive: true, force: true});
 });
 
 test("install verification reports missing, mismatched, and unexpected files", () => {
@@ -149,4 +244,19 @@ test("command runner reports usage for unknown or incomplete invocations", () =>
     assert.equal(Package.runCommand(["verify"], log), 2);
     assert.equal(Package.runCommand(["unknown"], log), 2);
     assert.equal(lines.every((line) => line.startsWith("usage:")), true);
+});
+
+test("Spice command stages the repository release tree", () => {
+    const dist = temporaryDirectory();
+    const lines = [];
+
+    assert.equal(Package.runCommand(["spice"], (line) => lines.push(line), dist), 0);
+
+    const release = path.join(dist, "spices", Package.UUID);
+    assert.deepEqual(Package.inspectSpiceSources(release, path.join(release, "files", Package.UUID)), {
+        info: {author: "geraldo-netto", license: "MIT"},
+        screenshot: {width: 585, height: 770},
+    });
+    assert.match(lines[0], /^staged \d+ Spice files/u);
+    fs.rmSync(dist, {recursive: true, force: true});
 });

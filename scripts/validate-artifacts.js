@@ -19,6 +19,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "icon.png",
     "icons",
     "job-submission.js",
+    "LICENSE",
     "lib",
     "layout.js",
     "manager.js",
@@ -291,6 +292,9 @@ function validateStaticAssets() {
     }
     assert.equal((css.match(/{/g) || []).length, (css.match(/}/g) || []).length);
     assert.equal(css.includes("outline: none"), false);
+    const spice = require("./package-applet.js").inspectSpiceSources(repositoryRoot, appletRoot);
+    assert.equal(spice.info.author, "geraldo-netto");
+    assert.equal(spice.info.license, "MIT");
 }
 
 validatePayloadStructure();
