@@ -159,3 +159,25 @@ test("actors without accessible state support are left untouched", () => {
     assert.equal(view._setAccessibleRole({set_accessible_role() {}}, "MISSING_ROLE"), false);
     assert.equal(view._setAccessibleState({add_accessible_state() {}}, "MISSING_STATE", true), false);
 });
+
+test("Manage profiles focuses an expanded Needs setup disclosure", () => {
+    const current = baseState({selectedTab: "profiles"});
+    current.profiles = current.profiles.map((profile) => profile.id === "desktop-context"
+        ? {...profile, status: "unavailable", detail: "gpu: ncnn is not installed"}
+        : profile);
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(current, NOW));
+    const manage = findActors(root, (actor) => actor instanceof FakeButton
+        && actor.accessibleName === "Manage workload profiles")[0];
+
+    manage.click();
+
+    const disclosure = findActors(root, (actor) => actor.xpuwlmIdentity === "blocked-disclosure")[0];
+    assert.equal(disclosure.focused, true);
+    assert.equal(disclosure.accessibleRole, "toggle-button");
+    assert.equal(disclosure.accessibleName, "Needs setup, 1 profile, expanded");
+    assert.equal(disclosure.accessibleStates.has("expanded"), true);
+    disclosure.click();
+    assert.equal(disclosure.accessibleName, "Needs setup, 1 profile, collapsed");
+    assert.equal(disclosure.accessibleStates.has("expanded"), false);
+});

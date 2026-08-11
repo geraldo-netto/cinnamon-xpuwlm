@@ -779,6 +779,61 @@ test("profiles that cannot run collapse into one group under the ones that can",
     );
 });
 
+test("Manage profiles opens, expands, and focuses the readiness disclosure", () => {
+    const {calls, view, root} = harness();
+    view.render(ViewModel.toViewModel(blockedState("overview"), NOW));
+    view._actions.selectTab = (tab) => {
+        calls.push(["selectTab", tab]);
+        view.render(ViewModel.toViewModel(blockedState(tab), NOW));
+        return true;
+    };
+
+    button(root, "Manage workload profiles").click();
+
+    assert.deepEqual(calls, [["selectTab", "profiles"]]);
+    assert.equal(blockedList(root).visible, true);
+    assert.equal(disclosure(root).focused, true);
+    assert.equal(disclosure(root).accessibleName, "Needs setup, 4 profiles, expanded");
+    assert.equal(disclosure(root).accessibleStates.has("expanded"), true);
+    disclosure(root).click();
+    assert.equal(blockedList(root).visible, false, "the disclosure remains independently operable");
+});
+
+test("profile-management focus survives delayed selection and guarded actors", () => {
+    const delayed = harness();
+    delayed.view.render(ViewModel.toViewModel(blockedState("profiles"), NOW));
+    const staleDisclosure = disclosure(delayed.root);
+    delayed.view._selectedTab = "overview";
+    delayed.view._actions.selectTab = () => "scheduled";
+    assert.equal(delayed.view._manageProfiles(), "scheduled");
+    assert.equal(delayed.view._focusBlockedOnRender, true);
+    assert.notEqual(staleDisclosure.focused, true);
+
+    const overview = ViewModel.toViewModel(blockedState("overview"), NOW);
+    assert.equal(delayed.view._renderBody(overview), null);
+    assert.equal(delayed.view._focusBlockedOnRender, true);
+
+    const profiles = ViewModel.toViewModel(blockedState("profiles"), NOW);
+    delayed.view._selectedTab = "profiles";
+    assert.equal(delayed.view._renderBody(profiles), true);
+    assert.equal(delayed.view._focusBlockedOnRender, false);
+    assert.equal(disclosure(delayed.root).focused, true);
+
+    const guarded = harness();
+    guarded.view._focusBlockedOnRender = true;
+    assert.equal(guarded.view._focusBlockedDisclosure(), false);
+    assert.equal(guarded.view._focusBlockedOnRender, false);
+    guarded.view.render(profiles);
+    guarded.view._blocked.disclosure.grab_key_focus = null;
+    guarded.view._focusBlockedOnRender = true;
+    assert.equal(guarded.view._focusBlockedDisclosure(), true);
+    assert.equal(guarded.view._focusBlockedOnRender, false);
+    assert.equal(guarded.view._blockedExpanded, true);
+    guarded.view._focusBlockedOnRender = true;
+    assert.equal(guarded.view.destroy(), true);
+    assert.equal(guarded.view._focusBlockedOnRender, false);
+});
+
 test("the collapsed group is operable and announces its own state", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(blockedState(), NOW));
@@ -792,9 +847,9 @@ test("the collapsed group is operable and announces its own state", () => {
 
     assert.equal(toggle.accessibleRole, "toggle-button");
     assert.equal(toggle.can_focus, true);
-    assert.equal(toggle.accessibleName, "Not available, 4 profiles, collapsed");
+    assert.equal(toggle.accessibleName, "Needs setup, 4 profiles, collapsed");
     assert.equal(toggle.accessibleStates.has("expanded"), false);
-    assert.equal(title.text, "Not available (4)");
+    assert.equal(title.text, "Needs setup (4)");
     assert.equal(arrow.text, "▸");
     assert.equal(
         findActors(toggle, (actor) => actor.text === "4 profiles cannot run yet").length,
@@ -804,7 +859,7 @@ test("the collapsed group is operable and announces its own state", () => {
     toggle.click();
     assert.equal(list.visible, true);
     assert.equal(arrow.text, "▾");
-    assert.equal(toggle.accessibleName, "Not available, 4 profiles, expanded");
+    assert.equal(toggle.accessibleName, "Needs setup, 4 profiles, expanded");
     assert.equal(toggle.accessibleStates.has("expanded"), true);
     assert.equal(toggle.styleClasses.has("xpuwlm-disclosure-open"), true);
 
@@ -813,7 +868,7 @@ test("the collapsed group is operable and announces its own state", () => {
     changed.profiles = changed.profiles.map((profile) => ({...profile, queued: 7}));
     view.render(ViewModel.toViewModel(changed, NOW));
     assert.equal(blockedList(root).visible, true);
-    assert.equal(disclosure(root).accessibleName, "Not available, 4 profiles, expanded");
+    assert.equal(disclosure(root).accessibleName, "Needs setup, 4 profiles, expanded");
 
     disclosure(root).click();
     assert.equal(blockedList(root).visible, false);

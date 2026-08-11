@@ -655,7 +655,7 @@ const BLOCKER_REASONS = Object.freeze({
 // published it. Guessing a category for it would be worse than quoting it.
 const NO_BLOCKER_DETAIL_TEXT = N_("the runtime gave no reason");
 
-const NOT_AVAILABLE_TITLE = N_("Not available");
+const NEEDS_SETUP_TITLE = N_("Needs setup");
 
 function blockerReasonText(blocker) {
     if (blocker.kind !== "unknown") {
@@ -722,24 +722,24 @@ function blockedGroupModel(blocked) {
     }
     return {
         count,
-        title: _(NOT_AVAILABLE_TITLE),
-        label: format(_("%s (%d)"), _(NOT_AVAILABLE_TITLE), count),
+        title: _(NEEDS_SETUP_TITLE),
+        label: format(_("%s (%d)"), _(NEEDS_SETUP_TITLE), count),
         summary: format(
             ngettext("%d profile cannot run yet", "%d profiles cannot run yet", count),
             count,
         ),
         collapsedName: format(
             ngettext(
-                "Not available, %d profile, collapsed",
-                "Not available, %d profiles, collapsed",
+                "Needs setup, %d profile, collapsed",
+                "Needs setup, %d profiles, collapsed",
                 count,
             ),
             count,
         ),
         expandedName: format(
             ngettext(
-                "Not available, %d profile, expanded",
-                "Not available, %d profiles, expanded",
+                "Needs setup, %d profile, expanded",
+                "Needs setup, %d profiles, expanded",
                 count,
             ),
             count,
@@ -969,7 +969,7 @@ module.exports = {
     CATALOG_CHANGE_KINDS,
     CATALOG_CHANGE_LABELS,
     DEVICE_STATUS_LABELS,
-    NOT_AVAILABLE_TITLE,
+    NEEDS_SETUP_TITLE,
     NO_BLOCKER_DETAIL_TEXT,
     RUNTIME_RECOVERY,
     RUNTIME_STATUS_LABELS,

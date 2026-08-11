@@ -151,6 +151,7 @@ class MenuView {
         // reading position, and it survives body rebuilds so a refresh never
         // collapses the group under the user's cursor.
         this._blockedExpanded = false;
+        this._focusBlockedOnRender = false;
         this._blocked = null;
         this._layout = layout || Layout.defaultLayout();
         this._root = this._box("xpuwlm-root", true);
@@ -229,6 +230,7 @@ class MenuView {
         this._bodyKey = null;
         this._model = null;
         this._focusedIdentity = null;
+        this._focusBlockedOnRender = false;
         return true;
     }
 
@@ -414,7 +416,11 @@ class MenuView {
 
     _buildFooter() {
         const footer = this._box("xpuwlm-footer");
-        this._manageButton = this._button("xpuwlm-primary-button", _("Manage workload profiles"), () => this._actions.selectTab("profiles"));
+        this._manageButton = this._button(
+            "xpuwlm-primary-button",
+            _("Manage workload profiles"),
+            () => this._manageProfiles(),
+        );
         this._manageButton.x_expand = true;
         this._manageButton.set_child(this._label(_("Manage profiles"), "xpuwlm-button-label"));
         footer.add_child(this._manageButton);
@@ -443,7 +449,10 @@ class MenuView {
             ));
         }
         this._renderScreen(model);
-        return this._restoreBodyFocus(previous);
+        const restored = this._restoreBodyFocus(previous);
+        return this._focusBlockedOnRender && this._selectedTab === "profiles"
+            ? this._focusBlockedDisclosure()
+            : restored;
     }
 
     // A rebuilt body keeps the caret on the same semantic control; when that
@@ -888,6 +897,29 @@ class MenuView {
         this._body.add_child(list);
         this._blocked = {arrow, disclosure, group, list, title};
         this._applyBlockedExpansion();
+        return true;
+    }
+
+    _manageProfiles() {
+        this._focusBlockedOnRender = true;
+        const selected = this._actions.selectTab("profiles");
+        if (this._focusBlockedOnRender && this._selectedTab === "profiles") {
+            this._focusBlockedDisclosure();
+        }
+        return selected;
+    }
+
+    _focusBlockedDisclosure() {
+        this._focusBlockedOnRender = false;
+        if (this._blocked === null) {
+            return false;
+        }
+        this._blockedExpanded = true;
+        this._applyBlockedExpansion();
+        const {disclosure} = this._blocked;
+        if (typeof disclosure.grab_key_focus === "function") {
+            disclosure.grab_key_focus();
+        }
         return true;
     }
 

@@ -343,10 +343,10 @@ test("the blocked group derives its own size from the live snapshot", () => {
     assert.equal(mixed.inexecutableCount, 1);
     assert.deepEqual(mixed.blockedProfiles.map((profile) => profile.id), ["desktop-context"]);
     assert.equal(mixed.blockedGroup.count, 1);
-    assert.equal(mixed.blockedGroup.label, "Not available (1)");
+    assert.equal(mixed.blockedGroup.label, "Needs setup (1)");
     assert.equal(mixed.blockedGroup.summary, "1 profile cannot run yet");
-    assert.equal(mixed.blockedGroup.collapsedName, "Not available, 1 profile, collapsed");
-    assert.equal(mixed.blockedGroup.expandedName, "Not available, 1 profile, expanded");
+    assert.equal(mixed.blockedGroup.collapsedName, "Needs setup, 1 profile, collapsed");
+    assert.equal(mixed.blockedGroup.expandedName, "Needs setup, 1 profile, expanded");
     assert.equal(
         mixed.runnableGroups.flatMap((group) => group.profiles).some((profile) => profile.id === "desktop-context"),
         false,

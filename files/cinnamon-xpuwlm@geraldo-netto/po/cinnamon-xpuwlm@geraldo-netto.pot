@@ -606,6 +606,22 @@ msgstr ""
 msgid "Needs review"
 msgstr ""
 
+#: lib/view-model.js
+msgid "Needs setup"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Needs setup, %d profile, collapsed"
+msgid_plural "Needs setup, %d profiles, collapsed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/view-model.js
+msgid "Needs setup, %d profile, expanded"
+msgid_plural "Needs setup, %d profiles, expanded"
+msgstr[0] ""
+msgstr[1] ""
+
 #: lib/menu-view.js
 msgid "New import"
 msgstr ""
@@ -689,22 +705,6 @@ msgstr ""
 #: lib/view-model.js
 msgid "No workload profiles are installed."
 msgstr ""
-
-#: lib/view-model.js
-msgid "Not available"
-msgstr ""
-
-#: lib/view-model.js
-msgid "Not available, %d profile, collapsed"
-msgid_plural "Not available, %d profiles, collapsed"
-msgstr[0] ""
-msgstr[1] ""
-
-#: lib/view-model.js
-msgid "Not available, %d profile, expanded"
-msgid_plural "Not available, %d profiles, expanded"
-msgstr[0] ""
-msgstr[1] ""
 
 #: lib/view-model.js
 msgid "Not shown: %d profile update(s), %d alert(s). Install the missing workload plug-in to see them."

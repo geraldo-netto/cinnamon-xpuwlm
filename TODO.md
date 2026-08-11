@@ -4,7 +4,6 @@
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0051 | open | medium | s | — | Profile-management disclosure wording: the footer's “Manage profiles” action opens the correct online screen, but eight readiness-blocked rows start collapsed behind the ambiguous label “Not available (8)”, which reads like a panel/service outage. Rename it to “Needs setup”, make the footer action expand it, preserve explicit disclosure control, focus, and Setup remedies, and add regression/visual/accessibility coverage. |
 
 ## Blocked
 

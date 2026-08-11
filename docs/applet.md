@@ -103,7 +103,7 @@ fallback phrases, and the mirrored schema against the service sources wherever
 both checkouts are present.
 
 The Profiles tab lists the profiles that run first, grouped as before, and
-collapses everything else into a single `Not available (n)` group at the
+collapses everything else into a single `Needs setup (n)` group at the
 bottom. Every count is derived from the live snapshot, so the group shrinks by
 itself as models and runtimes are installed and is correct on a host where more
 or fewer profiles run. Its rows keep their enable and weight controls, because
