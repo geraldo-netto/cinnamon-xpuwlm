@@ -50,6 +50,8 @@ function harness() {
         "chooseEventFolder", "startEventImport", "cancelEventImport", "editEventCandidate",
         "decideEventCandidate", "beginEventExport", "confirmEventExport", "backEventPreview",
         "resetEventImport",
+        "chooseQuestionFiles", "startDocumentQuestion", "cancelDocumentQuestion",
+        "resetDocumentQuestion",
     ]) {
         actions[name] = (...args) => calls.push([name, ...args]);
     }
@@ -82,6 +84,23 @@ function eventWorkflow(overrides = {}) {
         candidates: [],
         duplicatesDropped: 0,
         exportedPath: "",
+        ...overrides,
+    };
+}
+
+function documentWorkflow(overrides = {}) {
+    return {
+        available: true,
+        availabilityDetail: "",
+        phase: "idle",
+        sources: [],
+        jobId: "",
+        message: "",
+        progress: null,
+        answer: "",
+        providerId: "",
+        accelerator: "",
+        citations: [],
         ...overrides,
     };
 }
@@ -242,6 +261,108 @@ test("event import stays hidden until live readiness and starts from explicit se
     assert.equal(findActors(root, (actor) => actor.text === "notes.txt").length, 1);
     button(root, "Extract events from selected files").click();
     assert.deepEqual(calls.at(-1), ["startEventImport"]);
+});
+
+test("selected-document UI asks explicitly and renders only public citations", () => {
+    const {calls, view, root} = harness();
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        documentQuestion: documentWorkflow({available: false}),
+    }), NOW));
+    assert.equal(button(root, "Choose documents for one question"), undefined);
+
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        documentQuestion: documentWorkflow({
+            phase: "selected",
+            sources: [{path: "/private/guide.pdf", name: "guide.pdf", size: 42}],
+        }),
+    }), NOW));
+    const input = findActors(
+        root, (actor) => actor.accessibleName === "Question for selected documents",
+    )[0];
+    input.set_text("What must I restart?");
+    button(root, "Ask the explicit question over selected documents").click();
+    assert.deepEqual(calls.at(-1), ["startDocumentQuestion", "What must I restart?"]);
+
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        documentQuestion: documentWorkflow({
+            phase: "complete",
+            sources: [{path: "/private/guide.pdf", name: "guide.pdf", size: 42}],
+            answer: "Restart the service.", providerId: "qwen3-gpu", accelerator: "gpu",
+            citations: [{
+                fileId: "selected-file-1", fileName: "guide.pdf",
+                sourceSha256: "a".repeat(64), page: 3, span: {start: 10, end: 42},
+                textSha256: "b".repeat(64),
+            }],
+        }),
+    }), NOW));
+    assert.equal(findActors(root, (actor) => actor.text === "Restart the service.").length, 1);
+    assert.equal(findActors(root, (actor) => actor.text === "guide.pdf · page 3 · span 10–42").length, 1);
+    assert.equal(findActors(root, (actor) => String(actor.text).includes("/private/")).length, 0);
+    button(root, "Clear this answer and start again").click();
+    assert.deepEqual(calls.at(-1), ["resetDocumentQuestion"]);
+});
+
+test("selected-document render helpers preserve every branch and actor effect", () => {
+    const empty = harness();
+    assert.equal(empty.view._renderDocumentQuestion(null), false);
+    assert.equal(empty.view._renderDocumentQuestion(undefined), false);
+
+    const status = harness();
+    assert.equal(status.view._renderDocumentQuestionStatus({message: "Selected", progressText: "50%"}), undefined);
+    assert.equal(findActors(status.root, (actor) => actor.text === "Selected").length, 1);
+    assert.equal(findActors(status.root, (actor) => actor.text === "50%").length, 1);
+    const beforeEmptyStatus = findActors(status.root, () => true).length;
+    status.view._renderDocumentQuestionStatus({message: "", progressText: ""});
+    assert.equal(findActors(status.root, () => true).length, beforeEmptyStatus);
+
+    const sources = harness();
+    assert.equal(sources.view._renderDocumentQuestionSources({sources: []}), false);
+    assert.equal(sources.view._renderDocumentQuestionSources({
+        sources: [{name: "one.pdf"}, {name: "two.txt"}],
+    }), true);
+    assert.equal(findActors(sources.root, (actor) => actor.text === "2 files").length, 1);
+    assert.equal(findActors(sources.root, (actor) => actor.text === "one.pdf").length, 1);
+    assert.equal(findActors(sources.root, (actor) => actor.text === "two.txt").length, 1);
+
+    const entry = harness();
+    assert.equal(entry.view._documentQuestionEntry({phase: "idle"}), null);
+    const question = entry.view._documentQuestionEntry({phase: "selected"});
+    assert.equal(question.accessibleName, "Question for selected documents");
+    assert.equal(question.xpuwlmIdentity, "document-question-input");
+
+    const result = harness();
+    assert.equal(result.view._renderDocumentQuestionResult({complete: false}), false);
+    assert.equal(result.view._renderDocumentQuestionResult({
+        complete: true,
+        providerId: "qwen3-gpu",
+        accelerator: "gpu",
+        answer: "Restart service",
+        citations: [{text: "guide.pdf · page 1 · span 0–4"}],
+    }), true);
+    assert.equal(findActors(result.root, (actor) => actor.text === "qwen3-gpu · GPU").length, 1);
+    assert.equal(findActors(result.root, (actor) => actor.text === "Restart service").length, 1);
+    assert.equal(findActors(result.root, (actor) => actor.text === "guide.pdf · page 1 · span 0–4").length, 1);
+
+    const actions = harness();
+    assert.equal(actions.view._renderDocumentQuestionActions({
+        phase: "running", chooserEnabled: false, askEnabled: false,
+        cancelEnabled: true, complete: false,
+    }, null), true);
+    assert.equal(button(actions.root, "Cancel document question").reactive, true);
+    assert.equal(button(actions.root, "Choose documents for one question"), undefined);
+    assert.equal(button(actions.root, "Clear this answer and start again"), undefined);
+
+    const full = harness();
+    const model = ViewModel.documentQuestionModel({documentQuestion: documentWorkflow({
+        phase: "selected", message: "Ready", sources: [{name: "guide.pdf"}],
+    })});
+    assert.equal(full.view._renderDocumentQuestion(model), true);
+    assert.equal(findActors(full.root, (actor) => actor.text === "Ready").length, 1);
+    assert.equal(button(full.root, "Choose documents for one question").reactive, true);
+    assert.equal(button(full.root, "Ask the explicit question over selected documents").reactive, true);
 });
 
 test("event preview exposes grounded evidence, labelled edits, decisions, and confirmation", () => {

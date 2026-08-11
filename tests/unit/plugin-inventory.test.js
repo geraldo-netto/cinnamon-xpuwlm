@@ -73,6 +73,36 @@ test("an artifact-free ready worker remains usable because startup qualified its
     assert.deepEqual(ready, {available: true, detail: ""});
 });
 
+test("selected-document readiness independently requires its qualified external worker", () => {
+    const documentPlugin = plugin({
+        id: "ask-selected-files",
+        distribution: "private-document-provider",
+        artifacts: [],
+    });
+    assert.deepEqual(Inventory.documentQuestionReadiness(inventory({
+        plugins: [documentPlugin],
+    })), {available: true, detail: ""});
+    const cases = [
+        [[], /install and configure/iu],
+        [[{...documentPlugin, source: "bundled"}], /external/iu],
+        [[{...documentPlugin, workerState: "starting"}], /BGE and Qwen/iu],
+        [[{...documentPlugin, protocol: {minimum: 1, maximum: 1, capabilities: ["health"]}}], /execute/iu],
+        [[{...documentPlugin, permissions: [{name: "files:read-selected", granted: false}]}], /grant access/iu],
+        [[{...documentPlugin, artifacts: [{
+            id: "bge", version: "1", format: "ncnn", ready: false, reason: "BGE missing",
+        }]}], /BGE missing/u],
+        [[{...documentPlugin, artifacts: [{
+            id: "bge", version: "1", format: "ncnn", ready: false, reason: "",
+        }]}], /Install bge/u],
+    ];
+    for (const [plugins, pattern] of cases) {
+        const readiness = Inventory.documentQuestionReadiness(inventory({plugins}));
+        assert.equal(readiness.available, false);
+        assert.match(readiness.detail, pattern);
+    }
+    assert.throws(() => Inventory.documentQuestionReadiness({}), /valid plug-in inventory/u);
+});
+
 test("gateway validates replies and discards a superseded callback", () => {
     const callbacks = [];
     const cancellables = [];

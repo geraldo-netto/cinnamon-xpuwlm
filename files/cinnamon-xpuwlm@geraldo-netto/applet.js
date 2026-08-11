@@ -20,6 +20,8 @@ const Util = imports.misc.util;
 const AlertNotifier = require("./lib/alert-notifier.js");
 const CinnamonRuntime = require("./lib/cinnamon-runtime.js");
 const Domain = require("./lib/domain.js");
+const DocumentQuestion = require("./lib/document-question.js");
+const DocumentSourcePort = require("./lib/document-source-port.js");
 const EventImport = require("./lib/event-import.js");
 const EventSourcePort = require("./lib/event-source-port.js");
 const FailureBackoff = require("./lib/failure-log-backoff.js");
@@ -75,6 +77,10 @@ function unavailableEventFilePorts() {
     };
 }
 
+function unavailableDocumentPicker() {
+    return {chooseFiles: (callback) => callback(new Error("GTK document access is unavailable"), null)};
+}
+
 function defaultLogger() {
     return CinnamonRuntime.createLogger("XPU Workload Manager");
 }
@@ -110,6 +116,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._poller = null;
         this._unsubscribe = null;
         this._eventUnsubscribe = null;
+        this._documentUnsubscribe = null;
         try {
             this._construct(metadata, instanceId, overrides);
         } catch (error) {
@@ -126,6 +133,11 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._createPresentation(overrides);
         this._unsubscribe = this._manager.subscribe((state) => this._render(state));
         this._eventUnsubscribe = this._eventImport.subscribe(() => {
+            if (this._latestState) {
+                this._render(this._latestState);
+            }
+        });
+        this._documentUnsubscribe = this._documentQuestion.subscribe(() => {
             if (this._latestState) {
                 this._render(this._latestState);
             }
@@ -208,6 +220,23 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             || CinnamonRuntime.createPluginInventoryGateway(this._environment);
         this._eventImport = overrides.eventImportController
             || this._createEventImportController();
+        this._documentQuestion = overrides.documentQuestionController
+            || this._createDocumentQuestionController();
+    }
+
+    _createDocumentQuestionController() {
+        let picker;
+        try {
+            picker = DocumentSourcePort.createGtkDocumentPicker(this._environment);
+        } catch {
+            picker = unavailableDocumentPicker();
+        }
+        return new DocumentQuestion.DocumentQuestionController({
+            picker,
+            gateway: CinnamonRuntime.createRuntimeJobGateway(this._environment),
+            scheduler: this._scheduler,
+            clock: this._clock,
+        });
     }
 
     _createEventImportController() {
@@ -342,6 +371,10 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             confirmEventExport: () => this._eventImport.confirmExport(),
             backEventPreview: () => this._eventImport.backToPreview(),
             resetEventImport: () => this._eventImport.reset(),
+            chooseQuestionFiles: () => this._documentQuestion.chooseFiles(),
+            startDocumentQuestion: (question) => this._documentQuestion.start(question),
+            cancelDocumentQuestion: () => this._documentQuestion.cancel(),
+            resetDocumentQuestion: () => this._documentQuestion.reset(),
         };
     }
 
@@ -418,7 +451,11 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         if (this._destroyed) {
             return;
         }
-        this._latestState = {...state, eventImport: this._eventImport.state()};
+        this._latestState = {
+            ...state,
+            eventImport: this._eventImport.state(),
+            documentQuestion: this._documentQuestion.state(),
+        };
         const model = ViewModel.toViewModel(this._latestState);
         if (this._view) {
             this._view.render(model);
@@ -438,13 +475,20 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
                 }
                 if (error) {
                     this._eventImport.setAvailability(false, _("Event provider is not ready"));
+                    this._documentQuestion.setAvailability(false, _("Document provider is not ready"));
                     return;
                 }
                 const readiness = PluginInventory.eventReadiness(inventory);
                 this._eventImport.setAvailability(readiness.available, readiness.detail);
+                const documentReadiness = PluginInventory.documentQuestionReadiness(inventory);
+                this._documentQuestion.setAvailability(
+                    documentReadiness.available,
+                    documentReadiness.detail,
+                );
             });
         } catch {
             this._eventImport.setAvailability(false, _("Event provider is not ready"));
+            this._documentQuestion.setAvailability(false, _("Document provider is not ready"));
             return false;
         }
     }
@@ -508,20 +552,24 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         const poller = this._poller;
         const unsubscribe = this._unsubscribe;
         const eventUnsubscribe = this._eventUnsubscribe;
+        const documentUnsubscribe = this._documentUnsubscribe;
         const manager = this._manager;
         const notifier = this._notifier;
         const settings = this.settings;
         this._poller = null;
         this._unsubscribe = null;
         this._eventUnsubscribe = null;
+        this._documentUnsubscribe = null;
         this._runIsolated([
             ["stop the refresh timer", () => poller && poller.stop()],
             ["release the state subscription", () => unsubscribe && unsubscribe()],
             ["release the event subscription", () => eventUnsubscribe && eventUnsubscribe()],
+            ["release the document subscription", () => documentUnsubscribe && documentUnsubscribe()],
             ["cancel plug-in inventory", () => this._pluginInventoryGateway && this._pluginInventoryGateway.cancel()],
             ["destroy the popup menu", () => this._destroyMenu()],
             ["dispose the workload manager", () => manager && manager.dispose()],
             ["dispose event import", () => this._eventImport && this._eventImport.dispose()],
+            ["dispose document question", () => this._documentQuestion && this._documentQuestion.dispose()],
             ["dispose the alert notifier", () => notifier && notifier.dispose()],
             ["finalize the applet settings", () => settings && settings.finalize()],
         ]);
@@ -547,5 +595,6 @@ if (typeof module !== "undefined") {
         resolveWorkloadCatalog,
         resolveWorkloadRegistry,
         unavailableEventFilePorts,
+        unavailableDocumentPicker,
     };
 }

@@ -1,6 +1,7 @@
 "use strict";
 
 const Domain = require("./domain.js");
+const DocumentQuestion = require("./document-question.js");
 const EventImport = require("./event-import.js");
 const I18n = require("./i18n.js");
 const Job = require("./runtime-job-contract.js");
@@ -607,6 +608,45 @@ function eventImportModel(state) {
     };
 }
 
+function documentCitationText(citation) {
+    return format(
+        _("%s · page %d · span %d–%d"),
+        citation.fileName,
+        citation.page,
+        citation.span.start,
+        citation.span.end,
+    );
+}
+
+function documentQuestionModel(state) {
+    const workflow = state.documentQuestion;
+    if (workflow === null || workflow === undefined) {
+        return null;
+    }
+    const visible = workflow.available === true || workflow.phase !== "idle";
+    if (!visible) {
+        return null;
+    }
+    return {
+        ...workflow,
+        title: _("Ask selected files"),
+        chooserEnabled: workflow.available === true
+            && !["selecting", "submitting", "running", "cancelling"].includes(workflow.phase),
+        askEnabled: workflow.available === true && workflow.phase === "selected",
+        cancelEnabled: ["submitting", "running"].includes(workflow.phase),
+        complete: workflow.phase === "complete",
+        progressText: progressText(workflow.progress),
+        citations: workflow.citations.map((citation) => ({
+            ...citation,
+            text: documentCitationText(citation),
+        })),
+        limits: {
+            sources: DocumentQuestion.MAX_SOURCES,
+            questionCharacters: DocumentQuestion.MAX_QUESTION_CHARACTERS,
+        },
+    };
+}
+
 function formatLoad(value) {
     return typeof value === "number" && Number.isFinite(value)
         ? `${Math.round(value)}%`
@@ -930,6 +970,7 @@ function toViewModel(state, nowMs = Date.now()) {
         setup: setupModel(profiles),
         run: runModel(state),
         eventImport: eventImportModel(state),
+        documentQuestion: documentQuestionModel(state),
         inexecutableCount: blocked.length,
         pausedProfiles,
         activeAlerts,
@@ -959,6 +1000,7 @@ function toViewModel(state, nowMs = Date.now()) {
             job: state.job,
             inputs: state.inputs,
             eventImport: state.eventImport,
+            documentQuestion: state.documentQuestion,
         }),
     };
 }
@@ -1000,6 +1042,8 @@ module.exports = {
     effectiveScreen,
     eventCandidateModel,
     eventImportModel,
+    documentCitationText,
+    documentQuestionModel,
     evidenceText,
     formatFraction,
     formatLoad,

@@ -13,7 +13,10 @@ const appletRoot = path.join(filesRoot, UUID);
 const PAYLOAD_TOP_LEVEL = Object.freeze([
     "applet.js",
     "domain.js",
+    "document-question.js",
+    "document-source-port.js",
     "event-import.js",
+    "event-source-port.js",
     "failure-log-backoff.js",
     "failure-reporter.js",
     "i18n.js",

@@ -183,6 +183,10 @@ msgid "%s title"
 msgstr ""
 
 #: lib/view-model.js
+msgid "%s · page %d · span %d–%d"
+msgstr ""
+
+#: lib/view-model.js
 msgid "%s · see Setup"
 msgstr ""
 
@@ -294,6 +298,18 @@ msgstr ""
 msgid "Applying change in runtime…"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Ask"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Ask selected files"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Ask the explicit question over selected documents"
+msgstr ""
+
 #: lib/menu-view.js lib/view-model.js
 msgid "Attention"
 msgstr ""
@@ -308,6 +324,10 @@ msgstr ""
 
 #: lib/event-source-port.js lib/menu-view.js
 msgid "Cancel"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Cancel document question"
 msgstr ""
 
 #: lib/menu-view.js
@@ -350,6 +370,18 @@ msgstr ""
 msgid "Check the runtime version"
 msgstr ""
 
+#: lib/document-source-port.js
+msgid "Choose documents"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Choose documents for one question"
+msgstr ""
+
+#: lib/document-source-port.js
+msgid "Choose documents to ask"
+msgstr ""
+
 #: lib/event-source-port.js lib/menu-view.js
 msgid "Choose event source files"
 msgstr ""
@@ -364,6 +396,10 @@ msgstr ""
 
 #: lib/event-source-port.js lib/menu-view.js
 msgid "Choose one event source folder"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Clear this answer and start again"
 msgstr ""
 
 #: lib/menu-view.js
@@ -454,6 +490,14 @@ msgstr ""
 msgid "Dismiss the workload catalog change notice"
 msgstr ""
 
+#: applet.js
+msgid "Document provider is not ready"
+msgstr ""
+
+#: lib/document-source-port.js
+msgid "Documents and images"
+msgstr ""
+
 #: lib/event-source-port.js
 msgid "Documents, calendars, and images"
 msgstr ""
@@ -512,6 +556,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Grant the permission these profiles ask for"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Grounded answer"
 msgstr ""
 
 #: lib/view-model.js
@@ -626,6 +674,10 @@ msgstr[1] ""
 msgid "New import"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "New question"
+msgstr ""
+
 #: lib/view-model.js
 msgid "No accelerator available"
 msgstr ""
@@ -727,6 +779,10 @@ msgid "Online"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Only chosen files and this one question reach the isolated workers"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Open XPU Workload Manager settings"
 msgstr ""
 
@@ -776,6 +832,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Put a picture in %s and it will be listed here"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Question for selected documents"
 msgstr ""
 
 #: lib/menu-view.js lib/view-model.js
@@ -952,6 +1012,10 @@ msgstr ""
 
 #: lib/event-source-port.js
 msgid "Save new file"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Selected documents"
 msgstr ""
 
 #: lib/menu-view.js

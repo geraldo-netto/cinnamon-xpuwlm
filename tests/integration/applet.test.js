@@ -143,7 +143,8 @@ test("missing GTK ports fail explicitly without opening or overwriting anything"
     ports.picker.chooseFiles((error) => errors.push(error));
     ports.picker.chooseFolder((error) => errors.push(error));
     ports.exporter.saveIcs("calendar", ["/source"], (error) => errors.push(error));
-    assert.equal(errors.length, 3);
+    AppletModule.unavailableDocumentPicker().chooseFiles((error) => errors.push(error));
+    assert.equal(errors.length, 4);
     assert.equal(errors.every((error) => /unavailable/u.test(String(error))), true);
 });
 
@@ -434,6 +435,61 @@ test("event readiness transport failures fail closed and late replies are ignore
     });
     assert.equal(thrown.applet._refreshEventAvailability(), false);
     assert.equal(thrown.applet._eventImport.state().available, false);
+});
+
+test("selected-document readiness, actions, subscription, and teardown stay isolated", () => {
+    const calls = [];
+    const documentQuestion = {
+        workflow: {
+            available: false, availabilityDetail: "", phase: "idle", sources: [], jobId: "",
+            message: "", progress: null, answer: "", providerId: "", accelerator: "", citations: [],
+        },
+        state() { return {...this.workflow}; },
+        subscribe(listener) { this.listener = listener; return () => calls.push(["question-unsubscribe"]); },
+        setAvailability(available, detail) {
+            this.workflow.available = available;
+            this.workflow.availabilityDetail = detail;
+            if (this.listener) { this.listener(); }
+        },
+        chooseFiles() { calls.push(["choose-question-files"]); },
+        start(question) { calls.push(["start-question", question]); },
+        cancel() { calls.push(["cancel-question"]); },
+        reset() { calls.push(["reset-question"]); },
+        dispose() { calls.push(["dispose-question"]); },
+    };
+    const provider = {
+        id: "ask-selected-files", version: "1", source: "external", distribution: "provider",
+        workerState: "ready",
+        protocol: {minimum: 1, maximum: 1, capabilities: ["execute"]},
+        triggers: ["manual"], artifacts: [],
+        permissions: [{name: "files:read-selected", granted: true}],
+        configurationSchema: {}, secretConfigurationKeys: [],
+    };
+    const inventoryGateway = {
+        describe(callback) {
+            callback(null, {version: 1, generatedAt: 1, plugins: [provider]});
+            return true;
+        },
+        cancel() { calls.push(["inventory-cancel"]); },
+    };
+    const {applet} = appletHarness({documentQuestionController: documentQuestion, pluginInventoryGateway: inventoryGateway});
+    assert.equal(applet._latestState.documentQuestion.available, true);
+    const actions = applet._menuActions();
+    actions.chooseQuestionFiles();
+    actions.startDocumentQuestion("What changed?");
+    actions.cancelDocumentQuestion();
+    actions.resetDocumentQuestion();
+    assert.deepEqual(calls.slice(0, 4), [
+        ["choose-question-files"], ["start-question", "What changed?"],
+        ["cancel-question"], ["reset-question"],
+    ]);
+    const latest = applet._latestState;
+    applet._latestState = null;
+    assert.doesNotThrow(() => documentQuestion.listener());
+    applet._latestState = latest;
+    applet._teardown();
+    assert.ok(calls.some((call) => call[0] === "question-unsubscribe"));
+    assert.ok(calls.some((call) => call[0] === "dispose-question"));
 });
 
 test("polling refresh remains cacheable while manual refresh requests fresh detection", () => {

@@ -167,6 +167,35 @@ function eventReadiness(inventory) {
     return Object.freeze({available: detail === "", detail});
 }
 
+function documentReadinessDetail(plugin) {
+    if (plugin === null) {
+        return "Install and configure the ask-selected-files provider";
+    }
+    if (plugin.source !== "external") {
+        return "Install an external selected-document provider";
+    }
+    if (plugin.workerState !== "ready") {
+        return "Configure and qualify BGE and Qwen model providers";
+    }
+    if (!plugin.protocol.capabilities.includes("execute")) {
+        return "Update the selected-document provider to one that can execute workloads";
+    }
+    if (plugin.permissions.some((permission) => !permission.granted)) {
+        return "Grant access to explicitly selected document files";
+    }
+    const missing = plugin.artifacts.find((artifact) => !artifact.ready);
+    return missing ? missing.reason || `Install ${missing.id}` : "";
+}
+
+function documentQuestionReadiness(inventory) {
+    if (!validInventory(inventory)) {
+        throw new TypeError("Document readiness requires a valid plug-in inventory");
+    }
+    const plugin = inventory.plugins.find((candidate) => candidate.id === "ask-selected-files") || null;
+    const detail = documentReadinessDetail(plugin);
+    return Object.freeze({available: detail === "", detail});
+}
+
 class PluginInventoryGateway {
     constructor({sendText, cancellableFactory = () => null}) {
         if (typeof sendText !== "function") {
@@ -229,6 +258,8 @@ module.exports = {
     INVENTORY_VERSION,
     MAX_PLUGINS,
     PluginInventoryGateway,
+    documentQuestionReadiness,
+    documentReadinessDetail,
     exactRecord,
     eventReadiness,
     parseInventory,

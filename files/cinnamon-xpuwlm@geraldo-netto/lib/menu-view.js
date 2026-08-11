@@ -140,6 +140,10 @@ class MenuView {
             confirmEventExport: optionalAction(actions, "confirmEventExport"),
             backEventPreview: optionalAction(actions, "backEventPreview"),
             resetEventImport: optionalAction(actions, "resetEventImport"),
+            chooseQuestionFiles: optionalAction(actions, "chooseQuestionFiles"),
+            startDocumentQuestion: optionalAction(actions, "startDocumentQuestion"),
+            cancelDocumentQuestion: optionalAction(actions, "cancelDocumentQuestion"),
+            resetDocumentQuestion: optionalAction(actions, "resetDocumentQuestion"),
         };
         this._policyPaused = false;
         this._controlPending = false;
@@ -570,7 +574,100 @@ class MenuView {
         // cannot stays at the bottom where it was.
         this._renderRun(model.run);
         this._renderEventImport(model.eventImport);
+        this._renderDocumentQuestion(model.documentQuestion);
         this._renderBlockedProfiles(model);
+    }
+
+    _renderDocumentQuestion(model) {
+        if (model === null || model === undefined) {
+            return false;
+        }
+        this._addSectionHeading(
+            model.title,
+            _("Only chosen files and this one question reach the isolated workers"),
+        );
+        this._renderDocumentQuestionStatus(model);
+        this._renderDocumentQuestionSources(model);
+        const question = this._documentQuestionEntry(model);
+        this._renderDocumentQuestionResult(model);
+        this._renderDocumentQuestionActions(model, question);
+        return true;
+    }
+
+    _renderDocumentQuestionStatus(model) {
+        for (const [text, style] of [
+            [model.message, "xpuwlm-event-message"],
+            [model.progressText, "xpuwlm-event-progress"],
+        ]) {
+            if (text !== "") {
+                this._body.add_child(this._label(text, style, true));
+            }
+        }
+    }
+
+    _renderDocumentQuestionSources(model) {
+        if (model.sources.length === 0) {
+            return false;
+        }
+        this._addGroupHeading(_("Selected documents"), format(
+            ngettext("%d file", "%d files", model.sources.length),
+            model.sources.length,
+        ));
+        for (const source of model.sources) {
+            this._body.add_child(this._label(source.name, "xpuwlm-event-source", true));
+        }
+        return true;
+    }
+
+    _documentQuestionEntry(model) {
+        if (model.phase !== "selected") {
+            return null;
+        }
+        const entry = this._entry("", _("Question for selected documents"), "document-question-input");
+        this._body.add_child(entry);
+        return entry;
+    }
+
+    _renderDocumentQuestionResult(model) {
+        if (!model.complete) {
+            return false;
+        }
+        this._addGroupHeading(_("Grounded answer"), `${model.providerId} · ${model.accelerator.toUpperCase()}`);
+        this._body.add_child(this._label(model.answer, "xpuwlm-event-confirmation", true));
+        for (const citation of model.citations) {
+            this._body.add_child(this._label(citation.text, "xpuwlm-event-evidence", true));
+        }
+        return true;
+    }
+
+    _renderDocumentQuestionActions(model, question) {
+        const controls = this._box("xpuwlm-event-controls");
+        if (["idle", "selected", "complete", "error"].includes(model.phase)) {
+            controls.add_child(this._eventAction(
+                _("Choose files"), _("Choose documents for one question"), "question-choose-files",
+                this._actions.chooseQuestionFiles, model.chooserEnabled,
+            ));
+        }
+        if (question !== null) {
+            controls.add_child(this._eventAction(
+                _("Ask"), _("Ask the explicit question over selected documents"), "question-start",
+                () => this._actions.startDocumentQuestion(question.get_text()), model.askEnabled,
+            ));
+        }
+        if (model.cancelEnabled) {
+            controls.add_child(this._eventAction(
+                _("Cancel"), _("Cancel document question"), "question-cancel",
+                this._actions.cancelDocumentQuestion, true,
+            ));
+        }
+        if (model.complete) {
+            controls.add_child(this._eventAction(
+                _("New question"), _("Clear this answer and start again"), "question-reset",
+                this._actions.resetDocumentQuestion, true,
+            ));
+        }
+        this._body.add_child(controls);
+        return true;
     }
 
     _renderEventImport(model) {

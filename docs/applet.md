@@ -168,6 +168,12 @@ popup, and export requires human Keep/Reject decisions plus a separate
 confirmation. See [Private event import](event-import.md) for dependencies,
 formats, accelerator policy, privacy, and write guarantees.
 
+An installed and live-qualified external `ask-selected-files` worker adds a
+separate Ask selected files surface. It accepts one explicit bounded file
+selection and one explicit question, keeps no question history, and displays
+only a grounded answer with mandatory file/page/span citations. See
+[Ask selected files](document-questions.md).
+
 ## Accessible semantics
 
 Controls expose their ATK role and state, not only an accessible name: the tab
