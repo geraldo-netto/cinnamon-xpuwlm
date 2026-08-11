@@ -149,6 +149,29 @@ test("the reduction the applet renders is the one the service publishes", (t) =>
     );
 });
 
+test("the forecast reading has the service's exact fields and bounds", (t) => {
+    const root = skipWithoutService(t);
+    if (root === null) {
+        return;
+    }
+    const source = readSource(root, "src/omnitensor/forecastresult.py");
+
+    assert.equal(Job.MAX_FORECAST_TARGET_LENGTH, constantOf(source, "MAX_TARGET_CHARS"));
+    assert.equal(Job.MAX_FORECAST_HORIZON, constantOf(source, "MAX_HORIZON"));
+    assert.match(
+        source,
+        /_READING_FIELDS = frozenset\(\{"kind", "targetFeature", "horizon", "value"\}\)/u,
+    );
+    assert.deepEqual(
+        [...Job.FORECAST_READING_PROPERTIES],
+        ["kind", "targetFeature", "horizon", "value"],
+    );
+    assert.match(source, /"kind": FORECAST_KIND,/u);
+    assert.match(source, /"targetFeature": target,/u);
+    assert.match(source, /"horizon": horizon,/u);
+    assert.match(source, /"value": float\(value\),/u);
+});
+
 test("a reference is bounded by the service's own reference limits", (t) => {
     const root = skipWithoutService(t);
     if (root === null) {

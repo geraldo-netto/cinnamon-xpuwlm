@@ -64,3 +64,19 @@ schema, the exported method, and every required version against the service
 sources wherever both checkouts are present. A handshake that itself drifts
 would report agreement between two builds that do not agree, which is worse
 than having none.
+
+## Forecast readings
+
+OmniTensor may attach one bounded forecast reading to a successful forecast
+job: exactly `kind`, `targetFeature`, `horizon`, and `value`. `horizon` counts
+future observations, not time. `value` has no implied unit. The applet rejects
+missing, extra, out-of-range, and non-finite fields, then renders one advisory
+row containing only target, horizon, and value. It does not invent units,
+confidence, risk, or an autonomous action.
+
+The popup's Run surface still submits picture workloads only. Trusted forecast
+execution belongs to OmniTensor's `omnitensor-run-forecast` command, which
+builds inputs from recorded history and installed bindings. OmniTensor also
+publishes its forecast summary as a generic snapshot alert, so the existing
+Alerts screen can show the result without claiming the applet submitted or owns
+that job.

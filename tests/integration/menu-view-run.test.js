@@ -329,6 +329,29 @@ test("a finished job prints the candidates it was run for", () => {
     assert.match(rows[1], /^beacon/u, "a verified label is used where one exists");
 });
 
+test("a forecast renders one bounded advisory row without invented meaning", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(state({
+        job: {
+            pending: false,
+            profileId: RUNNABLE,
+            sourceName: "",
+            jobId: "job-forecast",
+            status: "accepted",
+            code: "job-succeeded",
+            message: "Job finished",
+            state: "succeeded",
+            progress: null,
+            reading: {kind: "forecast", targetFeature: "queueDepth", horizon: 3, value: 2.5},
+        },
+    }), NOW));
+
+    const rows = textWithClass(root, "tpuwm-job-reading");
+    assert.equal(rows.length, 1);
+    assert.match(rows[0], /^Forecast · queueDepth · 3 observations ahead · 2\.5$/u);
+    assert.doesNotMatch(rows[0], /%|confidence|risk|action/iu);
+});
+
 test("the reading is bounded however many candidates the runtime returned", () => {
     const many = Array.from({length: ViewModel.MAX_READING_ROWS + 5}, (unused, index) => ({
         index,
@@ -344,6 +367,9 @@ test("only a reduction that means something is rendered as one", () => {
     assert.equal(ViewModel.readingModel(null), null);
     assert.equal(ViewModel.readingModel(undefined), null);
     assert.equal(ViewModel.readingModel({kind: "embedding", top: []}), null);
+    assert.equal(ViewModel.readingModel({
+        kind: "forecast", targetFeature: "load", horizon: 0, value: 1,
+    }), null);
     assert.deepEqual(ViewModel.readingModel({kind: "classification", top: []}).entries, []);
 });
 

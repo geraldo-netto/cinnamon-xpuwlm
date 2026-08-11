@@ -303,4 +303,56 @@ describe("reading a succeeded job", () => {
             top: [],
         });
     });
+
+    it("accepts one exact bounded forecast reading", () => {
+        for (const reading of [
+            {kind: "forecast", targetFeature: "x", horizon: 1, value: -12.5},
+            {
+                kind: "forecast",
+                targetFeature: "x".repeat(Job.MAX_FORECAST_TARGET_LENGTH),
+                horizon: Job.MAX_FORECAST_HORIZON,
+                value: Number.MAX_VALUE,
+            },
+        ]) {
+            assert.deepEqual(Job.readingOf(output(reading)), reading);
+        }
+    });
+
+    it("copies a forecast instead of trusting a mutable service object", () => {
+        const source = {kind: "forecast", targetFeature: "load", horizon: 3, value: 0.75};
+        const parsed = Job.readingOf(output(source));
+
+        source.targetFeature = "queueDepth";
+        assert.deepEqual(parsed, {
+            kind: "forecast", targetFeature: "load", horizon: 3, value: 0.75,
+        });
+    });
+
+    it("rejects every malformed forecast field and any undeclared field", () => {
+        const valid = {kind: "forecast", targetFeature: "load", horizon: 3, value: 0.75};
+        const invalid = [
+            {...valid, kind: "prediction"},
+            {...valid, targetFeature: ""},
+            {...valid, targetFeature: "x".repeat(Job.MAX_FORECAST_TARGET_LENGTH + 1)},
+            {...valid, targetFeature: 7},
+            {...valid, horizon: true},
+            {...valid, horizon: 0},
+            {...valid, horizon: Job.MAX_FORECAST_HORIZON + 1},
+            {...valid, horizon: 1.5},
+            {...valid, value: true},
+            {...valid, value: "0.75"},
+            {...valid, value: Number.NaN},
+            {...valid, value: Number.POSITIVE_INFINITY},
+            {...valid, value: Number.NEGATIVE_INFINITY},
+            {...valid, unit: "%"},
+        ];
+        for (const reading of invalid) {
+            assert.equal(Job.forecastReadingOf(reading), null, JSON.stringify(reading));
+        }
+        for (const field of Job.FORECAST_READING_PROPERTIES) {
+            const missing = {...valid};
+            delete missing[field];
+            assert.equal(Job.forecastReadingOf(missing), null, `missing ${field}`);
+        }
+    });
 });

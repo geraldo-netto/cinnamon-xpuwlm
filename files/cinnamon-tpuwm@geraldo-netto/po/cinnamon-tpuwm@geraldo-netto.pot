@@ -36,6 +36,12 @@ msgid_plural "%d more pictures are not shown"
 msgstr[0] ""
 msgstr[1] ""
 
+#: lib/view-model.js
+msgid "%d observation ahead"
+msgid_plural "%d observations ahead"
+msgstr[0] ""
+msgstr[1] ""
+
 #: lib/menu-view.js
 msgid "%d of %d active"
 msgstr ""
@@ -360,6 +366,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Finished"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Forecast · %s · %s · %s"
 msgstr ""
 
 #: lib/view-model.js

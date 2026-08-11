@@ -254,6 +254,9 @@ function jobSubmission({requestId, workloadId, references}) {
 const MAX_READING_ENTRIES = 100;
 const MAX_LABEL_LENGTH = 160;
 const READING_KINDS = new Set(["classification", "embedding", "raw"]);
+const FORECAST_READING_PROPERTIES = new Set(["kind", "targetFeature", "horizon", "value"]);
+const MAX_FORECAST_TARGET_LENGTH = 64;
+const MAX_FORECAST_HORIZON = 128;
 
 function isReadingEntry(value) {
     return isRecord(value)
@@ -263,11 +266,32 @@ function isReadingEntry(value) {
         && (!Object.hasOwn(value, "label") || boundedText(value.label, 0, MAX_LABEL_LENGTH));
 }
 
+function forecastReadingOf(reading) {
+    if (!exactRecord(reading, FORECAST_READING_PROPERTIES)
+        || reading.kind !== "forecast"
+        || !boundedText(reading.targetFeature, 1, MAX_FORECAST_TARGET_LENGTH)
+        || !Number.isInteger(reading.horizon)
+        || reading.horizon < 1
+        || reading.horizon > MAX_FORECAST_HORIZON
+        || !Number.isFinite(reading.value)) {
+        return null;
+    }
+    return {
+        kind: "forecast",
+        targetFeature: reading.targetFeature,
+        horizon: reading.horizon,
+        value: reading.value,
+    };
+}
+
 function readingOf(output) {
     if (!isRecord(output) || !isRecord(output.reading)) {
         return null;
     }
     const reading = output.reading;
+    if (reading.kind === "forecast") {
+        return forecastReadingOf(reading);
+    }
     if (!READING_KINDS.has(reading.kind) || !Array.isArray(reading.top)) {
         return null;
     }
@@ -295,6 +319,9 @@ const JOB_CONTRACT_ALLOWLISTS = Object.freeze({
 module.exports = {
     ACKNOWLEDGEMENT_PROPERTIES,
     ACKNOWLEDGEMENT_STATUSES,
+    FORECAST_READING_PROPERTIES,
+    MAX_FORECAST_HORIZON,
+    MAX_FORECAST_TARGET_LENGTH,
     MAX_READING_ENTRIES,
     MAX_PROGRESS_DETAIL_LENGTH,
     MAX_RESULT_MESSAGE_LENGTH,
@@ -315,6 +342,7 @@ module.exports = {
     boundedProperties,
     boundedText,
     elementCount,
+    forecastReadingOf,
     isInputReference,
     isJobAcknowledgement,
     isJobResult,

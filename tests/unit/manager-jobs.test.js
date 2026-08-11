@@ -455,6 +455,23 @@ test("an accepted job is polled until the runtime says what became of it", () =>
     assert.deepEqual(submissions.filter((entry) => entry[0] === "poll").length, 2);
 });
 
+test("a bounded forecast reading survives the job polling boundary", () => {
+    const reading = {kind: "forecast", targetFeature: "queueDepth", horizon: 4, value: 2};
+    const {manager, scheduler} = harness({
+        results: [{
+            state: "succeeded",
+            code: "job-succeeded",
+            message: "Job finished",
+            output: {reading},
+        }],
+    });
+
+    manager.submitJob("runnable", PICTURE);
+    scheduler.fire();
+
+    assert.deepEqual(manager.state().job.reading, reading);
+});
+
 test("the staged buffer is removed once the job can no longer read it", () => {
     const {manager, submissions, scheduler} = harness({results: [{state: "succeeded"}]});
 

@@ -2,6 +2,7 @@
 
 const Domain = require("./domain.js");
 const I18n = require("./i18n.js");
+const Job = require("./runtime-job-contract.js");
 const Manager = require("./manager.js");
 const ProfileBlockers = require("./profile-blockers.js");
 
@@ -451,7 +452,24 @@ function readingEntryText(entry) {
         : `${entry.label} · ${score}`;
 }
 
+function forecastReadingText(reading) {
+    const horizon = format(
+        ngettext("%d observation ahead", "%d observations ahead", reading.horizon),
+        reading.horizon,
+    );
+    return format(
+        _("Forecast · %s · %s · %s"),
+        reading.targetFeature,
+        horizon,
+        String(reading.value),
+    );
+}
+
 function readingModel(reading) {
+    const forecast = Job.forecastReadingOf(reading);
+    if (forecast !== null) {
+        return {kind: forecast.kind, entries: [forecastReadingText(forecast)]};
+    }
     if (reading === null || reading === undefined || reading.kind !== "classification") {
         return null;
     }
@@ -894,6 +912,7 @@ module.exports = {
     formatFraction,
     formatLoad,
     formatRelativeTime,
+    forecastReadingText,
     groupModels,
     groupProfiles,
     highestActiveSeverity,
