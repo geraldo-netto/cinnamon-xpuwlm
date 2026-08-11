@@ -12,6 +12,7 @@ const MIN_WEIGHT = 1;
 const MAX_WEIGHT = 5;
 const MAX_QUEUE_DEPTH = 1000000;
 const MAX_ALERTS = 100;
+const MAX_PROFILE_REASON_LENGTH = 64;
 
 const PROFILE_STATUSES = new Set([
     "healthy",
@@ -245,12 +246,13 @@ function sanitizeProfileState(candidate, catalog = EMPTY_WORKLOAD_CATALOG) {
 
 function normalizeProfileRuntime(candidate) {
     if (!isPlainObject(candidate)) {
-        return {status: "idle", queued: 0, detail: ""};
+        return {status: "idle", queued: 0, detail: "", reason: ""};
     }
     return {
         status: PROFILE_STATUSES.has(candidate.status) ? candidate.status : "idle",
         queued: boundedInteger(candidate.queued, 0, MAX_QUEUE_DEPTH, 0),
         detail: safeText(candidate.detail, 240),
+        reason: safeText(candidate.reason, MAX_PROFILE_REASON_LENGTH),
     };
 }
 
@@ -658,6 +660,7 @@ module.exports = {
     MAX_DEVICES,
     MAX_ALERTS,
     MAX_CLOCK_SKEW_MS,
+    MAX_PROFILE_REASON_LENGTH,
     MAX_WEIGHT,
     MIN_GENERATED_AT,
     MIN_WEIGHT,

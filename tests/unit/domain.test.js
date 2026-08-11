@@ -179,12 +179,25 @@ test("workload catalog rejects malformed and duplicate definitions", () => {
 });
 
 test("runtime fields preserve unknown measurements and reject unsafe content", () => {
-    assert.deepEqual(Domain.normalizeProfileRuntime(null), {status: "idle", queued: 0, detail: ""});
+    assert.deepEqual(Domain.normalizeProfileRuntime(null), {
+        status: "idle", queued: 0, detail: "", reason: "",
+    });
     assert.deepEqual(Domain.normalizeProfileRuntime({status: "wrong", queued: -4, detail: 3}), {
         status: "idle",
         queued: 0,
         detail: "",
+        reason: "",
     });
+    assert.deepEqual(Domain.normalizeProfileRuntime({
+        status: "unavailable", queued: 1, detail: "localized", reason: "no-model",
+    }), {
+        status: "unavailable", queued: 1, detail: "localized", reason: "no-model",
+    });
+    assert.equal(
+        Domain.normalizeProfileRuntime({reason: "x".repeat(65)}).reason,
+        "x".repeat(Domain.MAX_PROFILE_REASON_LENGTH),
+    );
+    assert.equal(Domain.normalizeProfileRuntime({reason: true}).reason, "");
     assert.equal(Domain.normalizeDeviceEntry(null), null);
     assert.deepEqual(
         Domain.normalizeDeviceEntry({backend: "tpu", available: true, name: 4, kind: "future", reason: 7}),

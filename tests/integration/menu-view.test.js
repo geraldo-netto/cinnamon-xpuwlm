@@ -365,6 +365,25 @@ function blockedState(selectedTab = "profiles") {
     return state;
 }
 
+test("the snapshot reason code survives normalization into blocker classification", () => {
+    const portfolio = new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog());
+    const profiles = portfolio.list({
+        "resource-scheduler": {
+            status: "unavailable",
+            queued: 0,
+            detail: "texte localisé sans phrase anglaise",
+            reason: "no-model",
+        },
+    });
+    const resource = ViewModel.profileModel(
+        profiles.find((profile) => profile.id === "resource-scheduler"),
+    );
+
+    assert.equal(resource.reason, "no-model");
+    assert.equal(resource.blocker.kind, "model");
+    assert.equal(resource.blocker.reason, "No model installed");
+});
+
 function disclosure(root) {
     return findActors(root, (actor) => actor.tpuwmIdentity === "blocked-disclosure")[0];
 }

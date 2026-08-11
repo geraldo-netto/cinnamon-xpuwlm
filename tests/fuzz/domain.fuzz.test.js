@@ -66,6 +66,15 @@ test("fuzz: normalizers never throw or leak unknown profile keys", () => {
     }
 });
 
+test("property: every schema reason survives profile normalization exactly", () => {
+    for (const reason of RuntimeSchema.PROFILE_REASONS) {
+        const normalized = Domain.normalizeProfileRuntime({reason});
+
+        assert.equal(normalized.reason, reason);
+        assert.equal([...normalized.reason].length <= Domain.MAX_PROFILE_REASON_LENGTH, true);
+    }
+});
+
 test("fuzz: document parsing fails closed for arbitrary strings", () => {
     const random = generator(0x434f5241);
     const snapshotValidator = new RuntimeSchema.RuntimeSnapshotSchemaValidator();

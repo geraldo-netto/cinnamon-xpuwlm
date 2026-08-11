@@ -201,6 +201,7 @@ test("normalized runtime fragments expose exactly their contract fields", () => 
         status: "idle",
         queued: 0,
         detail: "",
+        reason: "",
     });
     assert.deepEqual(Domain.normalizeAlert({
         id: "power-risk",
@@ -248,7 +249,7 @@ test("default state and portfolio serialization cover every declared profile", (
     const listed = portfolio.list();
     assert.deepEqual(Object.keys(listed[0]), [
         "id", "title", "group", "description", "icon", "order", "defaultEnabled", "defaultWeight",
-        "executable", "enabled", "weight", "status", "queued", "detail",
+        "executable", "enabled", "weight", "status", "queued", "detail", "reason",
     ]);
     listed[0].title = "mutated";
     assert.equal(portfolio.list()[0].title, "Hardware health");
