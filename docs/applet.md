@@ -1,6 +1,9 @@
 # XPU Workload Manager Cinnamon applet
 
-`cinnamon-xpuwlm@geraldo-netto` is the production applet corresponding to the approved visual prototype in [`../design/prototype/`](../design/prototype/DESIGN.md). Its deployable source is kept under [`../files/cinnamon-xpuwlm@geraldo-netto/`](../files/cinnamon-xpuwlm@geraldo-netto/).
+`cinnamon-xpuwlm@geraldo-netto` is the deployable early-preview applet
+corresponding to the approved visual prototype in
+[`../design/prototype/`](../design/prototype/DESIGN.md). Its source is kept
+under [`../files/cinnamon-xpuwlm@geraldo-netto/`](../files/cinnamon-xpuwlm@geraldo-netto/).
 
 The applet owns panel presentation, persisted local profile intent, contention
 weights, pause/resume intent, local device discovery, and alert/recovery UX. A
@@ -182,30 +185,33 @@ does. Focus on a control outside the body is never disturbed.
 
 ## Runtime boundary
 
-A trusted local workload service — in practice the OmniTensor runtime — may
-atomically publish
+A trusted compatible local workload service may atomically publish
 `~/.local/state/xpu-workload-manager/state.json`. The accepted version 1
 contract is defined by `runtime-snapshot.schema.json`; the canonical schemas
-live in the OmniTensor repository and the applet ships mirror copies. The
-applet validates the complete document before normalizing or displaying any
-runtime field; it never executes its content.
+are currently maintained with the OmniTensor reference runtime and the applet
+ships mirror copies. The applet validates the complete document before
+normalizing or displaying any runtime field; it never executes its content.
 
 ### Where the snapshot path is configured
 
-That file is the only place the two sides meet, and each side names it
-independently, so a move has to be made twice:
+The snapshot is the observation channel for device, profile, queue, and alert
+state. The two sides also communicate over the versioned user-session D-Bus
+contract for handshake, controls, job submission, cancellation, and results;
+those calls never replace snapshot publication. Each side names the snapshot
+path independently, so a move has to be made twice:
 
 | Side | What names the path | Default |
 | --- | --- | --- |
 | Applet | The `runtime-state-path` setting, shown as "Runtime snapshot file" in the applet settings | `~/.local/state/xpu-workload-manager/state.json` |
-| OmniTensor service | The `OMNITENSOR_STATE_PATH` environment variable | the same path when the variable is unset |
+| Compatible runtime | Provider configuration; the OmniTensor reference uses `OMNITENSOR_STATE_PATH` | the same path for the reference runtime when the variable is unset |
 
 Both sides expand a leading `~` to the invoking user's home directory, and both
 read and write as the session user, so the snapshot stays inside the user's own
 state directory by default.
 
-To move it, set `OMNITENSOR_STATE_PATH` where the service is started — for a
-systemd user unit, `systemctl --user edit`, an
+For the OmniTensor reference runtime, move it by setting
+`OMNITENSOR_STATE_PATH` where the service is started — for a systemd user unit,
+`systemctl --user edit`, an
 `Environment=OMNITENSOR_STATE_PATH=/new/path/state.json` line, and
 `systemctl --user restart`, so the change survives the next start — and set the
 same path in the applet setting. Changing only one side leaves the applet
@@ -224,10 +230,12 @@ aggregates `devices` to a primary device — the first available device in
 tpu > npu > gpu hierarchy order — which drives the panel label (for example
 "GPU 55%", "TPU Detected", "Accel Offline", "Accel Unknown", "Accel Paused"),
 while the menu overview's "Accelerators" group lists every device with its
-availability and per-device load. There is deliberately no CPU backend: the CPU
-is the host's scarcest shared resource, inference never falls back onto it, and
-all-accelerators-absent shows the unavailable/recovery screen with generalized
-copy such as "Accelerator discovery failed" and "No accelerator available".
+availability and per-device load. The applet contract deliberately exposes no
+CPU scheduling backend; the OmniTensor reference additionally refuses CPU-only
+inference providers. Host-side capture, decoding, validation, preprocessing,
+transport, and result handling can still use the CPU. An absent declared
+accelerator lane produces an explicit setup or recovery state rather than a
+silent inference fallback.
 
 If no snapshot exists, the applet probes for accelerator device nodes and
 reports device-only state. Coral TPU probing is unchanged: PCIe
