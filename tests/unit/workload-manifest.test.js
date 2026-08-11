@@ -338,6 +338,27 @@ function withModel(extra) {
     return manifest;
 }
 
+function withFeatureContract(contractChanges = {}, modelChanges = {}) {
+    return withModel({
+        tensorContract: {
+            inputs: [{shape: [1, 9], dtype: "float32", layout: "NC"}],
+        },
+        featureContract: {
+            version: 1,
+            recipe: "forecast-v1",
+            featureNames: ["load", "queue", "memory"],
+            targetFeature: "load",
+            window: 3,
+            horizon: 1,
+            observationOrder: "oldest-first",
+            flattenOrder: "observations-then-features",
+            ...contractChanges,
+        },
+        outputContract: {kind: "raw"},
+        ...modelChanges,
+    });
+}
+
 // Both contracts are optional and both are new, so the interesting cases are
 // the ones the validator and the schema could disagree about. Every candidate
 // is checked against the Ajv oracle as well, because a mirror that is stricter
@@ -384,6 +405,99 @@ test("a declared tensor contract is accepted exactly as the schema accepts it", 
     for (const [label, tensorContract] of cases) {
         agree(withModel({tensorContract}), false, label);
     }
+});
+
+test("a feature contract is closed, bounded, and preserves exact sequence meaning", () => {
+    agree(withFeatureContract(), true, "full feature contract");
+    agree(withFeatureContract({horizon: 128}), true, "maximum horizon");
+
+    const schemaCases = [
+        ["unknown property", {unknown: true}],
+        ["wrong version", {version: 2}],
+        ["wrong recipe", {recipe: "forecast-v2"}],
+        ["no features", {featureNames: []}],
+        ["duplicate feature", {featureNames: ["load", "load"]}],
+        ["empty feature", {featureNames: [""]}],
+        ["long feature", {featureNames: ["x".repeat(65)]}],
+        ["zero window", {window: 0}],
+        ["boolean window", {window: true}],
+        ["large window", {window: 129}],
+        ["zero horizon", {horizon: 0}],
+        ["large horizon", {horizon: 129}],
+        ["wrong observation order", {observationOrder: "newest-first"}],
+        ["wrong flatten order", {flattenOrder: "features-then-observations"}],
+    ];
+    for (const [label, change] of schemaCases) {
+        agree(withFeatureContract(change), false, label);
+    }
+});
+
+test("feature semantics must agree with the exact model tensor and output", () => {
+    const semanticCases = [
+        ["target not first", withFeatureContract({targetFeature: "queue"})],
+        ["wrong width", withFeatureContract({}, {
+            tensorContract: {inputs: [{shape: [1, 8], dtype: "float32", layout: "NC"}]},
+        })],
+        ["wrong dtype", withFeatureContract({}, {
+            tensorContract: {inputs: [{shape: [1, 9], dtype: "float64", layout: "NC"}]},
+        })],
+        ["wrong layout", withFeatureContract({}, {
+            tensorContract: {inputs: [{shape: [1, 9], dtype: "float32", layout: "N"}]},
+        })],
+        ["non-raw output", withFeatureContract({}, {
+            outputContract: {kind: "classification"},
+        })],
+    ];
+    for (const [label, manifest] of semanticCases) {
+        assert.equal(oracle(manifest), true, `${label}: schema leaves cross-fields to runtime`);
+        assert.equal(Contract.isWorkloadManifest(manifest), false, label);
+    }
+
+    const features = ["a", "b", "c", "d", "e"];
+    const overWidth = withFeatureContract(
+        {featureNames: features, targetFeature: "a", window: 128},
+        {tensorContract: {
+            inputs: [{shape: [1, 640], dtype: "float32", layout: "NC"}],
+        }},
+    );
+    assert.equal(oracle(overWidth), true, "product bounds need a semantic check");
+    assert.equal(Contract.isWorkloadManifest(overWidth), false);
+
+    const boundary = withFeatureContract(
+        {featureNames: ["a", "b", "c", "d"], targetFeature: "a", window: 128},
+        {tensorContract: {
+            inputs: [{shape: [1, 512], dtype: "float32", layout: "NC"}],
+        }},
+    );
+    agree(boundary, true, "512-value boundary");
+
+    const featureContract = withFeatureContract().requirements.model.featureContract;
+    const outputContract = {kind: "raw"};
+    assert.equal(Contract.isFeatureContract(featureContract, {
+        tensorContract: null, outputContract,
+    }), false, "tensor contract must be an object");
+    assert.equal(Contract.isFeatureContract(featureContract, {
+        tensorContract: {inputs: {}}, outputContract,
+    }), false, "tensor inputs must be an array");
+    assert.equal(Contract.isFeatureContract(featureContract, {
+        tensorContract: {inputs: [
+            {shape: [1, 9], dtype: "float32", layout: "NC"},
+            {shape: [1, 9], dtype: "float32", layout: "NC"},
+        ]},
+        outputContract,
+    }), false, "forecast models have exactly one input");
+});
+
+test("same-shape lanes with different feature order are not one model", () => {
+    const gpu = withFeatureContract().requirements.model;
+    const npu = JSON.parse(JSON.stringify(gpu));
+    npu.id = "sample-model-npu";
+    npu.format = "openvino";
+    npu.featureContract.featureNames = ["load", "memory", "queue"];
+
+    assert.equal(Contract.isModel(gpu, "gpu"), true);
+    assert.equal(Contract.isModel(npu, "gpu"), true);
+    assert.equal(Contract.isModelSet([gpu, npu], "gpu"), false);
 });
 
 test("the preprocessing block is all-or-nothing and bounded", () => {

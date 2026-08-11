@@ -115,6 +115,11 @@ test("the mirrored manifest schema still describes the model the service does", 
         modelProperties(service).tensorContract,
         "the mirrored tensor contract drifted from the service's",
     );
+    assert.deepEqual(
+        modelProperties(mirrored).featureContract,
+        modelProperties(service).featureContract,
+        "the mirrored feature contract drifted from the service's",
+    );
 });
 
 test("every validator allowlist names exactly the mirrored schema's properties", () => {
@@ -123,6 +128,7 @@ test("every validator allowlist names exactly the mirrored schema's properties",
     const input = contract.properties.inputs.items;
     const requirements = mirrored.properties.requirements;
     const objects = {
+        featureContract: model.featureContract.properties,
         model,
         outputContract: model.outputContract.properties,
         tensorContract: contract.properties,

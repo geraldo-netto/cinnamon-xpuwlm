@@ -138,3 +138,52 @@ test("property: optional model digests stay equivalent to the authoritative sche
         );
     }
 });
+
+test("property: ordered forecast features survive bounds and reject lane permutations", () => {
+    const next = random(0xf04eca57);
+    for (let iteration = 0; iteration < 500; iteration += 1) {
+        const featureCount = 3 + Math.floor(next() * 14);
+        const maximumWindow = Math.min(128, Math.floor(512 / featureCount));
+        const window = 1 + Math.floor(next() * maximumWindow);
+        const horizon = 1 + Math.floor(next() * 128);
+        const featureNames = Array.from({length: featureCount}, (_item, index) => `f${index}`);
+        const width = featureCount * window;
+        const model = {
+            id: "forecast-gpu",
+            version: "1.0.0",
+            format: "ncnn",
+            fullyQuantized: false,
+            minimumCompilerVersion: "1.0",
+            minimumRuntimeVersion: "1.0",
+            tensorContract: {
+                inputs: [{shape: [1, width], dtype: "float32", layout: "NC"}],
+            },
+            featureContract: {
+                version: 1,
+                recipe: "forecast-v1",
+                featureNames,
+                targetFeature: featureNames[0],
+                window,
+                horizon,
+                observationOrder: "oldest-first",
+                flattenOrder: "observations-then-features",
+            },
+            outputContract: {kind: "raw"},
+        };
+        const manifest = Fixtures.validWorkloadManifest();
+        manifest.requirements.accelerator = "gpu";
+        manifest.requirements.model = model;
+        assert.equal(Boolean(oracle(manifest)), true, `iteration ${iteration}: schema`);
+        assert.equal(Contract.isWorkloadManifest(manifest), true, `iteration ${iteration}`);
+
+        const permuted = JSON.parse(JSON.stringify(model));
+        permuted.id = "forecast-npu";
+        permuted.format = "openvino";
+        [permuted.featureContract.featureNames[1], permuted.featureContract.featureNames[2]] = [
+            permuted.featureContract.featureNames[2],
+            permuted.featureContract.featureNames[1],
+        ];
+        assert.equal(Contract.isModel(permuted, "gpu"), true);
+        assert.equal(Contract.isModelSet([model, permuted], "gpu"), false);
+    }
+});

@@ -55,7 +55,8 @@ const MODEL_REQUIRED = Object.freeze([
 // the same reason `sha256` is: manifests written before the field exist, and
 // absent means the runtime checks nothing, exactly as it did.
 const MODEL_PROPERTIES = new Set([
-    ...MODEL_REQUIRED, "sha256", "companions", "tensorContract", "outputContract",
+    ...MODEL_REQUIRED, "sha256", "companions", "tensorContract", "featureContract",
+    "outputContract",
 ]);
 // Digests for the files that travel with the primary one. Optional in the
 // contract and load-bearing at dispatch: a format that keeps its weights in a
@@ -87,6 +88,17 @@ const MAX_TENSOR_INPUTS = 8;
 const MAX_TENSOR_RANK = 6;
 const MAX_TENSOR_DIMENSION = 65536;
 const MAX_CHANNELS = 4;
+const FEATURE_CONTRACT_REQUIRED = Object.freeze([
+    "version", "recipe", "featureNames", "targetFeature", "window", "horizon",
+    "observationOrder", "flattenOrder",
+]);
+const FEATURE_CONTRACT_PROPERTIES = new Set(FEATURE_CONTRACT_REQUIRED);
+const FORECAST_INPUT_PROPERTIES = new Set(["shape", "dtype", "layout"]);
+const RAW_OUTPUT_PROPERTIES = new Set(["kind"]);
+const MAX_FORECAST_FEATURES = 128;
+const MAX_FORECAST_FEATURE_NAME = 64;
+const MAX_FORECAST_WINDOW = 128;
+const MAX_FORECAST_INPUT_WIDTH = 512;
 const UI_PROPERTIES = new Set(["title", "group", "description", "icon", "order"]);
 const DEFAULT_PROPERTIES = new Set(["enabled", "weight"]);
 const PIPELINE_PROPERTIES = new Set(["hostResponsibilities"]);
@@ -232,11 +244,59 @@ function isOutputContract(value) {
         && isLabelsFilename(value);
 }
 
-// The two optional contracts, kept together so `isModel` stays readable and
-// so adding a third has one obvious place to go.
+function hasForecastTensor(model, width) {
+    const tensor = model.tensorContract;
+    return isRecord(tensor)
+        && Array.isArray(tensor.inputs)
+        && tensor.inputs.length === 1
+        && isForecastInput(tensor.inputs[0], width)
+        && exactProperties(model.outputContract, RAW_OUTPUT_PROPERTIES)
+        && model.outputContract.kind === "raw";
+}
+
+function isForecastInput(value, width) {
+    return exactProperties(value, FORECAST_INPUT_PROPERTIES)
+        && canonicalJson(value) === canonicalJson({
+            shape: [1, width], dtype: "float32", layout: "NC",
+        });
+}
+
+function hasFeatureIdentity(value) {
+    return boundedProperties(value, FEATURE_CONTRACT_REQUIRED, FEATURE_CONTRACT_PROPERTIES)
+        && value.version === 1
+        && value.recipe === "forecast-v1"
+        && uniqueBoundedTextList(
+            value.featureNames,
+            MAX_FORECAST_FEATURES,
+            MAX_FORECAST_FEATURE_NAME,
+        )
+        && value.featureNames.length >= 1
+        && value.targetFeature === value.featureNames[0];
+}
+
+function boundedForecastCount(value) {
+    return Number.isInteger(value) && value >= 1 && value <= MAX_FORECAST_WINDOW;
+}
+
+function isFeatureContract(value, model) {
+    if (!hasFeatureIdentity(value)) {
+        return false;
+    }
+    const width = value.featureNames.length * value.window;
+    return boundedForecastCount(value.window)
+        && boundedForecastCount(value.horizon)
+        && value.observationOrder === "oldest-first"
+        && value.flattenOrder === "observations-then-features"
+        && width <= MAX_FORECAST_INPUT_WIDTH
+        && hasForecastTensor(model, width);
+}
+
+// Optional model contracts stay together so `isModel` has one validation path.
 function hasModelContracts(value) {
     return (!declared(value, "tensorContract") || isTensorContract(value.tensorContract))
-        && (!declared(value, "outputContract") || isOutputContract(value.outputContract));
+        && (!declared(value, "outputContract") || isOutputContract(value.outputContract))
+        && (!declared(value, "featureContract")
+            || isFeatureContract(value.featureContract, value));
 }
 
 function isModel(value, accelerator) {
@@ -303,7 +363,7 @@ function canonical(value) {
 }
 
 function agreeOnContracts(models) {
-    return ["tensorContract", "outputContract"].every((field) => {
+    return ["featureContract", "tensorContract", "outputContract"].every((field) => {
         const stated = new Set(models.map((model) => JSON.stringify(canonical(model[field] ?? null))));
         return stated.size === 1;
     });
@@ -683,6 +743,7 @@ function declaredModels(requirements) {
 }
 
 const MANIFEST_ALLOWLISTS = Object.freeze({
+    featureContract: FEATURE_CONTRACT_PROPERTIES,
     model: MODEL_PROPERTIES,
     outputContract: OUTPUT_CONTRACT_PROPERTIES,
     tensorContract: TENSOR_CONTRACT_PROPERTIES,
@@ -735,6 +796,7 @@ module.exports = {
     isAcceptanceCriterion,
     isBoundedSchemaRecord,
     isDefaults,
+    isFeatureContract,
     isModel,
     isModelArtifact,
     isPipeline,
