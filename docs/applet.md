@@ -69,7 +69,9 @@ and the user's next action differs in each:
 
 | `profiles[].reason` | Class | Remedy |
 | --- | --- | --- |
-| `no-model`, `artifact-unavailable`, `format-unsupported` | needs a model | Install an artifact with `omnitensor-prepare-artifact`, then declare the printed `requirements.model` block in the profile's manifest |
+| `no-model` on `resource-scheduler` | local forecast recipe available | Record real bounded queue history, train the supported forecast, install its restricted binding, restart the service, then run the trusted forecast client |
+| `no-model` on another profile | no qualified model or recipe | None. Define and qualify the task-specific data, semantics, model, consumer, and acceptance evidence in OmniTensor; arbitrary weights are not a remedy |
+| `artifact-unavailable`, `format-unsupported` | declared model installation is unusable | Reinstall the exact declared artifact and companions; keep its model and tensor contracts unchanged |
 | `runtime-missing`, `runtime-unusable` | needs an accelerator runtime | Install the matching Python extra, for example `pip install 'omnitensor[gpu]'` |
 | `device-absent`, `no-executor`, `no-preference` | needs hardware | None. The profile stays unavailable until supported hardware is attached |
 | `serving`, `paused-by-policy`, `profile-disabled` | not blocked | Nothing to install; the profile runs, or the user's own policy stopped it |
@@ -116,6 +118,42 @@ Copy button, because St offers no clipboard action here and a control that does
 nothing is exactly what these two changes exist to remove. When nothing is
 missing the tab says so and states how many profiles run, rather than rendering
 empty.
+
+Resource Scheduler is the one bundled null-model profile with a supported
+local recipe. Its Setup section starts with bounded, opt-in snapshot recording:
+
+```sh
+omnitensor-record-runtime-snapshot \
+  --profile resource-scheduler \
+  --selector queueDepth \
+  --selector runningProfiles
+
+omnitensor-train-model \
+  --profile resource-scheduler \
+  --id <id> \
+  --version <v> \
+  --features queueDepth,runningProfiles \
+  --target queueDepth \
+  --window <n> \
+  --horizon <n>
+
+omnitensor-install-trained-model \
+  ~/.local/share/omnitensor/training/resource-scheduler/<v>/training-report.json \
+  --targets auto
+systemctl --user restart omnitensor.service
+omnitensor-run-forecast --profile resource-scheduler
+```
+
+Recording needs enough representative real history for the trainer's holdout
+gate; these lines are a workflow, not an immediate script to run after one
+sample. No recorder timer is installed or enabled automatically. The popup
+does not submit a forecast itself because only OmniTensor's trusted client owns
+the recorded-history and binding checks.
+
+The six other null-model profiles do not gain a model by copying this scalar
+forecast. Their distinct corpus, privacy, task metrics, preprocessing,
+post-processing, result-consumer, signing, and acceptance work remains tracked
+in OmniTensor. Setup intentionally offers no generic artifact command for them.
 
 ## Accessible semantics
 

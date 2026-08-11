@@ -3,7 +3,6 @@
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
 | XTPU-0049 | blocked | low | m | — | Blocked: requires Edge TPU hardware not present on this host (AMD RX 6600 XT and 610M via Vulkan only), and measurements must be measured, never estimated. Record reproducible acceptance measurements for `low-light-enhancement` on named hardware (model, compiler, and runtime versions, input shape, warm-up, sample count, host preprocessing, CPU tone-mapping baseline) against the five manifest acceptance criteria; the workload stays disabled by default until the measured results are recorded. |
-| XTPU-0069 | open | medium | l | XTPU-0049 | Needs a product decision, not applet work: seven of the nine bundled workloads declare `requirements.model: null`, so `omnitensor/src/omnitensor/plugins/orchestration.py` refuses to build a pipeline for any of them (`profile-has-no-model`); `visual-library` is the one that now declares a model the service resolves, and `low-light-enhancement` stays disabled pending XTPU-0049. The popup now classifies each refusal (`lib/profile-blockers.js`), lists the profiles that run first, collapses the rest into a derived `Not available (n)` group with disabled controls, and explains each remedy in a Setup tab, so the presentation is no longer the gap. Decide which of the remaining workloads get models, in which formats, before any of them can be more than a policy row. |
 
 # Rejected / Won't fix
 

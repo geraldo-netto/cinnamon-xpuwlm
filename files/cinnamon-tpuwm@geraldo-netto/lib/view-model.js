@@ -273,13 +273,17 @@ function recoveryModel(state) {
 }
 
 // The Setup tab is organised by remedy, not by profile, because one package or
-// one artifact usually unblocks several profiles at once, and because the three
-// remedies are what actually differ: two of them are a command, and the third
-// is an admission that no command exists. Every string here is the applet's
-// own; the runtime's words are repeated per profile beside them.
+// one artifact usually unblocks several profiles at once. A missing declared
+// artifact, a supported local training recipe, and a profile with no qualified
+// model are different states: only the first two have honest commands. Every
+// string here is the applet's own; the runtime's words are repeated per profile
+// beside them.
 // Consent first: it is the only one a person can act on in seconds, and it
 // needs no install, no hardware, and no download.
-const SETUP_KIND_ORDER = Object.freeze(["consent", "runtime", "model", "hardware", "unknown"]);
+const LOCAL_FORECAST_PROFILE = "resource-scheduler";
+const SETUP_KIND_ORDER = Object.freeze([
+    "consent", "runtime", "forecast", "model", "model-design", "hardware", "unknown",
+]);
 
 const SETUP_SECTIONS = Object.freeze({
     runtime: Object.freeze({
@@ -289,10 +293,22 @@ const SETUP_SECTIONS = Object.freeze({
         note: N_("Which extra depends on the accelerator: see the Dependencies table in the OmniTensor installation guide."),
     }),
     model: Object.freeze({
-        title: N_("Install a model"),
-        description: N_("These profiles declare no model, so the runtime refuses to build a pipeline for them. Install the artifact, then declare the requirements.model block the command prints in the profile's manifest."),
-        command: N_("omnitensor-prepare-artifact <model>.param --id <id> --version <v> --format ncnn --install-root ~/.local/share/omnitensor/artifacts"),
-        note: N_("See “Installing a model” in the OmniTensor installation guide. The model format has to match the accelerator the profile declares."),
+        title: N_("Repair the declared model installation"),
+        description: N_("These profiles declare a model, but its artifact is missing or its format cannot run on the selected accelerator. Restore the exact declared artifact, or qualify a compatible variant without changing its meaning."),
+        command: N_("omnitensor-prepare-artifact <model> --id <id> --version <v> --format <declared-format> --install-root ~/.local/share/omnitensor/artifacts"),
+        note: N_("Preparing an exact declared artifact repairs artifact-unavailable. A format-unsupported profile needs a qualified compatible variant and matching manifest contract; arbitrary weights are never a remedy."),
+    }),
+    forecast: Object.freeze({
+        title: N_("Train a local Resource Scheduler forecast"),
+        description: N_("Resource Scheduler has no bundled weights, but OmniTensor supports one opt-in self-supervised forecast recipe for it. Record representative real queue history first; never substitute synthetic samples."),
+        command: N_("omnitensor-record-runtime-snapshot --profile resource-scheduler --selector queueDepth --selector runningProfiles"),
+        note: N_("After enough history, use omnitensor-train-model with queueDepth first, install the restricted binding with omnitensor-install-trained-model, restart omnitensor.service, then run omnitensor-run-forecast. Follow “Local model training” in OmniTensor; no recorder timer is enabled automatically."),
+    }),
+    "model-design": Object.freeze({
+        title: N_("No qualified model is available"),
+        description: N_("These profiles do not declare a model or a supported training recipe. No generic install command can invent their task semantics, representative data, metrics, preprocessing, output consumer, or acceptance evidence."),
+        command: "",
+        note: N_("Track each profile's model work in OmniTensor. Do not attach arbitrary weights or reuse Resource Scheduler's scalar forecast recipe for a different task."),
     }),
     consent: Object.freeze({
         title: N_("Grant the permission these profiles ask for"),
@@ -330,6 +346,20 @@ function setupSection(kind, members) {
     };
 }
 
+function setupKind(profile) {
+    if (profile.blocker.kind !== "model") {
+        return profile.blocker.kind;
+    }
+    const detail = typeof profile.blocker.detail === "string" ? profile.blocker.detail : "";
+    const noReasonCode = typeof profile.reason !== "string" || profile.reason === "";
+    const modelIsUndeclared = profile.reason === "no-model"
+        || (noReasonCode && ProfileBlockers.mentions(detail, ProfileBlockers.MODEL_REASONS));
+    if (!modelIsUndeclared) {
+        return "model";
+    }
+    return profile.id === LOCAL_FORECAST_PROFILE ? "forecast" : "model-design";
+}
+
 function setupSummary(total, runnable) {
     if (total === 0) {
         return _("No workload profiles are installed.");
@@ -350,7 +380,7 @@ function setupSummary(total, runnable) {
 function setupModel(profiles) {
     const blocked = profiles.filter((profile) => profile.blocker !== null);
     const sections = SETUP_KIND_ORDER
-        .map((kind) => [kind, blocked.filter((profile) => profile.blocker.kind === kind)])
+        .map((kind) => [kind, blocked.filter((profile) => setupKind(profile) === kind)])
         .filter(([, members]) => members.length > 0)
         .map(([kind, members]) => setupSection(kind, members));
     return {
@@ -887,6 +917,7 @@ module.exports = {
     RUNTIME_STATUS_LABELS,
     SETUP_KIND_ORDER,
     SETUP_SECTIONS,
+    LOCAL_FORECAST_PROFILE,
     JOB_STATE_LABELS,
     MAX_READING_ROWS,
     MAX_RUN_PICTURES,
@@ -921,6 +952,7 @@ module.exports = {
     profileModel,
     panelModel,
     setupModel,
+    setupKind,
     setupSection,
     setupSummary,
     severityText,

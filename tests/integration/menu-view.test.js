@@ -575,7 +575,7 @@ test("the collapsed group and the setup tab report what they did", () => {
     assert.equal(view._renderBlockedProfiles(blocked), true);
     assert.deepEqual(
         blocked.setup.sections.map((section) => view._renderSetupSection(section)),
-        ["runtime", "model", "hardware", "unknown"],
+        ["runtime", "model-design", "hardware", "unknown"],
     );
 });
 
@@ -587,7 +587,7 @@ test("the setup tab explains each remedy once, for every profile that needs it",
         && actor.styleClasses.has("tpuwm-group-title")).map((actor) => actor.text);
     assert.deepEqual(titles, [
         "Install the accelerator runtime",
-        "Install a model",
+        "No qualified model is available",
         "Connect supported hardware",
         "Reported by the runtime",
     ]);
@@ -622,13 +622,11 @@ test("the setup tab explains each remedy once, for every profile that needs it",
         4,
     );
 
-    // Two remedies are a command; missing hardware has none and none is faked.
+    // Only the runtime remedy has a command; no model-design command is faked.
     const commands = findActors(root, (actor) => actor.styleClasses
         && actor.styleClasses.has("tpuwm-command"));
     assert.deepEqual(commands.map((actor) => actor.text), [
         "pip install 'omnitensor[gpu]'",
-        "omnitensor-prepare-artifact <model>.param --id <id> --version <v> --format ncnn"
-        + " --install-root ~/.local/share/omnitensor/artifacts",
     ]);
     // Selectable rather than a Copy button St cannot honour, and never
     // ellipsized: a truncated command is one the user cannot retype.
@@ -640,6 +638,37 @@ test("the setup tab explains each remedy once, for every profile that needs it",
         assert.equal(command.clutter_text.line_wrap, true);
         assert.equal(command.clutter_text.ellipsize, 0);
     }
+});
+
+test("resource scheduler setup renders the supported local forecast entry point", () => {
+    const {view, root} = harness();
+    const snapshot = baseState({selectedTab: "setup"});
+    snapshot.profiles = snapshot.profiles.map((profile) => (profile.id === "resource-scheduler"
+        ? {
+            ...profile,
+            status: "unavailable",
+            detail: "localized missing-model detail",
+            reason: "no-model",
+        }
+        : profile));
+
+    view.render(ViewModel.toViewModel(snapshot, NOW));
+
+    assert.equal(
+        findActors(root, (actor) => actor.text === "Train a local Resource Scheduler forecast").length,
+        1,
+    );
+    const commands = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-command"));
+    assert.deepEqual(commands.map((actor) => actor.text), [
+        "omnitensor-record-runtime-snapshot --profile resource-scheduler"
+        + " --selector queueDepth --selector runningProfiles",
+    ]);
+    const notes = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("tpuwm-setup-note"));
+    assert.match(notes[0].text, /omnitensor-train-model/u);
+    assert.match(notes[0].text, /omnitensor-install-trained-model/u);
+    assert.match(notes[0].text, /omnitensor-run-forecast/u);
 });
 
 test("the setup tab says so when nothing needs installing", () => {

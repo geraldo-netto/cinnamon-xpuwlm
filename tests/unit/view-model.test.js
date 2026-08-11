@@ -388,10 +388,10 @@ test("the setup projection groups blocked profiles by the remedy they need", () 
     assert.equal(setup.resolved, false);
     assert.equal(setup.title, "What these profiles need");
     assert.equal(setup.summary, "3 of 8 workload profiles can run on this machine");
-    // Ordered by how reachable the remedy is: a package first, an artifact
-    // next, hardware that cannot be installed after them.
+    // Ordered by how reachable the remedy is: a package first, then work with
+    // no honest generic command, then hardware that cannot be installed.
     assert.deepEqual(setup.sections.map((section) => section.kind), [
-        "runtime", "model", "hardware", "unknown",
+        "runtime", "model-design", "hardware", "unknown",
     ]);
     assert.deepEqual(
         setup.sections.map((section) => section.profiles.map((profile) => profile.id)),
@@ -403,16 +403,64 @@ test("the setup projection groups blocked profiles by the remedy they need", () 
         ],
     );
 
-    const [runtime, model, hardware, unknown] = setup.sections;
+    const [runtime, modelDesign, hardware, unknown] = setup.sections;
     assert.match(runtime.command, /^pip install 'omnitensor\[gpu\]'$/u);
-    assert.match(model.command, /^omnitensor-prepare-artifact /u);
-    assert.match(model.command, /--install-root ~\/\.local\/share\/omnitensor\/artifacts$/u);
+    assert.equal(modelDesign.command, "");
+    assert.match(modelDesign.note, /Do not attach arbitrary weights/u);
     // No command exists for missing hardware, and none is invented.
     assert.equal(hardware.command, "");
     assert.equal(hardware.note, "");
     assert.equal(unknown.command, "");
     // The unrecognised reason survives into the tab that explains it.
     assert.equal(unknown.profiles[0].reason, "gpu: a reason with no label");
+});
+
+test("setup separates local forecasting, missing design, and broken artifacts", () => {
+    const blocked = (id, reason) => ViewModel.profileModel({
+        id,
+        title: id,
+        status: "unavailable",
+        detail: "localized detail",
+        reason,
+        executable: false,
+    });
+    const setup = ViewModel.setupModel([
+        blocked("resource-scheduler", "no-model"),
+        blocked("hardware-health", "no-model"),
+        blocked("visual-library", "artifact-unavailable"),
+    ]);
+
+    assert.deepEqual(setup.sections.map((section) => section.kind), [
+        "forecast", "model", "model-design",
+    ]);
+    assert.match(setup.sections[0].command, /^omnitensor-record-runtime-snapshot /u);
+    assert.match(setup.sections[0].note, /omnitensor-install-trained-model/u);
+    assert.match(setup.sections[1].command, /^omnitensor-prepare-artifact /u);
+    assert.equal(setup.sections[2].command, "");
+
+    const legacyResource = ViewModel.profileModel({
+        id: "resource-scheduler",
+        title: "resource-scheduler",
+        status: "unavailable",
+        detail: "Ready on gpu; no model bundled",
+        executable: false,
+    });
+    assert.equal(ViewModel.setupKind(legacyResource), "forecast");
+
+    const currentCodeOverridesStaleDetail = ViewModel.profileModel({
+        id: "visual-library",
+        title: "visual-library",
+        status: "unavailable",
+        detail: "Ready on gpu; no model bundled",
+        reason: "artifact-unavailable",
+        executable: true,
+    });
+    assert.equal(ViewModel.setupKind(currentCodeOverridesStaleDetail), "model");
+    assert.equal(ViewModel.setupKind({
+        id: "resource-scheduler",
+        reason: "",
+        blocker: {kind: "model", detail: null},
+    }), "model");
 });
 
 test("the setup projection is useful when nothing is missing at all", () => {

@@ -212,6 +212,10 @@ msgstr ""
 msgid "Active profiles"
 msgstr ""
 
+#: lib/view-model.js
+msgid "After enough history, use omnitensor-train-model with queueDepth first, install the restricted binding with omnitensor-install-trained-model, restart omnitensor.service, then run omnitensor-run-forecast. Follow “Local model training” in OmniTensor; no recorder timer is enabled automatically."
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Alerts"
 msgstr ""
@@ -401,10 +405,6 @@ msgid "Inspect the document"
 msgstr ""
 
 #: lib/view-model.js
-msgid "Install a model"
-msgstr ""
-
-#: lib/view-model.js
 msgid "Install the accelerator runtime"
 msgstr ""
 
@@ -516,6 +516,10 @@ msgstr ""
 msgid "No profile that accepts a picture can serve right now; the Setup tab says why"
 msgstr ""
 
+#: lib/view-model.js
+msgid "No qualified model is available"
+msgstr ""
+
 #: lib/domain.js
 msgid "No runtime service is publishing a snapshot"
 msgstr ""
@@ -608,6 +612,10 @@ msgstr ""
 msgid "Paused groups"
 msgstr ""
 
+#: lib/view-model.js
+msgid "Preparing an exact declared artifact repairs artifact-unavailable. A format-unsupported profile needs a qualified compatible variant and matching manifest contract; arbitrary weights are never a remedy."
+msgstr ""
+
 #: lib/manager.js
 msgid "Preparing the picture…"
 msgstr ""
@@ -657,11 +665,19 @@ msgid "Removed"
 msgstr ""
 
 #: lib/view-model.js
+msgid "Repair the declared model installation"
+msgstr ""
+
+#: lib/view-model.js
 msgid "Reported by the runtime"
 msgstr ""
 
 #: lib/menu-view.js
 msgid "Resolved"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Resource Scheduler has no bundled weights, but OmniTensor supports one opt-in self-supervised forecast recipe for it. Record representative real queue history first; never substitute synthetic samples."
 msgstr ""
 
 #: lib/menu-view.js
@@ -766,10 +782,6 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Safety rules remain active"
-msgstr ""
-
-#: lib/view-model.js
-msgid "See “Installing a model” in the OmniTensor installation guide. The model format has to match the accelerator the profile declares."
 msgstr ""
 
 #: lib/menu-view.js
@@ -989,11 +1001,15 @@ msgid "The service must publish the version 1 snapshot contract."
 msgstr ""
 
 #: lib/view-model.js
+msgid "These profiles declare a model, but its artifact is missing or its format cannot run on the selected accelerator. Restore the exact declared artifact, or qualify a compatible variant without changing its meaning."
+msgstr ""
+
+#: lib/view-model.js
 msgid "These profiles declare a permission that has not been granted, so the runtime refuses every job they submit. Nothing is missing and nothing is broken \\u2014 a person has to say yes. The profile's status line names the permission it is waiting on."
 msgstr ""
 
 #: lib/view-model.js
-msgid "These profiles declare no model, so the runtime refuses to build a pipeline for them. Install the artifact, then declare the requirements.model block the command prints in the profile's manifest."
+msgid "These profiles do not declare a model or a supported training recipe. No generic install command can invent their task semantics, representative data, metrics, preprocessing, output consumer, or acceptance evidence."
 msgstr ""
 
 #: lib/manager.js
@@ -1038,6 +1054,14 @@ msgstr ""
 
 #: lib/manager.js
 msgid "This runtime cannot report job outcomes; the job was accepted"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Track each profile's model work in OmniTensor. Do not attach arbitrary weights or reuse Resource Scheduler's scalar forecast recipe for a different task."
+msgstr ""
+
+#: lib/view-model.js
+msgid "Train a local Resource Scheduler forecast"
 msgstr ""
 
 #: lib/menu-view.js lib/view-model.js
@@ -1151,7 +1175,11 @@ msgid "omnitensor-grant grant <profile> <permission> --reason \"why you are allo
 msgstr ""
 
 #: lib/view-model.js
-msgid "omnitensor-prepare-artifact <model>.param --id <id> --version <v> --format ncnn --install-root ~/.local/share/omnitensor/artifacts"
+msgid "omnitensor-prepare-artifact <model> --id <id> --version <v> --format <declared-format> --install-root ~/.local/share/omnitensor/artifacts"
+msgstr ""
+
+#: lib/view-model.js
+msgid "omnitensor-record-runtime-snapshot --profile resource-scheduler --selector queueDepth --selector runningProfiles"
 msgstr ""
 
 #: lib/view-model.js
