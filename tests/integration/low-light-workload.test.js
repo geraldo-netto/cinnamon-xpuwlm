@@ -44,10 +44,12 @@ test("low-light model metadata is replaceable without changing workload identity
 test("low-light contract separates host pipeline and measurable acceptance", () => {
     const descriptor = new Manifest.WorkloadDescriptor(manifest()).manifest();
     assert.deepEqual(descriptor.pipeline.hostResponsibilities, [
+        "Read images only from the configured input folder without modifying originals",
         "Decode and validate bounded image inputs",
         "Resize, normalize, and quantize the model tensor",
         "Apply the predicted tonal curve to the full-resolution image",
         "Denoise, color-manage, encode, display, and route results",
+        "Publish new files without overwrite only in a disjoint configured output folder",
     ]);
     const criteria = Object.fromEntries(descriptor.acceptance.map((criterion) => [
         criterion.metric,
