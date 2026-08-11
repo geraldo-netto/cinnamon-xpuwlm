@@ -107,6 +107,20 @@ test("every enumeration the validator uses is the schema's own", () => {
     }
 });
 
+test("every required field the validator enforces is the schema's own", () => {
+    const Derived = require(
+        "../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-contract.js",
+    );
+
+    for (const [name, object] of Object.entries(OBJECTS)) {
+        assert.deepEqual(
+            Derived.REQUIRED[name],
+            [...(object.required || [])].sort(),
+            `${name}: the derived required fields drifted from the schema`,
+        );
+    }
+});
+
 test("the gate covers every object the schema closes", () => {
     // An allowlist that stops being compared is an allowlist that can drift
     // again, so the table above must not fall behind the schema either.
