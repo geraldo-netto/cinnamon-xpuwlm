@@ -128,3 +128,16 @@ test("regression: a live snapshot carrying resultRef and plug-in telemetry is ac
     candidate.alerts[0].resultRef = "job-2f9c1a";
     assert.equal(parse(candidate).source, "invalid");
 });
+
+test("regression: bounded kernel telemetry never disconnects an older view", () => {
+    const candidate = Fixtures.validRuntimeSnapshot();
+    candidate.kernelTelemetry = Fixtures.kernelTelemetry();
+    const snapshot = parse(candidate);
+
+    assert.equal(snapshot.source, "runtime");
+    assert.equal(snapshot.health.runtime, "connected");
+    assert.equal(Object.hasOwn(snapshot, "kernelTelemetry"), false);
+
+    candidate.kernelTelemetry.histograms[0].buckets.push(-1);
+    assert.equal(parse(candidate).source, "invalid");
+});

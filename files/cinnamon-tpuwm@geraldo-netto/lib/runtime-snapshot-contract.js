@@ -11,12 +11,15 @@
 // published, which reads exactly like a service that is not running.
 
 const ALLOWLISTS = Object.freeze({
-    root: new Set(["alerts","devices","generatedAt","inputs","metrics","pluginTelemetry","profiles","version"]),
+    root: new Set(["alerts","devices","generatedAt","inputs","kernelTelemetry","metrics","pluginTelemetry","profiles","version"]),
     device: new Set(["available","backend","id","kind","load","name","reason","vendor"]),
     metric: new Set(["queueDepth","runningProfiles"]),
     profile: new Set(["detail","queued","reason","status"]),
     alert: new Set(["confidence","id","profileId","resolved","resultRef","riskScore","severity","summary","timestamp","title"]),
     inputs: new Set(["maxBytes","roots"]),
+    kernelTelemetry: new Set(["collectedAtMs","counters","detail","histograms","state","version"]),
+    kernelHistogram: new Set(["buckets","name","unit"]),
+    kernelCounter: new Set(["name","value"]),
     telemetry: new Set(["plugins","version"]),
     telemetryPlugin: new Set(["activeJobs","artifactReadiness","cancellations","deadlineExceeded","drops","failures","health","id","lastErrorAt","lastErrorCode","lastSuccessAt","queuedJobs","retries","stage","successes"]),
 });
@@ -28,6 +31,9 @@ const REQUIRED = Object.freeze({
     profile: Object.freeze([]),
     alert: Object.freeze(["id","profileId","severity","summary","timestamp","title"]),
     inputs: Object.freeze(["maxBytes","roots"]),
+    kernelTelemetry: Object.freeze(["collectedAtMs","counters","detail","histograms","state","version"]),
+    kernelHistogram: Object.freeze(["buckets","name","unit"]),
+    kernelCounter: Object.freeze(["name","value"]),
     telemetry: Object.freeze(["plugins","version"]),
     telemetryPlugin: Object.freeze(["activeJobs","artifactReadiness","cancellations","deadlineExceeded","drops","failures","health","id","lastErrorAt","lastErrorCode","lastSuccessAt","queuedJobs","retries","stage","successes"]),
 });
@@ -38,6 +44,7 @@ const ENUMS = Object.freeze({
     profileStatus: new Set(["healthy","running","watching","idle","paused","unavailable"]),
     profileReason: new Set(["serving","paused-by-policy","profile-disabled","no-model","artifact-unavailable","consent-missing","device-absent","runtime-missing","runtime-unusable","format-unsupported","no-executor","no-preference"]),
     alertSeverity: new Set(["advisory","warning","critical"]),
+    kernelTelemetryState: new Set(["ready","helper-absent","helper-unreachable","helper-invalid"]),
     telemetryHealth: new Set(["initializing","healthy","degraded","unavailable","stopped"]),
     telemetryStage: new Set([null,"collect","preprocess","resolve","infer","postprocess","deliver","terminal"]),
     telemetryArtifactReadiness: new Set(["unknown","resolving","ready","missing","rejected","incompatible"]),
@@ -51,6 +58,12 @@ const BOUNDS = Object.freeze({
     "maxInputRoots": 8,
     "maxInputRootLength": 4096,
     "maxInputBytes": 1073741824,
+    "maxKernelSeries": 64,
+    "maxKernelBuckets": 64,
+    "maxKernelNameLength": 64,
+    "maxKernelDetailLength": 240,
+    "maxKernelCount": 9007199254740991,
+    "kernelTelemetryVersion": 1,
     "telemetryVersion": 1,
     "snapshotVersion": 1,
     "minimumGeneratedAt": 1

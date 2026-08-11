@@ -30,6 +30,7 @@ const schema = JSON.parse(
 
 const profileEntry = schema.properties.profiles.additionalProperties;
 const telemetryPlugin = schema.properties.pluginTelemetry.properties.plugins.items;
+const kernelTelemetry = schema.properties.kernelTelemetry;
 
 const OBJECTS = Object.freeze({
     root: schema,
@@ -38,6 +39,9 @@ const OBJECTS = Object.freeze({
     metric: schema.properties.metrics,
     profile: profileEntry,
     alert: schema.properties.alerts.items,
+    kernelTelemetry,
+    kernelHistogram: kernelTelemetry.properties.histograms.items,
+    kernelCounter: kernelTelemetry.properties.counters.items,
     telemetry: schema.properties.pluginTelemetry,
     telemetryPlugin,
 });
@@ -48,6 +52,7 @@ const ENUMS = Object.freeze({
     alertSeverity: schema.properties.alerts.items.properties.severity.enum,
     deviceKind: schema.properties.devices.items.properties.kind.enum,
     deviceBackend: schema.properties.devices.items.properties.backend.enum,
+    kernelTelemetryState: kernelTelemetry.properties.state.enum,
 });
 
 test("the validator checks against what was derived, not a copy of its own", () => {

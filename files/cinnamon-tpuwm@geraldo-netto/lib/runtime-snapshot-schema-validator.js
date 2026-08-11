@@ -61,6 +61,20 @@ const MAX_INPUT_ROOTS = BOUNDS.maxInputRoots;
 const MAX_INPUT_ROOT_LENGTH = BOUNDS.maxInputRootLength;
 const MAX_INPUT_BYTES = BOUNDS.maxInputBytes;
 
+const KERNEL_PROPERTIES = ALLOWLISTS.kernelTelemetry;
+const KERNEL_REQUIRED = REQUIRED.kernelTelemetry;
+const KERNEL_HISTOGRAM_PROPERTIES = ALLOWLISTS.kernelHistogram;
+const KERNEL_HISTOGRAM_REQUIRED = REQUIRED.kernelHistogram;
+const KERNEL_COUNTER_PROPERTIES = ALLOWLISTS.kernelCounter;
+const KERNEL_COUNTER_REQUIRED = REQUIRED.kernelCounter;
+const KERNEL_STATES = ENUMS.kernelTelemetryState;
+const MAX_KERNEL_SERIES = BOUNDS.maxKernelSeries;
+const MAX_KERNEL_BUCKETS = BOUNDS.maxKernelBuckets;
+const MAX_KERNEL_NAME_LENGTH = BOUNDS.maxKernelNameLength;
+const MAX_KERNEL_DETAIL_LENGTH = BOUNDS.maxKernelDetailLength;
+const MAX_KERNEL_COUNT = BOUNDS.maxKernelCount;
+const KERNEL_TELEMETRY_VERSION = BOUNDS.kernelTelemetryVersion;
+
 const TELEMETRY_PROPERTIES = ALLOWLISTS.telemetry;
 const TELEMETRY_REQUIRED = REQUIRED.telemetry;
 const TELEMETRY_VERSION = BOUNDS.telemetryVersion;
@@ -278,12 +292,55 @@ function isSnapshotInputs(value) {
         && isIntegerBetween(value.maxBytes, 0, MAX_INPUT_BYTES);
 }
 
+function isKernelHistogram(value) {
+    return isRecord(value)
+        && hasContractProperties(
+            value, KERNEL_HISTOGRAM_REQUIRED, KERNEL_HISTOGRAM_PROPERTIES,
+        )
+        && hasCodePointLength(value.name, 1, MAX_KERNEL_NAME_LENGTH)
+        && hasCodePointLength(value.unit, 1, MAX_KERNEL_NAME_LENGTH)
+        && Array.isArray(value.buckets)
+        && value.buckets.length <= MAX_KERNEL_BUCKETS
+        && value.buckets.every((count) => isIntegerBetween(count, 0, MAX_KERNEL_COUNT));
+}
+
+function isKernelCounter(value) {
+    return isRecord(value)
+        && hasContractProperties(value, KERNEL_COUNTER_REQUIRED, KERNEL_COUNTER_PROPERTIES)
+        && hasCodePointLength(value.name, 1, MAX_KERNEL_NAME_LENGTH)
+        && isIntegerBetween(value.value, 0, MAX_KERNEL_COUNT);
+}
+
+function hasKernelTelemetryMetadata(value) {
+    return value.version === KERNEL_TELEMETRY_VERSION
+        && KERNEL_STATES.has(value.state)
+        && hasCodePointLength(value.detail, 0, MAX_KERNEL_DETAIL_LENGTH)
+        && isIntegerBetween(value.collectedAtMs, 0, MAX_KERNEL_COUNT);
+}
+
+function hasKernelTelemetrySeries(value) {
+    return Array.isArray(value.histograms)
+        && value.histograms.length <= MAX_KERNEL_SERIES
+        && value.histograms.every(isKernelHistogram)
+        && Array.isArray(value.counters)
+        && value.counters.length <= MAX_KERNEL_SERIES
+        && value.counters.every(isKernelCounter);
+}
+
+function isKernelTelemetry(value) {
+    return isRecord(value)
+        && hasContractProperties(value, KERNEL_REQUIRED, KERNEL_PROPERTIES)
+        && hasKernelTelemetryMetadata(value)
+        && hasKernelTelemetrySeries(value);
+}
+
 function hasSnapshotCollections(value) {
     return isDevices(value.devices)
         && isMetrics(value.metrics)
         && isProfiles(value.profiles)
         && isAlerts(value.alerts)
         && optionalProperty(value, "inputs", isSnapshotInputs)
+        && optionalProperty(value, "kernelTelemetry", isKernelTelemetry)
         && optionalProperty(value, "pluginTelemetry", isPluginTelemetry);
 }
 
@@ -306,6 +363,9 @@ class RuntimeSnapshotSchemaValidator {
 const CONTRACT_ALLOWLISTS = Object.freeze({
     root: ROOT_PROPERTIES,
     inputs: INPUTS_PROPERTIES,
+    kernelTelemetry: KERNEL_PROPERTIES,
+    kernelHistogram: KERNEL_HISTOGRAM_PROPERTIES,
+    kernelCounter: KERNEL_COUNTER_PROPERTIES,
     device: DEVICE_PROPERTIES,
     metric: METRIC_PROPERTIES,
     profile: PROFILE_PROPERTIES,
@@ -320,6 +380,7 @@ const CONTRACT_ENUMS = Object.freeze({
     alertSeverity: ALERT_SEVERITIES,
     deviceKind: DEVICE_KINDS,
     deviceBackend: DEVICE_BACKENDS,
+    kernelTelemetryState: KERNEL_STATES,
 });
 
 module.exports = {
@@ -330,6 +391,7 @@ module.exports = {
     MAX_TELEMETRY_PLUGINS,
     RuntimeSnapshotSchemaValidator,
     isPluginTelemetry,
+    isKernelTelemetry,
     isRuntimeSnapshot,
     isSnapshotInputs,
     isTelemetryPlugin,

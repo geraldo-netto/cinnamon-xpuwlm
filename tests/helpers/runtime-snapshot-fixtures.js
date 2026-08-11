@@ -112,6 +112,87 @@ function pluginTelemetry(overrides = {}) {
     return {version: 1, plugins: [pluginTelemetryEntry()], ...overrides};
 }
 
+function kernelTelemetry(overrides = {}) {
+    return {
+        version: 1,
+        state: "ready",
+        detail: "",
+        collectedAtMs: NOW - 100,
+        histograms: [
+            {name: "runq_latency_us", unit: "us", buckets: [3, 9, 1]},
+            {name: "block_latency_us", unit: "us", buckets: [2, 0, 1]},
+        ],
+        counters: [{name: "block_rq_completed", value: 42}],
+        ...overrides,
+    };
+}
+
+function kernelTelemetryCases() {
+    const cases = [
+        snapshotCase("kernel telemetry present", true, (value) => {
+            value.kernelTelemetry = kernelTelemetry();
+        }),
+        snapshotCase("kernel helper absent is explicit", true, (value) => {
+            value.kernelTelemetry = kernelTelemetry({
+                state: "helper-absent",
+                detail: "no helper",
+                collectedAtMs: 0,
+                histograms: [],
+                counters: [],
+            });
+        }),
+        snapshotCase("kernel telemetry wrong version", false, (value) => {
+            value.kernelTelemetry = kernelTelemetry({version: 2});
+        }),
+        snapshotCase("kernel telemetry unknown state", false, (value) => {
+            value.kernelTelemetry = kernelTelemetry({state: "future"});
+        }),
+        snapshotCase("kernel telemetry extra property", false, (value) => {
+            value.kernelTelemetry = kernelTelemetry({pid: 1234});
+        }),
+        snapshotCase("kernel detail above bound", false, (value) => {
+            value.kernelTelemetry = kernelTelemetry({detail: "x".repeat(241)});
+        }),
+        snapshotCase("kernel timestamp fractional", false, (value) => {
+            value.kernelTelemetry = kernelTelemetry({collectedAtMs: 1.5});
+        }),
+        snapshotCase("too many kernel histograms", false, (value) => {
+            value.kernelTelemetry = kernelTelemetry({
+                histograms: Array.from({length: 65}, (_, index) => ({
+                    name: `series-${index}`, unit: "us", buckets: [],
+                })),
+            });
+        }),
+        snapshotCase("too many kernel buckets", false, (value) => {
+            value.kernelTelemetry = kernelTelemetry({
+                histograms: [{name: "runq_latency_us", unit: "us", buckets: Array(65).fill(0)}],
+            });
+        }),
+        snapshotCase("kernel bucket above safe integer", false, (value) => {
+            value.kernelTelemetry = kernelTelemetry({
+                histograms: [{name: "runq_latency_us", unit: "us", buckets: [2 ** 53]}],
+            });
+        }),
+        snapshotCase("kernel counter is bounded", false, (value) => {
+            value.kernelTelemetry = kernelTelemetry({
+                counters: [{name: "completed", value: -1}],
+            });
+        }),
+        snapshotCase("kernel histogram remains closed", false, (value) => {
+            value.kernelTelemetry = kernelTelemetry({
+                histograms: [{name: "runq_latency_us", unit: "us", buckets: [], comm: "secret"}],
+            });
+        }),
+    ];
+    for (const key of ["version", "state", "detail", "collectedAtMs", "histograms", "counters"]) {
+        cases.push(snapshotCase(`missing kernel telemetry ${key}`, false, (value) => {
+            value.kernelTelemetry = kernelTelemetry();
+            delete value.kernelTelemetry[key];
+        }));
+    }
+    return cases;
+}
+
 function telemetryPluginKeys() {
     return Object.keys(pluginTelemetryEntry());
 }
@@ -502,7 +583,7 @@ function runtimeSnapshotSchemaCases() {
             id: `alert-${index}`,
         }));
     }));
-    cases.push(...acceptedTelemetryCases(), ...rejectedTelemetryCases());
+    cases.push(...acceptedTelemetryCases(), ...rejectedTelemetryCases(), ...kernelTelemetryCases());
     return cases;
 }
 
@@ -511,6 +592,8 @@ module.exports = {
     acceptedTelemetryCases,
     deviceEntry,
     generatedAtParityCases,
+    kernelTelemetry,
+    kernelTelemetryCases,
     pluginTelemetry,
     pluginTelemetryEntry,
     rejectedTelemetryCases,

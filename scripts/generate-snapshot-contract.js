@@ -36,6 +36,7 @@ function readSchema() {
 function objects(schema) {
     const properties = schema.properties;
     const telemetry = properties.pluginTelemetry;
+    const kernel = properties.kernelTelemetry;
     return {
         root: schema,
         device: properties.devices.items,
@@ -43,6 +44,9 @@ function objects(schema) {
         profile: properties.profiles.additionalProperties,
         alert: properties.alerts.items,
         inputs: properties.inputs,
+        kernelTelemetry: kernel,
+        kernelHistogram: kernel.properties.histograms.items,
+        kernelCounter: kernel.properties.counters.items,
         telemetry,
         telemetryPlugin: telemetry.properties.plugins.items,
     };
@@ -61,6 +65,7 @@ function enumerations(schema) {
         profileStatus: profile.status.enum,
         profileReason: profile.reason.enum,
         alertSeverity: properties.alerts.items.properties.severity.enum,
+        kernelTelemetryState: properties.kernelTelemetry.properties.state.enum,
         telemetryHealth: plugin.health.enum,
         telemetryStage: plugin.stage.enum,
         telemetryArtifactReadiness: plugin.artifactReadiness.enum,
@@ -81,6 +86,12 @@ function bounds(schema) {
         maxInputRoots: properties.inputs.properties.roots.maxItems,
         maxInputRootLength: properties.inputs.properties.roots.items.maxLength,
         maxInputBytes: properties.inputs.properties.maxBytes.maximum,
+        maxKernelSeries: properties.kernelTelemetry.properties.histograms.maxItems,
+        maxKernelBuckets: properties.kernelTelemetry.properties.histograms.items.properties.buckets.maxItems,
+        maxKernelNameLength: properties.kernelTelemetry.properties.histograms.items.properties.name.maxLength,
+        maxKernelDetailLength: properties.kernelTelemetry.properties.detail.maxLength,
+        maxKernelCount: schema.$defs.kernelCount.maximum,
+        kernelTelemetryVersion: properties.kernelTelemetry.properties.version.const,
         telemetryVersion: properties.pluginTelemetry.properties.version.const,
         snapshotVersion: properties.version.const,
         minimumGeneratedAt: properties.generatedAt.minimum,
