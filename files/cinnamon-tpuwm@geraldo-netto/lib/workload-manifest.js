@@ -574,9 +574,14 @@ function cloneManifest(manifest) {
             ...(declared(manifest.requirements, "acceleratorPreference")
                 ? {acceleratorPreference: [...manifest.requirements.acceleratorPreference]}
                 : {}),
-            model: manifest.requirements.model === null
-                ? null
-                : structuredCloneRecord(manifest.requirements.model),
+            ...(declared(manifest.requirements, "model")
+                ? {model: manifest.requirements.model === null
+                    ? null
+                    : structuredCloneRecord(manifest.requirements.model)}
+                : {}),
+            ...(declared(manifest.requirements, "models")
+                ? {models: manifest.requirements.models.map(structuredCloneRecord)}
+                : {}),
         },
         ui: {...manifest.ui},
         defaults: {...manifest.defaults},
@@ -590,8 +595,11 @@ function freezeManifest(manifest) {
     if (declared(manifest, "plugin")) {
         freezePlugin(manifest.plugin);
     }
-    if (manifest.requirements.model !== null) {
-        freezeDeep(manifest.requirements.model);
+    for (const model of declaredModels(manifest.requirements)) {
+        freezeDeep(model);
+    }
+    if (declared(manifest.requirements, "models")) {
+        Object.freeze(manifest.requirements.models);
     }
     if (declared(manifest.requirements, "acceleratorPreference")) {
         Object.freeze(manifest.requirements.acceleratorPreference);
@@ -633,7 +641,7 @@ class WorkloadDescriptor {
     // fact the manifest already states, and the popup has to state it too
     // rather than offering the same controls for a profile that can never run.
     get executable() {
-        return this._manifest.requirements.model !== null;
+        return declaredModels(this._manifest.requirements).length > 0;
     }
 
     // What this profile expects of its first input, or null when it declares
@@ -642,9 +650,9 @@ class WorkloadDescriptor {
     // this describes how to build a tensor — two different questions with two
     // different consumers.
     inputContract() {
-        const model = this._manifest.requirements.model;
-        const contract = model === null ? null : model.tensorContract;
-        if (!isRecord(contract) || !Array.isArray(contract.inputs) || contract.inputs.length === 0) {
+        const [model] = declaredModels(this._manifest.requirements);
+        const contract = model === undefined ? null : model.tensorContract;
+        if (!isRecord(contract) || !Array.isArray(contract.inputs)) {
             return null;
         }
         return contract.inputs[0];
@@ -663,6 +671,15 @@ class WorkloadDescriptor {
             executable: this.executable,
         });
     }
+}
+
+function declaredModels(requirements) {
+    if (declared(requirements, "models")) {
+        return requirements.models;
+    }
+    return declared(requirements, "model") && requirements.model !== null
+        ? [requirements.model]
+        : [];
 }
 
 const MANIFEST_ALLOWLISTS = Object.freeze({
@@ -702,6 +719,7 @@ module.exports = {
     clonePlugin,
     codePointLength,
     declared,
+    declaredModels,
     exactProperties,
     freezeManifest,
     freezePlugin,

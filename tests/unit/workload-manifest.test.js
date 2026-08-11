@@ -280,6 +280,26 @@ test("cloning and freezing support model-free manifests", () => {
     assert.notEqual(clone.pipeline.hostResponsibilities, source.pipeline.hostResponsibilities);
     assert.equal(Contract.freezeManifest(clone), clone);
     assert.equal(Object.isFrozen(clone.requirements), true);
+
+    const withoutPreference = nested({requirements: {model: null}});
+    delete withoutPreference.requirements.acceleratorPreference;
+    assert.doesNotThrow(() => Contract.freezeManifest(Contract.cloneManifest(withoutPreference)));
+});
+
+test("a singular model and preference are independently cloned and frozen", () => {
+    const source = Fixtures.validWorkloadManifest();
+    const expectedModel = JSON.parse(JSON.stringify(source.requirements.model));
+    const expectedPreference = [...source.requirements.acceleratorPreference];
+    const clone = Contract.cloneManifest(source);
+
+    source.requirements.model.id = "changed-model";
+    source.requirements.acceleratorPreference.push("gpu");
+    Contract.freezeManifest(clone);
+
+    assert.deepEqual(clone.requirements.model, expectedModel);
+    assert.deepEqual(clone.requirements.acceleratorPreference, expectedPreference);
+    assert.equal(Object.isFrozen(clone.requirements.model), true);
+    assert.equal(Object.isFrozen(clone.requirements.acceleratorPreference), true);
 });
 
 // An optional property makes an exact key count the wrong rule: a manifest
@@ -500,6 +520,46 @@ test("a profile may declare one model per accelerator lane", () => {
     assert.equal(Contract.isModelSet([], "gpu"), false);
     assert.equal(Contract.isModelSet(new Array(Contract.MAX_MODELS + 1).fill(gpu), "gpu"), false);
     assert.equal(Contract.isModelSet(gpu, "gpu"), false);
+});
+
+test("a multi-lane descriptor owns and reads every declared model", () => {
+    const gpu = {
+        id: "sample-model-gpu",
+        version: "1.0.0",
+        format: "ncnn",
+        fullyQuantized: false,
+        minimumCompilerVersion: "1.0",
+        minimumRuntimeVersion: "1.0",
+        tensorContract: {inputs: [{shape: [1, 3], dtype: "float32", layout: "NC"}]},
+    };
+    const npu = {...gpu, id: "sample-model-npu", format: "openvino"};
+    const manifest = Fixtures.validWorkloadManifest();
+    manifest.requirements.accelerator = "gpu";
+    manifest.requirements.acceleratorPreference = ["npu", "gpu"];
+    delete manifest.requirements.model;
+    manifest.requirements.models = [gpu, npu];
+
+    const descriptor = new Contract.WorkloadDescriptor(manifest);
+    gpu.tensorContract.inputs[0].shape[1] = 99;
+    manifest.requirements.acceleratorPreference.push("tpu");
+
+    assert.equal(descriptor.executable, true);
+    assert.deepEqual(descriptor.inputContract(), {
+        shape: [1, 3], dtype: "float32", layout: "NC",
+    });
+    assert.equal(Object.hasOwn(descriptor.manifest().requirements, "model"), false);
+    assert.equal(Object.isFrozen(descriptor.manifest().requirements.models), true);
+    assert.equal(Object.isFrozen(descriptor.manifest().requirements.models[0]), true);
+    assert.equal(Object.isFrozen(descriptor.manifest().requirements.acceleratorPreference), true);
+    assert.deepEqual(
+        descriptor.manifest().requirements.acceleratorPreference,
+        ["npu", "gpu"],
+    );
+    assert.equal(Object.isFrozen(descriptor.inputContract()), true);
+    assert.deepEqual(
+        Contract.declaredModels(descriptor.manifest().requirements).map((model) => model.format),
+        ["ncnn", "openvino"],
+    );
 });
 
 test("exactly one spelling states which model a profile runs", () => {
