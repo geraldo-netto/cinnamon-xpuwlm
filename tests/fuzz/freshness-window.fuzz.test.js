@@ -3,10 +3,10 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
-const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
-const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
-const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
+const FailureBackoff = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/failure-log-backoff.js");
+const Runtime = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-gateway.js");
+const RuntimeSchema = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const {readSnapshot} = require("../helpers/fakes.js");
 
 const NOW = 1_700_000_000_000;
@@ -86,7 +86,7 @@ test("fuzz: non-finite windows expire old snapshots through every adapter path",
         const gateway = new Runtime.RuntimeSnapshotGateway({
             clock: {now: () => NOW},
             staleAfterMs,
-            path: "/run/tpuwm.json",
+            path: "/run/xpuwlm.json",
             readTextAsync: (filename, options, callback) => callback(null, JSON.stringify(document)),
             detectDevice: () => null,
             snapshotValidator: new RuntimeSchema.RuntimeSnapshotSchemaValidator(),

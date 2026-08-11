@@ -4,7 +4,7 @@
 
 Workload plug-ins are declarative directories containing one `manifest.json`.
 Copy [`../templates/workload-plugin/manifest.json`](../templates/workload-plugin/manifest.json)
-to `files/cinnamon-tpuwm@geraldo-netto/workloads/<id>/manifest.json`, then replace
+to `files/cinnamon-xpuwlm@geraldo-netto/workloads/<id>/manifest.json`, then replace
 every placeholder. Directory name and manifest `id` must match.
 
 ## Installation locations
@@ -15,8 +15,8 @@ reload:
 - **Bundled**: `<applet>/workloads/<id>/manifest.json`, shipped with the
   applet. A defective bundled manifest fails loudly — the repository gates
   (`npm run check:workloads`) keep this impossible in a release.
-- **User-installed**: `$XDG_DATA_HOME/cinnamon-tpuwm@geraldo-netto/workloads/<id>/manifest.json`
-  (normally `~/.local/share/cinnamon-tpuwm@geraldo-netto/workloads/`). Install a
+- **User-installed**: `$XDG_DATA_HOME/cinnamon-xpuwlm@geraldo-netto/workloads/<id>/manifest.json`
+  (normally `~/.local/share/cinnamon-xpuwlm@geraldo-netto/workloads/`). Install a
   plug-in by creating its directory; uninstall by deleting it. One invalid
   user manifest is skipped with a logged warning, and an unreadable user
   directory yields an empty user catalog — neither can take down the applet
@@ -149,7 +149,7 @@ which is optional for third-party manifests.
 `package:plugin` validates first, then writes a deterministic ustar archive and
 its SHA-256 to `dist/plugins/<id>-<version>.tar`. Members are prefixed with the
 workload id, so extracting the archive in
-`$XDG_DATA_HOME/cinnamon-tpuwm@geraldo-netto/workloads/` produces exactly the
+`$XDG_DATA_HOME/cinnamon-xpuwlm@geraldo-netto/workloads/` produces exactly the
 directory discovery expects.
 
 Before enabling a workload, add unit and integration coverage, boundary fuzzing,

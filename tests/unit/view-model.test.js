@@ -3,9 +3,9 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -71,39 +71,39 @@ test("panel state communicates offline, paused, attention, and online modes", ()
     assert.deepEqual(ViewModel.panelModel(state({
         device: {available: false, reason: "Disconnected"},
     })), {
-        accessibleName: "TPU Workload Manager, unavailable: Disconnected",
+        accessibleName: "XPU Workload Manager, unavailable: Disconnected",
         label: "Accel Offline",
         status: "unavailable",
         severity: null,
-        tooltip: "TPU Workload Manager — Disconnected",
+        tooltip: "XPU Workload Manager — Disconnected",
     });
     assert.deepEqual(ViewModel.panelModel(state({paused: true})), {
-        accessibleName: "TPU Workload Manager, paused: all workloads paused",
+        accessibleName: "XPU Workload Manager, paused: all workloads paused",
         label: "Accel Paused",
         status: "paused",
         severity: null,
-        tooltip: "TPU Workload Manager — all workloads paused",
+        tooltip: "XPU Workload Manager — all workloads paused",
     });
     assert.deepEqual(ViewModel.panelModel(state({source: "probe"})), {
-        accessibleName: "TPU Workload Manager, detected: hardware detected; runtime not connected",
+        accessibleName: "XPU Workload Manager, detected: hardware detected; runtime not connected",
         label: "TPU Detected",
         status: "detected",
         severity: null,
-        tooltip: "TPU Workload Manager — hardware detected; runtime not connected",
+        tooltip: "XPU Workload Manager — hardware detected; runtime not connected",
     });
     assert.deepEqual(ViewModel.panelModel(state({attentionCount: 2})), {
-        accessibleName: "TPU Workload Manager, attention: 2 items need review, highest severity none",
+        accessibleName: "XPU Workload Manager, attention: 2 items need review, highest severity none",
         label: "TPU 41% · none",
         status: "attention",
         severity: null,
-        tooltip: "TPU Workload Manager — 2 items need review, highest severity none",
+        tooltip: "XPU Workload Manager — 2 items need review, highest severity none",
     });
     assert.deepEqual(ViewModel.panelModel(state()), {
-        accessibleName: "TPU Workload Manager, online: 41% load",
+        accessibleName: "XPU Workload Manager, online: 41% load",
         label: "TPU 41%",
         status: "online",
         severity: null,
-        tooltip: "TPU Workload Manager — online",
+        tooltip: "XPU Workload Manager — online",
     });
 });
 

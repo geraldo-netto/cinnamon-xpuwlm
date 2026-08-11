@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
-const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
+const Manifest = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-manifest.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
 
 const manifestPath = path.join(BuiltIns.ROOT, "low-light-enhancement", "manifest.json");

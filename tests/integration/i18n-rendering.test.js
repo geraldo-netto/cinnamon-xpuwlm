@@ -3,13 +3,13 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const AlertNotifier = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/alert-notifier.js");
+const AlertNotifier = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/alert-notifier.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
-const I18n = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/i18n.js");
-const Layout = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/layout.js");
-const Menu = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/menu-view.js");
-const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
+const I18n = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/i18n.js");
+const Layout = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/layout.js");
+const Menu = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/menu-view.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 const {FakeMenu, createAtk, createClutter, createSt, findActors} = require("../helpers/fakes.js");
 
 const NOW = 1_700_000_000_000;
@@ -56,7 +56,7 @@ test("panel and header strings are translated through the port", () => {
     try {
         pseudoLocale();
         const model = ViewModel.toViewModel(liveState(), NOW);
-        assert.equal(model.panel.tooltip, "[TPU Workload Manager — online]");
+        assert.equal(model.panel.tooltip, "[XPU Workload Manager — online]");
         assert.equal(model.panel.label.startsWith("[TPU]"), true);
         assert.equal(model.runtimeStatus, "[Online]");
         assert.equal(model.headerSubtitle.includes("[Online]"), true);
@@ -116,12 +116,12 @@ test("menu chrome renders translated labels and accessible names", () => {
         });
         const root = menu.actors[0];
         const labels = findActors(root, (actor) => typeof actor.text === "string").map((actor) => actor.text);
-        assert.equal(labels.includes("[TPU Workload Manager]"), true);
+        assert.equal(labels.includes("[XPU Workload Manager]"), true);
         assert.equal(labels.includes("[Pause all]"), true);
         assert.equal(labels.includes("[Overview]"), true);
         const model = ViewModel.toViewModel(liveState(), NOW);
         view.render(model);
-        const tabButtons = findActors(root, (actor) => actor.styleClasses && actor.styleClasses.has("tpuwm-tab"));
+        const tabButtons = findActors(root, (actor) => actor.styleClasses && actor.styleClasses.has("xpuwlm-tab"));
         assert.deepEqual(tabButtons.map((button) => button.accessibleName), [
             "[%s tab, selected]".replace("%s", "[Overview]"),
             "[%s tab]".replace("%s", "[Profiles]"),
@@ -140,7 +140,7 @@ test("critical notifications translate their summary prefix", () => {
             {profileId: "missing", title: "Overheat", summary: ""},
             [],
         );
-        assert.equal(message.summary, "[TPU critical alert — %s]".replace("%s", "[Unknown profile]"));
+        assert.equal(message.summary, "[XPU critical alert — %s]".replace("%s", "[Unknown profile]"));
     } finally {
         I18n.reset();
     }

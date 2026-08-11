@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Refusal = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-refusal-contract.js");
+const Refusal = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-refusal-contract.js");
 
 const refusal = Object.freeze({
     version: 1,

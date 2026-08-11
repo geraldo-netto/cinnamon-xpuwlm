@@ -9,7 +9,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const UUID = "cinnamon-tpuwm@geraldo-netto";
+const UUID = "cinnamon-xpuwlm@geraldo-netto";
 const repositoryRoot = path.resolve(__dirname, "..");
 const payloadRoot = path.join(repositoryRoot, "files", UUID);
 const distRoot = path.join(repositoryRoot, "dist");

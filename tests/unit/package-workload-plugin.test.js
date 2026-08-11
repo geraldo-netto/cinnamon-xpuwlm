@@ -7,13 +7,13 @@ const path = require("node:path");
 const test = require("node:test");
 
 const Plugin = require("../../scripts/package-workload-plugin.js");
-const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
+const Registry = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-registry.js");
 
 const templatePath = path.resolve(__dirname, "../../templates/workload-plugin/manifest.json");
 const template = JSON.parse(fs.readFileSync(templatePath, "utf8"));
 
 function temporaryDirectory() {
-    return fs.mkdtempSync(path.join(os.tmpdir(), "tpuwm-plugin-"));
+    return fs.mkdtempSync(path.join(os.tmpdir(), "xpuwlm-plugin-"));
 }
 
 // A third-party plug-in is one directory named after its workload, so every

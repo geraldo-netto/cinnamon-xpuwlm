@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
-const Blockers = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/profile-blockers.js");
+const Blockers = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/profile-blockers.js");
 
 // The popup decides which remedy to offer by reading the sentence the runtime
 // publishes about a profile. That makes the sentence a contract, and an
@@ -30,7 +30,7 @@ const SERVICE_SOURCES = Object.freeze([
 // runs wherever both are present and reports itself unavailable, never as
 // passing, where only one is.
 function serviceRoot() {
-    const configured = process.env.TPUWM_OMNITENSOR_ROOT;
+    const configured = process.env.XPUWLM_OMNITENSOR_ROOT;
     const candidate = configured || path.resolve(repositoryRoot, "../omnitensor");
     return fs.existsSync(path.join(candidate, SERVICE_SOURCES[0])) ? candidate : null;
 }
@@ -46,7 +46,7 @@ test("every classified reason is still a sentence the runtime emits", (t) => {
     if (root === null) {
         t.skip(
             "the OmniTensor checkout is not available; "
-            + "set TPUWM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
+            + "set XPUWLM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
         );
         return;
     }
@@ -100,7 +100,7 @@ test("the applet classifies exactly the codes the service can publish", (t) => {
     assert.notEqual(service, undefined, "the service no longer publishes a reason code");
 
     const mirrored = require(
-        "../../files/cinnamon-tpuwm@geraldo-netto/runtime-snapshot.schema.json",
+        "../../files/cinnamon-xpuwlm@geraldo-netto/runtime-snapshot.schema.json",
     ).properties.profiles.additionalProperties.properties.reason;
     assert.deepEqual(
         mirrored,

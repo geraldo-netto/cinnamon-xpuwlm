@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Gateway = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-gateway.js");
+const Gateway = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-control-gateway.js");
 
 const command = {
     version: 1,

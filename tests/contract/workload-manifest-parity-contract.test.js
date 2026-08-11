@@ -20,7 +20,7 @@ const repositoryRoot = path.resolve(__dirname, "../..");
 // wherever both are present and reports itself unavailable, never as passing,
 // where only one is.
 function serviceWorkloads() {
-    const configured = process.env.TPUWM_OMNITENSOR_ROOT;
+    const configured = process.env.XPUWLM_OMNITENSOR_ROOT;
     const candidate = configured || path.resolve(repositoryRoot, "../omnitensor");
     const workloads = path.join(candidate, "workloads");
     return fs.existsSync(workloads) ? workloads : null;
@@ -42,7 +42,7 @@ test("every bundled workload manifest matches the service's copy", (t) => {
     if (service === null) {
         t.skip(
             "the OmniTensor checkout is not available; "
-            + "set TPUWM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
+            + "set XPUWLM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
         );
         return;
     }
@@ -74,12 +74,12 @@ test("the bundled catalog covers every workload the service ships", (t) => {
 // `tensorContract` to the service and not here would have made the applet
 // reject the manifest and hide a profile the runtime runs — the same silent
 // failure the snapshot validator produced, in a different file.
-const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
+const Manifest = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-manifest.js");
 
-const appletRoot = path.join(repositoryRoot, "files/cinnamon-tpuwm@geraldo-netto");
+const appletRoot = path.join(repositoryRoot, "files/cinnamon-xpuwlm@geraldo-netto");
 
 function serviceSchema() {
-    const configured = process.env.TPUWM_OMNITENSOR_ROOT;
+    const configured = process.env.XPUWLM_OMNITENSOR_ROOT;
     const candidate = configured || path.resolve(repositoryRoot, "../omnitensor");
     const schema = path.join(candidate, "schemas/workload-manifest.schema.json");
     return fs.existsSync(schema) ? JSON.parse(fs.readFileSync(schema, "utf8")) : null;
@@ -100,7 +100,7 @@ test("the mirrored manifest schema still describes the model the service does", 
     if (service === null) {
         t.skip(
             "the OmniTensor checkout is not available; "
-            + "set TPUWM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
+            + "set XPUWLM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
         );
         return;
     }

@@ -3,9 +3,9 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 
 test("a machine-readable blocker reason is not dropped before the view model", () => {
     const profiles = new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list({

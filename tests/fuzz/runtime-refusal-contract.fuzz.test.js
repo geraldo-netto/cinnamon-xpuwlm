@@ -6,11 +6,11 @@ const path = require("node:path");
 const test = require("node:test");
 
 const Ajv2020 = require("ajv/dist/2020").default;
-const Refusal = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-refusal-contract.js");
+const Refusal = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-refusal-contract.js");
 
 const schema = JSON.parse(fs.readFileSync(path.resolve(
     __dirname,
-    "../../files/cinnamon-tpuwm@geraldo-netto/runtime-refusal.schema.json",
+    "../../files/cinnamon-xpuwlm@geraldo-netto/runtime-refusal.schema.json",
 ), "utf8"));
 const oracle = new Ajv2020({strict: true}).compile(schema);
 

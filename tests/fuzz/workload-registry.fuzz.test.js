@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
+const Registry = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-registry.js");
 const Fixtures = require("../helpers/workload-manifest-fixtures.js");
 
 function shuffled(values, seed) {
@@ -47,7 +47,7 @@ test("property: merged discovery is bundled-authoritative for every collision pa
             next() % 2 === 0 ? bundledIds[next() % bundledIds.length] : `user-${next() % 12}`
         )))];
         const descriptorFor = (id, version) => new (require(
-            "../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js",
+            "../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-manifest.js",
         ).WorkloadDescriptor)(Fixtures.validWorkloadManifest({id, version}));
         const bundled = new Registry.StaticWorkloadRegistry(
             bundledIds.map((id) => descriptorFor(id, "1.0.0")),

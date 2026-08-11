@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const I18n = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/i18n.js");
+const I18n = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/i18n.js");
 
 test("identity fallback returns msgids and English plural selection", () => {
     I18n.reset();

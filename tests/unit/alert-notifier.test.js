@@ -3,9 +3,9 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const Notifier = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/alert-notifier.js");
+const Notifier = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/alert-notifier.js");
 
 const NOW = 1_700_000_000_000;
 const PROFILES = new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list();
@@ -62,17 +62,17 @@ test("the notifier validates its collaborators", () => {
 
 test("notification content names the profile and the alert", () => {
     assert.deepEqual(Notifier.notificationMessage(alert(), PROFILES), {
-        summary: "TPU critical alert — Hardware health",
+        summary: "XPU critical alert — Hardware health",
         body: "Voltage drift. Review the supply",
     });
     assert.deepEqual(Notifier.notificationMessage(alert({summary: ""}), PROFILES), {
-        summary: "TPU critical alert — Hardware health",
+        summary: "XPU critical alert — Hardware health",
         body: "Voltage drift",
     });
     assert.equal(Notifier.profileTitle(PROFILES, "missing"), "Unknown profile");
     assert.equal(
         Notifier.notificationMessage(alert({profileId: "missing"}), []).summary,
-        "TPU critical alert — Unknown profile",
+        "XPU critical alert — Unknown profile",
     );
 });
 

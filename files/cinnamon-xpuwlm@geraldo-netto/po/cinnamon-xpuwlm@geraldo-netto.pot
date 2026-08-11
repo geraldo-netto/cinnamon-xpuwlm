@@ -1,10 +1,10 @@
-# Translation template for the TPU Workload Manager Cinnamon applet.
-# This file is distributed under the same terms as the cinnamon-tpuwm@geraldo-netto applet.
+# Translation template for the XPU Workload Manager Cinnamon applet.
+# This file is distributed under the same terms as the cinnamon-xpuwlm@geraldo-netto applet.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: cinnamon-tpuwm@geraldo-netto\n"
+"Project-Id-Version: cinnamon-xpuwlm@geraldo-netto\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: \n"
 "MIME-Version: 1.0\n"
@@ -445,7 +445,7 @@ msgid "Model output remains advisory. Device authorization, backups, shutdown th
 msgstr ""
 
 #: metadata.json
-msgid "Monitor and manage local TPU workload profiles, priorities, queues, and alerts."
+msgid "Monitor and manage local XPU workload profiles across TPU, NPU, and GPU accelerators."
 msgstr ""
 
 #: settings-schema.json
@@ -581,7 +581,7 @@ msgid "Online"
 msgstr ""
 
 #: lib/menu-view.js
-msgid "Open TPU Workload Manager settings"
+msgid "Open XPU Workload Manager settings"
 msgstr ""
 
 #: lib/view-model.js
@@ -653,7 +653,7 @@ msgid "Refresh"
 msgstr ""
 
 #: lib/menu-view.js
-msgid "Refresh TPU status"
+msgid "Refresh XPU status"
 msgstr ""
 
 #: settings-schema.json
@@ -689,7 +689,7 @@ msgid "Resume all workloads"
 msgstr ""
 
 #: lib/menu-view.js
-msgid "Retry TPU detection"
+msgid "Retry accelerator detection"
 msgstr ""
 
 #: lib/menu-view.js lib/view-model.js
@@ -789,7 +789,7 @@ msgid "Setup"
 msgstr ""
 
 #: settings-schema.json
-msgid "Show TPU status beside the panel icon"
+msgid "Show XPU status beside the panel icon"
 msgstr ""
 
 #: lib/view-model.js
@@ -810,62 +810,6 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "TPU"
-msgstr ""
-
-#: lib/menu-view.js metadata.json
-msgid "TPU Workload Manager"
-msgstr ""
-
-#: lib/view-model.js
-msgid "TPU Workload Manager — %s"
-msgstr ""
-
-#: lib/view-model.js
-msgid "TPU Workload Manager — all workloads paused"
-msgstr ""
-
-#: lib/view-model.js
-msgid "TPU Workload Manager — hardware detected; runtime not connected"
-msgstr ""
-
-#: lib/view-model.js
-msgid "TPU Workload Manager — online"
-msgstr ""
-
-#: applet.js
-msgid "TPU Workload Manager — starting"
-msgstr ""
-
-#: lib/view-model.js
-msgid "TPU Workload Manager, attention: %s"
-msgstr ""
-
-#: lib/view-model.js
-msgid "TPU Workload Manager, detected: hardware detected; runtime not connected"
-msgstr ""
-
-#: lib/view-model.js
-msgid "TPU Workload Manager, online: %s load"
-msgstr ""
-
-#: lib/view-model.js
-msgid "TPU Workload Manager, paused: all workloads paused"
-msgstr ""
-
-#: applet.js
-msgid "TPU Workload Manager, starting"
-msgstr ""
-
-#: lib/view-model.js
-msgid "TPU Workload Manager, unavailable: %s"
-msgstr ""
-
-#: lib/view-model.js
-msgid "TPU Workload Manager, unknown: %s"
-msgstr ""
-
-#: lib/alert-notifier.js
-msgid "TPU critical alert — %s"
 msgstr ""
 
 #: lib/manager.js
@@ -1126,6 +1070,62 @@ msgstr ""
 
 #: settings-schema.json
 msgid "Workload runtime"
+msgstr ""
+
+#: lib/menu-view.js metadata.json
+msgid "XPU Workload Manager"
+msgstr ""
+
+#: lib/view-model.js
+msgid "XPU Workload Manager — %s"
+msgstr ""
+
+#: lib/view-model.js
+msgid "XPU Workload Manager — all workloads paused"
+msgstr ""
+
+#: lib/view-model.js
+msgid "XPU Workload Manager — hardware detected; runtime not connected"
+msgstr ""
+
+#: lib/view-model.js
+msgid "XPU Workload Manager — online"
+msgstr ""
+
+#: applet.js
+msgid "XPU Workload Manager — starting"
+msgstr ""
+
+#: lib/view-model.js
+msgid "XPU Workload Manager, attention: %s"
+msgstr ""
+
+#: lib/view-model.js
+msgid "XPU Workload Manager, detected: hardware detected; runtime not connected"
+msgstr ""
+
+#: lib/view-model.js
+msgid "XPU Workload Manager, online: %s load"
+msgstr ""
+
+#: lib/view-model.js
+msgid "XPU Workload Manager, paused: all workloads paused"
+msgstr ""
+
+#: applet.js
+msgid "XPU Workload Manager, starting"
+msgstr ""
+
+#: lib/view-model.js
+msgid "XPU Workload Manager, unavailable: %s"
+msgstr ""
+
+#: lib/view-model.js
+msgid "XPU Workload Manager, unknown: %s"
+msgstr ""
+
+#: lib/alert-notifier.js
+msgid "XPU critical alert — %s"
 msgstr ""
 
 #: lib/menu-view.js

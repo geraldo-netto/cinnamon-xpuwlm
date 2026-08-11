@@ -3,13 +3,13 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
-const Reconciliation = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-reconciliation.js");
-const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
-const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
-const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
-const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const Manifest = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-manifest.js");
+const Reconciliation = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-reconciliation.js");
+const Registry = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-registry.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
+const FailureBackoff = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/failure-log-backoff.js");
+const Manager = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/manager.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 const Fixtures = require("../helpers/workload-manifest-fixtures.js");
 
 const NOW = 1_700_000_000_000;

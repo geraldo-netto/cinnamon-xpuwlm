@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Backoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
+const Backoff = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/failure-log-backoff.js");
 
 test("failure log backoff validates and normalizes configuration", () => {
     assert.equal(Backoff.FAILURE_INITIAL_DELAY_MS, 30_000);

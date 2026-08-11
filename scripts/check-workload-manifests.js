@@ -7,7 +7,7 @@ const path = require("node:path");
 const Ajv2020 = require("ajv/dist/2020").default;
 
 const repositoryRoot = path.resolve(__dirname, "..");
-const appletRoot = path.join(repositoryRoot, "files/cinnamon-tpuwm@geraldo-netto");
+const appletRoot = path.join(repositoryRoot, "files/cinnamon-xpuwlm@geraldo-netto");
 const schema = JSON.parse(fs.readFileSync(path.join(appletRoot, "workload-manifest.schema.json"), "utf8"));
 const validate = new Ajv2020({allErrors: true, strict: true}).compile(schema);
 

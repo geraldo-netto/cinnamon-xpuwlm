@@ -3,8 +3,8 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Job = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-job-contract.js");
-const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const Job = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-job-contract.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 
 test("a canonical forecast is not discarded by classification-only parsing", () => {
     const output = {

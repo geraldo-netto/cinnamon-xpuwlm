@@ -3,15 +3,15 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
-const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
-const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
-const RuntimeContract = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-contract.js");
-const RuntimeControl = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-contract.js");
-const RuntimeControlService = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-service.js");
-const RuntimeRefusal = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-refusal-contract.js");
-const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
-const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
+const FailureBackoff = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/failure-log-backoff.js");
+const Manager = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/manager.js");
+const RuntimeContract = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-contract.js");
+const RuntimeControl = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-control-contract.js");
+const RuntimeControlService = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-control-service.js");
+const RuntimeRefusal = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-refusal-contract.js");
+const Manifest = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-manifest.js");
+const Registry = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-registry.js");
 const ManifestFixtures = require("../helpers/workload-manifest-fixtures.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
 

@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Service = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-service.js");
+const Service = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-control-service.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
 
 const NOW = 1_700_000_000_000;
@@ -155,7 +155,7 @@ test("a batch is one call, one revision, and all-or-nothing", () => {
 });
 
 test("the contract refuses a batch the service should never see", () => {
-    const Contract = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-contract.js");
+    const Contract = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-control-contract.js");
     const envelope = {version: 1, id: "b-1", issuedAt: 1, expectedRevision: 0};
 
     assert.equal(Contract.isRuntimeCommand({

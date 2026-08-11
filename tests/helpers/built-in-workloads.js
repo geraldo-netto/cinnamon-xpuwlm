@@ -3,11 +3,11 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
-const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
-const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
+const Manifest = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-manifest.js");
+const Registry = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-registry.js");
 
-const ROOT = path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto/workloads");
+const ROOT = path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto/workloads");
 
 function descriptors() {
     return fs.readdirSync(ROOT, {withFileTypes: true})

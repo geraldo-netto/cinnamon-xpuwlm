@@ -3,10 +3,10 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const Menu = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/menu-view.js");
-const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const Menu = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/menu-view.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 const {
     FakeActor,
     FakeButton,
@@ -114,12 +114,12 @@ test("pause control defaults to local pause intent before first render", () => {
 test("overview exposes grouped profiles and all primary actions", () => {
     const {calls, view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
-    assert.equal(button(root, "Overview tab, selected").styleClasses.has("tpuwm-tab-active"), true);
-    assert.equal(button(root, "Profiles tab").styleClasses.has("tpuwm-tab-active"), false);
+    assert.equal(button(root, "Overview tab, selected").styleClasses.has("xpuwlm-tab-active"), true);
+    assert.equal(button(root, "Profiles tab").styleClasses.has("xpuwlm-tab-active"), false);
     button(root, "Profiles tab").click();
     button(root, "Manage workload profiles").click();
-    button(root, "Refresh TPU status").click();
-    button(root, "Open TPU Workload Manager settings").click();
+    button(root, "Refresh XPU status").click();
+    button(root, "Open XPU Workload Manager settings").click();
     button(root, "Pause all workloads").click();
     control(root, "Disable Hardware health").click();
     assert.deepEqual(calls, [
@@ -146,7 +146,7 @@ test("profiles screen offers weight and enable controls", () => {
     const minimum = button(root, "Decrease Desktop context weight");
     assert.equal(minimum.reactive, false);
     assert.equal(minimum.can_focus, false);
-    assert.equal(minimum.styleClasses.has("tpuwm-button-disabled"), true);
+    assert.equal(minimum.styleClasses.has("xpuwlm-button-disabled"), true);
 
     const maximumState = baseState({selectedTab: "profiles"});
     maximumState.profiles[0].weight = 5;
@@ -177,7 +177,7 @@ test("pending runtime control is announced and disables policy controls", () => 
         control: {pending: false, message: "Runtime rejected the change; retry"},
     }), NOW));
     const feedback = findActors(root, (actor) => actor.text === "Runtime rejected the change; retry")[0];
-    assert.equal(feedback.styleClasses.has("tpuwm-control-error"), true);
+    assert.equal(feedback.styleClasses.has("xpuwlm-control-error"), true);
     assert.equal(button(root, "Pause all workloads").reactive, true);
 });
 
@@ -218,7 +218,7 @@ test("alerts screen renders empty, active, resolved, and fallback evidence", () 
     assert.equal(findActors(root, (actor) => actor.text === "critical").length, 1);
     assert.equal(findActors(root, (actor) => actor.text === "80%").length, 1);
     assert.equal(findActors(root, (actor) => actor.text === "90%").length, 1);
-    assert.equal(findActors(root, (actor) => actor.styleClasses.has("tpuwm-alert-critical")).length, 1);
+    assert.equal(findActors(root, (actor) => actor.styleClasses.has("xpuwlm-alert-critical")).length, 1);
 });
 
 test("alerts screen renders critical and newer alerts before lower priorities", () => {
@@ -235,7 +235,7 @@ test("alerts screen renders critical and newer alerts before lower priorities", 
         attentionCount: alerts.length,
     }), NOW));
 
-    const titles = findActors(root, (actor) => actor.styleClasses.has("tpuwm-alert-title"))
+    const titles = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-alert-title"))
         .map((actor) => actor.text);
     assert.deepEqual(titles, ["Critical", "Warning new", "Warning old", "Advisory"]);
 });
@@ -251,7 +251,7 @@ test("paused screen invokes resume independently of button presentation text", (
     bodyResume.click();
     assert.deepEqual(calls, [["resumeAll"], ["resumeAll"]]);
     assert.equal(findActors(root, (actor) => actor.text === "Local policy paused").length, 1);
-    assert.equal(findActors(root, (actor) => actor.styleClasses.has("tpuwm-tabs"))[0].visible, false);
+    assert.equal(findActors(root, (actor) => actor.styleClasses.has("xpuwlm-tabs"))[0].visible, false);
     assert.equal(button(root, "Manage workload profiles").visible, false);
 });
 
@@ -260,10 +260,10 @@ test("unavailable screen hides tabs and offers recovery", () => {
     view.render(ViewModel.toViewModel(baseState({
         device: {available: false, name: "No TPU", kind: "unknown", reason: "Reconnect device"},
     }), NOW));
-    assert.equal(findActors(root, (actor) => actor.styleClasses.has("tpuwm-tabs"))[0].visible, false);
+    assert.equal(findActors(root, (actor) => actor.styleClasses.has("xpuwlm-tabs"))[0].visible, false);
     assert.equal(button(root, "Manage workload profiles").visible, false);
     assert.equal(findActors(root, (actor) => actor.text === "Reconnect device").length, 1);
-    button(root, "Retry TPU detection").click();
+    button(root, "Retry accelerator detection").click();
     assert.deepEqual(calls, [["refresh"]]);
 });
 
@@ -284,7 +284,7 @@ test("body rendering skips unchanged content and destroy is idempotent", () => {
     const {view, root} = harness();
     const model = ViewModel.toViewModel(baseState(), NOW);
     view.render(model);
-    const body = findActors(root, (actor) => actor.styleClasses.has("tpuwm-body"))[0];
+    const body = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-body"))[0];
     const originalChildren = body.children.slice();
     view.render(model);
     assert.deepEqual(body.children, originalChildren);
@@ -308,7 +308,7 @@ test("labels tolerate actors without a clutter text delegate", () => {
 test("the catalog notice appears with named plug-ins and dismisses on demand", () => {
     const {calls, view, root} = harness();
     const notice = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-catalog-notice"))[0];
+        && actor.styleClasses.has("xpuwlm-catalog-notice"))[0];
     assert.equal(notice.visible, false);
 
     view.render(ViewModel.toViewModel(baseState({
@@ -385,19 +385,19 @@ test("the snapshot reason code survives normalization into blocker classificatio
 });
 
 function disclosure(root) {
-    return findActors(root, (actor) => actor.tpuwmIdentity === "blocked-disclosure")[0];
+    return findActors(root, (actor) => actor.xpuwlmIdentity === "blocked-disclosure")[0];
 }
 
 function blockedList(root) {
     return findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-disclosure-list"))[0];
+        && actor.styleClasses.has("xpuwlm-disclosure-list"))[0];
 }
 
 test("profiles that cannot run collapse into one group under the ones that can", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(blockedState(), NOW));
 
-    const body = findActors(root, (actor) => actor.styleClasses.has("tpuwm-body"))[0];
+    const body = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-body"))[0];
     const list = blockedList(root);
     assert.equal(body.children.at(-1), list, "the group is last, under the runnable profiles");
     assert.equal(list.visible, false, "it starts collapsed");
@@ -407,7 +407,7 @@ test("profiles that cannot run collapse into one group under the ones that can",
     // labelled and the unrecognised one is quoted exactly.
     assert.deepEqual(
         findActors(list, (actor) => actor.styleClasses
-            && actor.styleClasses.has("tpuwm-profile-limitation")).map((actor) => actor.text),
+            && actor.styleClasses.has("xpuwlm-profile-limitation")).map((actor) => actor.text),
         [
             "No model installed · see Setup",
             "No supported accelerator present · see Setup",
@@ -418,11 +418,11 @@ test("profiles that cannot run collapse into one group under the ones that can",
 
     // Runnable profiles stay in their own groups and carry no limitation.
     const runnable = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-profile-row") && actor.parent === body);
+        && actor.styleClasses.has("xpuwlm-profile-row") && actor.parent === body);
     assert.equal(runnable.length, 4);
     assert.equal(
         findActors(root, (actor) => actor.styleClasses
-            && actor.styleClasses.has("tpuwm-profile-limitation")).length,
+            && actor.styleClasses.has("xpuwlm-profile-limitation")).length,
         4,
     );
 });
@@ -434,9 +434,9 @@ test("the collapsed group is operable and announces its own state", () => {
     const toggle = disclosure(root);
     const list = blockedList(root);
     const arrow = findActors(toggle, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-disclosure-arrow"))[0];
+        && actor.styleClasses.has("xpuwlm-disclosure-arrow"))[0];
     const title = findActors(toggle, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-disclosure-title"))[0];
+        && actor.styleClasses.has("xpuwlm-disclosure-title"))[0];
 
     assert.equal(toggle.accessibleRole, "toggle-button");
     assert.equal(toggle.can_focus, true);
@@ -454,7 +454,7 @@ test("the collapsed group is operable and announces its own state", () => {
     assert.equal(arrow.text, "▾");
     assert.equal(toggle.accessibleName, "Not available, 4 profiles, expanded");
     assert.equal(toggle.accessibleStates.has("expanded"), true);
-    assert.equal(toggle.styleClasses.has("tpuwm-disclosure-open"), true);
+    assert.equal(toggle.styleClasses.has("xpuwlm-disclosure-open"), true);
 
     // The reading position survives a refresh that rebuilds the body.
     const changed = blockedState();
@@ -476,20 +476,20 @@ test("controls on a profile that cannot run are disabled and say why", () => {
     assert.equal(inert.accessibleName, `Disable Hardware health — ${reason}`);
     assert.equal(inert.reactive, false, "a control that changes nothing is not offered");
     assert.equal(inert.can_focus, false);
-    assert.equal(inert.styleClasses.has("tpuwm-button-disabled"), true);
+    assert.equal(inert.styleClasses.has("xpuwlm-button-disabled"), true);
     assert.equal(inert.accessibleStates.has("sensitive"), false);
 
     for (const name of ["Decrease Hardware health weight", "Increase Hardware health weight"]) {
         const weight = control(root, name);
         assert.equal(weight.reactive, false, name);
         assert.equal(weight.can_focus, false, name);
-        assert.equal(weight.styleClasses.has("tpuwm-button-disabled"), true, name);
+        assert.equal(weight.styleClasses.has("xpuwlm-button-disabled"), true, name);
     }
 
     // The pointer falls through the dead controls to the row, which carries a
     // tooltip with the same words the row prints.
     const row = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-profile-inert"))[0];
+        && actor.styleClasses.has("xpuwlm-profile-inert"))[0];
     assert.equal(row.reactive, true);
     assert.equal(tooltips.filter((tooltip) => tooltip.actor === row)[0].text, reason);
     assert.equal(tooltips.length, 4);
@@ -509,12 +509,12 @@ test("a catalog the runtime serves whole carries no group and no limitation", ()
     assert.equal(blockedList(root), undefined);
     assert.equal(
         findActors(root, (actor) => actor.styleClasses
-            && actor.styleClasses.has("tpuwm-profile-limitation")).length,
+            && actor.styleClasses.has("xpuwlm-profile-limitation")).length,
         0,
     );
     assert.equal(
         findActors(root, (actor) => actor.styleClasses
-            && actor.styleClasses.has("tpuwm-empty-note")).length,
+            && actor.styleClasses.has("xpuwlm-empty-note")).length,
         0,
     );
 });
@@ -530,7 +530,7 @@ test("a catalog nothing can run says so instead of showing an empty tab", () => 
     view.render(ViewModel.toViewModel(state, NOW));
 
     const note = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-empty-note"))[0];
+        && actor.styleClasses.has("xpuwlm-empty-note"))[0];
     assert.match(note.text, /No workload profile can run on this machine yet/u);
     assert.match(note.text, /Setup tab/u);
     assert.equal(blockedList(root).children.length, state.profiles.length);
@@ -555,18 +555,18 @@ test("the collapsed group and the setup tab report what they did", () => {
     // The disclosure stacks its title over its summary and takes the free
     // width, so the arrow keeps its own edge.
     const copy = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-disclosure-title"))[0].parent;
+        && actor.styleClasses.has("xpuwlm-disclosure-title"))[0].parent;
     assert.equal(copy.vertical, true);
     assert.equal(copy.x_expand, true);
     // The arrow sits beside that column, and the rows stack under the button.
     const arrowRow = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-disclosure-row"))[0];
+        && actor.styleClasses.has("xpuwlm-disclosure-row"))[0];
     assert.equal(arrowRow.vertical, false);
     assert.equal(blockedList(root).vertical, true);
 
     view.render(ViewModel.toViewModel(blockedState("setup"), NOW));
     const setupCopy = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-setup-row"))[0].children[0];
+        && actor.styleClasses.has("xpuwlm-setup-row"))[0].children[0];
     assert.equal(setupCopy.vertical, true);
     assert.equal(setupCopy.x_expand, true);
 
@@ -584,7 +584,7 @@ test("the setup tab explains each remedy once, for every profile that needs it",
     view.render(ViewModel.toViewModel(blockedState("setup"), NOW));
 
     const titles = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-group-title")).map((actor) => actor.text);
+        && actor.styleClasses.has("xpuwlm-group-title")).map((actor) => actor.text);
     assert.deepEqual(titles, [
         "Install the accelerator runtime",
         "No qualified model is available",
@@ -592,15 +592,15 @@ test("the setup tab explains each remedy once, for every profile that needs it",
         "Reported by the runtime",
     ]);
     const counts = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-group-value")).map((actor) => actor.text);
+        && actor.styleClasses.has("xpuwlm-group-value")).map((actor) => actor.text);
     assert.deepEqual(counts, ["1 profile", "1 profile", "1 profile", "1 profile"]);
 
     // Every affected profile is named under its own remedy.
     const rows = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-setup-row"));
+        && actor.styleClasses.has("xpuwlm-setup-row"));
     assert.deepEqual(
         rows.map((row) => findActors(row, (actor) => actor.styleClasses
-            && actor.styleClasses.has("tpuwm-profile-title"))[0].text),
+            && actor.styleClasses.has("xpuwlm-profile-title"))[0].text),
         ["Desktop context", "Hardware health", "Storage intelligence", "Build advisor"],
     );
     assert.equal(
@@ -613,18 +613,18 @@ test("the setup tab explains each remedy once, for every profile that needs it",
     // for hardware that cannot be installed adds nothing after its rows.
     assert.equal(
         findActors(root, (actor) => actor.styleClasses
-            && actor.styleClasses.has("tpuwm-setup-note")).length,
+            && actor.styleClasses.has("xpuwlm-setup-note")).length,
         2,
     );
     assert.equal(
         findActors(root, (actor) => actor.styleClasses
-            && actor.styleClasses.has("tpuwm-setup-description")).length,
+            && actor.styleClasses.has("xpuwlm-setup-description")).length,
         4,
     );
 
     // Only the runtime remedy has a command; no model-design command is faked.
     const commands = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-command"));
+        && actor.styleClasses.has("xpuwlm-command"));
     assert.deepEqual(commands.map((actor) => actor.text), [
         "pip install 'omnitensor[gpu]'",
     ]);
@@ -659,13 +659,13 @@ test("resource scheduler setup renders the supported local forecast entry point"
         1,
     );
     const commands = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-command"));
+        && actor.styleClasses.has("xpuwlm-command"));
     assert.deepEqual(commands.map((actor) => actor.text), [
         "omnitensor-record-runtime-snapshot --profile resource-scheduler"
         + " --selector queueDepth --selector runningProfiles",
     ]);
     const notes = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-setup-note"));
+        && actor.styleClasses.has("xpuwlm-setup-note"));
     assert.match(notes[0].text, /omnitensor-train-model/u);
     assert.match(notes[0].text, /omnitensor-install-trained-model/u);
     assert.match(notes[0].text, /omnitensor-run-forecast/u);
@@ -681,11 +681,11 @@ test("the setup tab says so when nothing needs installing", () => {
         1,
     );
     assert.equal(
-        findActors(root, (actor) => actor.styleClasses && actor.styleClasses.has("tpuwm-command")).length,
+        findActors(root, (actor) => actor.styleClasses && actor.styleClasses.has("xpuwlm-command")).length,
         0,
     );
     assert.equal(
-        findActors(root, (actor) => actor.styleClasses && actor.styleClasses.has("tpuwm-setup-row")).length,
+        findActors(root, (actor) => actor.styleClasses && actor.styleClasses.has("xpuwlm-setup-row")).length,
         0,
     );
 });
@@ -696,19 +696,19 @@ test("the setup tab joins the strip and is reachable from the collapsed group", 
 
     // The terse group names Setup, and Setup is a tab the user can reach.
     const limitation = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-profile-limitation"))[0];
+        && actor.styleClasses.has("xpuwlm-profile-limitation"))[0];
     assert.match(limitation.text, /see Setup$/u);
     button(root, "Setup tab").click();
     assert.deepEqual(calls, [["selectTab", "setup"]]);
 
     view.render(ViewModel.toViewModel(blockedState("setup"), NOW));
-    assert.equal(button(root, "Setup tab, selected").styleClasses.has("tpuwm-tab-active"), true);
+    assert.equal(button(root, "Setup tab, selected").styleClasses.has("xpuwlm-tab-active"), true);
 });
 
 test("the alerts screen states runtime content it could not render", () => {
     const {view, root} = harness();
     const sectionTitles = () => findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-section-title")).map((actor) => actor.text);
+        && actor.styleClasses.has("xpuwlm-section-title")).map((actor) => actor.text);
 
     view.render(ViewModel.toViewModel(baseState({
         selectedTab: "alerts",
@@ -737,7 +737,7 @@ test("the alerts screen states runtime content it could not render", () => {
 test("the catalog notice survives the unavailable and paused screens", () => {
     const {view, root} = harness();
     const notice = findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-catalog-notice"))[0];
+        && actor.styleClasses.has("xpuwlm-catalog-notice"))[0];
     for (const overrides of [
         {paused: true},
         {device: {available: false, state: "absent", name: "No device", kind: "unknown", reason: "No accelerator detected"}},

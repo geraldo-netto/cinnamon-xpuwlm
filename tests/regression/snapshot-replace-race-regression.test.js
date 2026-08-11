@@ -3,20 +3,20 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
-const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const Runtime = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-gateway.js");
+const RuntimeSchema = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const Fixtures = require("../helpers/runtime-snapshot-fixtures.js");
 const {readSnapshot} = require("../helpers/fakes.js");
 
 function transientRaceError() {
-    const error = new Error("Runtime snapshot path changed while opening: /run/tpuwm.json");
+    const error = new Error("Runtime snapshot path changed while opening: /run/xpuwlm.json");
     error.transientRace = true;
     return error;
 }
 
 function gateway(readTextAsync, warnings = []) {
     return new Runtime.RuntimeSnapshotGateway({
-        path: "/run/tpuwm.json",
+        path: "/run/xpuwlm.json",
         clock: {now: () => Fixtures.NOW},
         readTextAsync,
         detectDevice() {
@@ -77,7 +77,7 @@ test("regression: non-transient read errors never retry", () => {
 });
 
 test("regression: the identity-race error from the GIO reader is marked transient", () => {
-    const Cinnamon = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/cinnamon-runtime.js");
+    const Cinnamon = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-runtime.js");
     const {createGioEnvironment} = require("../helpers/fakes.js");
     const environment = createGioEnvironment({
         "/swapped": {contents: "{}", inode: 10, device: 1, openedInode: 11},

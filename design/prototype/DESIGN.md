@@ -1,7 +1,7 @@
-# TPU Workload Manager design proposal
+# XPU Workload Manager design proposal
 
 Status: reference visual and interaction prototype. The production Cinnamon
-applet is implemented in [`../../files/cinnamon-tpuwm@geraldo-netto/`](../../files/cinnamon-tpuwm@geraldo-netto/), with current behavior and installation documented in [`../../docs/applet.md`](../../docs/applet.md).
+applet is implemented in [`../../files/cinnamon-xpuwlm@geraldo-netto/`](../../files/cinnamon-xpuwlm@geraldo-netto/), with current behavior and installation documented in [`../../docs/applet.md`](../../docs/applet.md).
 The prototype files in this directory are design artifacts, not executable
 applet code. No inference service, model runner, scheduler, or hardware-control
 service is implemented in this repository.
@@ -76,15 +76,15 @@ reflow instead of forcing users to decode truncated content.
 
 Keep the Cinnamon popup focused on operations rather than exposing every model as a separate toggle:
 
-1. **Panel indicator:** Coral status dot plus current TPU utilization. Clicking it opens the popup.
-2. **Device summary:** connection state, TPU utilization, total queue depth, and on-chip model-cache use.
+1. **Panel indicator:** accelerator status plus current XPU utilization. Clicking it opens the popup.
+2. **Device summary:** connection state, XPU utilization, total queue depth, and model-cache use.
 3. **Global controls:** pause/resume all workloads and select the scheduling profile.
 4. **Workload profiles:** consolidated rows grouped as System health, Orchestration, and Local intelligence, each showing health, queue depth, and a priority weight.
 5. **Expanded profile:** only a profile requiring attention expands automatically; its alert and action remain connected to that profile.
 6. **Alerts:** the popup shows one contextual actionable alert; historical alerts belong in the full manager.
 7. **Full manager:** detailed model, data-source, threshold, retention, and scheduling settings open outside the panel popup.
 
-Priority weights are normalized only during contention. They are not physical TPU partitions, hard quotas, percentages, or guaranteed capacity.
+Priority weights are normalized only during contention. They are not physical accelerator partitions, hard quotas, percentages, or guaranteed capacity.
 
 ## Accessibility baseline
 

@@ -8,12 +8,12 @@ const test = require("node:test");
 
 const Package = require("../../scripts/package-applet.js");
 const Plugin = require("../../scripts/package-workload-plugin.js");
-const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
+const Registry = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-registry.js");
 
 const templatePath = path.resolve(__dirname, "../../templates/workload-plugin/manifest.json");
 
 function temporaryDirectory() {
-    return fs.mkdtempSync(path.join(os.tmpdir(), "tpuwm-plugin-tooling-"));
+    return fs.mkdtempSync(path.join(os.tmpdir(), "xpuwlm-plugin-tooling-"));
 }
 
 // Minimal ustar reader: enough to prove the packed archive extracts to the

@@ -3,11 +3,11 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
-const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
-const Gateway = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-gateway.js");
-const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
-const Refusal = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-refusal-contract.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
+const FailureBackoff = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/failure-log-backoff.js");
+const Gateway = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-control-gateway.js");
+const Manager = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/manager.js");
+const Refusal = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-refusal-contract.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
 
 const NOW = 1_700_000_000_000;

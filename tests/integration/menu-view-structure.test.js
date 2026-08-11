@@ -3,10 +3,10 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const Menu = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/menu-view.js");
-const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const Menu = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/menu-view.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 const {
     FakeButton,
     FakeMenu,
@@ -104,37 +104,37 @@ test("the overview lists every accelerator with availability and load", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
 
-    const titles = labelsWithClass(root, "tpuwm-profile-title");
+    const titles = labelsWithClass(root, "xpuwlm-profile-title");
     assert.equal(titles.includes("TPU · Coral USB"), true);
     assert.equal(titles.includes("GPU · NVIDIA GPU"), true);
-    const descriptions = labelsWithClass(root, "tpuwm-profile-description");
+    const descriptions = labelsWithClass(root, "xpuwlm-profile-description");
     assert.equal(descriptions.includes("Load 42%"), true);
     assert.equal(descriptions.includes("Absent"), true);
-    const headings = labelsWithClass(root, "tpuwm-group-value");
+    const headings = labelsWithClass(root, "xpuwlm-group-value");
     assert.equal(headings.includes("1 of 2 available"), true);
 
     view.render(ViewModel.toViewModel(baseState({devices: []}), NOW));
-    assert.equal(labelsWithClass(root, "tpuwm-profile-title").includes("TPU · Coral USB"), false);
+    assert.equal(labelsWithClass(root, "xpuwlm-profile-title").includes("TPU · Coral USB"), false);
 });
 
 test("metric tiles keep a fixed name, order, and value structure", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
 
-    assert.deepEqual(labelsWithClass(root, "tpuwm-metric-name"), [
+    assert.deepEqual(labelsWithClass(root, "xpuwlm-metric-name"), [
         "TPU load", "Queue", "Running", "Attention",
     ]);
-    assert.deepEqual(labelsWithClass(root, "tpuwm-metric-value"), [
+    assert.deepEqual(labelsWithClass(root, "xpuwlm-metric-value"), [
         "42%", "2 jobs", "1 profiles", "0 items",
     ]);
 
     view.render(ViewModel.toViewModel(baseState({paused: true}), NOW));
-    assert.deepEqual(labelsWithClass(root, "tpuwm-metric-value"), [
+    assert.deepEqual(labelsWithClass(root, "xpuwlm-metric-value"), [
         "0%", "2 held", "0 profiles", "Paused",
     ]);
     const attention = findActors(root, (actor) => actor.text === "Paused"
-        && actor.styleClasses.has("tpuwm-metric-value"));
-    assert.equal(attention[0].styleClasses.has("tpuwm-attention"), true);
+        && actor.styleClasses.has("xpuwlm-metric-value"));
+    assert.equal(attention[0].styleClasses.has("xpuwlm-attention"), true);
 });
 
 test("the view model always describes exactly four metric tiles", () => {
@@ -157,7 +157,7 @@ test("every symbolic icon declares a name, type, size, and placement", () => {
     const profiles = ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW);
     view.render(profiles);
 
-    const brand = icons(root).find((actor) => actor.icon_name === "tpuwm-symbolic");
+    const brand = icons(root).find((actor) => actor.icon_name === "xpuwlm-symbolic");
     assert.deepEqual(
         {
             icon_name: brand.icon_name,
@@ -166,10 +166,10 @@ test("every symbolic icon declares a name, type, size, and placement", () => {
             style_class: brand.style_class,
         },
         {
-            icon_name: "tpuwm-symbolic",
+            icon_name: "xpuwlm-symbolic",
             icon_type: "symbolic",
             icon_size: 32,
-            style_class: "tpuwm-brand-icon",
+            style_class: "xpuwlm-brand-icon",
         },
     );
 
@@ -180,7 +180,7 @@ test("every symbolic icon declares a name, type, size, and placement", () => {
     // Every profile keeps its icon, but the tab renders the ones that run
     // before the collapsed group, so the order follows that split rather than
     // catalog order once part of the catalog can run.
-    const profileIcons = icons(root).filter((actor) => actor.style_class === "tpuwm-profile-icon");
+    const profileIcons = icons(root).filter((actor) => actor.style_class === "xpuwlm-profile-icon");
     assert.equal(profileIcons.length, BuiltIns.coreCatalog().size);
     assert.deepEqual(
         profileIcons.map((actor) => actor.icon_name),
@@ -197,7 +197,7 @@ test("every symbolic icon declares a name, type, size, and placement", () => {
     assert.equal(profileIcons.every((actor) => actor.icon_type === "symbolic"), true);
 
     view.render(ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW));
-    const hero = icons(root).find((actor) => actor.style_class === "tpuwm-hero-icon");
+    const hero = icons(root).find((actor) => actor.style_class === "xpuwlm-hero-icon");
     assert.deepEqual(
         {name: hero.icon_name, size: hero.icon_size, type: hero.icon_type},
         {name: "emblem-ok-symbolic", size: 36, type: "symbolic"},
@@ -211,33 +211,33 @@ test("the unavailable screen renders every numbered recovery step", () => {
         health: {device: "absent", runtime: "connected", detail: "Reconnect device"},
     }), NOW));
 
-    assert.deepEqual(labelsWithClass(root, "tpuwm-step-number"), ["1", "2", "3"]);
-    const rows = findActors(root, (actor) => actor.styleClasses.has("tpuwm-recovery-row"));
+    assert.deepEqual(labelsWithClass(root, "xpuwlm-step-number"), ["1", "2", "3"]);
+    const rows = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-recovery-row"));
     assert.equal(rows.length, 3);
-    assert.deepEqual(rows.map((row) => labelsWithClass(row, "tpuwm-profile-title")), [
+    assert.deepEqual(rows.map((row) => labelsWithClass(row, "xpuwlm-profile-title")), [
         ["Check the connection"],
         ["Check device access"],
         ["Retry now"],
     ]);
     assert.deepEqual(
-        rows.map((row) => labelsWithClass(row, "tpuwm-profile-description").length),
+        rows.map((row) => labelsWithClass(row, "xpuwlm-profile-description").length),
         [1, 1, 1],
     );
-    assert.equal(labelsWithClass(rows[2], "tpuwm-profile-description")[0], "Reconnect device");
+    assert.equal(labelsWithClass(rows[2], "xpuwlm-profile-description")[0], "Reconnect device");
 });
 
 test("the scrolling body keeps its vertical-only layout contract", () => {
     const {root} = harness();
     const scroll = findActors(root, (actor) => actor instanceof FakeScrollView)[0];
 
-    assert.equal(scroll.style_class, "tpuwm-scroll vfade");
+    assert.equal(scroll.style_class, "xpuwlm-scroll vfade");
     assert.equal(scroll.x_fill, true);
     assert.equal(scroll.y_fill, false);
     assert.equal(scroll.y_align, "start");
     assert.deepEqual(scroll.policy, ["never", "automatic"]);
     assert.equal(scroll.autoScrolling, true);
     assert.equal(scroll.children.length, 1);
-    assert.equal(scroll.children[0].styleClasses.has("tpuwm-body"), true);
+    assert.equal(scroll.children[0].styleClasses.has("xpuwlm-body"), true);
     assert.equal(scroll.children[0].vertical, true);
 });
 
@@ -259,21 +259,21 @@ test("every interactive control is focusable, reactive, and role-labelled", () =
         assert.equal(button.styleClasses.size > 0, true, button.accessibleName);
     }
 
-    const enabled = buttons.filter((button) => !button.styleClasses.has("tpuwm-button-disabled"));
+    const enabled = buttons.filter((button) => !button.styleClasses.has("xpuwlm-button-disabled"));
     assert.equal(enabled.every((button) => button.reactive === true), true);
     // The tab strip uses roving focus, so only its selected tab is reachable.
     assert.equal(
         enabled
-            .filter((button) => !button.styleClasses.has("tpuwm-tab"))
+            .filter((button) => !button.styleClasses.has("xpuwlm-tab"))
             .every((button) => button.can_focus === true),
         true,
     );
     assert.equal(
-        enabled.filter((button) => button.styleClasses.has("tpuwm-tab") && button.can_focus).length,
+        enabled.filter((button) => button.styleClasses.has("xpuwlm-tab") && button.can_focus).length,
         1,
     );
 
-    const disabled = buttons.filter((button) => button.styleClasses.has("tpuwm-button-disabled"));
+    const disabled = buttons.filter((button) => button.styleClasses.has("xpuwlm-button-disabled"));
     assert.equal(disabled.length > 0, true);
     assert.equal(disabled.every((button) => button.reactive === false), true);
     assert.equal(disabled.every((button) => button.can_focus === false), true);
@@ -302,19 +302,19 @@ test("a profile waiting on consent is offered a command, not an install", () => 
 
     view.render(ViewModel.toViewModel(state, NOW));
 
-    const titles = labelsWithClass(root, "tpuwm-group-title");
+    const titles = labelsWithClass(root, "xpuwlm-group-title");
     assert.equal(
         titles.some((title) => /Grant the permission/u.test(title)),
         true,
         "the setup tab names the remedy",
     );
-    const commands = labelsWithClass(root, "tpuwm-command");
+    const commands = labelsWithClass(root, "xpuwlm-command");
     assert.equal(
         commands.some((command) => command.includes("omnitensor-grant grant")),
         true,
         "and the command that grants it",
     );
-    const notes = labelsWithClass(root, "tpuwm-setup-note");
+    const notes = labelsWithClass(root, "xpuwlm-setup-note");
     assert.equal(
         notes.some((note) => /same user/u.test(note)),
         true,

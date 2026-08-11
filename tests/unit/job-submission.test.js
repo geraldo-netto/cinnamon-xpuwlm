@@ -3,8 +3,8 @@
 const assert = require("node:assert/strict");
 const {describe, it} = require("node:test");
 
-const Encoder = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/tensor-encoder.js");
-const Submission = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/job-submission.js");
+const Encoder = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/tensor-encoder.js");
+const Submission = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/job-submission.js");
 
 const SPEC = Object.freeze({
     shape: [1, 3, 2, 2],
@@ -107,7 +107,7 @@ function harness(options = {}) {
 function ack() {
     return {
         version: 1,
-        requestId: "tpuwm-1786373216892-1",
+        requestId: "xpuwlm-1786373216892-1",
         jobId: "job-1",
         status: "accepted",
         code: "job-accepted",
@@ -128,9 +128,9 @@ function request(overrides = {}) {
 
 describe("staging paths", () => {
     it("stages inside the runtime's own input root", () => {
-        const path = Submission.stagedPath(ROOT, "visual-library", "tpuwm-1-1");
+        const path = Submission.stagedPath(ROOT, "visual-library", "xpuwlm-1-1");
 
-        assert.equal(path, `${ROOT}/${Submission.STAGING_DIRECTORY}/visual-library-tpuwm-1-1.f32`);
+        assert.equal(path, `${ROOT}/${Submission.STAGING_DIRECTORY}/visual-library-xpuwlm-1-1.f32`);
         assert.ok(path.startsWith(`${ROOT}/`), "containment is what makes the read permitted");
     });
 

@@ -1,6 +1,16 @@
-# Coral Edge TPU: Capabilities, Constraints, Integration, and Use Cases
+# Cinnamon XPU Workload Manager
 
 ## Overview
+
+Cinnamon XPU Workload Manager (`cinnamon-xpuwlm`) is a Cinnamon panel client
+for local accelerator workloads served by OmniTensor. Here **XPU** is the
+product's umbrella term for any supported accelerator: TPU, NPU, or GPU. It is
+not a fourth runtime backend; manifests and snapshots continue to use the
+precise `tpu`, `npu`, and `gpu` backend identifiers.
+
+The project began as an Edge TPU integration, so the evidence and use-case
+catalog below retain detailed Coral coverage. Those hardware-specific terms
+remain intentionally unchanged.
 
 The Google Coral Edge TPU is a small application-specific integrated circuit (ASIC) for low-power machine-learning inference. A single Edge TPU is rated for up to 4 trillion fixed-point operations per second (4 TOPS) at 2 TOPS per watt. This is a peak arithmetic specification, not a promise of application throughput. Actual performance depends on the model, host, interface, runtime, and the work performed outside the accelerator. [Coral FAQ](https://coral.ai/docs/edgetpu/faq/) · [Coral benchmarks](https://coral.ai/docs/edgetpu/benchmarks/)
 
@@ -17,7 +27,7 @@ This document is application-neutral. It explains the hardware and software boun
   - [Reference UI/interaction design](design/prototype/DESIGN.md) — approved prototype rationale and states; not the live implementation
   - [Consolidated workload profiles](design/prototype/WORKLOADS.md)
   - [Prototype screen gallery](design/prototype/mockup/screens/all-screens.png)
-  - [Compact panel status montage](design/prototype/mockup/tpuwm-panel-status-montage.png)
+  - [Compact panel status montage](design/prototype/mockup/xpuwlm-panel-status-montage.png)
 - [Fundamentals and execution model](docs/fundamentals.md)
   - [Documentation and maintenance status](docs/fundamentals.md#documentation-and-maintenance-status)
   - [How to read the evidence](docs/fundamentals.md#how-to-read-the-evidence)

@@ -5,9 +5,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
-const Encoder = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/tensor-encoder.js");
-const Job = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-job-contract.js");
-const Submission = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/job-submission.js");
+const Encoder = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/tensor-encoder.js");
+const Job = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-job-contract.js");
+const Submission = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/job-submission.js");
 
 // The applet now builds the tensor a model runs on. Everything it has to get
 // right is stated somewhere in the service — the wire envelope in a schema, the
@@ -21,10 +21,10 @@ const Submission = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/job-sub
 // verifies nothing is the one that lets the drift through.
 
 const repositoryRoot = path.resolve(__dirname, "../..");
-const appletRoot = path.join(repositoryRoot, "files/cinnamon-tpuwm@geraldo-netto");
+const appletRoot = path.join(repositoryRoot, "files/cinnamon-xpuwlm@geraldo-netto");
 
 function serviceRoot() {
-    const configured = process.env.TPUWM_OMNITENSOR_ROOT;
+    const configured = process.env.XPUWLM_OMNITENSOR_ROOT;
     const candidate = configured || path.resolve(repositoryRoot, "../omnitensor");
     return fs.existsSync(path.join(candidate, "src/omnitensor/tensorref.py")) ? candidate : null;
 }
@@ -50,7 +50,7 @@ function skipWithoutService(t) {
     if (root === null) {
         t.skip(
             "the OmniTensor checkout is not available; "
-            + "set TPUWM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
+            + "set XPUWLM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
         );
     }
     return root;
@@ -218,10 +218,10 @@ test("the payload key the applet writes is the one the service reads", (t) => {
     assert.match(source, /"inputs" in payload/u, "the service still refuses both at once");
     assert.ok(
         Job.jobSubmission({
-            requestId: "tpuwm-1-1",
+            requestId: "xpuwlm-1-1",
             workloadId: "visual-library",
             references: [{
-                path: "/root/.tpuwm-staged/x.f32",
+                path: "/root/.xpuwlm-staged/x.f32",
                 shape: [1, 3, 2, 2],
                 dtype: "float32",
                 sha256: "a".repeat(64),
@@ -272,7 +272,7 @@ test("the bundled profile states its resize rather than inheriting one", (t) => 
 });
 
 test("a staged buffer is written inside the boundary that makes it readable", () => {
-    const staged = Submission.stagedPath("/home/user/omnitensor-inputs", "visual-library", "tpuwm-1-1");
+    const staged = Submission.stagedPath("/home/user/omnitensor-inputs", "visual-library", "xpuwlm-1-1");
 
     assert.ok(staged.startsWith("/home/user/omnitensor-inputs/"));
     assert.ok(staged.endsWith(Submission.STAGED_SUFFIX));

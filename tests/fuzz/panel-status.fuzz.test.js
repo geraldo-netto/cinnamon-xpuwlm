@@ -3,9 +3,9 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 
 function generator(seed) {
     let value = seed >>> 0;
@@ -58,6 +58,6 @@ test("fuzz: compact panel status preserves safety precedence and text alternativ
         });
         assert.equal(panel.status, expectedStatus);
         assert.match(panel.accessibleName, new RegExp(`, ${spokenStatus}:`, "u"));
-        assert.match(panel.tooltip, /^TPU Workload Manager — /u);
+        assert.match(panel.tooltip, /^XPU Workload Manager — /u);
     }
 });

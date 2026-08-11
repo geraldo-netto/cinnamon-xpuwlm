@@ -147,11 +147,11 @@ test("every harvestable settings and metadata string is catalogued", () => {
         "Monitoring",
         "Workload runtime",
         "Safety boundary",
-        "Show TPU status beside the panel icon",
+        "Show XPU status beside the panel icon",
         "Refresh interval",
         "seconds",
         "Runtime snapshot file",
-        "TPU Workload Manager",
+        "XPU Workload Manager",
     ]) {
         assert.equal(messages.has(expected), true, `missing catalog string: ${expected}`);
     }
@@ -163,7 +163,7 @@ test("every runtime UI string family is catalogued from the sources", () => {
     for (const expected of [
         "Pause all",
         "Resume all workloads",
-        "TPU Workload Manager — starting",
+        "XPU Workload Manager — starting",
         "Monitoring has not started",
         "Runtime snapshot is stale",
         "No accelerator available",
@@ -171,7 +171,7 @@ test("every runtime UI string family is catalogued from the sources", () => {
         "Healthy",
         "advisory",
         "%s tab, selected",
-        "TPU critical alert — %s",
+        "XPU critical alert — %s",
         "The runtime service could not apply the change",
     ]) {
         assert.equal(messages.has(expected), true, `missing runtime string: ${expected}`);

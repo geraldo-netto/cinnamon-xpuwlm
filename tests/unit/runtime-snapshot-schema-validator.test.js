@@ -6,11 +6,11 @@ const path = require("node:path");
 const test = require("node:test");
 
 const Ajv2020 = require("ajv/dist/2020").default;
-const SchemaValidator = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const SchemaValidator = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const Fixtures = require("../helpers/runtime-snapshot-fixtures.js");
 
 const schema = JSON.parse(fs.readFileSync(
-    path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto/runtime-snapshot.schema.json"),
+    path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto/runtime-snapshot.schema.json"),
     "utf8",
 ));
 const oracle = new Ajv2020({allErrors: true, strict: true}).compile(schema);
@@ -60,7 +60,7 @@ test("runtime snapshot validator rejects callable objects at the object boundary
 
 test("the published input roots are validated, not merely tolerated", () => {
     const Validator = require(
-        "../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js",
+        "../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-snapshot-schema-validator.js",
     );
 
     assert.equal(Validator.isSnapshotInputs({roots: [], maxBytes: 0}), true);

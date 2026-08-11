@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Blockers = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/profile-blockers.js");
+const Blockers = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/profile-blockers.js");
 
 function profile(overrides = {}) {
     return {id: "workload", status: "idle", detail: "", executable: true, ...overrides};
@@ -146,7 +146,7 @@ test("the reason code decides the remedy, and the sentence is not consulted", ()
 });
 
 test("every code the snapshot schema allows is classified", () => {
-    const schema = require("../../files/cinnamon-tpuwm@geraldo-netto/runtime-snapshot.schema.json");
+    const schema = require("../../files/cinnamon-xpuwlm@geraldo-netto/runtime-snapshot.schema.json");
     const published = schema.properties.profiles.additionalProperties.properties.reason.enum;
     for (const code of published) {
         const known = Object.prototype.hasOwnProperty.call(Blockers.REASON_CODE_KINDS, code)

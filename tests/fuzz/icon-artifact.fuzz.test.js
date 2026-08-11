@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
-const ICON_DIRECTORY = path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto/icons");
+const ICON_DIRECTORY = path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto/icons");
 const STATUS_NAMES = Object.freeze(["online", "detected", "attention", "paused", "unavailable"]);
 
 function readIcon(name) {
@@ -31,8 +31,8 @@ function geometryNumbers(icon) {
 }
 
 test("fuzz: all icon geometries stay visible and bounded across panel sizes", () => {
-    const names = ["tpuwm-symbolic.svg", "tpuwm-symbolic-v2.svg", ...STATUS_NAMES.map(
-        (status) => `tpuwm-status-${status}-symbolic.svg`,
+    const names = ["xpuwlm-symbolic.svg", "xpuwlm-symbolic-v2.svg", ...STATUS_NAMES.map(
+        (status) => `xpuwlm-status-${status}-symbolic.svg`,
     )];
     let seed = 0x58545055;
 

@@ -3,12 +3,12 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Cinnamon = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/cinnamon-runtime.js");
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Cinnamon = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-runtime.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
-const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
-const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const Manager = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/manager.js");
+const Runtime = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-gateway.js");
+const RuntimeSchema = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const {createGioEnvironment, gioError} = require("../helpers/fakes.js");
 
 const NOW = 1_700_000_000_000;
@@ -37,7 +37,7 @@ function deferredReader() {
 
 function gateway(readTextAsync, overrides = {}) {
     return new Runtime.RuntimeSnapshotGateway({
-        path: "/run/tpuwm.json",
+        path: "/run/xpuwlm.json",
         clock: {now: () => NOW},
         readTextAsync,
         detectDevice: () => ({available: false}),

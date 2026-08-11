@@ -59,7 +59,7 @@ npm test
 On a host where Cinnamon and raster tools cannot be installed, use
 `npm run test:local`. This explicit local-only mode skips theme-runtime and icon
 raster checks while keeping lint, syntax, coverage, fuzz, and mutation gates.
-Any `CI` environment ignores `TPUWM_SKIP_HOST_GATES`; CI always enforces every
+Any `CI` environment ignores `XPUWLM_SKIP_HOST_GATES`; CI always enforces every
 host-backed test.
 
 Mutation runs allocate half the host's logical CPUs to Stryker and at most two

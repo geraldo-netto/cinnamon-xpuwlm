@@ -22,7 +22,7 @@ const Job = require("./runtime-job-contract.js");
 // A subdirectory of the runtime's own input root: inside the boundary the user
 // opted into, so no new permission is involved, and out of the way of the
 // pictures the user drops there.
-const STAGING_DIRECTORY = ".tpuwm-staged";
+const STAGING_DIRECTORY = ".xpuwlm-staged";
 const STAGED_SUFFIX = ".f32";
 const STAGED_FILENAME = /^[A-Za-z0-9._-]+$/u;
 
@@ -110,7 +110,7 @@ class JobSubmitter {
     // staged file it will have to clean up.
     _nextRequestId() {
         this._sequence += 1;
-        return `tpuwm-${this._clock.now()}-${this._sequence}`;
+        return `xpuwlm-${this._clock.now()}-${this._sequence}`;
     }
 
     submit(request, callback) {

@@ -5,18 +5,18 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
-const Contract = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-contract.js");
-const Cinnamon = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/cinnamon-runtime.js");
+const Contract = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-contract.js");
+const Cinnamon = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-runtime.js");
 
 // The handshake exists to catch exactly one thing: the applet and the service
 // disagreeing about what they speak. A handshake that itself drifts would
 // report agreement between two builds that do not agree, which is worse than
 // having none — so it gets the strictest gate in the repository.
 const repositoryRoot = path.resolve(__dirname, "../..");
-const appletRoot = path.join(repositoryRoot, "files/cinnamon-tpuwm@geraldo-netto");
+const appletRoot = path.join(repositoryRoot, "files/cinnamon-xpuwlm@geraldo-netto");
 
 function serviceRoot() {
-    const configured = process.env.TPUWM_OMNITENSOR_ROOT;
+    const configured = process.env.XPUWLM_OMNITENSOR_ROOT;
     const candidate = configured || path.resolve(repositoryRoot, "../omnitensor");
     return fs.existsSync(path.join(candidate, "src/omnitensor/service.py")) ? candidate : null;
 }
@@ -30,7 +30,7 @@ test("the mirrored handshake schema is the service's, unchanged", (t) => {
     if (root === null) {
         t.skip(
             "the OmniTensor checkout is not available; "
-            + "set TPUWM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
+            + "set XPUWLM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
         );
         return;
     }

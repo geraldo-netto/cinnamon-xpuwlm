@@ -6,7 +6,7 @@ const childProcess = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const UUID = "cinnamon-tpuwm@geraldo-netto";
+const UUID = "cinnamon-xpuwlm@geraldo-netto";
 const repositoryRoot = path.resolve(__dirname, "..");
 const filesRoot = path.join(repositoryRoot, "files");
 const appletRoot = path.join(filesRoot, UUID);
@@ -205,7 +205,7 @@ function validateJsonArtifacts() {
     assert.equal(packageJson.devDependencies.ajv, "8.18.0");
     assert.equal(packageJson.scripts["test:visual"], "node --test tests/visual/*.test.js");
     assert.equal(packageJson.scripts["test:mutation-target"].includes("tests/visual"), false);
-    assert.equal(packageJson.scripts["test:local"], "TPUWM_SKIP_HOST_GATES=1 npm test");
+    assert.equal(packageJson.scripts["test:local"], "XPUWLM_SKIP_HOST_GATES=1 npm test");
     assert.equal(stryker.thresholds.break >= 80, true);
 }
 
@@ -225,7 +225,7 @@ function validateWorkflows() {
     );
     assert.match(quality, /run: npm run test:ci/);
     assert.doesNotMatch(quality, /run: npm test(?:\s|$)/mu);
-    assert.doesNotMatch(quality, /TPUWM_SKIP_HOST_GATES/);
+    assert.doesNotMatch(quality, /XPUWLM_SKIP_HOST_GATES/);
 
     assert.match(audit, /^ {2}schedule:$/mu);
     assert.match(audit, /^ {2}workflow_dispatch:$/mu);
@@ -272,13 +272,13 @@ function validateJavaScriptSyntax() {
 
 function validateStaticAssets() {
     const iconNames = [
-        "tpuwm-symbolic.svg",
-        "tpuwm-symbolic-v2.svg",
-        "tpuwm-status-online-symbolic.svg",
-        "tpuwm-status-detected-symbolic.svg",
-        "tpuwm-status-attention-symbolic.svg",
-        "tpuwm-status-paused-symbolic.svg",
-        "tpuwm-status-unavailable-symbolic.svg",
+        "xpuwlm-symbolic.svg",
+        "xpuwlm-symbolic-v2.svg",
+        "xpuwlm-status-online-symbolic.svg",
+        "xpuwlm-status-detected-symbolic.svg",
+        "xpuwlm-status-attention-symbolic.svg",
+        "xpuwlm-status-paused-symbolic.svg",
+        "xpuwlm-status-unavailable-symbolic.svg",
     ];
     const css = fs.readFileSync(path.join(appletRoot, "stylesheet.css"), "utf8");
     const png = fs.readFileSync(path.join(appletRoot, "icon.png"));

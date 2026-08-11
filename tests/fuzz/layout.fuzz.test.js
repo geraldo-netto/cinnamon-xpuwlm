@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Layout = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/layout.js");
+const Layout = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/layout.js");
 
 function generator(seed) {
     let state = seed >>> 0;

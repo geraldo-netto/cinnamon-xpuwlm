@@ -7,13 +7,13 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
-const ROOT = path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto");
+const ROOT = path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto");
 const stylesheetPath = path.join(ROOT, "stylesheet.css");
 const stylesheet = fs.readFileSync(stylesheetPath, "utf8");
 const RGB_COLOR = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)/giu;
-const SKIP_HOST_GATES = process.env.TPUWM_SKIP_HOST_GATES === "1" && !process.env.CI;
+const SKIP_HOST_GATES = process.env.XPUWLM_SKIP_HOST_GATES === "1" && !process.env.CI;
 const HOST_GATE_OPTIONS = SKIP_HOST_GATES
-    ? {skip: "TPUWM_SKIP_HOST_GATES=1: Cinnamon runtime gate skipped locally"}
+    ? {skip: "XPUWLM_SKIP_HOST_GATES=1: Cinnamon runtime gate skipped locally"}
     : {};
 
 const ST_MATRIX_SCRIPT = String.raw`
@@ -40,7 +40,7 @@ function geometry(value) {
 const stage = node(null, GObject.TYPE_NONE, null);
 const menu = node(stage, St.Widget.$gtype, "menu");
 const content = node(menu, St.BoxLayout.$gtype, "popup-menu-content");
-const appletRoot = node(content, St.BoxLayout.$gtype, "tpuwm-root");
+const appletRoot = node(content, St.BoxLayout.$gtype, "xpuwlm-root");
 
 function cue(classes, pseudoClass, side, type = St.Button.$gtype) {
     const value = node(appletRoot, type, classes, pseudoClass);
@@ -53,16 +53,16 @@ function cue(classes, pseudoClass, side, type = St.Button.$gtype) {
 }
 
 const panel = node(stage, St.Widget.$gtype, "panel-top", null, "panel");
-const normalApplet = node(panel, St.BoxLayout.$gtype, "applet-box tpuwm-panel-online");
-const attentionApplet = node(panel, St.BoxLayout.$gtype, "applet-box tpuwm-panel-attention");
+const normalApplet = node(panel, St.BoxLayout.$gtype, "applet-box xpuwlm-panel-online");
+const attentionApplet = node(panel, St.BoxLayout.$gtype, "applet-box xpuwlm-panel-attention");
 
 print(JSON.stringify({
     surfaces: [menu, content, appletRoot].map((value) => color(value.get_background_color())),
     cues: {
-        focus: cue("tpuwm-secondary-button", "focus", St.Side.TOP),
-        tab: cue("tpuwm-tab tpuwm-tab-active", null, St.Side.BOTTOM),
-        toggle: cue("tpuwm-toggle tpuwm-toggle-on", null, St.Side.LEFT),
-        alert: cue("tpuwm-alert-card", null, St.Side.LEFT, St.BoxLayout.$gtype),
+        focus: cue("xpuwlm-secondary-button", "focus", St.Side.TOP),
+        tab: cue("xpuwlm-tab xpuwlm-tab-active", null, St.Side.BOTTOM),
+        toggle: cue("xpuwlm-toggle xpuwlm-toggle-on", null, St.Side.LEFT),
+        alert: cue("xpuwlm-alert-card", null, St.Side.LEFT, St.BoxLayout.$gtype),
     },
     panel: {
         normalGeometry: geometry(normalApplet),
@@ -112,7 +112,7 @@ function isExecutable(candidate) {
 
 function findCjsExecutable() {
     const explicitCandidates = [
-        process.env.TPUWM_CJS,
+        process.env.XPUWLM_CJS,
         "/usr/bin/cjs",
         "/usr/local/bin/cjs",
     ].filter(Boolean);
@@ -223,20 +223,20 @@ test("regression: applet colors remain neutral and use Cinnamon symbolic foregro
 });
 
 test("regression: semantic and interaction states explicitly use the symbolic foreground", () => {
-    assert.match(ruleBody(".tpuwm-status"), /font-weight:\s*bold/u);
-    assert.match(ruleBody(".tpuwm-primary-button"), /font-weight:\s*bold/u);
-    assert.match(ruleBody(".tpuwm-tab-active"), /border-bottom-width:\s*2px/u);
-    assert.match(ruleBody(".tpuwm-tab-active"), /border-bottom-color:\s*symbolic/u);
-    assert.match(ruleBody(".tpuwm-toggle-on"), /border-color:\s*symbolic/u);
-    assert.match(ruleBody(".tpuwm-toggle-on"), /font-weight:\s*bold/u);
-    assert.match(ruleBody(".tpuwm-alert-card"), /border-left-width:\s*3px/u);
-    assert.match(ruleBody(".tpuwm-alert-card"), /border-left-color:\s*symbolic/u);
-    assert.match(ruleBody(".tpuwm-history-mark"), /font-weight:\s*bold/u);
-    assert.doesNotMatch(stylesheet, /\.tpuwm-panel-/u);
+    assert.match(ruleBody(".xpuwlm-status"), /font-weight:\s*bold/u);
+    assert.match(ruleBody(".xpuwlm-primary-button"), /font-weight:\s*bold/u);
+    assert.match(ruleBody(".xpuwlm-tab-active"), /border-bottom-width:\s*2px/u);
+    assert.match(ruleBody(".xpuwlm-tab-active"), /border-bottom-color:\s*symbolic/u);
+    assert.match(ruleBody(".xpuwlm-toggle-on"), /border-color:\s*symbolic/u);
+    assert.match(ruleBody(".xpuwlm-toggle-on"), /font-weight:\s*bold/u);
+    assert.match(ruleBody(".xpuwlm-alert-card"), /border-left-width:\s*3px/u);
+    assert.match(ruleBody(".xpuwlm-alert-card"), /border-left-color:\s*symbolic/u);
+    assert.match(ruleBody(".xpuwlm-history-mark"), /font-weight:\s*bold/u);
+    assert.doesNotMatch(stylesheet, /\.xpuwlm-panel-/u);
 });
 
 test("regression: St resolves visible cues in light, dark, and high-contrast palettes", HOST_GATE_OPTIONS, () => {
-    const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "tpuwm-theme-"));
+    const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "xpuwlm-theme-"));
     const palettes = [
         ["light", "#202020", "#ffffff"],
         ["dark", "#f0f0f0", "#181818"],

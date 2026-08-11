@@ -3,9 +3,9 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const Notifier = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/alert-notifier.js");
+const Notifier = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/alert-notifier.js");
 
 const NOW = 1_700_000_000_000;
 const PROFILES = new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).list();

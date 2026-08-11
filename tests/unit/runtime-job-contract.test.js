@@ -3,13 +3,13 @@
 const assert = require("node:assert/strict");
 const {describe, it} = require("node:test");
 
-const Job = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-job-contract.js");
+const Job = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-job-contract.js");
 
 const DIGEST = "a".repeat(64);
 
 function reference(overrides = {}) {
     return {
-        path: "/home/user/omnitensor-inputs/.tpuwm-staged/visual-library-tpuwm-1-1.f32",
+        path: "/home/user/omnitensor-inputs/.xpuwlm-staged/visual-library-xpuwlm-1-1.f32",
         shape: [1, 3, 227, 227],
         dtype: "float32",
         sha256: DIGEST,
@@ -20,7 +20,7 @@ function reference(overrides = {}) {
 function submission(overrides = {}) {
     return {
         version: 1,
-        requestId: "tpuwm-1786373216892-1",
+        requestId: "xpuwlm-1786373216892-1",
         workloadId: "visual-library",
         payload: {inputRefs: [reference()]},
         ...overrides,
@@ -30,7 +30,7 @@ function submission(overrides = {}) {
 function acknowledgement(overrides = {}) {
     return {
         version: 1,
-        requestId: "tpuwm-1786373216892-1",
+        requestId: "xpuwlm-1786373216892-1",
         jobId: "job-7f3c",
         status: "accepted",
         code: "job-accepted",
@@ -154,7 +154,7 @@ describe("job acknowledgement contract", () => {
 describe("building a submission", () => {
     it("wraps references in the envelope the runtime expects", () => {
         const built = Job.jobSubmission({
-            requestId: "tpuwm-1-1",
+            requestId: "xpuwlm-1-1",
             workloadId: "visual-library",
             references: [reference()],
         });
@@ -166,21 +166,21 @@ describe("building a submission", () => {
 
     it("refuses to build something the runtime would reject", () => {
         assert.throws(() => Job.jobSubmission({
-            requestId: "tpuwm 1",
+            requestId: "xpuwlm 1",
             workloadId: "visual-library",
             references: [reference()],
         }), TypeError);
         assert.throws(() => Job.jobSubmission({
-            requestId: "tpuwm-1-1",
+            requestId: "xpuwlm-1-1",
             workloadId: "visual-library",
             references: [],
         }), TypeError);
     });
 
     it("shares its identifier rules with the request grammar", () => {
-        assert.ok(Job.isRequestId("tpuwm-1.2_3-4"));
+        assert.ok(Job.isRequestId("xpuwlm-1.2_3-4"));
         assert.ok(!Job.isRequestId(""));
-        assert.ok(!Job.isRequestId("tpuwm/1"));
+        assert.ok(!Job.isRequestId("xpuwlm/1"));
         assert.ok(Job.isWorkloadId("visual-library"));
         assert.ok(!Job.isWorkloadId("visual_library"));
         assert.ok(Job.isShape([1, 3, 227, 227]));
@@ -196,7 +196,7 @@ describe("job result contract", () => {
     function jobResult(overrides = {}) {
         return {
             version: 1,
-            requestId: "tpuwm-1-2",
+            requestId: "xpuwlm-1-2",
             jobId: "job-7f3c",
             state: "succeeded",
             code: "job-succeeded",
@@ -241,13 +241,13 @@ describe("job result contract", () => {
     });
 
     it("builds a result request or refuses to", () => {
-        assert.deepEqual(Job.jobResultRequest({requestId: "tpuwm-1-2", jobId: "job-1"}), {
+        assert.deepEqual(Job.jobResultRequest({requestId: "xpuwlm-1-2", jobId: "job-1"}), {
             version: 1,
-            requestId: "tpuwm-1-2",
+            requestId: "xpuwlm-1-2",
             jobId: "job-1",
         });
         assert.throws(() => Job.jobResultRequest({requestId: "a b", jobId: "job-1"}), TypeError);
-        assert.throws(() => Job.jobResultRequest({requestId: "tpuwm-1", jobId: ""}), TypeError);
+        assert.throws(() => Job.jobResultRequest({requestId: "xpuwlm-1", jobId: ""}), TypeError);
     });
 
     it("validates progress on its own, including its absence", () => {

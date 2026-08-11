@@ -36,7 +36,7 @@
   "show-panel-label": {
     "type": "switch",
     "default": false,
-    "description": "Show TPU status beside the panel icon"
+    "description": "Show XPU status beside the panel icon"
   },
   "refresh-interval": {
     "type": "scale",
@@ -49,7 +49,7 @@
   },
   "runtime-state-path": {
     "type": "entry",
-    "default": "~/.local/state/tpu-workload-manager/state.json",
+    "default": "~/.local/state/xpu-workload-manager/state.json",
     "description": "Runtime snapshot file",
     "tooltip": "A trusted local service may atomically publish the versioned JSON contract documented by this applet."
   },
@@ -71,5 +71,9 @@
   "selected-tab": {
     "type": "generic",
     "default": "overview"
+  },
+  "identity-migration-version": {
+    "type": "generic",
+    "default": 0
   }
 }

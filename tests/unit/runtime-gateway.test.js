@@ -3,10 +3,10 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
-const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
-const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
-const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
+const FailureBackoff = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/failure-log-backoff.js");
+const Runtime = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-gateway.js");
+const RuntimeSchema = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const {readSnapshot} = require("../helpers/fakes.js");
 
 const NOW = 1_700_000_000_000;
@@ -218,10 +218,10 @@ test("failure warning backoff resets a channel after backward clock movement", (
 test("gateway prefers a non-empty runtime document", () => {
     let probes = 0;
     const gateway = new Runtime.RuntimeSnapshotGateway({
-        path: "/run/tpuwm.json",
+        path: "/run/xpuwlm.json",
         clock: {now: () => NOW},
         readTextAsync(filename, options, callback) {
-            assert.equal(filename, "/run/tpuwm.json");
+            assert.equal(filename, "/run/xpuwlm.json");
             callback(null, JSON.stringify(validSnapshot()));
         },
         detectDevice() {
@@ -260,7 +260,7 @@ test("gateway rejects present non-text documents without probing", () => {
     let index = 0;
     let probes = 0;
     const gateway = new Runtime.RuntimeSnapshotGateway({
-        path: "/run/tpuwm.json",
+        path: "/run/xpuwlm.json",
         clock: {now: () => NOW},
         readTextAsync: (filename, options, callback) => callback(null, documents[index]),
         detectDevice() {
@@ -346,7 +346,7 @@ test("gateway backs off read and probe warnings independently", () => {
     let probeFails = true;
     const warnings = [];
     const gateway = new Runtime.RuntimeSnapshotGateway({
-        path: "/run/tpuwm.json",
+        path: "/run/xpuwlm.json",
         clock: {now: () => nowMs},
         readTextAsync(filename, options, callback) {
             if (readFails) {

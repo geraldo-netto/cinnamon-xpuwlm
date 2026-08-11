@@ -3,8 +3,8 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
-const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const Runtime = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-gateway.js");
+const RuntimeSchema = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const Fixtures = require("../helpers/runtime-snapshot-fixtures.js");
 const {readSnapshot} = require("../helpers/fakes.js");
 
@@ -61,7 +61,7 @@ test("regression: one invalid alert invalidates the complete runtime document", 
 test("regression: a present non-string read result cannot masquerade as a missing snapshot", () => {
     let probes = 0;
     const gateway = new Runtime.RuntimeSnapshotGateway({
-        path: "/run/tpuwm.json",
+        path: "/run/xpuwlm.json",
         clock: {now: () => Fixtures.NOW},
         readTextAsync: (filename, options, callback) => callback(null, ({present: true})),
         detectDevice() {

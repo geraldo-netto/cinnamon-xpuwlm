@@ -6,7 +6,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const stylesheet = fs.readFileSync(
-    path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto/stylesheet.css"),
+    path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto/stylesheet.css"),
     "utf8",
 );
 

@@ -3,9 +3,9 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Cinnamon = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/cinnamon-runtime.js");
+const Cinnamon = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-runtime.js");
 const ManifestFixtures = require("../helpers/workload-manifest-fixtures.js");
-const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
+const Runtime = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-gateway.js");
 const {readSnapshot} = require("../helpers/fakes.js");
 
 const NOW = 1_700_000_000_000;
@@ -567,6 +567,32 @@ test("settings repository avoids redundant writes", () => {
     assert.deepEqual(writes, ["profile-state", "selected-tab"]);
 });
 
+test("renamed state repository uses legacy fallback only for its canonical path", () => {
+    const values = {"profile-state": {}, "selected-tab": "overview"};
+    const settings = {
+        getValue: (key) => values[key],
+        setValue: (key, value) => { values[key] = value; },
+    };
+    for (const incomplete of [null, {}, {Gio: {}}, {GLib: {}}]) {
+        assert.equal(
+            Cinnamon.createStateRepository(incomplete, settings) instanceof Cinnamon.CinnamonSettingsRepository,
+            true,
+        );
+    }
+    const runtimeEnvironment = {
+        Gio: {},
+        GLib: {get_home_dir: () => "/home/user"},
+    };
+    const canonical = Cinnamon.createStateRepository(runtimeEnvironment, settings);
+    assert.equal(canonical instanceof Cinnamon.FileStateRepository, true);
+    assert.equal(canonical._path, "/home/user/.config/xpu-workload-manager/applet-state.json");
+    assert.equal(canonical._legacyPath, "/home/user/.config/tpu-workload-manager/applet-state.json");
+
+    const custom = Cinnamon.createStateRepository(runtimeEnvironment, settings, "/srv/xpu-state.json");
+    assert.equal(custom._path, "/srv/xpu-state.json");
+    assert.equal(custom._legacyPath, null);
+});
+
 test("poller replaces timers and stops idempotently", () => {
     const removed = [];
     const callbacks = new Map();
@@ -684,8 +710,8 @@ test("critical notifications reach Cinnamon's message tray", () => {
     const notifications = Cinnamon.createCriticalNotifications({
         criticalNotify: (summary, body) => shown.push([summary, body]),
     });
-    notifications.notify({summary: "TPU critical alert", body: "Voltage drift"});
-    assert.deepEqual(shown, [["TPU critical alert", "Voltage drift"]]);
+    notifications.notify({summary: "XPU critical alert", body: "Voltage drift"});
+    assert.deepEqual(shown, [["XPU critical alert", "Voltage drift"]]);
 });
 
 test("logger prefixes Cinnamon warnings and errors", () => {
@@ -702,7 +728,7 @@ test("logger prefixes Cinnamon warnings and errors", () => {
         logError: (message) => calls.push(["error", message]),
     });
     defaultName.warn("three");
-    assert.match(calls.at(-1)[1], /^\[TPU Workload Manager\]/);
+    assert.match(calls.at(-1)[1], /^\[XPU Workload Manager\]/);
 });
 
 test("runtime gateway factory expands home and accepts a supplied detector", () => {
@@ -871,7 +897,7 @@ test("user plug-in root resolves through the XDG data dir with a home fallback",
 });
 
 test("user plug-in discovery isolates invalid plug-ins and unreadable roots", () => {
-    const uuid = "cinnamon-tpuwm@geraldo-netto";
+    const uuid = "cinnamon-xpuwlm@geraldo-netto";
     const root = `/home/tester/.local/share/${uuid}/workloads`;
     const env = environment({
         [root]: "",
@@ -910,7 +936,7 @@ test("user plug-in discovery isolates invalid plug-ins and unreadable roots", ()
 });
 
 test("merged registry composition keeps bundled workloads authoritative", () => {
-    const uuid = "cinnamon-tpuwm@geraldo-netto";
+    const uuid = "cinnamon-xpuwlm@geraldo-netto";
     const userRoot = `/home/tester/.local/share/${uuid}/workloads`;
     const bundledManifest = ManifestFixtures.validWorkloadManifest({id: "sample-workload"});
     const env = environment({

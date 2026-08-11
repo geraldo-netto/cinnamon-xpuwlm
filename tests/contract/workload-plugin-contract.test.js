@@ -8,8 +8,8 @@ const path = require("node:path");
 const test = require("node:test");
 
 const Checker = require("../../scripts/check-workload-manifests.js");
-const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
-const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
+const Manifest = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-manifest.js");
+const Registry = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-registry.js");
 
 const templatePath = path.resolve(__dirname, "../../templates/workload-plugin/manifest.json");
 const checkerPath = path.resolve(__dirname, "../../scripts/check-workload-manifests.js");
@@ -26,7 +26,7 @@ test("author template satisfies descriptor and checker contracts", () => {
 });
 
 test("checker reports schema, identity, ordering, and malformed JSON failures", () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "tpuwm-plugin-contract-"));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "xpuwlm-plugin-contract-"));
     const template = JSON.parse(fs.readFileSync(templatePath, "utf8"));
     try {
         for (const [id, order] of [["beta", 20], ["alpha", 10]]) {
@@ -88,7 +88,7 @@ test("checker command distinguishes imports, defaults, and explicit catalogs", (
     const defaultOutput = childProcess.execFileSync(process.execPath, [checkerPath], {encoding: "utf8"});
     assert.equal(defaultOutput.trim(), "workload manifests: 9 valid");
 
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "tpuwm-checker-cli-"));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "xpuwlm-checker-cli-"));
     try {
         const workload = path.join(directory, "sample");
         fs.mkdirSync(workload);

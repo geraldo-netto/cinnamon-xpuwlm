@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const FailureReporter = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-reporter.js");
+const FailureReporter = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/failure-reporter.js");
 
 test("failure reporter contract accepts only report/recover ports", () => {
     const reporter = {report() {}, recover() {}};

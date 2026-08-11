@@ -10,7 +10,7 @@ const test = require("node:test");
 // prose in a README: a rename on either side leaves the applet reading a file
 // nobody writes, reported to the user as "no runtime service is publishing
 // state" rather than as the configuration mistake it is.
-const SHARED_SNAPSHOT_PATH = "~/.local/state/tpu-workload-manager/state.json";
+const SHARED_SNAPSHOT_PATH = "~/.local/state/xpu-workload-manager/state.json";
 const SERVICE_DEFAULT = /^DEFAULT_STATE_PATH = "(?<path>[^"]+)"$/mu;
 // The default is only half the contract: an operator who moves the file has to
 // name the new path on both sides, and the service side is an environment
@@ -20,7 +20,7 @@ const SERVICE_SNAPSHOT_SOURCE
     = /snapshot_path=_env_path\("(?<variable>[A-Z_]+)", DEFAULT_STATE_PATH\)/u;
 
 const repositoryRoot = path.resolve(__dirname, "../..");
-const appletRoot = path.join(repositoryRoot, "files/cinnamon-tpuwm@geraldo-netto");
+const appletRoot = path.join(repositoryRoot, "files/cinnamon-xpuwlm@geraldo-netto");
 
 function readText(...segments) {
     return fs.readFileSync(path.join(...segments), "utf8");
@@ -30,7 +30,7 @@ function readText(...segments) {
 // cross-repository half of the gate runs wherever both are present and is
 // reported as unavailable, never as passing, where only one is.
 function serviceFile(relativePath) {
-    const configured = process.env.TPUWM_OMNITENSOR_ROOT;
+    const configured = process.env.XPUWLM_OMNITENSOR_ROOT;
     const roots = configured
         ? [configured]
         : [path.resolve(repositoryRoot, "../omnitensor")];
@@ -79,7 +79,7 @@ test("the service installation guide names the variable that moves the file", (t
     if (guide === null) {
         t.skip(
             "the OmniTensor checkout is not available; "
-            + "set TPUWM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
+            + "set XPUWLM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
         );
         return;
     }
@@ -101,7 +101,7 @@ test("the runtime service default matches the applet default", (t) => {
     if (source === null) {
         t.skip(
             "the OmniTensor checkout is not available; "
-            + "set TPUWM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
+            + "set XPUWLM_OMNITENSOR_ROOT to run the cross-repository half of this gate",
         );
         return;
     }

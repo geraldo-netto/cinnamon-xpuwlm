@@ -18,8 +18,8 @@ const path = require("node:path");
 
 const Checker = require("./check-workload-manifests.js");
 const Package = require("./package-applet.js");
-const Manifest = require("../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
-const Registry = require("../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
+const Manifest = require("../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-manifest.js");
+const Registry = require("../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-registry.js");
 
 const MANIFEST_NAME = "manifest.json";
 const bundledRoot = path.join(Package.payloadRoot, "workloads");

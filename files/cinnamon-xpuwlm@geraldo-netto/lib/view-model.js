@@ -702,12 +702,12 @@ function unavailablePanel(state) {
         : state.device.reason;
     return {
         accessibleName: unknown
-            ? format(_("TPU Workload Manager, unknown: %s"), reason)
-            : format(_("TPU Workload Manager, unavailable: %s"), reason),
+            ? format(_("XPU Workload Manager, unknown: %s"), reason)
+            : format(_("XPU Workload Manager, unavailable: %s"), reason),
         label: unknown ? _("Accel Unknown") : _("Accel Offline"),
         status: "unavailable",
         severity: null,
-        tooltip: format(_("TPU Workload Manager — %s"), reason),
+        tooltip: format(_("XPU Workload Manager — %s"), reason),
     };
 }
 
@@ -717,20 +717,20 @@ function panelModel(state) {
     }
     if (state.paused) {
         return {
-            accessibleName: _("TPU Workload Manager, paused: all workloads paused"),
+            accessibleName: _("XPU Workload Manager, paused: all workloads paused"),
             label: _("Accel Paused"),
             status: "paused",
             severity: null,
-            tooltip: _("TPU Workload Manager — all workloads paused"),
+            tooltip: _("XPU Workload Manager — all workloads paused"),
         };
     }
     if (state.source === "probe") {
         return {
-            accessibleName: _("TPU Workload Manager, detected: hardware detected; runtime not connected"),
+            accessibleName: _("XPU Workload Manager, detected: hardware detected; runtime not connected"),
             label: format(_("%s Detected"), backendLabel(state.device)),
             status: "detected",
             severity: null,
-            tooltip: _("TPU Workload Manager — hardware detected; runtime not connected"),
+            tooltip: _("XPU Workload Manager — hardware detected; runtime not connected"),
         };
     }
     const load = formatLoad(state.device.load);
@@ -740,16 +740,16 @@ function panelModel(state) {
     const attentionText = format(_("%s, highest severity %s"), reviewText, severityText(severity));
     return {
         accessibleName: attention
-            ? format(_("TPU Workload Manager, attention: %s"), attentionText)
-            : format(_("TPU Workload Manager, online: %s load"), load),
+            ? format(_("XPU Workload Manager, attention: %s"), attentionText)
+            : format(_("XPU Workload Manager, online: %s load"), load),
         label: attention
             ? `${backendLabel(state.device)} ${load} · ${severityText(severity)}`
             : `${backendLabel(state.device)} ${load}`,
         status: attention ? "attention" : "online",
         severity,
         tooltip: attention
-            ? format(_("TPU Workload Manager — %s"), attentionText)
-            : _("TPU Workload Manager — online"),
+            ? format(_("XPU Workload Manager — %s"), attentionText)
+            : _("XPU Workload Manager — online"),
     };
 }
 

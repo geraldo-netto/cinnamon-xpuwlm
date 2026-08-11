@@ -7,7 +7,7 @@ const test = require("node:test");
 
 const ROOT = path.resolve(__dirname, "../..");
 const metadata = JSON.parse(fs.readFileSync(
-    path.join(ROOT, "files/cinnamon-tpuwm@geraldo-netto/metadata.json"),
+    path.join(ROOT, "files/cinnamon-xpuwlm@geraldo-netto/metadata.json"),
     "utf8",
 ));
 const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
@@ -16,10 +16,10 @@ const workflow = fs.readFileSync(path.join(ROOT, ".github/workflows/applet-quali
 
 test("CJS smoke command covers root and library production sources", () => {
     assert.equal(packageJson.scripts["test:cjs"], [
-        '"${TPUWM_CJS:-cjs}"',
+        '"${XPUWLM_CJS:-cjs}"',
         "tests/cjs/production-smoke.js",
-        "files/cinnamon-tpuwm@geraldo-netto/*.js",
-        "files/cinnamon-tpuwm@geraldo-netto/lib/*.js",
+        "files/cinnamon-xpuwlm@geraldo-netto/*.js",
+        "files/cinnamon-xpuwlm@geraldo-netto/lib/*.js",
     ].join(" "));
     assert.match(smoke, /for \(const filename of sourceFiles\) \{\s+compile\(filename\);/u);
     assert.match(smoke, /loadModule\(filename\)/u);

@@ -6,12 +6,12 @@ const path = require("node:path");
 const test = require("node:test");
 
 const Ajv2020 = require("ajv/dist/2020").default;
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
-const SchemaValidator = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
+const SchemaValidator = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const Fixtures = require("../helpers/runtime-snapshot-fixtures.js");
 
 const schema = JSON.parse(fs.readFileSync(
-    path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto/runtime-snapshot.schema.json"),
+    path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto/runtime-snapshot.schema.json"),
     "utf8",
 ));
 const oracle = new Ajv2020({allErrors: true, strict: true}).compile(schema);

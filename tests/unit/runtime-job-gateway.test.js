@@ -3,11 +3,11 @@
 const assert = require("node:assert/strict");
 const {describe, it} = require("node:test");
 
-const Gateway = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-job-gateway.js");
-const Refusal = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-refusal-contract.js");
-const RuntimeControl = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-contract.js");
+const Gateway = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-job-gateway.js");
+const Refusal = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-refusal-contract.js");
+const RuntimeControl = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-control-contract.js");
 
-const REQUEST_ID = "tpuwm-1786373216892-1";
+const REQUEST_ID = "xpuwlm-1786373216892-1";
 
 function submission(overrides = {}) {
     return {
@@ -16,7 +16,7 @@ function submission(overrides = {}) {
         workloadId: "visual-library",
         payload: {
             inputRefs: [{
-                path: "/home/user/omnitensor-inputs/.tpuwm-staged/visual-library-x.f32",
+                path: "/home/user/omnitensor-inputs/.xpuwlm-staged/visual-library-x.f32",
                 shape: [1, 3, 227, 227],
                 dtype: "float32",
                 sha256: "b".repeat(64),
@@ -146,7 +146,7 @@ describe("reading a reply", () => {
     });
 
     it("refuses an acknowledgement answering a different request", () => {
-        const {gateway} = harness({reply: acknowledgement({requestId: "tpuwm-other-1"})});
+        const {gateway} = harness({reply: acknowledgement({requestId: "xpuwlm-other-1"})});
         let received = null;
 
         gateway.submit(submission(), (error) => {
@@ -169,7 +169,7 @@ describe("superseding a job submission", () => {
         const seen = [];
 
         gateway.submit(submission(), (error, reply) => seen.push(["first", error, reply]));
-        gateway.submit(submission({requestId: "tpuwm-2-2"}), (error) => seen.push(["second", error]));
+        gateway.submit(submission({requestId: "xpuwlm-2-2"}), (error) => seen.push(["second", error]));
 
         assert.ok(cancellables[0].cancelled);
         pending[0]();
@@ -223,7 +223,7 @@ describe("asking what became of a job", () => {
     function jobResult(overrides = {}) {
         return JSON.stringify({
             version: 1,
-            requestId: "tpuwm-poll-1",
+            requestId: "xpuwlm-poll-1",
             jobId: "job-1",
             state: "succeeded",
             code: "job-succeeded",
@@ -257,13 +257,13 @@ describe("asking what became of a job", () => {
         const {gateway, calls} = pollHarness();
         let received = null;
 
-        gateway.requestResult({requestId: "tpuwm-poll-1", jobId: "job-1"}, (error, reply) => {
+        gateway.requestResult({requestId: "xpuwlm-poll-1", jobId: "job-1"}, (error, reply) => {
             received = {error, reply};
         });
 
         assert.deepEqual(JSON.parse(calls.result[0]), {
             version: 1,
-            requestId: "tpuwm-poll-1",
+            requestId: "xpuwlm-poll-1",
             jobId: "job-1",
         });
         assert.equal(received.error, null);
@@ -274,15 +274,15 @@ describe("asking what became of a job", () => {
         const {gateway, calls} = pollHarness();
 
         assert.throws(() => gateway.requestResult({requestId: "a b", jobId: "job-1"}), TypeError);
-        assert.throws(() => gateway.requestResult({requestId: "tpuwm-1", jobId: "job-1"}, null), TypeError);
+        assert.throws(() => gateway.requestResult({requestId: "xpuwlm-1", jobId: "job-1"}, null), TypeError);
         assert.deepEqual(calls.result, []);
     });
 
     it("tells an answer for a different poll from this one", () => {
-        const {gateway} = pollHarness({reply: jobResult({requestId: "tpuwm-poll-9"})});
+        const {gateway} = pollHarness({reply: jobResult({requestId: "xpuwlm-poll-9"})});
         let received = null;
 
-        gateway.requestResult({requestId: "tpuwm-poll-1", jobId: "job-1"}, (error) => {
+        gateway.requestResult({requestId: "xpuwlm-poll-1", jobId: "job-1"}, (error) => {
             received = error;
         });
 
@@ -301,7 +301,7 @@ describe("asking what became of a job", () => {
         });
         let received = null;
 
-        gateway.requestResult({requestId: "tpuwm-poll-1", jobId: "job-1"}, (error) => {
+        gateway.requestResult({requestId: "xpuwlm-poll-1", jobId: "job-1"}, (error) => {
             received = error;
         });
 
@@ -312,10 +312,10 @@ describe("asking what became of a job", () => {
         const {gateway, pending} = pollHarness({defer: true});
         const seen = [];
 
-        gateway.requestResult({requestId: "tpuwm-poll-1", jobId: "job-1"}, (error, reply) => {
+        gateway.requestResult({requestId: "xpuwlm-poll-1", jobId: "job-1"}, (error, reply) => {
             seen.push(reply.state);
         });
-        gateway.submit(submission({requestId: "tpuwm-2-2"}), () => {});
+        gateway.submit(submission({requestId: "xpuwlm-2-2"}), () => {});
         pending[0]();
 
         assert.deepEqual(seen, ["succeeded"], "the poll still answered the caller waiting on it");
@@ -331,7 +331,7 @@ describe("asking what became of a job", () => {
         assert.equal(gateway.pollable, false);
         assert.equal(gateway.cancelResult(), false);
         assert.throws(
-            () => gateway.requestResult({requestId: "tpuwm-1-1", jobId: "job-1"}, () => {}),
+            () => gateway.requestResult({requestId: "xpuwlm-1-1", jobId: "job-1"}, () => {}),
             /cannot request results/u,
         );
     });
@@ -339,7 +339,7 @@ describe("asking what became of a job", () => {
     it("cancels both channels together when the caller gives up", () => {
         const {gateway} = pollHarness({defer: true});
 
-        gateway.requestResult({requestId: "tpuwm-poll-1", jobId: "job-1"}, () => {});
+        gateway.requestResult({requestId: "xpuwlm-poll-1", jobId: "job-1"}, () => {});
         assert.equal(gateway.cancel(), true);
         assert.equal(gateway.cancel(), false);
         assert.equal(gateway.pollable, true);

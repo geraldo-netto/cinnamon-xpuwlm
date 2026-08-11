@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
 const {
     FakeActor,
@@ -16,10 +16,11 @@ const {
 
 const DEFAULTS = {
     "refresh-interval": 5,
-    "runtime-state-path": "~/.local/state/tpu-workload-manager/runtime.json",
+    "runtime-state-path": "~/.local/state/xpu-workload-manager/runtime.json",
     "show-panel-label": false,
     "profile-state": Domain.defaultProfileState(BuiltIns.coreCatalog()),
     "selected-tab": "overview",
+    "identity-migration-version": 0,
 };
 
 class FakeTextIconApplet {
@@ -85,7 +86,7 @@ global.imports = {
     },
 };
 
-const AppletModule = require("../../files/cinnamon-tpuwm@geraldo-netto/applet.js");
+const AppletModule = require("../../files/cinnamon-xpuwlm@geraldo-netto/applet.js");
 
 function tracker() {
     const record = [];
@@ -131,8 +132,8 @@ function tracker() {
 }
 
 function construct(overrides) {
-    return new AppletModule.TpuWorkloadApplet(
-        {uuid: AppletModule.UUID, path: "/tmp/tpuwm"},
+    return new AppletModule.XpuWorkloadApplet(
+        {uuid: AppletModule.UUID, path: "/tmp/xpuwlm"},
         "top",
         40,
         21,

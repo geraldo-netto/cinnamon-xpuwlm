@@ -6,9 +6,9 @@ const path = require("node:path");
 const test = require("node:test");
 
 const Ajv2020 = require("ajv/dist/2020").default;
-const Contract = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-control-contract.js");
+const Contract = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-control-contract.js");
 
-const root = path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto");
+const root = path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto");
 const commandOracle = new Ajv2020({strict: true}).compile(JSON.parse(
     fs.readFileSync(path.join(root, "runtime-command.schema.json"), "utf8"),
 ));

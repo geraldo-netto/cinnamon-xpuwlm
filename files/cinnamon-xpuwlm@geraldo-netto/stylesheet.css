@@ -1,83 +1,83 @@
 /* Width, scroll height, and the mode class below are set from lib/layout.js;
    St has no media queries, so the popup resolves its own breakpoints. */
-.tpuwm-root {
+.xpuwlm-root {
     min-width: 280px;
     padding: 12px;
     spacing: 8px;
 }
 
-.tpuwm-header,
-.tpuwm-title-row,
-.tpuwm-metrics,
-.tpuwm-tabs,
-.tpuwm-footer,
-.tpuwm-profile-row,
-.tpuwm-profile-title-row,
-.tpuwm-catalog-notice,
-.tpuwm-section-heading,
-.tpuwm-group-heading,
-.tpuwm-alert-heading,
-.tpuwm-evidence,
-.tpuwm-history-row,
-.tpuwm-state-row,
-.tpuwm-recovery-row,
-.tpuwm-weight-control {
+.xpuwlm-header,
+.xpuwlm-title-row,
+.xpuwlm-metrics,
+.xpuwlm-tabs,
+.xpuwlm-footer,
+.xpuwlm-profile-row,
+.xpuwlm-profile-title-row,
+.xpuwlm-catalog-notice,
+.xpuwlm-section-heading,
+.xpuwlm-group-heading,
+.xpuwlm-alert-heading,
+.xpuwlm-evidence,
+.xpuwlm-history-row,
+.xpuwlm-state-row,
+.xpuwlm-recovery-row,
+.xpuwlm-weight-control {
     spacing: 8px;
 }
 
-.tpuwm-header {
+.xpuwlm-header {
     min-height: 48px;
     padding-bottom: 4px;
 }
 
-.tpuwm-brand-icon {
+.xpuwlm-brand-icon {
     padding: 8px;
     border: 1px solid rgba(127, 127, 127, 0.35);
     border-radius: 10px;
     background-color: rgba(127, 127, 127, 0.12);
 }
 
-.tpuwm-header-copy,
-.tpuwm-profile-copy,
-.tpuwm-body,
-.tpuwm-alert-card,
-.tpuwm-hero {
+.xpuwlm-header-copy,
+.xpuwlm-profile-copy,
+.xpuwlm-body,
+.xpuwlm-alert-card,
+.xpuwlm-hero {
     spacing: 3px;
 }
 
-.tpuwm-title {
+.xpuwlm-title {
     font-weight: bold;
     font-size: 1.05em;
 }
 
-.tpuwm-subtitle,
-.tpuwm-section-description,
-.tpuwm-profile-description,
-.tpuwm-catalog-notice-detail,
-.tpuwm-alert-kicker,
-.tpuwm-alert-summary,
-.tpuwm-hero-description {
+.xpuwlm-subtitle,
+.xpuwlm-section-description,
+.xpuwlm-profile-description,
+.xpuwlm-catalog-notice-detail,
+.xpuwlm-alert-kicker,
+.xpuwlm-alert-summary,
+.xpuwlm-hero-description {
     opacity: 0.72;
 }
 
-.tpuwm-subtitle,
-.tpuwm-section-description,
-.tpuwm-profile-description,
-.tpuwm-profile-limitation,
-.tpuwm-catalog-notice-detail,
-.tpuwm-alert-kicker {
+.xpuwlm-subtitle,
+.xpuwlm-section-description,
+.xpuwlm-profile-description,
+.xpuwlm-profile-limitation,
+.xpuwlm-catalog-notice-detail,
+.xpuwlm-alert-kicker {
     font-size: 0.82em;
 }
 
 /* A profile the runtime cannot execute is named in words on its own line; the
    weight is the only visual reinforcement, never the sole carrier of meaning. */
-.tpuwm-profile-limitation {
+.xpuwlm-profile-limitation {
     font-weight: bold;
 }
 
 /* The collapsed group of profiles the runtime cannot run. The arrow is a second
    cue beside the word and the count, never the only one. */
-.tpuwm-disclosure {
+.xpuwlm-disclosure {
     margin-top: 8px;
     padding: 8px 10px;
     border: 1px solid rgba(127, 127, 127, 0.28);
@@ -85,62 +85,62 @@
     background-color: rgba(127, 127, 127, 0.09);
 }
 
-.tpuwm-disclosure:hover {
+.xpuwlm-disclosure:hover {
     background-color: rgba(127, 127, 127, 0.18);
 }
 
-.tpuwm-disclosure:focus {
+.xpuwlm-disclosure:focus {
     border-width: 2px;
     border-color: symbolic;
 }
 
-.tpuwm-disclosure-row {
+.xpuwlm-disclosure-row {
     min-height: 34px;
     spacing: 8px;
 }
 
-.tpuwm-disclosure-arrow {
+.xpuwlm-disclosure-arrow {
     min-width: 14px;
     text-align: center;
     font-weight: bold;
 }
 
-.tpuwm-disclosure-title {
+.xpuwlm-disclosure-title {
     font-weight: bold;
 }
 
-.tpuwm-disclosure-summary,
-.tpuwm-empty-note {
+.xpuwlm-disclosure-summary,
+.xpuwlm-empty-note {
     font-size: 0.82em;
     opacity: 0.72;
 }
 
-.tpuwm-disclosure-list {
+.xpuwlm-disclosure-list {
     spacing: 0;
 }
 
-.tpuwm-empty-note {
+.xpuwlm-empty-note {
     padding: 12px 10px;
 }
 
 /* Setup: what the collapsed group deliberately leaves out. The command is
    selectable text rather than a copy control, so nothing here promises an
    action the toolkit cannot perform. */
-.tpuwm-setup-description,
-.tpuwm-setup-note {
+.xpuwlm-setup-description,
+.xpuwlm-setup-note {
     padding: 6px 10px;
     font-size: 0.82em;
     opacity: 0.72;
 }
 
-.tpuwm-setup-row {
+.xpuwlm-setup-row {
     min-height: 44px;
     padding: 6px 10px;
     border-bottom: 1px solid rgba(127, 127, 127, 0.16);
     spacing: 8px;
 }
 
-.tpuwm-command {
+.xpuwlm-command {
     margin: 4px 0 2px 0;
     padding: 9px 11px;
     border: 1px solid rgba(127, 127, 127, 0.28);
@@ -150,12 +150,12 @@
     font-size: 0.82em;
 }
 
-.tpuwm-command:focus {
+.xpuwlm-command:focus {
     border-width: 2px;
     border-color: symbolic;
 }
 
-.tpuwm-status {
+.xpuwlm-status {
     padding: 2px 5px;
     border-radius: 4px;
     background-color: rgba(127, 127, 127, 0.12);
@@ -163,16 +163,16 @@
     font-weight: bold;
 }
 
-.tpuwm-status-idle {
+.xpuwlm-status-idle {
     opacity: 0.75;
 }
 
-.tpuwm-secondary-button,
-.tpuwm-primary-button,
-.tpuwm-weight-button,
-.tpuwm-toggle,
-.tpuwm-paused-summary,
-.tpuwm-tab {
+.xpuwlm-secondary-button,
+.xpuwlm-primary-button,
+.xpuwlm-weight-button,
+.xpuwlm-toggle,
+.xpuwlm-paused-summary,
+.xpuwlm-tab {
     min-height: 34px;
     padding: 6px 10px;
     border: 1px solid rgba(127, 127, 127, 0.28);
@@ -180,60 +180,60 @@
     background-color: rgba(127, 127, 127, 0.11);
 }
 
-.tpuwm-secondary-button:hover,
-.tpuwm-primary-button:hover,
-.tpuwm-weight-button:hover,
-.tpuwm-toggle:hover,
-.tpuwm-paused-summary:hover,
-.tpuwm-tab:hover {
+.xpuwlm-secondary-button:hover,
+.xpuwlm-primary-button:hover,
+.xpuwlm-weight-button:hover,
+.xpuwlm-toggle:hover,
+.xpuwlm-paused-summary:hover,
+.xpuwlm-tab:hover {
     background-color: rgba(127, 127, 127, 0.22);
 }
 
-.tpuwm-button-disabled {
+.xpuwlm-button-disabled {
     opacity: 0.5;
 }
 
-.tpuwm-control-feedback {
+.xpuwlm-control-feedback {
     padding: 8px 10px;
     border-radius: 7px;
     font-weight: bold;
 }
 
-.tpuwm-control-pending {
+.xpuwlm-control-pending {
     background-color: rgba(127, 127, 127, 0.16);
 }
 
-.tpuwm-control-error {
+.xpuwlm-control-error {
     border: 2px solid symbolic;
     background-color: rgba(127, 127, 127, 0.16);
 }
 
-.tpuwm-catalog-notice {
+.xpuwlm-catalog-notice {
     padding: 8px 10px;
     border: 1px solid rgba(127, 127, 127, 0.35);
     border-radius: 7px;
     background-color: rgba(127, 127, 127, 0.16);
 }
 
-.tpuwm-catalog-notice-title {
+.xpuwlm-catalog-notice-title {
     font-weight: bold;
 }
 
-.tpuwm-secondary-button:focus,
-.tpuwm-primary-button:focus,
-.tpuwm-weight-button:focus,
-.tpuwm-toggle:focus,
-.tpuwm-paused-summary:focus,
-.tpuwm-tab:focus {
+.xpuwlm-secondary-button:focus,
+.xpuwlm-primary-button:focus,
+.xpuwlm-weight-button:focus,
+.xpuwlm-toggle:focus,
+.xpuwlm-paused-summary:focus,
+.xpuwlm-tab:focus {
     border-width: 2px;
     border-color: symbolic;
 }
 
-.tpuwm-primary-button {
+.xpuwlm-primary-button {
     font-weight: bold;
 }
 
-.tpuwm-metrics {
+.xpuwlm-metrics {
     padding: 1px;
     border: 1px solid rgba(127, 127, 127, 0.25);
     border-radius: 9px;
@@ -241,123 +241,123 @@
     spacing: 1px;
 }
 
-.tpuwm-metric-row {
+.xpuwlm-metric-row {
     spacing: 1px;
 }
 
-.tpuwm-metric {
+.xpuwlm-metric {
     min-width: 105px;
     padding: 9px 11px;
     background-color: rgba(127, 127, 127, 0.08);
 }
 
-.tpuwm-metric-name,
-.tpuwm-group-title,
-.tpuwm-group-value,
-.tpuwm-hero-kicker {
+.xpuwlm-metric-name,
+.xpuwlm-group-title,
+.xpuwlm-group-value,
+.xpuwlm-hero-kicker {
     font-size: 0.75em;
     font-weight: bold;
     text-transform: uppercase;
 }
 
-.tpuwm-metric-name,
-.tpuwm-group-value,
-.tpuwm-hero-kicker {
+.xpuwlm-metric-name,
+.xpuwlm-group-value,
+.xpuwlm-hero-kicker {
     opacity: 0.68;
 }
 
-.tpuwm-metric-value {
+.xpuwlm-metric-value {
     font-weight: bold;
 }
 
-.tpuwm-tabs {
+.xpuwlm-tabs {
     min-height: 40px;
     padding-bottom: 2px;
     border-bottom: 1px solid rgba(127, 127, 127, 0.22);
 }
 
-.tpuwm-tab {
+.xpuwlm-tab {
     min-width: 90px;
     border-color: rgba(127, 127, 127, 0);
     border-radius: 0;
     background-color: rgba(127, 127, 127, 0);
 }
 
-.tpuwm-tab-active {
+.xpuwlm-tab-active {
     border-bottom-width: 2px;
     border-bottom-color: symbolic;
     font-weight: bold;
 }
 
-.tpuwm-scroll {
+.xpuwlm-scroll {
     max-height: 480px;
 }
 
-.tpuwm-section-heading {
+.xpuwlm-section-heading {
     min-height: 44px;
     padding: 6px 2px;
 }
 
-.tpuwm-section-title,
-.tpuwm-profile-title,
-.tpuwm-alert-title,
-.tpuwm-hero-title {
+.xpuwlm-section-title,
+.xpuwlm-profile-title,
+.xpuwlm-alert-title,
+.xpuwlm-hero-title {
     font-weight: bold;
 }
 
-.tpuwm-section-title,
-.tpuwm-alert-title {
+.xpuwlm-section-title,
+.xpuwlm-alert-title {
     font-size: 1em;
 }
 
-.tpuwm-group-heading {
+.xpuwlm-group-heading {
     min-height: 28px;
     padding: 4px 10px;
     background-color: rgba(127, 127, 127, 0.08);
 }
 
-.tpuwm-group-title {
+.xpuwlm-group-title {
     min-width: 390px;
 }
 
-.tpuwm-profile-row,
-.tpuwm-history-row,
-.tpuwm-state-row,
-.tpuwm-recovery-row {
+.xpuwlm-profile-row,
+.xpuwlm-history-row,
+.xpuwlm-state-row,
+.xpuwlm-recovery-row {
     min-height: 54px;
     padding: 7px 10px;
     border-bottom: 1px solid rgba(127, 127, 127, 0.16);
     background-color: rgba(127, 127, 127, 0.05);
 }
 
-.tpuwm-profile-disabled {
+.xpuwlm-profile-disabled {
     opacity: 0.68;
 }
 
-.tpuwm-profile-icon {
+.xpuwlm-profile-icon {
     min-width: 24px;
     padding: 5px;
     border-radius: 7px;
     background-color: rgba(127, 127, 127, 0.11);
 }
 
-.tpuwm-weight-summary {
+.xpuwlm-weight-summary {
     min-width: 58px;
     font-size: 0.82em;
     opacity: 0.78;
 }
 
-.tpuwm-weight-control {
+.xpuwlm-weight-control {
     spacing: 0;
 }
 
-.tpuwm-weight-button {
+.xpuwlm-weight-button {
     min-width: 30px;
     padding: 4px 7px;
     border-radius: 0;
 }
 
-.tpuwm-weight-value {
+.xpuwlm-weight-value {
     min-width: 24px;
     padding: 7px 4px;
     text-align: center;
@@ -365,27 +365,27 @@
     font-weight: bold;
 }
 
-.tpuwm-toggle {
+.xpuwlm-toggle {
     min-width: 46px;
     padding-left: 8px;
     padding-right: 8px;
 }
 
-.tpuwm-toggle-on {
+.xpuwlm-toggle-on {
     border-color: symbolic;
     font-weight: bold;
 }
 
-.tpuwm-toggle-label {
+.xpuwlm-toggle-label {
     font-size: 0.78em;
     font-weight: bold;
 }
 
-.tpuwm-paused-summary {
+.xpuwlm-paused-summary {
     margin-top: 8px;
 }
 
-.tpuwm-alert-card {
+.xpuwlm-alert-card {
     margin-bottom: 8px;
     padding: 12px;
     border: 1px solid rgba(127, 127, 127, 0.28);
@@ -395,31 +395,31 @@
     background-color: rgba(127, 127, 127, 0.06);
 }
 
-.tpuwm-alert-heading,
-.tpuwm-alert-summary,
-.tpuwm-evidence,
-.tpuwm-safety-note {
+.xpuwlm-alert-heading,
+.xpuwlm-alert-summary,
+.xpuwlm-evidence,
+.xpuwlm-safety-note {
     margin-bottom: 6px;
 }
 
-.tpuwm-alert-summary {
+.xpuwlm-alert-summary {
     padding-top: 4px;
     padding-bottom: 4px;
 }
 
-.tpuwm-evidence {
+.xpuwlm-evidence {
     padding: 1px;
     border-radius: 7px;
     background-color: rgba(127, 127, 127, 0.16);
 }
 
-.tpuwm-evidence-item {
+.xpuwlm-evidence-item {
     min-width: 120px;
     padding: 8px;
     background-color: rgba(127, 127, 127, 0.07);
 }
 
-.tpuwm-safety-note {
+.xpuwlm-safety-note {
     padding: 8px;
     border-radius: 6px;
     background-color: rgba(127, 127, 127, 0.07);
@@ -427,16 +427,16 @@
     font-weight: bold;
 }
 
-.tpuwm-history-mark {
+.xpuwlm-history-mark {
     font-weight: bold;
 }
 
-.tpuwm-hero {
+.xpuwlm-hero {
     padding: 28px 50px;
     text-align: center;
 }
 
-.tpuwm-hero-icon {
+.xpuwlm-hero-icon {
     margin-bottom: 8px;
     padding: 10px;
     border: 1px solid rgba(127, 127, 127, 0.28);
@@ -444,15 +444,15 @@
     background-color: rgba(127, 127, 127, 0.09);
 }
 
-.tpuwm-hero-title {
+.xpuwlm-hero-title {
     font-size: 1.2em;
 }
 
-.tpuwm-state-action {
+.xpuwlm-state-action {
     margin: 0 80px 12px 80px;
 }
 
-.tpuwm-step-number {
+.xpuwlm-step-number {
     min-width: 26px;
     padding: 5px;
     border-radius: 13px;
@@ -461,80 +461,80 @@
     font-weight: bold;
 }
 
-.tpuwm-footer {
+.xpuwlm-footer {
     min-height: 40px;
     padding-top: 2px;
 }
 
 /* Compact and dense popups: release fixed minimum widths, wrap instead of
    clipping, and keep primary targets at least 44 pixels high. */
-.tpuwm-mode-compact .tpuwm-metric,
-.tpuwm-mode-dense .tpuwm-metric,
-.tpuwm-mode-compact .tpuwm-tab,
-.tpuwm-mode-dense .tpuwm-tab,
-.tpuwm-mode-compact .tpuwm-group-title,
-.tpuwm-mode-dense .tpuwm-group-title,
-.tpuwm-mode-compact .tpuwm-evidence-item,
-.tpuwm-mode-dense .tpuwm-evidence-item,
-.tpuwm-mode-compact .tpuwm-weight-summary,
-.tpuwm-mode-dense .tpuwm-weight-summary {
+.xpuwlm-mode-compact .xpuwlm-metric,
+.xpuwlm-mode-dense .xpuwlm-metric,
+.xpuwlm-mode-compact .xpuwlm-tab,
+.xpuwlm-mode-dense .xpuwlm-tab,
+.xpuwlm-mode-compact .xpuwlm-group-title,
+.xpuwlm-mode-dense .xpuwlm-group-title,
+.xpuwlm-mode-compact .xpuwlm-evidence-item,
+.xpuwlm-mode-dense .xpuwlm-evidence-item,
+.xpuwlm-mode-compact .xpuwlm-weight-summary,
+.xpuwlm-mode-dense .xpuwlm-weight-summary {
     min-width: 0;
 }
 
-.tpuwm-mode-compact .tpuwm-primary-button,
-.tpuwm-mode-dense .tpuwm-primary-button,
-.tpuwm-mode-compact .tpuwm-secondary-button,
-.tpuwm-mode-dense .tpuwm-secondary-button,
-.tpuwm-mode-compact .tpuwm-toggle,
-.tpuwm-mode-dense .tpuwm-toggle,
-.tpuwm-mode-compact .tpuwm-weight-button,
-.tpuwm-mode-dense .tpuwm-weight-button,
-.tpuwm-mode-compact .tpuwm-disclosure-row,
-.tpuwm-mode-dense .tpuwm-disclosure-row {
+.xpuwlm-mode-compact .xpuwlm-primary-button,
+.xpuwlm-mode-dense .xpuwlm-primary-button,
+.xpuwlm-mode-compact .xpuwlm-secondary-button,
+.xpuwlm-mode-dense .xpuwlm-secondary-button,
+.xpuwlm-mode-compact .xpuwlm-toggle,
+.xpuwlm-mode-dense .xpuwlm-toggle,
+.xpuwlm-mode-compact .xpuwlm-weight-button,
+.xpuwlm-mode-dense .xpuwlm-weight-button,
+.xpuwlm-mode-compact .xpuwlm-disclosure-row,
+.xpuwlm-mode-dense .xpuwlm-disclosure-row {
     min-height: 44px;
 }
 
-.tpuwm-mode-compact .tpuwm-profile-row,
-.tpuwm-mode-dense .tpuwm-profile-row,
-.tpuwm-mode-compact .tpuwm-state-row,
-.tpuwm-mode-dense .tpuwm-state-row,
-.tpuwm-mode-compact .tpuwm-recovery-row,
-.tpuwm-mode-dense .tpuwm-recovery-row {
+.xpuwlm-mode-compact .xpuwlm-profile-row,
+.xpuwlm-mode-dense .xpuwlm-profile-row,
+.xpuwlm-mode-compact .xpuwlm-state-row,
+.xpuwlm-mode-dense .xpuwlm-state-row,
+.xpuwlm-mode-compact .xpuwlm-recovery-row,
+.xpuwlm-mode-dense .xpuwlm-recovery-row {
     min-height: 76px;
 }
 
-.tpuwm-mode-compact .tpuwm-hero {
+.xpuwlm-mode-compact .xpuwlm-hero {
     padding: 24px 24px;
 }
 
-.tpuwm-mode-dense .tpuwm-hero {
+.xpuwlm-mode-dense .xpuwlm-hero {
     padding: 20px 14px;
 }
 
-.tpuwm-mode-compact .tpuwm-state-action,
-.tpuwm-mode-dense .tpuwm-state-action {
+.xpuwlm-mode-compact .xpuwlm-state-action,
+.xpuwlm-mode-dense .xpuwlm-state-action {
     margin: 0 0 12px 0;
 }
 
-.tpuwm-mode-dense .tpuwm-evidence {
+.xpuwlm-mode-dense .xpuwlm-evidence {
     spacing: 1px;
 }
 
 /* Running a picture. The rows are ordinary buttons: each one names a file the
    runtime is already permitted to read, so the list is exactly the set of
    things that can be submitted, and there is nothing to grey out. */
-.tpuwm-run-row {
+.xpuwlm-run-row {
     padding: 7px 10px;
     border-radius: 6px;
 }
 
-.tpuwm-run-row:hover,
-.tpuwm-run-row:focus {
+.xpuwlm-run-row:hover,
+.xpuwlm-run-row:focus {
     background-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Why nothing can be submitted, when nothing can. Prose, so it wraps. */
-.tpuwm-run-note {
+.xpuwlm-run-note {
     font-size: 0.82em;
     opacity: 0.72;
     padding: 12px 10px;
@@ -542,23 +542,23 @@
 
 /* The last job's outcome. The tone is a second cue beside the sentence, which
    already names the profile, the picture, and what the runtime answered. */
-.tpuwm-job-outcome {
+.xpuwlm-job-outcome {
     font-size: 0.82em;
     padding: 8px 10px;
     border-radius: 6px;
 }
 
-.tpuwm-job-pending {
+.xpuwlm-job-pending {
     opacity: 0.72;
 }
 
-.tpuwm-job-attention {
+.xpuwlm-job-attention {
     font-weight: bold;
 }
 
 /* The answer the job was run for, one candidate per row. Indices where no
    labels file was installed, names where one was — never a guessed name. */
-.tpuwm-job-reading {
+.xpuwlm-job-reading {
     font-size: 0.82em;
     padding: 2px 18px;
     opacity: 0.85;

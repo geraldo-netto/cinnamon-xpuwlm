@@ -3,8 +3,8 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
-const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const Runtime = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-gateway.js");
+const RuntimeSchema = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const Fixtures = require("../helpers/runtime-snapshot-fixtures.js");
 const {readSnapshot} = require("../helpers/fakes.js");
 
@@ -22,7 +22,7 @@ test("schema validator and gateway reject present invalid snapshots without prob
     let probes = 0;
     let index = 0;
     const gateway = new Runtime.RuntimeSnapshotGateway({
-        path: "/run/tpuwm.json",
+        path: "/run/xpuwlm.json",
         clock: {now: () => Fixtures.NOW},
         readTextAsync: (filename, options, callback) => callback(null, JSON.stringify(invalidDocuments[index].value)),
         detectDevice() {
@@ -46,7 +46,7 @@ test("gateway reserves trusted device probing for absent or empty documents", ()
     let index = 0;
     let probes = 0;
     const gateway = new Runtime.RuntimeSnapshotGateway({
-        path: "/run/tpuwm.json",
+        path: "/run/xpuwlm.json",
         clock: {now: () => Fixtures.NOW},
         readTextAsync: (filename, options, callback) => callback(null, documents[index]),
         detectDevice() {
@@ -70,7 +70,7 @@ test("reader and parser integration rejects non-text present values before probi
     let index = 0;
     let probes = 0;
     const gateway = new Runtime.RuntimeSnapshotGateway({
-        path: "/run/tpuwm.json",
+        path: "/run/xpuwlm.json",
         clock: {now: () => Fixtures.NOW},
         readTextAsync: (filename, options, callback) => callback(null, documents[index]),
         detectDevice() {

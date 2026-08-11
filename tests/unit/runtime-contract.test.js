@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Contract = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-contract.js");
+const Contract = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-contract.js");
 
 function document(overrides = {}) {
     return {

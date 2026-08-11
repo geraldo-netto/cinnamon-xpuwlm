@@ -6,7 +6,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const Validator = require(
-    "../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js",
+    "../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-snapshot-schema-validator.js",
 );
 
 // The validator has to check a snapshot without a JSON-schema engine, so its
@@ -23,7 +23,7 @@ const Validator = require(
 // closes? A new closed object nobody derived would otherwise be checked by
 // nothing at all.
 
-const appletRoot = path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto");
+const appletRoot = path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto");
 const schema = JSON.parse(
     fs.readFileSync(path.join(appletRoot, "runtime-snapshot.schema.json"), "utf8"),
 );
@@ -57,7 +57,7 @@ const ENUMS = Object.freeze({
 
 test("the validator checks against what was derived, not a copy of its own", () => {
     const Derived = require(
-        "../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-contract.js",
+        "../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-snapshot-contract.js",
     );
 
     for (const [name, allowed] of Object.entries(Validator.CONTRACT_ALLOWLISTS)) {
@@ -109,7 +109,7 @@ test("every enumeration the validator uses is the schema's own", () => {
 
 test("every required field the validator enforces is the schema's own", () => {
     const Derived = require(
-        "../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-contract.js",
+        "../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-snapshot-contract.js",
     );
 
     for (const [name, object] of Object.entries(OBJECTS)) {

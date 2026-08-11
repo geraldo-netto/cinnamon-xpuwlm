@@ -3,10 +3,10 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const Menu = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/menu-view.js");
-const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const Menu = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/menu-view.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 const {
     FakeActor,
     FakeButton,
@@ -64,12 +64,12 @@ function harness() {
 }
 
 function control(root, identity) {
-    return findActors(root, (actor) => actor.tpuwmIdentity === identity)[0];
+    return findActors(root, (actor) => actor.xpuwlmIdentity === identity)[0];
 }
 
 function focused(root) {
-    return findActors(root, (actor) => actor.focused === true && actor.tpuwmIdentity !== undefined)
-        .map((actor) => actor.tpuwmIdentity);
+    return findActors(root, (actor) => actor.focused === true && actor.xpuwlmIdentity !== undefined)
+        .map((actor) => actor.xpuwlmIdentity);
 }
 
 test("body controls declare stable semantic identities", () => {
@@ -77,8 +77,8 @@ test("body controls declare stable semantic identities", () => {
     view.render(ViewModel.toViewModel(baseState(), NOW));
 
     const identities = Menu.focusableControls(
-        findActors(root, (actor) => actor.styleClasses.has("tpuwm-body"))[0],
-    ).map((actor) => actor.tpuwmIdentity);
+        findActors(root, (actor) => actor.styleClasses.has("xpuwlm-body"))[0],
+    ).map((actor) => actor.xpuwlmIdentity);
     assert.equal(identities.includes("toggle:hardware-health"), true);
     assert.equal(identities.includes("weight-up:hardware-health"), true);
     assert.equal(identities.includes("weight-down:hardware-health"), true);
@@ -165,16 +165,16 @@ test("focusable control discovery skips unreachable and unidentified actors", ()
     const root = new FakeActor();
     const plain = new FakeActor();
     const identified = new FakeButton();
-    identified.tpuwmIdentity = "reachable";
+    identified.xpuwlmIdentity = "reachable";
     const unreachable = new FakeButton();
-    unreachable.tpuwmIdentity = "unreachable";
+    unreachable.xpuwlmIdentity = "unreachable";
     unreachable.can_focus = false;
     root.add_child(plain);
     plain.add_child(identified);
     plain.add_child(unreachable);
 
     assert.deepEqual(
-        Menu.focusableControls(root).map((actor) => actor.tpuwmIdentity),
+        Menu.focusableControls(root).map((actor) => actor.xpuwlmIdentity),
         ["reachable"],
     );
     assert.deepEqual(Menu.focusableControls(new FakeActor()), []);

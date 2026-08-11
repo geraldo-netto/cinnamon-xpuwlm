@@ -22,7 +22,7 @@ function profileTitle(profiles, profileId) {
 
 function notificationMessage(alert, profiles = []) {
     return {
-        summary: format(_("TPU critical alert — %s"), profileTitle(profiles, alert.profileId)),
+        summary: format(_("XPU critical alert — %s"), profileTitle(profiles, alert.profileId)),
         body: alert.summary ? `${alert.title}. ${alert.summary}` : alert.title,
     };
 }

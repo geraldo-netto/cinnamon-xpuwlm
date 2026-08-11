@@ -3,10 +3,10 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const Menu = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/menu-view.js");
-const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const Menu = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/menu-view.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 const {FakeMenu, createAtk, createSt, findActors} = require("../helpers/fakes.js");
 
 // The run surface, end to end through the projection and the popup: a picture
@@ -83,7 +83,7 @@ function harness() {
 
 function runRows(root) {
     return findActors(root, (actor) => actor.styleClasses
-        && actor.styleClasses.has("tpuwm-run-row"));
+        && actor.styleClasses.has("xpuwlm-run-row"));
 }
 
 function textWithClass(root, styleClass) {
@@ -184,7 +184,7 @@ test("the rows carry identities so focus survives a refresh under the cursor", (
     view.render(ViewModel.toViewModel(state(), NOW));
 
     assert.deepEqual(
-        runRows(root).map((row) => row.tpuwmIdentity),
+        runRows(root).map((row) => row.xpuwlmIdentity),
         [`run:${RUNNABLE}:cat.png`],
     );
 });
@@ -194,8 +194,8 @@ test("nothing to run is a sentence, never an empty list of buttons", () => {
     view.render(ViewModel.toViewModel(state({inputs: {roots: [], pictures: []}}), NOW));
 
     assert.deepEqual(runRows(root), []);
-    assert.equal(textWithClass(root, "tpuwm-run-note").length, 1);
-    assert.match(textWithClass(root, "tpuwm-run-note")[0], /not configured to read input files/u);
+    assert.equal(textWithClass(root, "xpuwlm-run-note").length, 1);
+    assert.match(textWithClass(root, "xpuwlm-run-note")[0], /not configured to read input files/u);
 });
 
 test("the last job's outcome names the picture, the profile, and the answer", () => {
@@ -212,7 +212,7 @@ test("the last job's outcome names the picture, the profile, and the answer", ()
         },
     }), NOW));
 
-    const outcome = textWithClass(root, "tpuwm-job-outcome");
+    const outcome = textWithClass(root, "xpuwlm-job-outcome");
     assert.equal(outcome.length, 1);
     assert.match(outcome[0], /cat\.png/u);
     assert.match(outcome[0], /Job accepted/u);
@@ -233,14 +233,14 @@ test("a job with no id yet reports what happened without an empty separator", ()
         },
     }), NOW));
 
-    assert.match(textWithClass(root, "tpuwm-job-outcome")[0], /Preparing the picture…$/u);
+    assert.match(textWithClass(root, "xpuwlm-job-outcome")[0], /Preparing the picture…$/u);
 });
 
 test("a job acknowledgement rebuilds the body even though the snapshot is unchanged", () => {
     const {view, root} = harness();
     const before = state();
     view.render(ViewModel.toViewModel(before, NOW));
-    assert.deepEqual(textWithClass(root, "tpuwm-job-outcome"), []);
+    assert.deepEqual(textWithClass(root, "xpuwlm-job-outcome"), []);
 
     view.render(ViewModel.toViewModel(state({
         job: {
@@ -254,7 +254,7 @@ test("a job acknowledgement rebuilds the body even though the snapshot is unchan
         },
     }), NOW));
 
-    assert.equal(textWithClass(root, "tpuwm-job-outcome").length, 1);
+    assert.equal(textWithClass(root, "xpuwlm-job-outcome").length, 1);
 });
 
 test("a newly dropped picture rebuilds the body on the next render", () => {
@@ -295,11 +295,11 @@ test("an accepted job that has not finished does not read as finished", () => {
         },
     }), NOW));
 
-    const outcome = textWithClass(root, "tpuwm-job-outcome")[0];
+    const outcome = textWithClass(root, "xpuwlm-job-outcome")[0];
     assert.match(outcome, /Running/u);
     assert.match(outcome, /50%/u);
     assert.match(outcome, /infer/u);
-    assert.deepEqual(textWithClass(root, "tpuwm-job-reading"), []);
+    assert.deepEqual(textWithClass(root, "xpuwlm-job-reading"), []);
 });
 
 test("a finished job prints the candidates it was run for", () => {
@@ -322,7 +322,7 @@ test("a finished job prints the candidates it was run for", () => {
         },
     }), NOW));
 
-    const rows = textWithClass(root, "tpuwm-job-reading");
+    const rows = textWithClass(root, "xpuwlm-job-reading");
     assert.equal(rows.length, 2);
     assert.match(rows[0], /class 669/u, "an index with no labels file stays an index");
     assert.match(rows[0], /0\.092/u);
@@ -346,7 +346,7 @@ test("a forecast renders one bounded advisory row without invented meaning", () 
         },
     }), NOW));
 
-    const rows = textWithClass(root, "tpuwm-job-reading");
+    const rows = textWithClass(root, "xpuwlm-job-reading");
     assert.equal(rows.length, 1);
     assert.match(rows[0], /^Forecast · queueDepth · 3 observations ahead · 2\.5$/u);
     assert.doesNotMatch(rows[0], /%|confidence|risk|action/iu);
@@ -423,7 +423,7 @@ test("a capped picture list says how many it is not showing", () => {
         inputs: {pictures: pictures(many), omitted: 5},
     }), NOW));
 
-    const notes = textWithClass(root, "tpuwm-run-note");
+    const notes = textWithClass(root, "xpuwlm-run-note");
     assert.equal(notes.length, 1);
     assert.match(notes[0], /8 more pictures are not shown/u, "trimmed here plus omitted upstream");
 });
@@ -432,7 +432,7 @@ test("a list that shows everything says nothing about omission", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(state(), NOW));
 
-    assert.deepEqual(textWithClass(root, "tpuwm-run-note"), []);
+    assert.deepEqual(textWithClass(root, "xpuwlm-run-note"), []);
     assert.equal(ViewModel.runModel(state()).omitted, 0);
 });
 

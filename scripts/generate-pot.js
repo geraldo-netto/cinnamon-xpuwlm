@@ -8,7 +8,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const UUID = "cinnamon-tpuwm@geraldo-netto";
+const UUID = "cinnamon-xpuwlm@geraldo-netto";
 const repositoryRoot = path.resolve(__dirname, "..");
 const appletRoot = path.join(repositoryRoot, "files", UUID);
 const potPath = path.join(appletRoot, "po", `${UUID}.pot`);
@@ -116,7 +116,7 @@ function escapePo(text) {
 
 function potHeader() {
     return [
-        "# Translation template for the TPU Workload Manager Cinnamon applet.",
+        "# Translation template for the XPU Workload Manager Cinnamon applet.",
         `# This file is distributed under the same terms as the ${UUID} applet.`,
         "#",
         "#, fuzzy",

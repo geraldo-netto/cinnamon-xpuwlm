@@ -3,11 +3,11 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const Layout = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/layout.js");
-const Menu = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/menu-view.js");
-const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const Layout = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/layout.js");
+const Menu = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/menu-view.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 const {
     FakeButton,
     FakeMenu,
@@ -89,8 +89,8 @@ function harness(layout) {
 }
 
 function metricRows(root) {
-    const container = findActors(root, (actor) => actor.styleClasses.has("tpuwm-metrics"))[0];
-    return container.children.filter((child) => child.styleClasses.has("tpuwm-metric-row"));
+    const container = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-metrics"))[0];
+    return container.children.filter((child) => child.styleClasses.has("xpuwlm-metric-row"));
 }
 
 function scrollView(root) {
@@ -101,7 +101,7 @@ test("the wide layout keeps one metric row and single-line rows", () => {
     const {view, root} = harness(WIDE);
     view.render(ViewModel.toViewModel(alertState(), NOW));
 
-    assert.equal(root.styleClasses.has("tpuwm-mode-wide"), true);
+    assert.equal(root.styleClasses.has("xpuwlm-mode-wide"), true);
     assert.equal(root.style, `min-width: ${WIDE.widthPx}px; max-width: ${WIDE.widthPx}px;`);
     assert.equal(scrollView(root).style, `max-height: ${WIDE.scrollHeightPx}px;`);
 
@@ -109,11 +109,11 @@ test("the wide layout keeps one metric row and single-line rows", () => {
     assert.equal(rows.length, 1);
     assert.equal(rows[0].children.length, 4);
 
-    const subtitle = findActors(root, (actor) => actor.styleClasses.has("tpuwm-subtitle"))[0];
+    const subtitle = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-subtitle"))[0];
     assert.equal(subtitle.clutter_text.line_wrap, false);
     assert.equal(subtitle.clutter_text.ellipsize, 3);
 
-    const evidence = findActors(root, (actor) => actor.styleClasses.has("tpuwm-evidence"))[0];
+    const evidence = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-evidence"))[0];
     assert.equal(evidence.vertical, false);
 });
 
@@ -129,20 +129,20 @@ test("a narrow popup wraps the wording that explains a profile it cannot run", (
     const {view, root} = harness(COMPACT);
     view.render(ViewModel.toViewModel(alertState({selectedTab: "profiles"}), NOW));
 
-    const wrapping = findActors(root, (actor) => actor.styleClasses.has("tpuwm-profile-limitation")
-        || actor.styleClasses.has("tpuwm-disclosure-summary")
-        || actor.styleClasses.has("tpuwm-empty-note")
-        || actor.styleClasses.has("tpuwm-run-note"));
+    const wrapping = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-profile-limitation")
+        || actor.styleClasses.has("xpuwlm-disclosure-summary")
+        || actor.styleClasses.has("xpuwlm-empty-note")
+        || actor.styleClasses.has("xpuwlm-run-note"));
     // The run note explains why no picture can be submitted; it is prose like
     // the rest and must wrap rather than ellipsize.
     assert.equal(wrapping.length, COLLAPSED + 2);
     assert.equal(wrapping.every((label) => label.clutter_text.line_wrap === true), true);
 
     view.render(ViewModel.toViewModel(alertState({selectedTab: "setup"}), NOW));
-    const setup = findActors(root, (actor) => actor.styleClasses.has("tpuwm-setup-description")
-        || actor.styleClasses.has("tpuwm-setup-note")
-        || actor.styleClasses.has("tpuwm-profile-title")
-        || actor.styleClasses.has("tpuwm-profile-description"));
+    const setup = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-setup-description")
+        || actor.styleClasses.has("xpuwlm-setup-note")
+        || actor.styleClasses.has("xpuwlm-profile-title")
+        || actor.styleClasses.has("xpuwlm-profile-description"));
     assert.equal(setup.length, COLLAPSED * 2 + 2);
     assert.equal(setup.every((label) => label.clutter_text.line_wrap === true), true);
 });
@@ -153,7 +153,7 @@ test("a command always wraps, whatever the popup mode decides for prose", () => 
     for (const layout of [WIDE, COMPACT, DENSE]) {
         const {view, root} = harness(layout);
         view.render(ViewModel.toViewModel(alertState({selectedTab: "setup"}), NOW));
-        const commands = findActors(root, (actor) => actor.styleClasses.has("tpuwm-command"));
+        const commands = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-command"));
         assert.equal(commands.length, 1, layout.mode);
         assert.equal(commands[0].clutter_text.line_wrap, true, layout.mode);
         assert.equal(commands[0].clutter_text.ellipsize, 0, layout.mode);
@@ -164,8 +164,8 @@ test("a narrow work area reflows metrics, wraps text, and shrinks the scroll", (
     const {view, root} = harness(COMPACT);
     view.render(ViewModel.toViewModel(alertState(), NOW));
 
-    assert.equal(root.styleClasses.has("tpuwm-mode-compact"), true);
-    assert.equal(root.styleClasses.has("tpuwm-mode-wide"), false);
+    assert.equal(root.styleClasses.has("xpuwlm-mode-compact"), true);
+    assert.equal(root.styleClasses.has("xpuwlm-mode-wide"), false);
     assert.equal(COMPACT.widthPx < WIDE.widthPx, true);
     assert.equal(root.style, `min-width: ${COMPACT.widthPx}px; max-width: ${COMPACT.widthPx}px;`);
 
@@ -176,15 +176,15 @@ test("a narrow work area reflows metrics, wraps text, and shrinks the scroll", (
         ["TPU load", "Queue", "Running", "Attention"],
     );
 
-    const wrapping = findActors(root, (actor) => actor.styleClasses.has("tpuwm-subtitle")
-        || actor.styleClasses.has("tpuwm-catalog-notice-detail")
-        || actor.styleClasses.has("tpuwm-alert-summary")
-        || actor.styleClasses.has("tpuwm-alert-title"));
+    const wrapping = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-subtitle")
+        || actor.styleClasses.has("xpuwlm-catalog-notice-detail")
+        || actor.styleClasses.has("xpuwlm-alert-summary")
+        || actor.styleClasses.has("xpuwlm-alert-title"));
     assert.equal(wrapping.length, 4);
     assert.equal(wrapping.every((label) => label.clutter_text.line_wrap === true), true);
     assert.equal(wrapping.every((label) => label.clutter_text.ellipsize === 0), true);
 
-    const evidence = findActors(root, (actor) => actor.styleClasses.has("tpuwm-evidence"))[0];
+    const evidence = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-evidence"))[0];
     assert.equal(evidence.vertical, false, "two evidence columns still fit at 520 pixels");
 });
 
@@ -192,8 +192,8 @@ test("the dense layout stacks alert evidence into one column", () => {
     const {view, root} = harness(DENSE);
     view.render(ViewModel.toViewModel(alertState(), NOW));
 
-    assert.equal(root.styleClasses.has("tpuwm-mode-dense"), true);
-    const evidence = findActors(root, (actor) => actor.styleClasses.has("tpuwm-evidence"))[0];
+    assert.equal(root.styleClasses.has("xpuwlm-mode-dense"), true);
+    const evidence = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-evidence"))[0];
     assert.equal(evidence.vertical, true);
     assert.equal(evidence.children.length, 2);
 });
@@ -211,8 +211,8 @@ test("every essential control survives the narrowest supported popup", () => {
         "Profiles tab",
         "Alerts tab",
         "Manage workload profiles",
-        "Refresh TPU status",
-        "Open TPU Workload Manager settings",
+        "Refresh XPU status",
+        "Open XPU Workload Manager settings",
         "Disable Hardware health",
     ]) {
         assert.equal(names.some((name) => name.startsWith(required)), true, required);
@@ -235,9 +235,9 @@ test("re-applying a layout rebuilds structure only when it actually changes", ()
         metricRows(root).flatMap((row) => row.children).map((metric) => metric.children[1].text),
         ["42%", "2 jobs", "1 profiles", "1 item · warning"],
     );
-    assert.equal(root.styleClasses.has("tpuwm-mode-compact"), true);
-    const subtitle = findActors(root, (actor) => actor.styleClasses.has("tpuwm-subtitle"))[0];
-    const noticeDetail = findActors(root, (actor) => actor.styleClasses.has("tpuwm-catalog-notice-detail"))[0];
+    assert.equal(root.styleClasses.has("xpuwlm-mode-compact"), true);
+    const subtitle = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-subtitle"))[0];
+    const noticeDetail = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-catalog-notice-detail"))[0];
     assert.equal(subtitle.clutter_text.line_wrap, true);
     assert.equal(noticeDetail.clutter_text.line_wrap, true);
 
@@ -250,14 +250,14 @@ test("re-applying a layout rebuilds structure only when it actually changes", ()
 test("a view without a rendered model still accepts a layout change", () => {
     const {view, root} = harness(WIDE);
     assert.equal(view.applyLayout(DENSE), true);
-    assert.equal(root.styleClasses.has("tpuwm-mode-dense"), true);
+    assert.equal(root.styleClasses.has("xpuwlm-mode-dense"), true);
     assert.equal(metricRows(root).length, 2);
     assert.equal(view.applyLayout(null), true);
-    assert.equal(root.styleClasses.has("tpuwm-mode-wide"), true);
+    assert.equal(root.styleClasses.has("xpuwlm-mode-wide"), true);
 });
 
 test("the default layout applies when the caller supplies none", () => {
     const {root} = harness(undefined);
-    assert.equal(root.styleClasses.has("tpuwm-mode-wide"), true);
+    assert.equal(root.styleClasses.has("xpuwlm-mode-wide"), true);
     assert.equal(root.style, `min-width: ${Layout.PREFERRED_WIDTH}px; max-width: ${Layout.PREFERRED_WIDTH}px;`);
 });

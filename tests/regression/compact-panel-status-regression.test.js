@@ -5,11 +5,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 
-const ROOT = path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto");
+const ROOT = path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto");
 
 function state(overrides = {}) {
     return {
@@ -57,10 +57,10 @@ test("regression: compact icon is default while every status keeps explicit text
     for (const [value, expectedStatus, spokenStatus] of cases) {
         const panel = ViewModel.panelModel(value);
         assert.equal(panel.status, expectedStatus);
-        assert.match(panel.tooltip, /^TPU Workload Manager — /u);
-        assert.match(panel.accessibleName, new RegExp(`^TPU Workload Manager, ${spokenStatus}:`, "u"));
+        assert.match(panel.tooltip, /^XPU Workload Manager — /u);
+        assert.match(panel.accessibleName, new RegExp(`^XPU Workload Manager, ${spokenStatus}:`, "u"));
         assert.equal(
-            fs.existsSync(path.join(ROOT, "icons", `tpuwm-status-${expectedStatus}-symbolic.svg`)),
+            fs.existsSync(path.join(ROOT, "icons", `xpuwlm-status-${expectedStatus}-symbolic.svg`)),
             true,
         );
     }

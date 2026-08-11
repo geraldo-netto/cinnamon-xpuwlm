@@ -43,6 +43,19 @@ const GPU_VENDOR_NAMES = Object.freeze({
     "0x1002": "AMD GPU",
     "0x8086": "Intel GPU",
 });
+const APPLET_STATE_PATH = "~/.config/xpu-workload-manager/applet-state.json";
+const LEGACY_APPLET_STATE_PATH = "~/.config/tpu-workload-manager/applet-state.json";
+const LEGACY_SETTINGS_PATH = "~/.config/cinnamon/spices/cinnamon-tpuwm@geraldo-netto/cinnamon-tpuwm@geraldo-netto.json";
+const OLD_RUNTIME_STATE_PATH = "~/.local/state/tpu-workload-manager/state.json";
+const RUNTIME_STATE_PATH = "~/.local/state/xpu-workload-manager/state.json";
+const IDENTITY_MIGRATION_VERSION = 1;
+const IDENTITY_MIGRATION_KEY = "identity-migration-version";
+const LEGACY_SETTINGS_MAX_BYTES = 64 * 1024;
+const MIGRATABLE_SETTING_DEFAULTS = Object.freeze({
+    "show-panel-label": false,
+    "refresh-interval": 2,
+    "runtime-state-path": RUNTIME_STATE_PATH,
+});
 
 function expandHome(path, homeDirectory) {
     const text = String(path || "");
@@ -687,18 +700,105 @@ class CachedDeviceDetector {
 const STATE_FILE_MAX_BYTES = 64 * 1024;
 const EMPTY_APPLET_STATE = Object.freeze({portfolio: null, selectedTab: null});
 
+function isRecord(value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function storedSettingValue(document, key) {
+    const setting = document[key];
+    return isRecord(setting) ? setting.value : undefined;
+}
+
+function copyBooleanSetting(document, migrated, key) {
+    const value = storedSettingValue(document, key);
+    if (typeof value === "boolean") {
+        migrated[key] = value;
+    }
+}
+
+function copyRefreshInterval(document, migrated) {
+    const value = storedSettingValue(document, "refresh-interval");
+    if (Number.isInteger(value) && value >= 1 && value <= 60) {
+        migrated["refresh-interval"] = value;
+    }
+}
+
+function copyRuntimeStatePath(document, migrated) {
+    const value = storedSettingValue(document, "runtime-state-path");
+    if (typeof value !== "string" || value.trim() === ""
+            || value.length > 4096 || value.includes("\0")) {
+        return;
+    }
+    migrated["runtime-state-path"] = value === OLD_RUNTIME_STATE_PATH
+        ? RUNTIME_STATE_PATH
+        : value;
+}
+
+function migratedIdentitySettings(document) {
+    if (!isRecord(document)) {
+        return {};
+    }
+    const migrated = {};
+    copyBooleanSetting(document, migrated, "show-panel-label");
+    copyRefreshInterval(document, migrated);
+    copyRuntimeStatePath(document, migrated);
+    return migrated;
+}
+
+function readLegacyIdentitySettings(environment, path) {
+    try {
+        const expanded = expandHome(path, environment.GLib.get_home_dir());
+        const text = readFileText(expanded, environment, LEGACY_SETTINGS_MAX_BYTES);
+        return text === null ? {} : migratedIdentitySettings(JSON.parse(text));
+    } catch {
+        return {};
+    }
+}
+
+function importDefaultIdentitySettings(settings, migrated) {
+    let imported = false;
+    for (const [key, value] of Object.entries(migrated)) {
+        if (settings.getValue(key) === MIGRATABLE_SETTING_DEFAULTS[key]) {
+            settings.setValue(key, value);
+            imported = true;
+        }
+    }
+    return imported;
+}
+
+// A UUID change gives Cinnamon a fresh settings namespace. Import only the
+// three user-facing settings, only while their new values are still defaults,
+// and mark the attempt even when the old file is absent. The old JSON is
+// bounded and treated as untrusted input; profile intent has its own migration
+// path through FileStateRepository below.
+function migrateLegacyAppletSettings(settings, environment, path = LEGACY_SETTINGS_PATH) {
+    if (!settings || typeof settings.getValue !== "function" || typeof settings.setValue !== "function") {
+        throw new TypeError("Cinnamon applet settings are required");
+    }
+    if (settings.getValue(IDENTITY_MIGRATION_KEY) >= IDENTITY_MIGRATION_VERSION) {
+        return false;
+    }
+    const migrated = readLegacyIdentitySettings(environment, path);
+    const imported = importDefaultIdentitySettings(settings, migrated);
+    settings.setValue(IDENTITY_MIGRATION_KEY, IDENTITY_MIGRATION_VERSION);
+    return imported;
+}
+
 class FileStateRepository {
-    constructor({path, environment, legacy = null}) {
+    constructor({path, environment, legacy = null, legacyPath = null}) {
         if (!path || !environment || !environment.Gio) {
             throw new TypeError("A state file path and a Gio environment are required");
         }
         this._path = expandHome(String(path), environment.GLib.get_home_dir());
+        this._legacyPath = legacyPath === null
+            ? null
+            : expandHome(String(legacyPath), environment.GLib.get_home_dir());
         this._environment = environment;
         this._legacy = legacy;
     }
 
     load() {
-        const text = this._readStateText();
+        const text = this._readMigratedStateText();
         if (text === null) {
             return this._legacy ? this._legacy.load() : EMPTY_APPLET_STATE;
         }
@@ -713,9 +813,17 @@ class FileStateRepository {
         }
     }
 
-    _readStateText() {
+    _readMigratedStateText() {
+        const current = this._readStateText(this._path);
+        if (current !== null || this._legacyPath === null) {
+            return current;
+        }
+        return this._readStateText(this._legacyPath);
+    }
+
+    _readStateText(path) {
         try {
-            return readFileText(this._path, this._environment, STATE_FILE_MAX_BYTES);
+            return readFileText(path, this._environment, STATE_FILE_MAX_BYTES);
         } catch {
             return null;
         }
@@ -744,12 +852,17 @@ class FileStateRepository {
 
 // Falls back to the legacy xlet-settings store when the environment cannot
 // reach GIO (test harnesses); production always gets the atomic state file.
-function createStateRepository(environment, settings, path = "~/.config/tpu-workload-manager/applet-state.json") {
+function createStateRepository(environment, settings, path = APPLET_STATE_PATH) {
     const legacy = new CinnamonSettingsRepository(settings);
     if (!environment || !environment.Gio || !environment.GLib) {
         return legacy;
     }
-    return new FileStateRepository({path, environment, legacy});
+    return new FileStateRepository({
+        path,
+        environment,
+        legacy,
+        legacyPath: path === APPLET_STATE_PATH ? LEGACY_APPLET_STATE_PATH : null,
+    });
 }
 
 class CinnamonSettingsRepository {
@@ -880,7 +993,7 @@ function createCriticalNotifications(Main) {
 }
 
 function createLogger(prefix, cinnamonGlobal = global) {
-    const name = String(prefix || "TPU Workload Manager");
+    const name = String(prefix || "XPU Workload Manager");
     return {
         warn(message) {
             cinnamonGlobal.logWarning(`[${name}] ${message}`);
@@ -1388,6 +1501,11 @@ module.exports = {
     CinnamonPoller,
     CinnamonScheduler,
     CinnamonSettingsRepository,
+    APPLET_STATE_PATH,
+    LEGACY_APPLET_STATE_PATH,
+    LEGACY_SETTINGS_PATH,
+    OLD_RUNTIME_STATE_PATH,
+    RUNTIME_STATE_PATH,
     createCancellableFactory,
     createControlServiceWatch,
     createCriticalNotifications,
@@ -1420,6 +1538,8 @@ module.exports = {
     detectUsbDeviceAsync,
     detectUsbNameAsync,
     createStateRepository,
+    migrateLegacyAppletSettings,
+    migratedIdentitySettings,
     expandHome,
     FileStateRepository,
     findCoralUsbIdentity,

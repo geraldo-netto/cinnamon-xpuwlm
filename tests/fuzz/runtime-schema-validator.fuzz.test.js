@@ -6,8 +6,8 @@ const path = require("node:path");
 const test = require("node:test");
 
 const Ajv2020 = require("ajv/dist/2020").default;
-const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
-const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const Runtime = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-gateway.js");
+const RuntimeSchema = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 const Fixtures = require("../helpers/runtime-snapshot-fixtures.js");
 const {readSnapshot} = require("../helpers/fakes.js");
 
@@ -48,7 +48,7 @@ function arbitraryJson(random, depth = 0) {
 
 test("fuzz: concrete v1 validator remains equivalent to the authoritative schema", () => {
     const schema = JSON.parse(fs.readFileSync(
-        path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto/runtime-snapshot.schema.json"),
+        path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto/runtime-snapshot.schema.json"),
         "utf8",
     ));
     const oracle = new Ajv2020({allErrors: true, strict: true}).compile(schema);
@@ -78,7 +78,7 @@ test("fuzz: every present non-text reader value fails without probing", () => {
             value = iteration % 2 === 0 ? undefined : {value};
         }
         const gateway = new Runtime.RuntimeSnapshotGateway({
-            path: "/run/tpuwm.json",
+            path: "/run/xpuwlm.json",
             clock: {now: () => Fixtures.NOW},
             readTextAsync: (filename, options, callback) => callback(null, value),
             detectDevice() {

@@ -9,7 +9,7 @@ const test = require("node:test");
 const Package = require("../../scripts/package-applet.js");
 
 function temporaryDirectory() {
-    return fs.mkdtempSync(path.join(os.tmpdir(), "tpuwm-release-"));
+    return fs.mkdtempSync(path.join(os.tmpdir(), "xpuwlm-release-"));
 }
 
 // End-to-end against the real payload: stage, checksum, install into a

@@ -3,11 +3,11 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const Layout = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/layout.js");
-const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
-const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
+const Layout = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/layout.js");
+const Manifest = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-manifest.js");
+const Registry = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-registry.js");
 const ManifestFixtures = require("../helpers/workload-manifest-fixtures.js");
 const {
     FakeActor,
@@ -20,10 +20,11 @@ const {
 
 const DEFAULTS = {
     "refresh-interval": 5,
-    "runtime-state-path": "~/.local/state/tpu-workload-manager/runtime.json",
+    "runtime-state-path": "~/.local/state/xpu-workload-manager/runtime.json",
     "show-panel-label": false,
     "profile-state": Domain.defaultProfileState(BuiltIns.coreCatalog()),
     "selected-tab": "overview",
+    "identity-migration-version": 0,
 };
 
 class FakeTextIconApplet {
@@ -124,7 +125,7 @@ global.imports = {
     },
 };
 
-const AppletModule = require("../../files/cinnamon-tpuwm@geraldo-netto/applet.js");
+const AppletModule = require("../../files/cinnamon-xpuwlm@geraldo-netto/applet.js");
 
 test("workload catalog resolver projects only the injected registry", () => {
     const descriptor = new Manifest.WorkloadDescriptor(ManifestFixtures.validWorkloadManifest({
@@ -205,8 +206,8 @@ function appletHarness(extraOverrides = {}) {
     const menus = [];
     const menuManagers = [];
     const gateways = [];
-    const applet = new AppletModule.TpuWorkloadApplet(
-        {uuid: AppletModule.UUID, path: "/tmp/tpuwm"},
+    const applet = new AppletModule.XpuWorkloadApplet(
+        {uuid: AppletModule.UUID, path: "/tmp/xpuwlm"},
         "top",
         40,
         7,
@@ -258,21 +259,23 @@ function appletHarness(extraOverrides = {}) {
 }
 
 test("constructor binds settings, registers icon, renders, and starts polling", () => {
-    const {applet, manager, menus, poller, views} = appletHarness();
+    const {applet, manager, menus, poller, settings, views} = appletHarness();
     assert.deepEqual(applet.baseArguments, {orientation: "top", panelHeight: 40, instanceId: 7});
     assert.deepEqual(applet.symbolicIconPaths, [
-        "/tmp/tpuwm/icons/tpuwm-symbolic-v2.svg",
-        "/tmp/tpuwm/icons/tpuwm-status-detected-symbolic.svg",
+        "/tmp/xpuwlm/icons/xpuwlm-symbolic-v2.svg",
+        "/tmp/xpuwlm/icons/xpuwlm-status-detected-symbolic.svg",
     ]);
-    assert.equal(iconPaths.includes("/tmp/tpuwm/icons"), true);
+    assert.equal(iconPaths.includes("/tmp/xpuwlm/icons"), true);
     assert.equal(applet.label, "");
     assert.match(applet.tooltip, /hardware detected/);
     assert.match(applet.actor.accessibleName, /detected: hardware detected/);
-    assert.equal(applet.actor.styleClasses.has("tpuwm-panel-detected"), true);
+    assert.equal(applet.actor.styleClasses.has("xpuwlm-panel-detected"), true);
     assert.deepEqual(manager.calls[0], ["start"]);
     assert.deepEqual(poller.calls, [["start", 5]]);
     assert.equal(menus.length, 1);
     assert.equal(views[0].models.length, 1);
+    assert.equal(settings.getValue("identity-migration-version"), 0,
+        "an injected settings factory owns its own migration policy");
 });
 
 test("menu actions delegate without mixing responsibilities", () => {
@@ -349,13 +352,13 @@ test("panel uses cached symbolic state icons and explicit accessible status", ()
         manager.callback(state);
         assert.equal(
             applet.iconPath,
-            `/tmp/tpuwm/icons/tpuwm-status-${status}-symbolic.svg`,
+            `/tmp/xpuwlm/icons/xpuwlm-status-${status}-symbolic.svg`,
         );
         assert.match(applet.actor.accessibleName, accessibleName);
         assert.equal(applet.label, "");
         for (const candidate of AppletModule.PANEL_STATUSES) {
             assert.equal(
-                applet.actor.styleClasses.has(`tpuwm-panel-${candidate}`),
+                applet.actor.styleClasses.has(`xpuwlm-panel-${candidate}`),
                 candidate === status,
             );
         }
@@ -365,13 +368,13 @@ test("panel uses cached symbolic state icons and explicit accessible status", ()
     manager.callback(states.at(-1)[0]);
     assert.equal(applet.symbolicIconPaths.length, callsBeforeRepeatedState);
     assert.equal(applet._setPanelIcon("online"), true);
-    assert.match(applet.iconPath, /tpuwm-status-online-symbolic\.svg$/u);
+    assert.match(applet.iconPath, /xpuwlm-status-online-symbolic\.svg$/u);
     assert.equal(applet._setPanelIcon("online"), false);
     assert.equal(applet._setPanelIcon("future-status"), true);
-    assert.match(applet.iconPath, /tpuwm-status-unavailable-symbolic\.svg$/u);
+    assert.match(applet.iconPath, /xpuwlm-status-unavailable-symbolic\.svg$/u);
     assert.equal(applet._setPanelIcon("future-status"), false);
-    assert.equal(AppletModule.panelIconFilename("future-status"), "tpuwm-status-unavailable-symbolic.svg");
-    assert.equal(AppletModule.panelIconFilename("online"), "tpuwm-status-online-symbolic.svg");
+    assert.equal(AppletModule.panelIconFilename("future-status"), "xpuwlm-status-unavailable-symbolic.svg");
+    assert.equal(AppletModule.panelIconFilename("online"), "xpuwlm-status-online-symbolic.svg");
 });
 
 test("critical alerts notify once per occurrence through the applet", () => {
@@ -394,7 +397,7 @@ test("critical alerts notify once per occurrence through the applet", () => {
     manager.callback(liveState({source: "runtime", alerts: [critical], attentionCount: 1}));
     manager.callback(liveState({source: "runtime", alerts: [critical], attentionCount: 1}));
     assert.equal(delivered.length, 1);
-    assert.equal(delivered[0].summary, "TPU critical alert — Hardware health");
+    assert.equal(delivered[0].summary, "XPU critical alert — Hardware health");
 
     manager.callback(liveState({
         source: "runtime",
@@ -437,24 +440,24 @@ test("panel state classes are a closed set that is fully cleaned between renders
     ]);
     const {applet, manager} = appletHarness();
     for (const status of AppletModule.PANEL_STATUSES) {
-        applet.actor.add_style_class_name(`tpuwm-panel-${status}`);
+        applet.actor.add_style_class_name(`xpuwlm-panel-${status}`);
     }
-    applet.actor.add_style_class_name("tpuwm-panel-unrelated");
+    applet.actor.add_style_class_name("xpuwlm-panel-unrelated");
 
     manager.callback(liveState({source: "runtime"}));
-    const applied = [...applet.actor.styleClasses].filter((name) => name.startsWith("tpuwm-panel-"));
-    assert.deepEqual(applied.sort(), ["tpuwm-panel-online", "tpuwm-panel-unrelated"].sort());
+    const applied = [...applet.actor.styleClasses].filter((name) => name.startsWith("xpuwlm-panel-"));
+    assert.deepEqual(applied.sort(), ["xpuwlm-panel-online", "xpuwlm-panel-unrelated"].sort());
     assert.deepEqual(
         AppletModule.PANEL_STATUSES.map((status) => AppletModule.panelIconFilename(status)),
-        AppletModule.PANEL_STATUSES.map((status) => `tpuwm-status-${status}-symbolic.svg`),
+        AppletModule.PANEL_STATUSES.map((status) => `xpuwlm-status-${status}-symbolic.svg`),
     );
 });
 
 test("render updates safety styling and ignores work after teardown", () => {
     const {applet, manager, poller, settings} = appletHarness();
     manager.callback(liveState({source: "runtime", attentionCount: 1}));
-    assert.equal(applet.actor.styleClasses.has("tpuwm-panel-attention"), true);
-    assert.equal(applet.actor.styleClasses.has("tpuwm-panel-online"), false);
+    assert.equal(applet.actor.styleClasses.has("xpuwlm-panel-attention"), true);
+    assert.equal(applet.actor.styleClasses.has("xpuwlm-panel-online"), false);
     assert.equal(applet._teardown(), true);
     assert.equal(applet._teardown(), false);
     assert.equal(settings.finalized, true);
@@ -507,8 +510,8 @@ test("the popup starts with a safe default and measures only after it opens", ()
 test("an unusable layout measurement falls back to the default popup layout", () => {
     const warnings = [];
     const menu = new FakeMenu();
-    const applet = new AppletModule.TpuWorkloadApplet(
-        {uuid: AppletModule.UUID, path: "/tmp/tpuwm"},
+    const applet = new AppletModule.XpuWorkloadApplet(
+        {uuid: AppletModule.UUID, path: "/tmp/xpuwlm"},
         "top",
         40,
         12,
@@ -546,8 +549,8 @@ test("applet wires a scheduler so connected state expires without a poll", () =>
     const generatedAt = 1_700_000_000_000;
     let nowMs = generatedAt;
     const scheduled = [];
-    const applet = new AppletModule.TpuWorkloadApplet(
-        {uuid: AppletModule.UUID, path: "/tmp/tpuwm"},
+    const applet = new AppletModule.XpuWorkloadApplet(
+        {uuid: AppletModule.UUID, path: "/tmp/xpuwlm"},
         "top",
         40,
         11,
@@ -582,13 +585,13 @@ test("applet wires a scheduler so connected state expires without a poll", () =>
         },
     );
 
-    assert.equal(applet.actor.styleClasses.has("tpuwm-panel-online"), true);
+    assert.equal(applet.actor.styleClasses.has("xpuwlm-panel-online"), true);
     assert.equal(scheduled.length, 1);
     assert.equal(scheduled[0].delayMs, Domain.DEFAULT_STALE_AFTER_MS + 1);
 
     nowMs = generatedAt + Domain.DEFAULT_STALE_AFTER_MS + 1;
     scheduled[0].callback();
-    assert.equal(applet.actor.styleClasses.has("tpuwm-panel-unavailable"), true);
+    assert.equal(applet.actor.styleClasses.has("xpuwlm-panel-unavailable"), true);
     assert.match(applet.tooltip, /stale/u);
     applet.on_applet_removed_from_panel();
 });
@@ -599,22 +602,24 @@ test("default environment, logger, and main construct with Cinnamon dependencies
     assert.doesNotThrow(() => logger.warn("warning"));
     assert.doesNotThrow(() => logger.error("error"));
     const instance = AppletModule.main(
-        {uuid: AppletModule.UUID, path: "/tmp/default-tpuwm"},
+        {uuid: AppletModule.UUID, path: "/tmp/default-xpuwlm"},
         "top",
         40,
         8,
     );
-    assert.equal(instance instanceof AppletModule.TpuWorkloadApplet, true);
+    assert.equal(instance instanceof AppletModule.XpuWorkloadApplet, true);
     assert.equal(instance.label, "");
-    assert.match(instance.iconPath, /tpuwm-status-unavailable-symbolic\.svg$/u);
+    assert.match(instance.iconPath, /xpuwlm-status-unavailable-symbolic\.svg$/u);
     assert.match(instance.actor.accessibleName, /unknown:/u);
+    assert.equal(instance.settings.getValue("identity-migration-version"), 1,
+        "the production settings port records the one-time identity migration");
     const timer = [...timers.values()].at(-1);
     assert.equal(timer.callback(), true);
     instance.on_applet_removed_from_panel();
 });
 
 test("gettext installation binds the UUID domain and routes the translation port", () => {
-    const I18n = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/i18n.js");
+    const I18n = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/i18n.js");
     const calls = [];
     const fakeGettext = {
         bindtextdomain: (...args) => calls.push(args),

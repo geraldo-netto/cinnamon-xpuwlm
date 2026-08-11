@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Cinnamon = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/cinnamon-runtime.js");
+const Cinnamon = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-runtime.js");
 
 function fileEnvironment({contents = null, homeDirectory = "/home/user"} = {}) {
     const written = [];
@@ -50,13 +50,13 @@ function legacyOf(payload) {
 test("regression: profile intent is stored in an applet-owned atomically replaced file", () => {
     const {environment, written, directories} = fileEnvironment();
     const repository = new Cinnamon.FileStateRepository({
-        path: "~/.config/tpu-workload-manager/applet-state.json",
+        path: "~/.config/xpu-workload-manager/applet-state.json",
         environment,
     });
     repository.save({portfolio: {paused: false, profiles: {}}, selectedTab: "overview"});
     assert.equal(directories.length, 1, "the parent directory is created on demand");
     assert.equal(written.length, 1);
-    assert.equal(written[0].path, "/home/user/.config/tpu-workload-manager/applet-state.json");
+    assert.equal(written[0].path, "/home/user/.config/xpu-workload-manager/applet-state.json");
     assert.equal(written[0].flags, environment.Gio.FileCreateFlags.REPLACE_DESTINATION);
     assert.deepEqual(JSON.parse(written[0].text), {
         portfolio: {paused: false, profiles: {}},
@@ -68,7 +68,7 @@ test("regression: the state file wins over lagging legacy xlet settings", () => 
     const fresh = {portfolio: {paused: false, profiles: {"hardware-health": {enabled: true, weight: 2}}}, selectedTab: "profiles"};
     const {environment} = fileEnvironment({contents: JSON.stringify(fresh)});
     const repository = new Cinnamon.FileStateRepository({
-        path: "~/.config/tpu-workload-manager/applet-state.json",
+        path: "~/.config/xpu-workload-manager/applet-state.json",
         environment,
         legacy: legacyOf({portfolio: {paused: true, profiles: {}}, selectedTab: "overview"}),
     });
@@ -79,7 +79,7 @@ test("regression: a missing state file migrates from the legacy settings once", 
     const legacyState = {portfolio: {paused: false, profiles: {"visual-library": {enabled: true, weight: 3}}}, selectedTab: "alerts"};
     const {environment} = fileEnvironment();
     const repository = new Cinnamon.FileStateRepository({
-        path: "~/.config/tpu-workload-manager/applet-state.json",
+        path: "~/.config/xpu-workload-manager/applet-state.json",
         environment,
         legacy: legacyOf(legacyState),
     });
@@ -90,7 +90,7 @@ test("regression: malformed or unreadable state files degrade to defaults, never
     for (const contents of ["{nope", "42", "\"text\"", ""]) {
         const {environment} = fileEnvironment({contents});
         const repository = new Cinnamon.FileStateRepository({
-            path: "~/.config/tpu-workload-manager/applet-state.json",
+            path: "~/.config/xpu-workload-manager/applet-state.json",
             environment,
         });
         const loaded = repository.load();
@@ -111,7 +111,7 @@ test("regression: an oversize state file falls back to the legacy store instead 
     const {environment} = fileEnvironment({contents: "x".repeat(70 * 1024)});
     const legacyState = {portfolio: {paused: true, profiles: {}}, selectedTab: "overview"};
     const repository = new Cinnamon.FileStateRepository({
-        path: "~/.config/tpu-workload-manager/applet-state.json",
+        path: "~/.config/xpu-workload-manager/applet-state.json",
         environment,
         legacy: legacyOf(legacyState),
     });

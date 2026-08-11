@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const SnapshotValidator = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/snapshot-validator.js");
+const SnapshotValidator = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/snapshot-validator.js");
 
 test("snapshot validator contract creates immutable reports", () => {
     const accepted = SnapshotValidator.validationAccepted();

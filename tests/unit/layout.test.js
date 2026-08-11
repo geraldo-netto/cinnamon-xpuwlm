@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Layout = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/layout.js");
+const Layout = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/layout.js");
 
 test("scale normalization clamps unusable values to a usable factor", () => {
     assert.equal(Layout.normalizeScale(1), 1);
@@ -32,12 +32,12 @@ test("mode boundaries follow the approved 520 and 400 breakpoints", () => {
     assert.equal(Layout.popupMode(0), "dense");
     assert.deepEqual(Layout.MODES, ["wide", "compact", "dense"]);
     assert.deepEqual(Layout.MODE_STYLE_CLASSES, {
-        wide: "tpuwm-mode-wide",
-        compact: "tpuwm-mode-compact",
-        dense: "tpuwm-mode-dense",
+        wide: "xpuwlm-mode-wide",
+        compact: "xpuwlm-mode-compact",
+        dense: "xpuwlm-mode-dense",
     });
     assert.deepEqual(Layout.MODE_STYLE_CLASS_LIST, [
-        "tpuwm-mode-wide", "tpuwm-mode-compact", "tpuwm-mode-dense",
+        "xpuwlm-mode-wide", "xpuwlm-mode-compact", "xpuwlm-mode-dense",
     ]);
 });
 
@@ -67,7 +67,7 @@ test("the approved reference viewports resolve to complete layout descriptions",
         textScaleFactor: 1,
     }), {
         mode: "wide",
-        styleClass: "tpuwm-mode-wide",
+        styleClass: "xpuwlm-mode-wide",
         widthPx: 560,
         scrollHeightPx: 480,
         metricColumns: 4,
@@ -82,7 +82,7 @@ test("the approved reference viewports resolve to complete layout descriptions",
         textScaleFactor: 1,
     }), {
         mode: "compact",
-        styleClass: "tpuwm-mode-compact",
+        styleClass: "xpuwlm-mode-compact",
         widthPx: 432,
         scrollHeightPx: 480,
         metricColumns: 2,
@@ -97,7 +97,7 @@ test("the approved reference viewports resolve to complete layout descriptions",
         textScaleFactor: 1,
     }), {
         mode: "dense",
-        styleClass: "tpuwm-mode-dense",
+        styleClass: "xpuwlm-mode-dense",
         widthPx: 352,
         scrollHeightPx: 330,
         metricColumns: 2,
@@ -112,7 +112,7 @@ test("the approved reference viewports resolve to complete layout descriptions",
         textScaleFactor: 1.5,
     }), {
         mode: "dense",
-        styleClass: "tpuwm-mode-dense",
+        styleClass: "xpuwlm-mode-dense",
         widthPx: 592,
         scrollHeightPx: 440,
         metricColumns: 2,

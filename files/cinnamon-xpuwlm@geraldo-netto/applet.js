@@ -31,7 +31,7 @@ const WorkloadRegistry = require("./lib/workload-registry.js");
 
 const {_} = I18n;
 
-const UUID = "cinnamon-tpuwm@geraldo-netto";
+const UUID = "cinnamon-xpuwlm@geraldo-netto";
 const PANEL_STATUSES = Object.freeze(["online", "attention", "detected", "paused", "unavailable"]);
 
 // Binds the applet UUID text domain and routes the shared translation port
@@ -57,7 +57,7 @@ function installTranslations(gettextModule, environment) {
 
 function panelIconFilename(status) {
     const safeStatus = PANEL_STATUSES.includes(status) ? status : "unavailable";
-    return `tpuwm-status-${safeStatus}-symbolic.svg`;
+    return `xpuwlm-status-${safeStatus}-symbolic.svg`;
 }
 
 function defaultEnvironment() {
@@ -65,7 +65,7 @@ function defaultEnvironment() {
 }
 
 function defaultLogger() {
-    return CinnamonRuntime.createLogger("TPU Workload Manager");
+    return CinnamonRuntime.createLogger("XPU Workload Manager");
 }
 
 function resolveWorkloadCatalog(workloadRegistry) {
@@ -81,7 +81,7 @@ function resolveWorkloadRegistry(metadata, environment, override, logger = defau
     });
 }
 
-class TpuWorkloadApplet extends Applet.TextIconApplet {
+class XpuWorkloadApplet extends Applet.TextIconApplet {
     constructor(metadata, orientation, panelHeight, instanceId, overrides = {}) {
         super(orientation, panelHeight, instanceId);
         this._metadata = metadata;
@@ -127,11 +127,14 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
             || (overrides.settingsFactory
                 ? overrides.settingsFactory(this)
                 : new Settings.AppletSettings(this, metadata.uuid, instanceId));
+        if (!overrides.settings && !overrides.settingsFactory) {
+            CinnamonRuntime.migrateLegacyAppletSettings(this.settings, this._environment);
+        }
         this._bindSettings();
         this._registerIconPath();
-        this.set_applet_icon_symbolic_path(`${metadata.path}/icons/tpuwm-symbolic-v2.svg`);
-        this.set_applet_tooltip(_("TPU Workload Manager — starting"));
-        this.actor.set_accessible_name(_("TPU Workload Manager, starting"));
+        this.set_applet_icon_symbolic_path(`${metadata.path}/icons/xpuwlm-symbolic-v2.svg`);
+        this.set_applet_tooltip(_("XPU Workload Manager — starting"));
+        this.actor.set_accessible_name(_("XPU Workload Manager, starting"));
     }
 
     _createServices(metadata, overrides) {
@@ -379,9 +382,9 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
         this.actor.set_accessible_name(viewModel.panel.accessibleName);
         this._setPanelIcon(viewModel.panel.status);
         for (const status of PANEL_STATUSES) {
-            this.actor.remove_style_class_name(`tpuwm-panel-${status}`);
+            this.actor.remove_style_class_name(`xpuwlm-panel-${status}`);
         }
-        this.actor.add_style_class_name(`tpuwm-panel-${viewModel.panel.status}`);
+        this.actor.add_style_class_name(`xpuwlm-panel-${viewModel.panel.status}`);
     }
 
     _setPanelIcon(status) {
@@ -446,14 +449,14 @@ class TpuWorkloadApplet extends Applet.TextIconApplet {
 }
 
 function main(metadata, orientation, panelHeight, instanceId) {
-    return new TpuWorkloadApplet(metadata, orientation, panelHeight, instanceId);
+    return new XpuWorkloadApplet(metadata, orientation, panelHeight, instanceId);
 }
 
 if (typeof module !== "undefined") {
     module.exports = {
         UUID,
         PANEL_STATUSES,
-        TpuWorkloadApplet,
+        XpuWorkloadApplet,
         defaultEnvironment,
         defaultLogger,
         installTranslations,

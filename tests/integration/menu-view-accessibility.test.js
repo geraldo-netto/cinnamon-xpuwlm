@@ -3,10 +3,10 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const Menu = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/menu-view.js");
-const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const Menu = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/menu-view.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 const {
     FakeButton,
     FakeMenu,
@@ -58,17 +58,17 @@ function harness(Atk = createAtk()) {
 
 function tabs(root) {
     return findActors(root, (actor) => actor instanceof FakeButton
-        && actor.styleClasses.has("tpuwm-tab"));
+        && actor.styleClasses.has("xpuwlm-tab"));
 }
 
 function toggles(root) {
     return findActors(root, (actor) => actor instanceof FakeButton
-        && actor.styleClasses.has("tpuwm-toggle"));
+        && actor.styleClasses.has("xpuwlm-toggle"));
 }
 
 test("the tab strip exposes a tab list containing page tabs", () => {
     const {root} = harness();
-    const strip = findActors(root, (actor) => actor.styleClasses.has("tpuwm-tabs"))[0];
+    const strip = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-tabs"))[0];
     assert.equal(strip.accessibleRole, "page-tab-list");
     assert.deepEqual(tabs(root).map((tab) => tab.accessibleRole), [
         "page-tab", "page-tab", "page-tab", "page-tab",
@@ -130,8 +130,8 @@ test("action buttons keep the push button role", () => {
     for (const name of [
         "Pause all workloads",
         "Manage workload profiles",
-        "Refresh TPU status",
-        "Open TPU Workload Manager settings",
+        "Refresh XPU status",
+        "Open XPU Workload Manager settings",
     ]) {
         const button = findActors(root, (actor) => actor.accessibleName === name)[0];
         assert.equal(button.accessibleRole, "push-button", name);

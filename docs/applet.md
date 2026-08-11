@@ -1,6 +1,6 @@
-# TPU Workload Manager Cinnamon applet
+# XPU Workload Manager Cinnamon applet
 
-`cinnamon-tpuwm@geraldo-netto` is the production applet corresponding to the approved visual prototype in [`../design/prototype/`](../design/prototype/DESIGN.md). Its deployable source is kept under [`../files/cinnamon-tpuwm@geraldo-netto/`](../files/cinnamon-tpuwm@geraldo-netto/).
+`cinnamon-xpuwlm@geraldo-netto` is the production applet corresponding to the approved visual prototype in [`../design/prototype/`](../design/prototype/DESIGN.md). Its deployable source is kept under [`../files/cinnamon-xpuwlm@geraldo-netto/`](../files/cinnamon-xpuwlm@geraldo-netto/).
 
 The applet owns panel presentation, persisted local profile intent, contention
 weights, pause/resume intent, local device discovery, and alert/recovery UX. A
@@ -17,7 +17,7 @@ theme. Online, detected, attention, paused, and unavailable states also use
 different center shapes, and the tooltip plus accessible name state the status
 in text, so meaning never depends on color alone.
 
-[Review the actual-size 16/20/24-pixel light and dark status montage](../design/prototype/mockup/tpuwm-panel-status-montage.png).
+[Review the actual-size 16/20/24-pixel light and dark status montage](../design/prototype/mockup/xpuwlm-panel-status-montage.png).
 
 When alerts need review, the highest active severity is stated as text in the
 panel label, tooltip, and accessible name, in the attention metric tile, and in
@@ -184,7 +184,7 @@ does. Focus on a control outside the body is never disturbed.
 
 A trusted local workload service — in practice the OmniTensor runtime — may
 atomically publish
-`~/.local/state/tpu-workload-manager/state.json`. The accepted version 1
+`~/.local/state/xpu-workload-manager/state.json`. The accepted version 1
 contract is defined by `runtime-snapshot.schema.json`; the canonical schemas
 live in the OmniTensor repository and the applet ships mirror copies. The
 applet validates the complete document before normalizing or displaying any
@@ -197,7 +197,7 @@ independently, so a move has to be made twice:
 
 | Side | What names the path | Default |
 | --- | --- | --- |
-| Applet | The `runtime-state-path` setting, shown as "Runtime snapshot file" in the applet settings | `~/.local/state/tpu-workload-manager/state.json` |
+| Applet | The `runtime-state-path` setting, shown as "Runtime snapshot file" in the applet settings | `~/.local/state/xpu-workload-manager/state.json` |
 | OmniTensor service | The `OMNITENSOR_STATE_PATH` environment variable | the same path when the variable is unset |
 
 Both sides expand a leading `~` to the invoking user's home directory, and both
@@ -307,10 +307,33 @@ quality gates.
 
 ## Install
 
-Install the contents of `files/cinnamon-tpuwm@geraldo-netto/` at:
+### Migrating from the TPU-named applet
+
+The UUID changed from `cinnamon-tpuwm@geraldo-netto` to
+`cinnamon-xpuwlm@geraldo-netto`, so Cinnamon correctly treats this as a new
+applet identity. Remove the old panel instance in Cinnamon Settings before
+adding the new one; do not leave both identities active against the same
+runtime.
+
+On first start, the new applet performs one bounded import from the old
+Cinnamon settings file. It copies only the panel-label choice, refresh interval,
+and runtime snapshot path, and it never overwrites a value already changed
+under the new UUID. The old default snapshot path is translated to
+`~/.local/state/xpu-workload-manager/state.json`; a genuinely custom path is
+preserved. Profile intent and the selected tab fall back read-only to
+`~/.config/tpu-workload-manager/applet-state.json` until the new applet writes
+`~/.config/xpu-workload-manager/applet-state.json`.
+
+Upgrade OmniTensor and this applet together. Their mirrored schemas now use the
+XPU identity, so the contract handshake deliberately refuses a mixed old/new
+pair instead of pretending incompatible schema digests agree. After the new
+applet is working, the old applet directory and legacy state/settings files may
+be archived or removed.
+
+Install the contents of `files/cinnamon-xpuwlm@geraldo-netto/` at:
 
 ```text
-~/.local/share/cinnamon/applets/cinnamon-tpuwm@geraldo-netto
+~/.local/share/cinnamon/applets/cinnamon-xpuwlm@geraldo-netto
 ```
 
-Then add **TPU Workload Manager** from Cinnamon Settings → Applets. Reload an installed copy with Cinnamon's `ReloadXlet` D-Bus method after changes.
+Then add **XPU Workload Manager** from Cinnamon Settings → Applets. Reload an installed copy with Cinnamon's `ReloadXlet` D-Bus method after changes.

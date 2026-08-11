@@ -5,12 +5,12 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
-const ViewModel = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/view-model.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 
 const repositoryRoot = path.resolve(__dirname, "../..");
 
 function serviceRoot() {
-    const configured = process.env.TPUWM_OMNITENSOR_ROOT;
+    const configured = process.env.XPUWLM_OMNITENSOR_ROOT;
     const candidate = configured || path.resolve(repositoryRoot, "../omnitensor");
     return fs.existsSync(path.join(candidate, "src/omnitensor/training/forecast.py"))
         ? candidate
@@ -20,7 +20,7 @@ function serviceRoot() {
 test("setup offers local training only for the profile the trainer supports", (t) => {
     const root = serviceRoot();
     if (root === null) {
-        t.skip("the OmniTensor checkout is unavailable; set TPUWM_OMNITENSOR_ROOT");
+        t.skip("the OmniTensor checkout is unavailable; set XPUWLM_OMNITENSOR_ROOT");
         return;
     }
     const forecast = fs.readFileSync(

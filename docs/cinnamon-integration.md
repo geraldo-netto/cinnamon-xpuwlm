@@ -51,7 +51,7 @@ Keep inference out of `applet.js`. Applet code participates in the desktop UI ev
 
 The service should normally be the only process that owns a given inference interpreter and its model schedule. Put requests into a bounded queue, serialize them initially, and add concurrency only after measuring the specific runtime, models, device count, and host. This also prevents multiple panel instances from independently loading models and competing for the same TPU.
 
-### TPU workload management
+### XPU workload management
 
 The userspace service can be a broker for many clients and workloads, but it must distinguish software concurrency from hardware parallelism. It can accept several requests at once, preprocess inputs on host threads, and hold multiple jobs in flight. For one physical Edge TPU, however, it should dispatch the actual Edge TPU inference stage one job at a time.
 

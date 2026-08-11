@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TPU Workload Manager — panel proposal</title>
+  <title>XPU Workload Manager — panel proposal</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main class="desktop" aria-label="Cinnamon desktop mockup">
     <div class="desktop-copy">
       <span class="eyebrow">DESIGN PROPOSAL</span>
-      <h1>TPU Workload Manager</h1>
+      <h1>XPU Workload Manager</h1>
       <p id="proposal-state">Cinnamon panel popup · overview</p>
     </div>
 
-    <section class="popup" aria-label="TPU Workload Manager panel popup">
+    <section class="popup" aria-label="XPU Workload Manager panel popup">
       <div class="popup-arrow" aria-hidden="true"></div>
 
       <header class="popup-header">
@@ -27,7 +27,7 @@
         </div>
         <div class="header-copy">
           <div class="title-row">
-            <h2>TPU Workload Manager</h2>
+            <h2>XPU Workload Manager</h2>
             <span class="online status-online"><i></i> Online</span>
             <span class="online status-unavailable"><i></i> Unavailable</span>
           </div>
@@ -43,7 +43,7 @@
 
       <div class="device-metrics metrics-online" aria-live="polite">
         <div class="metric">
-          <span>TPU load</span>
+          <span>XPU load</span>
           <strong>68%</strong>
           <div class="meter"><i style="width:68%"></i></div>
         </div>
@@ -63,7 +63,7 @@
 
       <div class="device-metrics metrics-paused" aria-live="polite">
         <div class="metric">
-          <span>TPU load</span>
+          <span>XPU load</span>
           <strong>0%</strong>
           <div class="meter"><i style="width:0%"></i></div>
         </div>
@@ -83,7 +83,7 @@
 
       <div class="device-metrics metrics-clear" aria-live="polite">
         <div class="metric">
-          <span>TPU load</span>
+          <span>XPU load</span>
           <strong>32%</strong>
           <div class="meter"><i style="width:32%"></i></div>
         </div>
@@ -103,7 +103,7 @@
 
       <div class="device-metrics metrics-unavailable" aria-live="polite">
         <div class="metric unavailable-metric">
-          <span>TPU load</span>
+          <span>XPU load</span>
           <strong>—</strong>
         </div>
         <div class="metric">
@@ -391,12 +391,12 @@
         <div class="state-hero unavailable-hero">
           <div class="state-icon"><svg viewBox="0 0 24 24"><path d="M12 3v7M12 14v.01"/><circle cx="12" cy="12" r="9"/></svg></div>
           <span class="state-kicker">Connection required</span>
-          <h3 id="unavailable-heading">TPU accelerator unavailable</h3>
+          <h3 id="unavailable-heading">XPU accelerator unavailable</h3>
           <p>Jobs are held locally. No data was discarded and CPU fallback is disabled to prevent unexpected load.</p>
         </div>
         <ol class="recovery-steps">
           <li><b>1</b><div><strong>Check the connection</strong><span>Reconnect the USB Accelerator directly to a USB 3 port.</span></div></li>
-          <li><b>2</b><div><strong>Check device access</strong><span>Confirm the current user can access the Edge TPU runtime.</span></div></li>
+          <li><b>2</b><div><strong>Check device access</strong><span>Confirm the current user can access the accelerator runtime.</span></div></li>
           <li><b>3</b><div><strong>Retry detection</strong><span>The manager will verify the runtime and resume only after confirmation.</span></div></li>
         </ol>
         <div class="recovery-actions"><button type="button" class="primary-button compact-primary">Retry detection</button><button type="button" class="secondary-button">Open diagnostics</button></div>
@@ -433,7 +433,7 @@
       <button class="menu-button" aria-label="Menu">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 9h8M8 12h8M8 15h5"/></svg>
       </button>
-      <div class="task-pill"><i></i><span>TPU panel proposal</span></div>
+      <div class="task-pill"><i></i><span>XPU panel proposal</span></div>
       <div class="panel-spacer"></div>
       <div class="panel-tray">
         <span>EN</span>
@@ -441,9 +441,9 @@
         <svg class="tray-icon" viewBox="0 0 24 24"><path d="M6 9v6h3l4 4V5L9 9H6zM17 9a5 5 0 0 1 0 6"/></svg>
         <button class="coral-indicator active">
           <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 13c1.4-3 2.6-3 4 0"/></svg>
-          <span class="indicator-online">TPU&nbsp; 68%</span>
-          <span class="indicator-paused">TPU&nbsp; Paused</span>
-          <span class="indicator-unavailable">TPU&nbsp; Offline</span><i></i>
+          <span class="indicator-online">XPU&nbsp; 68%</span>
+          <span class="indicator-paused">XPU&nbsp; Paused</span>
+          <span class="indicator-unavailable">XPU&nbsp; Offline</span><i></i>
         </button>
         <span class="clock">14:28</span>
       </div>
@@ -457,7 +457,7 @@
 
     document.body.dataset.layout = activeLayout;
     document.body.dataset.screen = activeScreen;
-    document.title = `TPU Workload Manager — ${screenLabel}`;
+    document.title = `XPU Workload Manager — ${screenLabel}`;
     document.getElementById("proposal-state").textContent = `Cinnamon panel popup · ${screenLabel} · ${activeLayout}`;
     document.querySelectorAll("[data-screen-link]").forEach((link) => {
       const selected = link.dataset.screenLink === tabScreen;

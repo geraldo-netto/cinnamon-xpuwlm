@@ -9,7 +9,7 @@ const test = require("node:test");
 const Package = require("../../scripts/package-applet.js");
 
 function temporaryDirectory() {
-    return fs.mkdtempSync(path.join(os.tmpdir(), "tpuwm-package-"));
+    return fs.mkdtempSync(path.join(os.tmpdir(), "xpuwlm-package-"));
 }
 
 function writeTree(root, files) {

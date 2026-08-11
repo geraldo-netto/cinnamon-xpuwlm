@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Gateway = require(
-    "../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-contract-gateway.js",
+    "../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-contract-gateway.js",
 );
 
 const description = {

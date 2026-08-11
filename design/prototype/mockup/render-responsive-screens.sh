@@ -3,13 +3,13 @@ set -euo pipefail
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 output_dir="$script_dir/screens/responsive"
-chrome_binary=${TPUWM_CHROME:-}
+chrome_binary=${XPUWLM_CHROME:-}
 
 if [[ -z "$chrome_binary" ]]; then
   chrome_binary=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
 fi
 if [[ -z "$chrome_binary" || ! -x "$chrome_binary" ]]; then
-  echo "A Chrome/Chromium executable is required; set TPUWM_CHROME." >&2
+  echo "A Chrome/Chromium executable is required; set XPUWLM_CHROME." >&2
   exit 1
 fi
 if ! command -v montage >/dev/null 2>&1; then

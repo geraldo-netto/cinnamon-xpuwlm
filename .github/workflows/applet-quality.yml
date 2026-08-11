@@ -49,14 +49,14 @@ jobs:
       - name: Install pinned current CJS runtime
         if: matrix.channel == 'current'
         run: |
-          mkdir --parents /tmp/tpuwm-cjs-packages
+          mkdir --parents /tmp/xpuwlm-cjs-packages
           curl --fail --location --retry 3 \
-            --output /tmp/tpuwm-cjs-packages/cjs_115.1+zena_amd64.deb \
+            --output /tmp/xpuwlm-cjs-packages/cjs_115.1+zena_amd64.deb \
             https://mirrors.edge.kernel.org/linuxmint-packages/pool/backport/c/cjs/cjs_115.1+zena_amd64.deb
           curl --fail --location --retry 3 \
-            --output /tmp/tpuwm-cjs-packages/libcjs0_115.1+zena_amd64.deb \
+            --output /tmp/xpuwlm-cjs-packages/libcjs0_115.1+zena_amd64.deb \
             https://mirrors.edge.kernel.org/linuxmint-packages/pool/backport/c/cjs/libcjs0_115.1+zena_amd64.deb
-          cd /tmp/tpuwm-cjs-packages
+          cd /tmp/xpuwlm-cjs-packages
           printf '%s  %s\n' \
             '300b989cff2c7c98fb7f25998e984763ff993b2760d19449c6631033222d6980' \
             'cjs_115.1+zena_amd64.deb' \

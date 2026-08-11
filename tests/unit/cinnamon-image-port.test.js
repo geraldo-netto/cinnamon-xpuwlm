@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Cinnamon = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/cinnamon-runtime.js");
+const Cinnamon = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-runtime.js");
 
 // The Cinnamon side of turning a picture into a model's input: GdkPixbuf for
 // the decode, GIO for the write and the directory listing, GLib for the digest
@@ -277,21 +277,21 @@ test("the staged buffer is written under a directory that is created if absent",
     const bytes = new Uint8Array([1, 2, 3, 4]);
     const completions = [];
 
-    Cinnamon.writeBufferAsync(`${ROOT}/.tpuwm-staged/x.f32`, bytes, env, (error) => {
+    Cinnamon.writeBufferAsync(`${ROOT}/.xpuwlm-staged/x.f32`, bytes, env, (error) => {
         completions.push(error);
     });
 
-    assert.deepEqual(env.created, [`${ROOT}/.tpuwm-staged`]);
+    assert.deepEqual(env.created, [`${ROOT}/.xpuwlm-staged`]);
     assert.equal(env.written[0].bytes, bytes);
     assert.deepEqual(completions, [null]);
 });
 
 test("an existing staging directory is not created again", () => {
     const env = environment();
-    env.directories.add(`${ROOT}/.tpuwm-staged`);
+    env.directories.add(`${ROOT}/.xpuwlm-staged`);
     const completions = [];
 
-    Cinnamon.writeBufferAsync(`${ROOT}/.tpuwm-staged/x.f32`, new Uint8Array(4), env, (error) => {
+    Cinnamon.writeBufferAsync(`${ROOT}/.xpuwlm-staged/x.f32`, new Uint8Array(4), env, (error) => {
         completions.push(error);
     });
 
@@ -315,7 +315,7 @@ test("a write that fails is reported, never silently dropped", () => {
     const env = environment({writeFails: true});
     const completions = [];
 
-    Cinnamon.writeBufferAsync(`${ROOT}/.tpuwm-staged/x.f32`, new Uint8Array(4), env, (error) => {
+    Cinnamon.writeBufferAsync(`${ROOT}/.xpuwlm-staged/x.f32`, new Uint8Array(4), env, (error) => {
         completions.push(error);
     });
 
@@ -325,11 +325,11 @@ test("a write that fails is reported, never silently dropped", () => {
 test("a buffer that cannot be removed is not a failure of the job", () => {
     const env = environment({deleteThrows: true});
 
-    assert.equal(Cinnamon.removeFile(`${ROOT}/.tpuwm-staged/x.f32`, env), false);
+    assert.equal(Cinnamon.removeFile(`${ROOT}/.xpuwlm-staged/x.f32`, env), false);
 
     const clean = environment();
-    assert.equal(Cinnamon.removeFile(`${ROOT}/.tpuwm-staged/x.f32`, clean), true);
-    assert.deepEqual(clean.deleted, [`${ROOT}/.tpuwm-staged/x.f32`]);
+    assert.equal(Cinnamon.removeFile(`${ROOT}/.xpuwlm-staged/x.f32`, clean), true);
+    assert.deepEqual(clean.deleted, [`${ROOT}/.xpuwlm-staged/x.f32`]);
 });
 
 test("the digest is computed over the bytes that were staged", () => {
@@ -346,7 +346,7 @@ test("only pictures are listed, and never the staging directory", () => {
         {name: "cat.png"},
         {name: "notes.txt"},
         {name: ".hidden.png"},
-        {name: ".tpuwm-staged", type: env.Gio.FileType.DIRECTORY},
+        {name: ".xpuwlm-staged", type: env.Gio.FileType.DIRECTORY},
         {name: "photo.jpeg"},
     ];
 
@@ -420,12 +420,12 @@ test("the image port exposes exactly what a submitter needs", async () => {
         port.decode(`${ROOT}/cat.png`, {width: 2, height: 2},
             {filter: "bilinear", fit: "exact"}, (error, decoded) => resolve(decoded));
     });
-    port.write(`${ROOT}/.tpuwm-staged/x.f32`, new Uint8Array(8), (error) => completions.push(error));
+    port.write(`${ROOT}/.xpuwlm-staged/x.f32`, new Uint8Array(8), (error) => completions.push(error));
 
     assert.equal(image.width, 2);
     assert.deepEqual(completions, [null]);
     assert.equal(port.digest(new Uint8Array(3)), "2:3");
-    assert.equal(port.remove(`${ROOT}/.tpuwm-staged/x.f32`), true);
+    assert.equal(port.remove(`${ROOT}/.xpuwlm-staged/x.f32`), true);
 });
 
 test("a job submission is sent to the versioned SubmitJob endpoint", () => {
@@ -484,7 +484,7 @@ test("the job gateway reaches the same endpoint through its own transport", () =
                     call_finish: () => ({
                         deep_unpack: () => [JSON.stringify({
                             version: 1,
-                            requestId: "tpuwm-1-1",
+                            requestId: "xpuwlm-1-1",
                             jobId: "job-1",
                             status: "accepted",
                             code: "job-accepted",
@@ -511,10 +511,10 @@ test("the job gateway reaches the same endpoint through its own transport", () =
 
     Cinnamon.createRuntimeJobGateway(env).submit({
         version: 1,
-        requestId: "tpuwm-1-1",
+        requestId: "xpuwlm-1-1",
         workloadId: "visual-library",
         payload: {inputRefs: [{
-            path: `${ROOT}/.tpuwm-staged/x.f32`,
+            path: `${ROOT}/.xpuwlm-staged/x.f32`,
             shape: [1, 3, 2, 2],
             dtype: "float32",
             sha256: "a".repeat(64),
@@ -566,7 +566,7 @@ test("a poll reaches the versioned GetJobResult endpoint", () => {
     };
     const gateway = Cinnamon.createRuntimeJobGateway(env);
     assert.equal(gateway.pollable, true);
-    gateway.requestResult({requestId: "tpuwm-1-2", jobId: "job-1"}, () => {});
+    gateway.requestResult({requestId: "xpuwlm-1-2", jobId: "job-1"}, () => {});
     assert.deepEqual(calls, [Cinnamon.JOB_RESULT_METHOD, Cinnamon.JOB_RESULT_METHOD]);
 });
 
@@ -649,11 +649,11 @@ test("the cover geometry covers both axes and never shrinks below the target", (
 
 test("staged buffers a previous session abandoned are swept", () => {
     const env = environment();
-    const staged = `${ROOT}/.tpuwm-staged`;
+    const staged = `${ROOT}/.xpuwlm-staged`;
     env.directories.add(staged);
     env.listings[staged] = [
-        {name: "visual-library-tpuwm-1-1.f32"},
-        {name: "visual-library-tpuwm-2-1.f32"},
+        {name: "visual-library-xpuwlm-1-1.f32"},
+        {name: "visual-library-xpuwlm-2-1.f32"},
         {name: "notes.txt"},
         {name: "nested", type: env.Gio.FileType.DIRECTORY},
     ];
@@ -662,19 +662,19 @@ test("staged buffers a previous session abandoned are swept", () => {
 
     assert.equal(removed, 2, "only the buffers, and only the regular files");
     assert.deepEqual(env.deleted.sort(), [
-        `${staged}/visual-library-tpuwm-1-1.f32`,
-        `${staged}/visual-library-tpuwm-2-1.f32`,
+        `${staged}/visual-library-xpuwlm-1-1.f32`,
+        `${staged}/visual-library-xpuwlm-2-1.f32`,
     ]);
     assert.equal(env.closed, 1);
 });
 
 test("a staging directory that was never created sweeps nothing", () => {
-    assert.equal(Cinnamon.sweepStagedBuffers("/absent/.tpuwm-staged", environment(), ".f32"), 0);
+    assert.equal(Cinnamon.sweepStagedBuffers("/absent/.xpuwlm-staged", environment(), ".f32"), 0);
 });
 
 test("the image port can sweep as well as stage", () => {
     const env = environment();
-    const staged = `${ROOT}/.tpuwm-staged`;
+    const staged = `${ROOT}/.xpuwlm-staged`;
     env.directories.add(staged);
     env.listings[staged] = [{name: "x.f32"}];
 

@@ -3,11 +3,11 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
+const Manager = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/manager.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
-const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
-const Runtime = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-gateway.js");
-const RuntimeSchema = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
+const FailureBackoff = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/failure-log-backoff.js");
+const Runtime = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-gateway.js");
+const RuntimeSchema = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-snapshot-schema-validator.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -16,7 +16,7 @@ test("manager polling integrates runtime state with bounded render failures", ()
     const errors = [];
     const warningReporter = new FailureBackoff.FailureWarningBackoff({logger: {warn() {}}});
     const gateway = new Runtime.RuntimeSnapshotGateway({
-        path: "/run/tpuwm.json",
+        path: "/run/xpuwlm.json",
         clock: {now: () => nowMs},
         readTextAsync: (filename, options, callback) => callback(null, ""),
         detectDevice: () => [{id: "tpu-usb", backend: "tpu", available: true, name: "TPU", kind: "usb"}],

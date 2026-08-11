@@ -19,9 +19,9 @@ const MAXIMUM_SCALE = 4;
 
 const MODES = Object.freeze(["wide", "compact", "dense"]);
 const MODE_STYLE_CLASSES = Object.freeze({
-    wide: "tpuwm-mode-wide",
-    compact: "tpuwm-mode-compact",
-    dense: "tpuwm-mode-dense",
+    wide: "xpuwlm-mode-wide",
+    compact: "xpuwlm-mode-compact",
+    dense: "xpuwlm-mode-dense",
 });
 const MODE_STYLE_CLASS_LIST = Object.freeze(MODES.map((mode) => MODE_STYLE_CLASSES[mode]));
 

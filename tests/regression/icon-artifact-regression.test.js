@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
-const ICON_DIRECTORY = path.resolve(__dirname, "../../files/cinnamon-tpuwm@geraldo-netto/icons");
+const ICON_DIRECTORY = path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto/icons");
 const STATUS_PALETTES = Object.freeze({
     online: "success",
     detected: "warning",
@@ -21,9 +21,9 @@ function readIcon(name) {
 test("regression: every panel icon remains caller-labelled and themeable", () => {
     const symbolicFallbacks = new Set(["#2e3436", "#33d17a", "#ff7800", "#e01b24"]);
     const names = [
-        "tpuwm-symbolic.svg",
-        "tpuwm-symbolic-v2.svg",
-        ...Object.keys(STATUS_PALETTES).map((status) => `tpuwm-status-${status}-symbolic.svg`),
+        "xpuwlm-symbolic.svg",
+        "xpuwlm-symbolic-v2.svg",
+        ...Object.keys(STATUS_PALETTES).map((status) => `xpuwlm-status-${status}-symbolic.svg`),
     ];
     for (const name of names) {
         const icon = readIcon(name);
@@ -39,7 +39,7 @@ test("regression: every panel icon remains caller-labelled and themeable", () =>
 });
 
 test("regression: v2 panel icon preserves the compact TPU graph silhouette", () => {
-    const icon = readIcon("tpuwm-symbolic-v2.svg");
+    const icon = readIcon("xpuwlm-symbolic-v2.svg");
     assert.match(icon, /<rect id="chip-body"/u);
     assert.match(icon, /<path id="chip-pins"/u);
     assert.match(icon, /<path id="graph-links"/u);
@@ -50,7 +50,7 @@ test("regression: v2 panel icon preserves the compact TPU graph silhouette", () 
 test("regression: status icons pair semantic palette with unique non-color glyphs", () => {
     const shapes = new Set();
     for (const [status, palette] of Object.entries(STATUS_PALETTES)) {
-        const icon = readIcon(`tpuwm-status-${status}-symbolic.svg`);
+        const icon = readIcon(`xpuwlm-status-${status}-symbolic.svg`);
         const shape = icon.match(new RegExp(`<[^>]+id="status-${status}"[^>]*>`, "u"));
         assert.ok(shape, `${status} glyph is required`);
         assert.match(shape[0], new RegExp(`class="${palette}"`, "u"));

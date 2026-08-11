@@ -3,13 +3,13 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const Domain = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/domain.js");
-const FailureBackoff = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/failure-log-backoff.js");
-const Manager = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/manager.js");
-const Registry = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-registry.js");
-const Manifest = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/workload-manifest.js");
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
+const FailureBackoff = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/failure-log-backoff.js");
+const Manager = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/manager.js");
+const Registry = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-registry.js");
+const Manifest = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-manifest.js");
 const ManifestFixtures = require("../helpers/workload-manifest-fixtures.js");
-const Refusal = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/runtime-refusal-contract.js");
+const Refusal = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-refusal-contract.js");
 
 const NOW = 1_700_000_000_000;
 const ROOT = "/home/tester/omnitensor-inputs";
@@ -73,7 +73,7 @@ function catalog() {
 function jobResult(overrides = {}) {
     return {
         version: 1,
-        requestId: "tpuwm-1-2",
+        requestId: "xpuwlm-1-2",
         jobId: "job-1",
         state: "succeeded",
         code: "job-succeeded",
@@ -86,13 +86,13 @@ function jobResult(overrides = {}) {
 function acknowledgement(overrides = {}) {
     return {
         version: 1,
-        requestId: "tpuwm-1-1",
+        requestId: "xpuwlm-1-1",
         jobId: "job-1",
         status: "accepted",
         code: "job-accepted",
         message: "Job accepted",
         timestamp: NOW,
-        stagedPath: `${ROOT}/.tpuwm-staged/runnable-tpuwm-1-1.f32`,
+        stagedPath: `${ROOT}/.xpuwlm-staged/runnable-xpuwlm-1-1.f32`,
         ...overrides,
     };
 }
@@ -286,7 +286,7 @@ test("a refused job reports the runtime's own reason", () => {
 });
 
 test("a picture that cannot be prepared is explained, not blamed on the bus", () => {
-    const Encoder = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/tensor-encoder.js");
+    const Encoder = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/tensor-encoder.js");
     const {manager} = harness({
         submitError: new Encoder.TensorEncodingError("image-decode-failed", "not a picture"),
     });
@@ -600,7 +600,7 @@ test("the submitter port is validated in full, not by two of its methods", () =>
 test("a failed result poll is not reported as a failed policy change", () => {
     // Asking what became of a job changes nothing, so the control vocabulary's
     // "could not apply the change" describes a failure that never happened.
-    const Submission = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/job-submission.js");
+    const Submission = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/job-submission.js");
 
     const text = Manager.jobFailureText(Submission.resultFailure(new Error("NoReply")));
 
@@ -610,8 +610,8 @@ test("a failed result poll is not reported as a failed policy change", () => {
 });
 
 test("every code the submitter can raise has words of its own", () => {
-    const Encoder = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/tensor-encoder.js");
-    const Submission = require("../../files/cinnamon-tpuwm@geraldo-netto/lib/job-submission.js");
+    const Encoder = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/tensor-encoder.js");
+    const Submission = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/job-submission.js");
 
     const raised = [
         ...Object.keys(Encoder.REFUSAL_KINDS),

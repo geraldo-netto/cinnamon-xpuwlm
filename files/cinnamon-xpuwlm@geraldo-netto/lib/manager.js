@@ -1048,7 +1048,7 @@ class WorkloadManager {
         const sequence = this._controlSequence;
         const command = {
             version: RuntimeControl.CONTROL_VERSION,
-            id: `tpuwm-${this._clock.now()}-${sequence}`,
+            id: `xpuwlm-${this._clock.now()}-${sequence}`,
             issuedAt: this._clock.now(),
             expectedRevision: this._runtimeRevision,
             operation: intent.operation,

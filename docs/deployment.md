@@ -44,7 +44,7 @@ The earlier idle-window use case can be evaluated without making it the document
 ## Reproducible staging and install verification
 
 `scripts/package-applet.js` produces deterministic release artifacts from the
-payload in `files/cinnamon-tpuwm@geraldo-netto/`:
+payload in `files/cinnamon-xpuwlm@geraldo-netto/`:
 
 - `npm run package` stages the payload into `dist/`, writes a
   `sha256sum --check` compatible `SHA256SUMS` manifest, and builds a
@@ -55,9 +55,9 @@ payload in `files/cinnamon-tpuwm@geraldo-netto/`:
   and unexpected files; `verify-absent <installed-root>` proves a clean
   uninstall.
 - `npm run package:spice` stages the Linux Mint Cinnamon Spices contribution
-  at `dist/spices/cinnamon-tpuwm@geraldo-netto/`: website `info.json`, a live
+  at `dist/spices/cinnamon-xpuwlm@geraldo-netto/`: website `info.json`, a live
   applet `screenshot.png`, repository `README.md` and `LICENSE`, and exactly
-  one `files/cinnamon-tpuwm@geraldo-netto/` install payload.
+  one `files/cinnamon-xpuwlm@geraldo-netto/` install payload.
 
 The payload also carries `LICENSE`. The website-level declaration and
 repository copy identify the MIT terms, while the payload copy keeps those
@@ -73,7 +73,7 @@ and archives, so releases can be rebuilt and audited offline.
 ## Localization
 
 The applet ships a gettext template at
-`files/cinnamon-tpuwm@geraldo-netto/po/cinnamon-tpuwm@geraldo-netto.pot`,
+`files/cinnamon-xpuwlm@geraldo-netto/po/cinnamon-xpuwlm@geraldo-netto.pot`,
 generated deterministically by `npm run generate:pot`. Cinnamon translates
 `settings-schema.json` (titles, descriptions, tooltips, units) and
 `metadata.json` (name, description) through the applet UUID text domain, so
