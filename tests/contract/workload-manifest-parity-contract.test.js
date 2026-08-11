@@ -120,6 +120,16 @@ test("the mirrored manifest schema still describes the model the service does", 
         modelProperties(service).featureContract,
         "the mirrored feature contract drifted from the service's",
     );
+    assert.deepEqual(
+        modelProperties(mirrored).trainingContract,
+        modelProperties(service).trainingContract,
+        "the mirrored training provenance contract drifted from the service's",
+    );
+    assert.deepEqual(
+        modelProperties(mirrored).nativeEvidence,
+        modelProperties(service).nativeEvidence,
+        "the mirrored native parity evidence drifted from the service's",
+    );
 });
 
 test("every validator allowlist names exactly the mirrored schema's properties", () => {
@@ -130,7 +140,9 @@ test("every validator allowlist names exactly the mirrored schema's properties",
     const objects = {
         featureContract: model.featureContract.properties,
         model,
+        nativeEvidence: model.nativeEvidence.properties,
         outputContract: model.outputContract.properties,
+        trainingContract: model.trainingContract.properties,
         tensorContract: contract.properties,
         tensorInput: input.properties,
         preprocess: input.properties.preprocess.properties,

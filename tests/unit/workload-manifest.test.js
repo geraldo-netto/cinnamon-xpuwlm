@@ -359,6 +359,42 @@ function withFeatureContract(contractChanges = {}, modelChanges = {}) {
     });
 }
 
+const DIGEST_A = "a".repeat(64);
+const DIGEST_B = "b".repeat(64);
+const DIGEST_C = "c".repeat(64);
+
+function trainingContract(changes = {}) {
+    return {
+        version: 1,
+        profileId: "storage-intelligence",
+        recipe: "backblaze-smart-risk-v1",
+        reportSha256: DIGEST_A,
+        taskSemanticsSha256: DIGEST_B,
+        ...changes,
+    };
+}
+
+function nativeEvidence(changes = {}) {
+    return {
+        portableSha256: DIGEST_A,
+        nativeSha256: DIGEST_B,
+        reportSha256: DIGEST_C,
+        samples: 8,
+        maximumAbsoluteError: 0.0004,
+        tolerance: 0.001,
+        compilerReportSha256: null,
+        namedDeviceAccepted: false,
+        ...changes,
+    };
+}
+
+function withProvenance(trainingChanges = {}, evidenceChanges = {}) {
+    return withModel({
+        trainingContract: trainingContract(trainingChanges),
+        nativeEvidence: nativeEvidence(evidenceChanges),
+    });
+}
+
 // Both contracts are optional and both are new, so the interesting cases are
 // the ones the validator and the schema could disagree about. Every candidate
 // is checked against the Ajv oracle as well, because a mirror that is stricter
@@ -374,6 +410,81 @@ function agree(manifest, expected, label) {
     }
     assert.equal(accepted, expected, `${label}: validator`);
 }
+
+test("training provenance is closed, pinned, and schema-equivalent", () => {
+    agree(withProvenance(), true, "complete provenance");
+
+    const cases = [
+        ["missing version", {version: undefined}],
+        ["wrong version", {version: 2}],
+        ["unknown field", {unknown: true}],
+        ["uppercase profile", {profileId: "Storage"}],
+        ["empty profile", {profileId: ""}],
+        ["long profile", {profileId: "a".repeat(81)}],
+        ["invalid recipe", {recipe: "forecast v1"}],
+        ["uppercase report digest", {reportSha256: DIGEST_A.toUpperCase()}],
+        ["short report digest", {reportSha256: DIGEST_A.slice(1)}],
+        ["bad semantics digest", {taskSemanticsSha256: `${DIGEST_B.slice(1)}g`}],
+    ];
+    for (const [label, changes] of cases) {
+        agree(withProvenance(changes), false, label);
+    }
+});
+
+test("native evidence proves parity without claiming named-device acceptance", () => {
+    agree(withProvenance({}, {compilerReportSha256: DIGEST_C}), true, "compiler report");
+    agree(withProvenance(), true, "nullable compiler report");
+
+    const cases = [
+        ["missing portable digest", {portableSha256: undefined}],
+        ["unknown field", {device: "npu"}],
+        ["bad portable digest", {portableSha256: DIGEST_A.toUpperCase()}],
+        ["bad native digest", {nativeSha256: DIGEST_B.slice(1)}],
+        ["bad report digest", {reportSha256: `${DIGEST_C.slice(1)}z`}],
+        ["zero samples", {samples: 0}],
+        ["fractional samples", {samples: 1.5}],
+        ["negative error", {maximumAbsoluteError: -0.1}],
+        ["non-finite error", {maximumAbsoluteError: Number.POSITIVE_INFINITY}],
+        ["zero tolerance", {tolerance: 0}],
+        ["non-finite tolerance", {tolerance: Number.NaN}],
+        ["bad compiler report", {compilerReportSha256: "none"}],
+        ["hardware overclaim", {namedDeviceAccepted: true}],
+    ];
+    for (const [label, changes] of cases) {
+        agree(withProvenance({}, changes), false, label);
+    }
+});
+
+test("descriptor owns and freezes training and native evidence", () => {
+    const source = withProvenance({}, {compilerReportSha256: DIGEST_C});
+    const expectedTraining = JSON.parse(JSON.stringify(source.requirements.model.trainingContract));
+    const expectedEvidence = JSON.parse(JSON.stringify(source.requirements.model.nativeEvidence));
+    const descriptor = new Contract.WorkloadDescriptor(source);
+    const model = descriptor.manifest().requirements.model;
+
+    source.requirements.model.trainingContract.recipe = "changed";
+    source.requirements.model.nativeEvidence.samples = 999;
+
+    assert.deepEqual(model.trainingContract, expectedTraining);
+    assert.deepEqual(model.nativeEvidence, expectedEvidence);
+    assert.equal(Object.isFrozen(model.trainingContract), true);
+    assert.equal(Object.isFrozen(model.nativeEvidence), true);
+});
+
+test("lanes share training identity while keeping target-specific native evidence", () => {
+    const gpu = withProvenance().requirements.model;
+    gpu.id = "numeric-gpu";
+    gpu.format = "ncnn";
+    gpu.fullyQuantized = false;
+    const npu = JSON.parse(JSON.stringify(gpu));
+    npu.id = "numeric-npu";
+    npu.format = "openvino";
+    npu.nativeEvidence.nativeSha256 = DIGEST_C;
+
+    assert.equal(Contract.isModelSet([gpu, npu], "gpu"), true);
+    npu.trainingContract.reportSha256 = DIGEST_C;
+    assert.equal(Contract.isModelSet([gpu, npu], "gpu"), false);
+});
 
 test("a declared tensor contract is accepted exactly as the schema accepts it", () => {
     const full = {

@@ -187,3 +187,66 @@ test("property: ordered forecast features survive bounds and reject lane permuta
         assert.equal(Contract.isModelSet([model, permuted], "gpu"), false);
     }
 });
+
+test("property: training provenance and native evidence stay schema-equivalent", () => {
+    const next = random(0x5eed0052);
+    const digest = (symbol) => symbol.repeat(64);
+    const training = () => ({
+        version: 1,
+        profileId: "storage-intelligence",
+        recipe: "backblaze-smart-risk-v1",
+        reportSha256: digest("a"),
+        taskSemanticsSha256: digest("b"),
+    });
+    const evidence = () => ({
+        portableSha256: digest("a"),
+        nativeSha256: digest("b"),
+        reportSha256: digest("c"),
+        samples: 1 + Math.floor(next() * 10000),
+        maximumAbsoluteError: next() * 10,
+        tolerance: Number.MIN_VALUE + (next() * 10),
+        compilerReportSha256: next() < 0.5 ? null : digest("d"),
+        namedDeviceAccepted: false,
+    });
+    const paths = [
+        ["trainingContract", "version"],
+        ["trainingContract", "profileId"],
+        ["trainingContract", "recipe"],
+        ["trainingContract", "reportSha256"],
+        ["trainingContract", "taskSemanticsSha256"],
+        ["nativeEvidence", "portableSha256"],
+        ["nativeEvidence", "nativeSha256"],
+        ["nativeEvidence", "reportSha256"],
+        ["nativeEvidence", "samples"],
+        ["nativeEvidence", "maximumAbsoluteError"],
+        ["nativeEvidence", "tolerance"],
+        ["nativeEvidence", "compilerReportSha256"],
+        ["nativeEvidence", "namedDeviceAccepted"],
+    ];
+    const hostile = [
+        undefined, null, true, false, -1, 0, 1.5, Number.POSITIVE_INFINITY,
+        "", "Bad Value", "A".repeat(64), "a".repeat(63), [], {},
+    ];
+
+    for (let iteration = 0; iteration < 1000; iteration += 1) {
+        const candidate = Fixtures.validWorkloadManifest();
+        candidate.requirements.accelerator = "gpu";
+        candidate.requirements.model = {
+            ...candidate.requirements.model,
+            format: "ncnn",
+            fullyQuantized: false,
+            trainingContract: training(),
+            nativeEvidence: evidence(),
+        };
+        assert.equal(Contract.isWorkloadManifest(candidate), true, `valid ${iteration}`);
+        assert.equal(Boolean(oracle(candidate)), true, `valid ${iteration}: schema`);
+
+        const [record, field] = paths[Math.floor(next() * paths.length)];
+        candidate.requirements.model[record][field] = hostile[Math.floor(next() * hostile.length)];
+        assert.equal(
+            Contract.isWorkloadManifest(candidate),
+            Boolean(oracle(candidate)),
+            `iteration ${iteration}: ${record}.${field}`,
+        );
+    }
+});

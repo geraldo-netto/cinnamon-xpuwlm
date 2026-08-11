@@ -56,7 +56,7 @@ const MODEL_REQUIRED = Object.freeze([
 // absent means the runtime checks nothing, exactly as it did.
 const MODEL_PROPERTIES = new Set([
     ...MODEL_REQUIRED, "sha256", "companions", "tensorContract", "featureContract",
-    "outputContract",
+    "trainingContract", "nativeEvidence", "outputContract",
 ]);
 // Digests for the files that travel with the primary one. Optional in the
 // contract and load-bearing at dispatch: a format that keeps its weights in a
@@ -93,6 +93,15 @@ const FEATURE_CONTRACT_REQUIRED = Object.freeze([
     "observationOrder", "flattenOrder",
 ]);
 const FEATURE_CONTRACT_PROPERTIES = new Set(FEATURE_CONTRACT_REQUIRED);
+const TRAINING_CONTRACT_REQUIRED = Object.freeze([
+    "version", "profileId", "recipe", "reportSha256", "taskSemanticsSha256",
+]);
+const TRAINING_CONTRACT_PROPERTIES = new Set(TRAINING_CONTRACT_REQUIRED);
+const NATIVE_EVIDENCE_REQUIRED = Object.freeze([
+    "portableSha256", "nativeSha256", "reportSha256", "samples",
+    "maximumAbsoluteError", "tolerance", "compilerReportSha256", "namedDeviceAccepted",
+]);
+const NATIVE_EVIDENCE_PROPERTIES = new Set(NATIVE_EVIDENCE_REQUIRED);
 const FORECAST_INPUT_PROPERTIES = new Set(["shape", "dtype", "layout"]);
 const RAW_OUTPUT_PROPERTIES = new Set(["kind"]);
 const MAX_FORECAST_FEATURES = 128;
@@ -291,12 +300,64 @@ function isFeatureContract(value, model) {
         && hasForecastTensor(model, width);
 }
 
-// Optional model contracts stay together so `isModel` has one validation path.
-function hasModelContracts(value) {
+function isModelDigest(value) {
+    return boundedText(value, 64, 64) && MODEL_DIGEST.test(value);
+}
+
+function isTrainingContract(value) {
+    return boundedProperties(value, TRAINING_CONTRACT_REQUIRED, TRAINING_CONTRACT_PROPERTIES)
+        && value.version === 1
+        && identifier(value.profileId)
+        && identifier(value.recipe)
+        && isModelDigest(value.reportSha256)
+        && isModelDigest(value.taskSemanticsSha256);
+}
+
+function hasNativeDigests(value) {
+    return isModelDigest(value.portableSha256)
+        && isModelDigest(value.nativeSha256)
+        && isModelDigest(value.reportSha256);
+}
+
+function hasParityMeasurements(value) {
+    return Number.isInteger(value.samples)
+        && value.samples >= 1
+        && Number.isFinite(value.maximumAbsoluteError)
+        && value.maximumAbsoluteError >= 0
+        && Number.isFinite(value.tolerance)
+        && value.tolerance > 0;
+}
+
+function hasCompilerEvidence(value) {
+    return value.compilerReportSha256 === null
+        || isModelDigest(value.compilerReportSha256);
+}
+
+function isNativeEvidence(value) {
+    return boundedProperties(value, NATIVE_EVIDENCE_REQUIRED, NATIVE_EVIDENCE_PROPERTIES)
+        && hasNativeDigests(value)
+        && hasParityMeasurements(value)
+        && hasCompilerEvidence(value)
+        && value.namedDeviceAccepted === false;
+}
+
+function hasInferenceContracts(value) {
     return (!declared(value, "tensorContract") || isTensorContract(value.tensorContract))
         && (!declared(value, "outputContract") || isOutputContract(value.outputContract))
         && (!declared(value, "featureContract")
             || isFeatureContract(value.featureContract, value));
+}
+
+function hasProvenanceContracts(value) {
+    return (!declared(value, "trainingContract")
+        || isTrainingContract(value.trainingContract))
+        && (!declared(value, "nativeEvidence")
+        || isNativeEvidence(value.nativeEvidence));
+}
+
+// Optional model contracts stay together so `isModel` has one validation path.
+function hasModelContracts(value) {
+    return hasInferenceContracts(value) && hasProvenanceContracts(value);
 }
 
 function isModel(value, accelerator) {
@@ -363,7 +424,10 @@ function canonical(value) {
 }
 
 function agreeOnContracts(models) {
-    return ["featureContract", "tensorContract", "outputContract"].every((field) => {
+    // Native evidence is deliberately lane-specific: it records each target's
+    // compiler output. Training identity must match because all lanes still
+    // describe one network and one task.
+    return ["featureContract", "trainingContract", "tensorContract", "outputContract"].every((field) => {
         const stated = new Set(models.map((model) => JSON.stringify(canonical(model[field] ?? null))));
         return stated.size === 1;
     });
@@ -745,7 +809,9 @@ function declaredModels(requirements) {
 const MANIFEST_ALLOWLISTS = Object.freeze({
     featureContract: FEATURE_CONTRACT_PROPERTIES,
     model: MODEL_PROPERTIES,
+    nativeEvidence: NATIVE_EVIDENCE_PROPERTIES,
     outputContract: OUTPUT_CONTRACT_PROPERTIES,
+    trainingContract: TRAINING_CONTRACT_PROPERTIES,
     tensorContract: TENSOR_CONTRACT_PROPERTIES,
     tensorInput: TENSOR_INPUT_PROPERTIES,
     preprocess: PREPROCESS_PROPERTIES,
@@ -799,6 +865,8 @@ module.exports = {
     isFeatureContract,
     isModel,
     isModelArtifact,
+    isModelDigest,
+    isNativeEvidence,
     isPipeline,
     isPlugin,
     isPluginArtifact,
@@ -810,6 +878,7 @@ module.exports = {
     isProtocolVersion,
     isRecord,
     isRequirements,
+    isTrainingContract,
     isUi,
     isWorkloadManifest,
     semanticVersion,
