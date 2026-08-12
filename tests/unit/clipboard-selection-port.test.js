@@ -46,6 +46,26 @@ test("GTK clipboard reader performs one explicit read and never installs a watch
     assert.deepEqual(replies.at(-1), [null, ""]);
 });
 
+test("GTK clipboard reader resolves Cinnamon 6.6 clipboard atom", () => {
+    const env = environment();
+    delete env.Gdk.SELECTION_CLIPBOARD;
+    env.Gdk.Atom = {intern(name, onlyIfExists) {
+        assert.equal(name, "CLIPBOARD");
+        assert.equal(onlyIfExists, false);
+        return "clipboard";
+    }};
+    assert.equal(Clipboard.clipboardAtom(env), "clipboard");
+    const reader = Clipboard.createGtkClipboardSelectionReader(env);
+    let reply = null;
+    reader.readText((error, text) => { reply = [error, text]; });
+    env.clipboard.callback(env.clipboard, "modern selection");
+    assert.deepEqual(reply, [null, "modern selection"]);
+
+    delete env.Gdk.Atom;
+    env.Gdk.atom_intern = () => "clipboard";
+    assert.equal(Clipboard.clipboardAtom(env), "clipboard");
+});
+
 test("clipboard port rejects missing dependencies, callbacks, and GTK text support", () => {
     assert.throws(() => Clipboard.requireEnvironment(null), /dependencies/u);
     assert.throws(() => Clipboard.requireEnvironment({Gdk: {}, Gtk: {}}), /API/u);
@@ -55,6 +75,7 @@ test("clipboard port rejects missing dependencies, callbacks, and GTK text suppo
     assert.throws(() => Clipboard.requireEnvironment({
         Gdk: {}, Gtk: {Clipboard: {get() {}}},
     }), /API/u);
+    assert.throws(() => Clipboard.clipboardAtom(null), /dependency/u);
     const env = environment();
     const reader = new Clipboard.GtkClipboardSelectionReader(env);
     assert.throws(() => reader.readText(null), /callback/u);

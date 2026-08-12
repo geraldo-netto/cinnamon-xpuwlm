@@ -469,3 +469,77 @@ test("environment and private writer return and close their exact resources", ()
     assert.equal(env.closed, closedBefore + 1);
     assert.deepEqual(env.writes, [{path: "/events/new.ics", bytes: {text: "calendar"}}]);
 });
+
+test("external source picker and exporter keep native UI outside Cinnamon", () => {
+    const env = tree();
+    const requests = [];
+    const lifecycle = {
+        choose(options, callback) { requests.push({options, callback}); return true; },
+        dispose() { return true; },
+    };
+    const picker = Port.createExternalEventSourcePicker(env, lifecycle);
+    let files = null;
+    assert.equal(picker.chooseFiles((error, selected) => {
+        assert.equal(error, null);
+        files = selected;
+    }), true);
+    assert.deepEqual(requests[0].options, {
+        mode: "open",
+        title: "Choose event source files",
+        multiple: true,
+        filter: {
+            name: "Documents, calendars, and images",
+            patterns: Port.sourcePatterns(EventImport.SOURCE_SUFFIXES),
+        },
+    });
+    requests[0].callback(null, ["/events/one.txt"]);
+    assert.deepEqual(files.map((source) => source.name), ["one.txt"]);
+
+    let folder = null;
+    picker.chooseFolder((error, selected) => {
+        assert.equal(error, null);
+        folder = selected;
+    });
+    requests[1].callback(null, ["/events"]);
+    assert.deepEqual(folder.map((source) => source.name), ["one.txt", "link.pdf"]);
+
+    const exporter = Port.createExternalEventExporter(env, lifecycle);
+    let saved = null;
+    exporter.saveIcs("calendar", [], (error, path) => {
+        assert.equal(error, null);
+        saved = path;
+    });
+    assert.deepEqual(requests[2].options, {
+        mode: "save",
+        title: "Save confirmed events",
+        filename: "confirmed-events.ics",
+        filter: {name: "Calendar files", patterns: ["*.ics", "*.ICS"]},
+    });
+    requests[2].callback(null, ["/events/external.ics.ics"]);
+    assert.equal(saved, "/events/external.ics");
+    assert.equal(env.writes.at(-1).path, "/events/external.ics");
+    assert.equal(Port.calendarExportPath("/events/report.ICS.ics.ICS"), "/events/report.ics");
+});
+
+test("external chooser adapters surface cancellation and selection failures", () => {
+    const env = tree();
+    const replies = [];
+    const lifecycle = {
+        choose(_options, callback) { replies.push(callback); return true; },
+        dispose() { return true; },
+    };
+    const picker = Port.createExternalEventSourcePicker(env, lifecycle);
+    let selected = "pending";
+    picker.chooseFiles((error, paths) => { selected = [error, paths]; });
+    replies[0](null, []);
+    assert.deepEqual(selected, [null, []]);
+    picker.chooseFiles((error, paths) => { selected = [error, paths]; });
+    replies[1](null, ["/missing.txt"]);
+    assert.match(String(selected[0]), /missing/u);
+    assert.equal(selected[1], null);
+    picker.chooseFiles((error, paths) => { selected = [error, paths]; });
+    replies[2](new Error("helper failed"), null);
+    assert.match(String(selected[0]), /helper failed/u);
+    assert.equal(selected[1], null);
+    assert.throws(() => Port.requireFileEnvironment({}), /GIO and ByteArray/u);
+});

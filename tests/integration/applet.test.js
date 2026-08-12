@@ -239,7 +239,7 @@ function appletHarness(extraOverrides = {}) {
         7,
         {
             logger: {warn() {}, error() {}},
-            environment: {},
+            environment: {Gdk: global.imports.gi.Gdk, Gtk: global.imports.gi.Gtk},
             workloadRegistry: BuiltIns.coreRegistry(),
             settingsFactory(owner) {
                 const settings = new BoundSettings(owner);
@@ -487,7 +487,7 @@ test("every chooser action releases popup focus before its deferred native dialo
     const scheduled = [];
     const cancelled = [];
     const chooserLifecycle = {
-        present() { return true; },
+        choose() { return true; },
         dispose() { this.disposed = true; return true; },
     };
     const {applet, menus} = appletHarness({

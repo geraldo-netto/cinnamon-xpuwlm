@@ -51,7 +51,7 @@ ImageMagick, and either librsvg or Inkscape. On Debian or Ubuntu:
 
 ```bash
 sudo apt-get update
-sudo apt-get install cinnamon cjs imagemagick librsvg2-bin
+sudo apt-get install cinnamon cjs imagemagick librsvg2-bin zenity
 npm ci
 npm test
 ```

@@ -450,9 +450,9 @@ The applet should expose only small, reversible controls:
 - disable controls while the service or device is unavailable;
 - reconnect when the D-Bus name owner changes or Cinnamon reloads the applet;
 - cancel outstanding applet-side calls during removal; and
-- close the popup before presenting a native GTK chooser, then disconnect and
-  destroy every chooser before rendering its deferred result or unloading the
-  applet;
+- close the popup before starting an external `zenity` GTK chooser, terminate
+  outstanding helpers before rendering late results or unloading the applet,
+  and never own native chooser state inside Cinnamon;
 - provide explicit actions to open settings and view service logs.
 
 The applet should not install packages, load kernel modules, modify `udev` rules, run `sudo`, change arbitrary file permissions, download untrusted models, or execute a model's output as a shell command.

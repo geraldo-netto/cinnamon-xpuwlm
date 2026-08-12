@@ -364,6 +364,10 @@ msgstr ""
 msgid "Back to %s"
 msgstr ""
 
+#: lib/event-source-port.js
+msgid "Calendar files"
+msgstr ""
+
 #: lib/event-source-port.js lib/menu-view.js
 msgid "Cancel"
 msgstr ""

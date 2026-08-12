@@ -5,6 +5,7 @@
 
 const DocumentQuestion = require("./document-question.js");
 const EventSourcePort = require("./event-source-port.js");
+const ExternalChooser = require("./external-chooser-port.js");
 const I18n = require("./i18n.js");
 
 const {_} = I18n;
@@ -43,4 +44,22 @@ function createGtkDocumentPicker(candidate, chooserLifecycle) {
     };
 }
 
-module.exports = {createGtkDocumentPicker, documentFilter};
+function createExternalDocumentPicker(candidate, chooserLifecycle) {
+    const environment = EventSourcePort.requireFileEnvironment(candidate);
+    const lifecycle = ExternalChooser.requireChooserLifecycle(chooserLifecycle);
+    return {
+        chooseFiles(callback) {
+            return EventSourcePort.externalSelection(lifecycle, {
+                mode: "open",
+                title: _("Choose documents to ask"),
+                multiple: true,
+                filter: {
+                    name: _("Documents and images"),
+                    patterns: EventSourcePort.sourcePatterns(DocumentQuestion.SOURCE_SUFFIXES),
+                },
+            }, (paths) => EventSourcePort.describeSourcePaths(paths, environment), callback);
+        },
+    };
+}
+
+module.exports = {createExternalDocumentPicker, createGtkDocumentPicker, documentFilter};

@@ -26,6 +26,7 @@ const DocumentQuestion = require("./lib/document-question.js");
 const DocumentSourcePort = require("./lib/document-source-port.js");
 const EventImport = require("./lib/event-import.js");
 const EventSourcePort = require("./lib/event-source-port.js");
+const ExternalChooser = require("./lib/external-chooser-port.js");
 const FileOrganizer = require("./lib/file-organizer.js");
 const FailureBackoff = require("./lib/failure-log-backoff.js");
 const I18n = require("./lib/i18n.js");
@@ -249,9 +250,9 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
 
     _createEventPorts(overrides) {
         try {
-            this._chooserLifecycle = EventSourcePort.requireChooserLifecycle(
+            this._chooserLifecycle = ExternalChooser.requireChooserLifecycle(
                 overrides.chooserLifecycle
-                || new EventSourcePort.GtkChooserLifecycle(this._environment, this._scheduler),
+                || new ExternalChooser.ExternalChooserLifecycle(this._environment),
             );
         } catch {
             this._chooserLifecycle = null;
@@ -271,7 +272,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     _createFileOrganizerController() {
         let picker;
         try {
-            picker = DocumentSourcePort.createGtkDocumentPicker(
+            picker = DocumentSourcePort.createExternalDocumentPicker(
                 this._environment,
                 this._chooserLifecycle,
             );
@@ -304,7 +305,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     _createDocumentQuestionController() {
         let picker;
         try {
-            picker = DocumentSourcePort.createGtkDocumentPicker(
+            picker = DocumentSourcePort.createExternalDocumentPicker(
                 this._environment,
                 this._chooserLifecycle,
             );
@@ -323,11 +324,11 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         let ports;
         try {
             ports = {
-                picker: EventSourcePort.createGtkEventSourcePicker(
+                picker: EventSourcePort.createExternalEventSourcePicker(
                     this._environment,
                     this._chooserLifecycle,
                 ),
-                exporter: EventSourcePort.createGtkEventExporter(
+                exporter: EventSourcePort.createExternalEventExporter(
                     this._environment,
                     this._chooserLifecycle,
                 ),
@@ -696,7 +697,9 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             if (typeof report !== "string" || report === "") {
                 return false;
             }
-            const clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD);
+            const clipboard = Gtk.Clipboard.get(
+                ClipboardSelectionPort.clipboardAtom(this._environment),
+            );
             clipboard.set_text(report, -1);
             if (typeof clipboard.store === "function") {
                 clipboard.store();

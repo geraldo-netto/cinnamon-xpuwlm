@@ -35,16 +35,16 @@ arbitrary-command action. Choosing **Clear** only clears the displayed plan; it
 does not touch a selected file. Cancellation and every refusal likewise leave
 all files unchanged.
 
-Choosing files first closes the applet popup, then presents the familiar native
-GTK chooser with visible focus and keyboard navigation. Cancelling reports
+Choosing files first closes the applet popup, then presents a familiar external
+`zenity` GTK chooser with visible focus and keyboard navigation. Cancelling reports
 **Selection cancelled**; acceptance lists the selected files; validation and
 I/O failures appear in the organizer surface. Reloading or removing the applet
-closes an outstanding chooser and suppresses its late response.
+terminates an outstanding chooser helper and suppresses its late response.
 
 ## Runtime and dependencies
 
-The applet uses its existing GTK file picker and D-Bus job client; no extra
-Cinnamon dependency is required. The external worker needs the base OmniTensor
+The applet uses `zenity` for isolated file selection and its D-Bus job client;
+no GTK chooser is created inside Cinnamon. The external worker needs the base OmniTensor
 service, a qualified Qwen generation provider, and optional document ingestion
 dependencies for PDF/image inputs. The bundled policy prefers GPU. NPU is
 supported only when explicitly configured and qualified. There is no CPU

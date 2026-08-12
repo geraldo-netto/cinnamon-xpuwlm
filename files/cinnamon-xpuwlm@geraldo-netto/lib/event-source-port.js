@@ -6,6 +6,7 @@
 // existing file (including any selected source).
 
 const EventImport = require("./event-import.js");
+const ExternalChooser = require("./external-chooser-port.js");
 const I18n = require("./i18n.js");
 
 const {_} = I18n;
@@ -15,6 +16,13 @@ function requireEnvironment(environment) {
     if (!environment || !environment.Gtk || !environment.Gdk
         || !environment.Gio || !environment.ByteArray) {
         throw new TypeError("GTK, GDK, GIO, and ByteArray are required for event file access");
+    }
+    return environment;
+}
+
+function requireFileEnvironment(environment) {
+    if (!environment || !environment.Gio || !environment.ByteArray) {
+        throw new TypeError("GIO and ByteArray are required for event file access");
     }
     return environment;
 }
@@ -264,6 +272,52 @@ function sourceFilter(Gtk) {
     return filter;
 }
 
+function sourcePatterns(suffixes) {
+    return suffixes.flatMap((suffix) => [`*${suffix}`, `*${suffix.toUpperCase()}`]);
+}
+
+function externalSelection(lifecycle, options, selected, callback) {
+    if (typeof selected !== "function" || typeof callback !== "function") {
+        throw new TypeError("Chooser selection and callback functions are required");
+    }
+    return lifecycle.choose(options, (error, paths) => {
+        if (error || paths === null) {
+            callback(error || new Error("File chooser returned no selection"), null);
+            return;
+        }
+        try {
+            callback(null, paths.length === 0 ? [] : selected(paths));
+        } catch (selectionError) {
+            callback(selectionError, null);
+        }
+    });
+}
+
+function createExternalEventSourcePicker(candidate, chooserLifecycle) {
+    const environment = requireFileEnvironment(candidate);
+    const lifecycle = ExternalChooser.requireChooserLifecycle(chooserLifecycle);
+    const filter = {
+        name: _("Documents, calendars, and images"),
+        patterns: sourcePatterns(EventImport.SOURCE_SUFFIXES),
+    };
+    return {
+        chooseFiles(callback) {
+            return externalSelection(lifecycle, {
+                mode: "open",
+                title: _("Choose event source files"),
+                multiple: true,
+                filter,
+            }, (paths) => describeSourcePaths(paths, environment), callback);
+        },
+        chooseFolder(callback) {
+            return externalSelection(lifecycle, {
+                mode: "folder",
+                title: _("Choose one event source folder"),
+            }, (paths) => folderSources(paths[0], environment), callback);
+        },
+    };
+}
+
 function createGtkEventSourcePicker(candidate, chooserLifecycle) {
     const environment = requireEnvironment(candidate);
     const lifecycle = requireChooserLifecycle(chooserLifecycle);
@@ -340,20 +394,54 @@ function createGtkEventExporter(candidate, chooserLifecycle) {
     };
 }
 
+function createExternalEventExporter(candidate, chooserLifecycle) {
+    const environment = requireFileEnvironment(candidate);
+    const lifecycle = ExternalChooser.requireChooserLifecycle(chooserLifecycle);
+    return {
+        saveIcs(calendar, forbiddenPaths, callback) {
+            const forbidden = new Set(forbiddenPaths);
+            return externalSelection(lifecycle, {
+                mode: "save",
+                title: _("Save confirmed events"),
+                filename: "confirmed-events.ics",
+                filter: {name: _("Calendar files"), patterns: ["*.ics", "*.ICS"]},
+            }, (paths) => {
+                const path = calendarExportPath(paths[0]);
+                if (forbidden.has(path)) {
+                    throw new EventImport.EventImportError(
+                        "export-invalid", "output must differ from every selected source",
+                    );
+                }
+                return writeNewPrivateFile(path, calendar, environment);
+            }, callback);
+        },
+    };
+}
+
+function calendarExportPath(path) {
+    return typeof path === "string" ? path.replace(/(?:\.ics){2,}$/iu, ".ics") : path;
+}
+
 module.exports = {
     SOURCE_ATTRIBUTES,
     GtkChooserLifecycle,
     addChooserButtons,
+    calendarExportPath,
     connectChooser,
+    createExternalEventExporter,
+    createExternalEventSourcePicker,
     createGtkEventExporter,
     createGtkEventSourcePicker,
     describeSourcePaths,
     folderSources,
+    externalSelection,
+    requireFileEnvironment,
     requireChooserLifecycle,
     requireEnvironment,
     requireScheduler,
     responseAccepted,
     sourceDescription,
     sourceFilter,
+    sourcePatterns,
     writeNewPrivateFile,
 };

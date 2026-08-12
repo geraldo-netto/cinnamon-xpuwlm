@@ -133,3 +133,23 @@ test("document picker reports cancellation without retaining a recent selection"
     dialog.handlers.response(dialog, env.Gtk.ResponseType.CANCEL);
     assert.deepEqual(reply, {error: null, sources: []});
 });
+
+test("external document picker delegates isolated selection then describes files", () => {
+    const env = environment();
+    env.infos.set("/private/guide.pdf", {type: 1, name: "guide.pdf", size: 42});
+    let request = null;
+    const externalLifecycle = {
+        choose(options, callback) { request = {options, callback}; return true; },
+        dispose() { return true; },
+    };
+    const picker = Port.createExternalDocumentPicker(env, externalLifecycle);
+    let reply = null;
+    assert.equal(picker.chooseFiles((error, sources) => { reply = {error, sources}; }), true);
+    assert.equal(request.options.mode, "open");
+    assert.equal(request.options.multiple, true);
+    assert.equal(request.options.title, "Choose documents to ask");
+    assert.ok(request.options.filter.patterns.includes("*.pdf"));
+    request.callback(null, ["/private/guide.pdf"]);
+    assert.equal(reply.error, null);
+    assert.deepEqual(reply.sources.map((source) => source.name), ["guide.pdf"]);
+});

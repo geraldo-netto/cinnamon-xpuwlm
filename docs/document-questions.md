@@ -15,11 +15,11 @@ treated as a usable provider.
    absolute path.
 4. Choose **New question** to clear the answer and selected-file metadata.
 
-The applet closes its popup before presenting the native GTK chooser, making
+The applet closes its popup before presenting an external `zenity` GTK chooser, making
 the focused window and keyboard target unambiguous. Cancelling reports
 **Selection cancelled**; acceptance lists the selected documents; validation
 or I/O failure is shown in the same surface. Reloading or removing the applet
-closes an outstanding chooser and suppresses its late response.
+terminates an outstanding chooser helper and suppresses its late response.
 
 The external worker must provide a qualified BGE embedding lane and grounded
 Qwen generation lane. Current production evidence covers BGE on a named Vulkan

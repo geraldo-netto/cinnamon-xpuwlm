@@ -395,25 +395,25 @@ the command with `APPLET` restores it.
 ## File chooser interaction
 
 All event import, calendar export, document-question, and file-organizer
-choices use Cinnamon's familiar native GTK chooser. Choosing an action first
-closes the applet popup and releases its input grab; the chooser is presented
-on the next main-loop turn as a focused modal window. Because Cinnamon's popup
-is not a GTK window and cannot be a transient parent, each chooser sets GTK's
-skip-taskbar and skip-pager properties, realizes without mapping, and marks the
-native GDK window as a utility while repeating both exclusion hints before
-showing it. Cinnamon's grouped window list therefore never owns an app-group
-entry for this short-lived dialog. The
-GTK response signal disconnects and destroys the chooser before application
-state is rendered, and selection results are delivered on a later main-loop
-turn. The popup then reopens on the rendered result so keyboard and pointer
-users see the same feedback. Applet removal or reload destroys every still-open
-chooser and cancels undelivered responses.
+choices use the familiar GTK file-selection UI through a short-lived `zenity`
+helper process. Choosing an action first closes the applet popup and releases
+its input grab; the helper is started on the next main-loop turn and owns its
+native window, GTK state, and teardown outside Cinnamon. A chooser fault can
+therefore fail one workflow with visible feedback but cannot corrupt or crash
+the desktop shell. The popup reopens after the helper exits so keyboard and
+pointer users see the same selected, cancelled, or failed state. Applet removal
+or reload cancels and terminates every outstanding helper and suppresses late
+responses.
 
 Cancellation is explicit and non-destructive: the relevant surface reports
 that selection or export was cancelled and remains usable. Accepted selections
 show the chosen source names; I/O and validation failures show an error; a
 successful export reports the new path. No chooser scans, writes, or submits
 anything until its labeled confirmation action is used.
+
+`zenity` is a runtime dependency. Missing helper discovery fails closed: file
+tools report chooser unavailability and never fall back to an in-process GTK
+dialog.
 
 See the [case-specific full Laws of UX audit](chooser-ux-audit.md) for the
 design-to-verification matrix covering all chooser workflows.
