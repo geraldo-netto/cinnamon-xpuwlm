@@ -88,6 +88,36 @@ test("fuzz: the plug-in subtree predicate stays equivalent to the schema", () =>
     }
 });
 
+test("property: GGUF companion mutations stay schema-equivalent", () => {
+    const next = random(0x66a7f00d);
+    const formats = ["gguf", "ncnn", "onnx", "safetensors", "GGUF", ""];
+    const names = ["model.bin", "tokenizer.json", "labels.txt", "../model.bin", "Model.bin", ""];
+    const digests = ["a".repeat(64), "b".repeat(64), "A".repeat(64), "a".repeat(63), ""];
+
+    for (let iteration = 0; iteration < 1000; iteration += 1) {
+        const artifact = {
+            id: "qwen3-0-6b-q8-0",
+            version: "1.0.0",
+            format: formats[Math.floor(next() * formats.length)],
+            sha256: digests[Math.floor(next() * digests.length)],
+        };
+        if (next() < 0.8) {
+            const companions = {};
+            const count = Math.floor(next() * 10);
+            for (let index = 0; index < count; index += 1) {
+                const name = names[Math.floor(next() * names.length)];
+                companions[`${index}-${name}`] = digests[Math.floor(next() * digests.length)];
+            }
+            artifact.companions = companions;
+        }
+        const manifest = Fixtures.validPluginWorkloadManifest();
+        manifest.plugin.artifacts = [artifact];
+        const expected = Boolean(oracle(manifest));
+        assert.equal(Contract.isPluginArtifact(artifact), expected, `artifact ${iteration}`);
+        assert.equal(Contract.isWorkloadManifest(manifest), expected, `manifest ${iteration}`);
+    }
+});
+
 // `requirements.model.sha256` is optional, so the exact key-count rule no
 // longer applies to the model record. Both the schema and the predicate must
 // agree on absent, well-formed, and malformed digests alike.

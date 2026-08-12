@@ -147,6 +147,38 @@ test("version 2 workload manifest matches authoritative schema boundaries", () =
     }
 });
 
+test("plug-in artifacts accept GGUF and authenticated companion files", () => {
+    const digest = "b".repeat(64);
+    const artifact = {
+        id: "qwen3-0-6b-q8-0",
+        version: "1.0.0",
+        format: "gguf",
+        sha256: "a".repeat(64),
+    };
+    const cases = [
+        ["GGUF", artifact, true],
+        ["empty companions", {...artifact, companions: {}}, true],
+        ["authenticated companions", {
+            ...artifact,
+            companions: {"model.bin": digest, "tokenizer.json": digest},
+        }, true],
+        ["undefined companions", {...artifact, companions: undefined}, true],
+        ["unknown format", {...artifact, format: "safetensors"}, false],
+        ["missing digest", (({sha256: _digest, ...kept}) => kept)(artifact), false],
+        ["untrusted companion path", {...artifact, companions: {"../model.bin": digest}}, false],
+        ["invalid companion digest", {...artifact, companions: {"model.bin": "b".repeat(63)}}, false],
+        ["unknown property", {...artifact, path: "/tmp/model.gguf"}, false],
+    ];
+
+    for (const [name, candidate, expected] of cases) {
+        const manifest = Fixtures.validPluginWorkloadManifest();
+        manifest.plugin.artifacts = [candidate];
+        assert.equal(Contract.isPluginArtifact(candidate), expected, name);
+        assert.equal(Contract.isWorkloadManifest(manifest), expected, `${name}: manifest`);
+        assert.equal(Boolean(oracle(manifest)), expected, `${name}: schema`);
+    }
+});
+
 test("a version 2 descriptor carries an immutable, independent plug-in subtree", () => {
     const source = Fixtures.validPluginWorkloadManifest();
     const descriptor = new Contract.WorkloadDescriptor(source);

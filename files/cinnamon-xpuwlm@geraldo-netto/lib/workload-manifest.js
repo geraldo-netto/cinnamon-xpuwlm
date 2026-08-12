@@ -26,7 +26,8 @@ const PROTOCOL_REQUIRED = Object.freeze(["minimum", "maximum"]);
 const PROTOCOL_PROPERTIES = new Set([...PROTOCOL_REQUIRED, "capabilities"]);
 const PLUGIN_SCHEMA_PROPERTIES = new Set(["configuration", "input", "output"]);
 const PLUGIN_TRIGGERS = new Set(["manual", "periodic", "event"]);
-const ARTIFACT_PROPERTIES = new Set(["id", "version", "format", "sha256"]);
+const ARTIFACT_REQUIRED = Object.freeze(["id", "version", "format", "sha256"]);
+const ARTIFACT_PROPERTIES = new Set([...ARTIFACT_REQUIRED, "companions"]);
 // Deliberately laxer than IDENTIFIER: the runtime's protocol capability names
 // permit trailing and repeated hyphens, and a mirror that is stricter than the
 // contract rejects documents the runtime accepts.
@@ -44,6 +45,7 @@ const REQUIREMENT_PROPERTIES = new Set([
 const MAX_MODELS = 5;
 const ACCELERATORS = new Set(["tpu", "npu", "gpu"]);
 const MODEL_FORMATS = new Set(["tflite-edgetpu", "tflite", "onnx", "openvino", "ncnn"]);
+const PLUGIN_ARTIFACT_FORMATS = new Set([...MODEL_FORMATS, "gguf"]);
 const MODEL_REQUIRED = Object.freeze([
     "id", "version", "format", "fullyQuantized", "minimumCompilerVersion",
     "minimumRuntimeVersion",
@@ -571,12 +573,13 @@ function isPluginTriggers(value) {
 }
 
 function isPluginArtifact(value) {
-    return exactProperties(value, ARTIFACT_PROPERTIES)
+    return boundedProperties(value, ARTIFACT_REQUIRED, ARTIFACT_PROPERTIES)
         && identifier(value.id, 120)
         && semanticVersion(value.version)
-        && MODEL_FORMATS.has(value.format)
+        && PLUGIN_ARTIFACT_FORMATS.has(value.format)
         && boundedText(value.sha256, 64, 64)
-        && MODEL_DIGEST.test(value.sha256);
+        && MODEL_DIGEST.test(value.sha256)
+        && (!declared(value, "companions") || isCompanions(value.companions));
 }
 
 function isPluginArtifacts(value) {
