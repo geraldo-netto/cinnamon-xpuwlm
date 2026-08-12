@@ -773,6 +773,7 @@ function diagnosticsModel(state, tools, activity, setup, activeAlerts, control, 
         health: [
             {
                 id: "device",
+                icon: "xpuwlm-device-symbolic",
                 title: _("Device"),
                 detail: state.device.name || state.device.reason || _("No device detail"),
                 status: deviceStatusText(state),
@@ -780,6 +781,7 @@ function diagnosticsModel(state, tools, activity, setup, activeAlerts, control, 
             },
             {
                 id: "runtime",
+                icon: "drive-multidisk-symbolic",
                 title: _("Local runtime"),
                 detail: healthOf(state).detail || _("Snapshot contract is readable"),
                 status: runtimeStatusText(state),
@@ -787,6 +789,7 @@ function diagnosticsModel(state, tools, activity, setup, activeAlerts, control, 
             },
             {
                 id: "service",
+                icon: "system-run-symbolic",
                 title: _("Workload service"),
                 detail: service.detail,
                 status: service.status,
@@ -813,22 +816,51 @@ function diagnosticsModel(state, tools, activity, setup, activeAlerts, control, 
     };
 }
 
+function systemDeviceStatus(state) {
+    if (state.device.available) {
+        return {
+            detail: _("Ready for workloads"),
+            status: _("Ready"),
+            tone: "healthy",
+        };
+    }
+    return {
+        detail: state.device.reason || format(_("%s accelerator"), backendLabel(state.device)),
+        status: deviceStatusText(state),
+        tone: "unavailable",
+    };
+}
+
+function systemRuntimeStatus(state) {
+    const health = healthOf(state);
+    if (health.runtime === "connected") {
+        return {
+            detail: _("Models and services available"),
+            status: _("Ready"),
+            tone: "healthy",
+        };
+    }
+    return {
+        detail: health.detail || _("Runtime snapshot monitoring"),
+        status: runtimeStatusText(state),
+        tone: "unavailable",
+    };
+}
+
 function systemModel(state) {
     return {
         statuses: [
             {
                 id: "device",
+                icon: "xpuwlm-device-symbolic",
                 title: state.device.name || _("Accelerator"),
-                detail: format(_("%s accelerator"), backendLabel(state.device)),
-                status: deviceStatusText(state),
-                tone: state.device.available ? "healthy" : "unavailable",
+                ...systemDeviceStatus(state),
             },
             {
                 id: "runtime",
+                icon: "drive-multidisk-symbolic",
                 title: _("Local runtime"),
-                detail: healthOf(state).detail || _("Runtime snapshot monitoring"),
-                status: runtimeStatusText(state),
-                tone: healthOf(state).runtime === "connected" ? "healthy" : "unavailable",
+                ...systemRuntimeStatus(state),
             },
         ],
     };
@@ -1352,7 +1384,17 @@ function toViewModel(state, nowMs = Date.now()) {
         device: {...state.device, status: deviceStatus},
         devices: deviceModels(state),
         headerSubtitle: state.device.available
-            ? `${state.device.name} · ${runtimeStatusText(state)} · ${format(ngettext("%d tool ready", "%d tools ready", tools.filter((tool) => tool.available).length), tools.filter((tool) => tool.available).length)} · ${format(ngettext("%d active job", "%d active jobs", activity.activeCount), activity.activeCount)}`
+            ? [
+                state.device.name,
+                healthOf(state).runtime === "connected" ? "" : runtimeStatusText(state),
+                format(
+                    ngettext("%d tool ready", "%d tools ready", tools.filter((tool) => tool.available).length),
+                    tools.filter((tool) => tool.available).length,
+                ),
+                activity.activeCount === 0
+                    ? _("No active jobs")
+                    : format(ngettext("%d active job", "%d active jobs", activity.activeCount), activity.activeCount),
+            ].filter(Boolean).join(" · ")
             : `${runtimeStatusText(state)} · ${healthOf(state).detail || state.device.reason} · ${format(_("Last update %s"), formatRelativeTime(state.generatedAt, nowMs))}`,
         panel: panelModel(state),
         catalogNotice: catalogNoticeModel(state),

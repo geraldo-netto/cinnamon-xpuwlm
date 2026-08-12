@@ -108,8 +108,8 @@ test("System lists current device and runtime status", () => {
     assert.equal(titles.includes("Coral USB"), true);
     assert.equal(titles.includes("Local runtime"), true);
     const descriptions = labelsWithClass(root, "xpuwlm-profile-description");
-    assert.equal(descriptions.includes("TPU accelerator"), true);
-    assert.equal(labelsWithClass(root, "xpuwlm-status").includes("Online"), true);
+    assert.equal(descriptions.includes("Ready for workloads"), true);
+    assert.equal(labelsWithClass(root, "xpuwlm-status").includes("Ready"), true);
 
     view.render(ViewModel.toViewModel(baseState({
         selectedTab: "profiles", device: {...baseState().device, name: "Updated device"},
@@ -159,7 +159,7 @@ test("every symbolic icon declares a name, type, size, and placement", () => {
         {
             icon_name: "xpuwlm-symbolic",
             icon_type: "symbolic",
-            icon_size: 32,
+            icon_size: 28,
             style_class: "xpuwlm-brand-icon",
         },
     );
@@ -190,10 +190,10 @@ test("every symbolic icon declares a name, type, size, and placement", () => {
     view.render(ViewModel.toViewModel(baseState({
         selectedTab: "alerts", metrics: {queueDepth: 0, runningProfiles: 0},
     }), NOW));
-    const hero = icons(root).find((actor) => actor.style_class === "xpuwlm-hero-icon");
+    const hero = icons(root).find((actor) => actor.style_class === "xpuwlm-healthy-icon");
     assert.deepEqual(
         {name: hero.icon_name, size: hero.icon_size, type: hero.icon_type},
-        {name: "media-playback-start-symbolic", size: 36, type: "symbolic"},
+        {name: "emblem-ok-symbolic", size: 28, type: "symbolic"},
     );
 });
 

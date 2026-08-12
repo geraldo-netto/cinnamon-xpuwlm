@@ -2,8 +2,8 @@
    St has no media queries, so the popup resolves its own breakpoints. */
 .xpuwlm-root {
     min-width: 280px;
-    padding: 12px;
-    spacing: 8px;
+    padding: 16px;
+    spacing: 12px;
 }
 
 .xpuwlm-header,
@@ -30,7 +30,8 @@
 
 .xpuwlm-header {
     min-height: 48px;
-    padding-bottom: 4px;
+    padding: 0 4px 2px 4px;
+    spacing: 12px;
 }
 
 .xpuwlm-brand-icon {
@@ -45,12 +46,17 @@
 .xpuwlm-body,
 .xpuwlm-alert-card,
 .xpuwlm-hero {
-    spacing: 3px;
+    spacing: 5px;
+}
+
+.xpuwlm-header-copy,
+.xpuwlm-profile-copy {
+    min-width: 0;
 }
 
 .xpuwlm-title {
     font-weight: bold;
-    font-size: 1.05em;
+    font-size: 1.28em;
 }
 
 .xpuwlm-subtitle,
@@ -69,7 +75,7 @@
 .xpuwlm-profile-limitation,
 .xpuwlm-catalog-notice-detail,
 .xpuwlm-alert-kicker {
-    font-size: 0.82em;
+    font-size: 0.9em;
 }
 
 /* A profile the runtime cannot execute is named in words on its own line; the
@@ -159,11 +165,30 @@
 }
 
 .xpuwlm-status {
-    padding: 2px 5px;
-    border-radius: 4px;
-    background-color: rgba(127, 127, 127, 0.12);
-    font-size: 0.75em;
+    min-width: 42px;
+    padding: 5px 8px;
+    border: 1px solid rgba(127, 127, 127, 0.22);
+    border-radius: 6px;
+    background-color: rgba(127, 127, 127, 0.14);
+    font-size: 0.82em;
     font-weight: bold;
+    text-align: center;
+}
+
+.xpuwlm-status-healthy {
+    color: symbolic-success;
+    border-color: symbolic-success;
+}
+
+.xpuwlm-status-running,
+.xpuwlm-status-watching {
+    color: symbolic-warning;
+    border-color: symbolic-warning;
+}
+
+.xpuwlm-status-unavailable {
+    color: symbolic-error;
+    border-color: symbolic-error;
 }
 
 .xpuwlm-status-idle {
@@ -177,8 +202,8 @@
 .xpuwlm-paused-summary,
 .xpuwlm-tab,
 .xpuwlm-back-button {
-    min-height: 34px;
-    padding: 6px 10px;
+    min-height: 30px;
+    padding: 6px 12px;
     border: 1px solid rgba(127, 127, 127, 0.28);
     border-radius: 7px;
     background-color: rgba(127, 127, 127, 0.11);
@@ -278,31 +303,54 @@
 }
 
 .xpuwlm-tabs {
-    min-height: 40px;
-    padding-bottom: 2px;
+    min-height: 46px;
+    padding: 0;
     border-bottom: 1px solid rgba(127, 127, 127, 0.22);
 }
 
 .xpuwlm-tab {
-    min-width: 90px;
+    min-width: 100px;
+    min-height: 30px;
+    padding: 6px 12px;
     border-color: rgba(127, 127, 127, 0);
     border-radius: 0;
     background-color: rgba(127, 127, 127, 0);
 }
 
 .xpuwlm-tab-active {
-    border-bottom-width: 2px;
+    border-bottom-width: 3px;
     border-bottom-color: symbolic;
     font-weight: bold;
 }
 
 .xpuwlm-scroll {
-    max-height: 480px;
+    max-height: 760px;
+}
+
+.xpuwlm-content {
+    spacing: 0;
+}
+
+.xpuwlm-screen-alerts .xpuwlm-content,
+.xpuwlm-screen-profiles .xpuwlm-content,
+.xpuwlm-screen-setup .xpuwlm-content {
+    border: 1px solid rgba(127, 127, 127, 0.35);
+    border-radius: 10px;
+    background-color: rgba(127, 127, 127, 0.035);
+}
+
+.xpuwlm-body {
+    padding: 12px;
+    spacing: 10px;
+}
+
+.xpuwlm-screen-overview .xpuwlm-body {
+    padding: 12px 0 0 0;
 }
 
 .xpuwlm-section-heading {
-    min-height: 44px;
-    padding: 6px 2px;
+    min-height: 40px;
+    padding: 6px 4px;
 }
 
 .xpuwlm-section-title,
@@ -314,33 +362,42 @@
 
 .xpuwlm-section-title,
 .xpuwlm-alert-title {
-    font-size: 1em;
+    font-size: 1.12em;
 }
 
 .xpuwlm-group-heading {
     min-height: 28px;
-    padding: 4px 10px;
-    background-color: rgba(127, 127, 127, 0.08);
+    padding: 4px;
+    background-color: rgba(127, 127, 127, 0);
 }
 
 .xpuwlm-group-title {
-    min-width: 390px;
+    min-width: 0;
+    font-size: 0.92em;
+    text-transform: none;
+}
+
+.xpuwlm-group-value {
+    text-align: right;
 }
 
 .xpuwlm-profile-row,
 .xpuwlm-history-row,
 .xpuwlm-state-row,
-.xpuwlm-recovery-row,
-.xpuwlm-tool-row {
-    min-height: 54px;
-    padding: 7px 10px;
-    border-bottom: 1px solid rgba(127, 127, 127, 0.16);
-    background-color: rgba(127, 127, 127, 0.05);
+.xpuwlm-recovery-row {
+    min-height: 36px;
+    padding: 10px 14px;
+    border: 1px solid rgba(127, 127, 127, 0.24);
+    border-radius: 8px;
+    background-color: rgba(127, 127, 127, 0.06);
 }
 
 .xpuwlm-tool-row {
-    border: 1px solid rgba(127, 127, 127, 0.16);
-    border-radius: 8px;
+    min-height: 52px;
+    padding: 10px 14px;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    border-radius: 9px;
+    background-color: rgba(127, 127, 127, 0.06);
 }
 
 .xpuwlm-tool-row:hover {
@@ -348,13 +405,15 @@
 }
 
 .xpuwlm-tool-row-content {
-    min-height: 40px;
+    min-height: 44px;
+    spacing: 12px;
 }
 
 .xpuwlm-tool-chevron {
-    min-width: 12px;
-    font-size: 1.25em;
-    opacity: 0.6;
+    min-width: 18px;
+    font-size: 1.55em;
+    opacity: 0.9;
+    text-align: right;
 }
 
 .xpuwlm-back-button {
@@ -371,14 +430,34 @@
 }
 
 .xpuwlm-diagnostics-current {
-    padding: 1px;
+    padding: 5px 14px;
     border: 1px solid rgba(127, 127, 127, 0.22);
     border-radius: 8px;
-    background-color: rgba(127, 127, 127, 0.1);
+    background-color: rgba(127, 127, 127, 0.055);
+    spacing: 0;
 }
 
-.xpuwlm-diagnostics-current .xpuwlm-metric {
-    min-width: 105px;
+.xpuwlm-diagnostics-metric {
+    min-height: 16px;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(127, 127, 127, 0.2);
+}
+
+.xpuwlm-diagnostics-metric:last-child {
+    border-bottom-width: 0;
+}
+
+.xpuwlm-diagnostics-metric .xpuwlm-metric-name {
+    font-size: 0.9em;
+    font-weight: normal;
+    text-transform: none;
+    opacity: 1;
+}
+
+.xpuwlm-diagnostics-metric .xpuwlm-metric-value {
+    min-width: 130px;
+    text-align: right;
+    font-weight: normal;
 }
 
 .xpuwlm-profile-disabled {
@@ -386,10 +465,19 @@
 }
 
 .xpuwlm-profile-icon {
-    min-width: 24px;
-    padding: 5px;
-    border-radius: 7px;
-    background-color: rgba(127, 127, 127, 0.11);
+    min-width: 28px;
+    padding: 8px;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    border-radius: 8px;
+    background-color: rgba(127, 127, 127, 0.08);
+}
+
+.xpuwlm-row-icon {
+    min-width: 28px;
+    padding: 8px;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    border-radius: 8px;
+    background-color: rgba(127, 127, 127, 0.06);
 }
 
 .xpuwlm-weight-summary {
@@ -483,7 +571,10 @@
 }
 
 .xpuwlm-hero {
-    padding: 28px 50px;
+    padding: 22px 28px;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    border-radius: 9px;
+    background-color: rgba(127, 127, 127, 0.05);
     text-align: center;
 }
 
@@ -513,8 +604,47 @@
 }
 
 .xpuwlm-footer {
-    min-height: 40px;
-    padding-top: 2px;
+    min-height: 32px;
+    padding-top: 0;
+    spacing: 10px;
+}
+
+.xpuwlm-control-spacer {
+    min-width: 1px;
+}
+
+.xpuwlm-activity-controls,
+.xpuwlm-diagnostics-actions {
+    margin-top: 8px;
+}
+
+.xpuwlm-running-card {
+    padding: 14px 18px;
+    spacing: 14px;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    border-radius: 9px;
+    background-color: rgba(127, 127, 127, 0.05);
+}
+
+.xpuwlm-running-empty {
+    spacing: 16px;
+}
+
+.xpuwlm-healthy-card {
+    min-height: 32px;
+    padding: 8px 14px;
+    spacing: 12px;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    border-radius: 8px;
+    background-color: rgba(127, 127, 127, 0.055);
+}
+
+.xpuwlm-healthy-icon {
+    min-width: 28px;
+    padding: 8px;
+    border: 2px solid symbolic-success;
+    border-radius: 24px;
+    color: symbolic-success;
 }
 
 /* Compact and dense popups: release fixed minimum widths, wrap instead of

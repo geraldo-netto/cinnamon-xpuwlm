@@ -95,6 +95,9 @@ test("task-first tabs and header match the approved hierarchy", () => {
     assert.equal(button(root, "Open XPU Workload Manager settings") !== undefined, true);
     assert.equal(findActors(root, (actor) => actor.styleClasses?.has("xpuwlm-status")
         && actor.parent?.styleClasses?.has("xpuwlm-title-row")).length, 0);
+    assert.equal(root.styleClasses.has("xpuwlm-screen-overview"), true);
+    assert.equal(findActors(root, (actor) => actor.styleClasses?.has("xpuwlm-content")).length, 1);
+    assert.equal(view._footer.x_expand, true);
 });
 
 test("Tools lists five live tasks and opens one focused workflow", () => {
@@ -104,6 +107,8 @@ test("Tools lists five live tasks and opens one focused workflow", () => {
     assert.deepEqual(tools.map((actor) => actor.xpuwlmIdentity), [
         "tool:documents", "tool:events", "tool:text", "tool:organizer", "tool:picture",
     ]);
+    assert.equal(tools.every((actor) => actor.children[0].children[0].icon_size === 24), true);
+    assert.equal(tools.every((actor) => actor.children[0].children[1].x_expand === true), true);
 
     tools[0].click();
     assert.ok(button(root, "Back to Tools"));
@@ -122,10 +127,47 @@ test("Activity removes Open Tools and confirms Clear History with matching butto
     const clear = button(root, "Clear recent activity history");
     const refresh = button(root, "Refresh activity");
     assert.equal(clear.style_class, refresh.style_class);
+    assert.equal(clear.parent.x_expand, true);
     clear.click();
     assert.ok(button(root, "Confirm clearing recent activity history"));
     button(root, "Confirm clearing recent activity history").click();
     assert.deepEqual(calls.at(-1), ["clearActivity"]);
+});
+
+test("Activity assigns a recognizable aligned icon to every workload kind", () => {
+    const {view} = harness();
+
+    assert.deepEqual([
+        "event:1", "picture:1", "organizer:1", "text:1", "documents:1",
+    ].map((id) => view._activityIcon({id})), [
+        "x-office-calendar-symbolic",
+        "image-x-generic-symbolic",
+        "folder-symbolic",
+        "edit-select-all-symbolic",
+        "folder-documents-symbolic",
+    ]);
+});
+
+test("Activity empty card preserves exact visual actor direction and expansion", () => {
+    const {view} = harness();
+    assert.equal(view._renderRunningActivity({running: [], activeCount: 0}), false);
+    const card = view._body.children[0];
+    const empty = card.children[1];
+    const [icon, copy] = empty.children;
+
+    assert.equal(card.styleClasses.has("xpuwlm-running-card"), true);
+    assert.equal(card.vertical, true);
+    assert.equal(empty.vertical, false);
+    assert.equal(empty.x_expand, true);
+    assert.deepEqual(
+        [icon.icon_name, icon.icon_type, icon.icon_size, icon.style_class],
+        ["emblem-ok-symbolic", "symbolic", 28, "xpuwlm-healthy-icon"],
+    );
+    assert.equal(copy.vertical, true);
+    assert.equal(copy.x_expand, true);
+    assert.deepEqual(copy.children.map((child) => child.text), [
+        "No active jobs", "Start a tool when you are ready",
+    ]);
 });
 
 test("System has no refresh or description and progressively discloses profiles", () => {
@@ -134,6 +176,11 @@ test("System has no refresh or description and progressively discloses profiles"
 
     assert.equal(labels(root).includes("System hardware and advanced controls"), false);
     assert.equal(view._footer.visible, false);
+    const statusRows = findActors(root, (actor) => actor.styleClasses?.has("xpuwlm-state-row"));
+    assert.deepEqual(statusRows.map((row) => row.children[0].icon_name), [
+        "xpuwlm-device-symbolic", "drive-multidisk-symbolic",
+    ]);
+    assert.equal(root.styleClasses.has("xpuwlm-screen-profiles"), true);
     button(root, "Open advanced workload profiles").click();
     assert.ok(button(root, "Back to System"));
     assert.ok(button(root, "Decrease Hardware health weight"));
@@ -147,6 +194,16 @@ test("Diagnostics always shows live state and every approved action works", () =
     for (const text of ["Health", "Setup", "Current state", "Recent issues"]) {
         assert.equal(labels(root).includes(text), true);
     }
+    const current = findActors(root, (actor) => actor.styleClasses?.has("xpuwlm-diagnostics-current"))[0];
+    assert.equal(current.vertical, true);
+    assert.equal(current.children.length, 3);
+    assert.equal(current.children.every((row) => row.styleClasses.has("xpuwlm-diagnostics-metric")), true);
+    assert.equal(current.children.every((row) => row.children[0].x_expand === true), true);
+    const actions = findActors(root, (actor) => actor.styleClasses?.has("xpuwlm-diagnostics-actions"))[0];
+    assert.equal(actions.children.every((action) => action.x_expand === true), true);
+    assert.equal(actions.children.every((action) => action.x_fill === true), true);
+    assert.equal(actions.x_expand, true);
+    assert.equal(root.styleClasses.has("xpuwlm-screen-setup"), true);
     button(root, "Open workload service logs").click();
     button(root, "Copy diagnostics report").click();
     button(root, "Refresh diagnostics").click();
@@ -155,6 +212,36 @@ test("Diagnostics always shows live state and every approved action works", () =
     ]);
     button(root, `Open setup details, ${model.diagnostics.setupStatus}`).click();
     assert.ok(button(root, "Back to Diagnostics"));
+});
+
+test("Diagnostics action bar stays complete as a standalone wide row", () => {
+    const {calls, view} = harness();
+    const actions = view._diagnosticsActions("report");
+
+    assert.equal(actions.styleClasses.has("xpuwlm-diagnostics-actions"), true);
+    assert.equal(actions.x_expand, true);
+    assert.equal(actions.children.length, 3);
+    assert.equal(actions.children.every((action) => action.x_expand && action.x_fill), true);
+    assert.equal(actions.children.every((action) => action.reactive && action.can_focus), true);
+    assert.deepEqual(actions.children.map((action) => action.accessibleName), [
+        "Open workload service logs", "Copy diagnostics report", "Refresh diagnostics",
+    ]);
+    actions.children[0].click();
+    actions.children[1].click();
+    actions.children[2].click();
+    assert.deepEqual(calls.slice(-3), [["openLogs"], ["copyReport", "report"], ["refresh"]]);
+});
+
+test("screen styling retains exactly one current tab class", () => {
+    const {view, root} = harness();
+
+    for (const tab of Menu.TAB_NAMES) {
+        assert.equal(view._setScreenStyle(tab), tab);
+        assert.deepEqual(
+            Menu.TAB_NAMES.filter((name) => root.styleClasses.has(`xpuwlm-screen-${name}`)),
+            [tab],
+        );
+    }
 });
 
 test("Diagnostics owns setup reasons for tools unavailable on Tools", () => {

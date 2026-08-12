@@ -56,7 +56,7 @@ view and re-measured every time the popup opens.
 
 | Mode | Content width | Layout |
 | --- | --- | --- |
-| Wide | above 520 px | Single-line rows and horizontal controls |
+| Wide | above 520 px | Mockup-aligned cards, single-line rows, and horizontal controls |
 | Compact | 401–520 px | Wrapped descriptive text and 44 px targets |
 | Dense | 400 px and below | Compact rules plus single-column alert evidence |
 
@@ -64,6 +64,12 @@ The popup never claims more width than the work area offers, its scroll region
 is bounded to the work-area height so the footer actions stay visible, and
 navigation, recovery, and contextual actions remain present in every mode. An
 unusable measurement falls back to the default desktop layout.
+
+The wide mode implements the approved v4 task-first mockups with a 560 px
+content width, 760 px maximum scroll region, framed non-Tools surfaces, aligned
+icon/copy/status columns, semantic status cues, a vertical Diagnostics state
+table, and right-aligned action groups. Compact and dense modes retain those
+relationships while wrapping text and expanding acquisition targets.
 
 ## System profiles and Diagnostics setup
 

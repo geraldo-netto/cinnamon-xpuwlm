@@ -196,8 +196,7 @@ test("regression: theme harness finds the mandatory Cinnamon runtime without hos
     );
 });
 
-test("regression: applet colors remain neutral and use Cinnamon symbolic foregrounds", () => {
-    assert.doesNotMatch(stylesheet, /[;{]\s*color\s*:/u);
+test("regression: applet surfaces remain neutral and semantic text uses Cinnamon symbolic colors", () => {
     assert.doesNotMatch(stylesheet, /#[\da-f]{3,8}\b/iu);
     assert.doesNotMatch(stylesheet, /\b(?:hsl|hsla|lab|lch|oklab|oklch|color|color-mix)\s*\(/iu);
 
@@ -225,7 +224,7 @@ test("regression: applet colors remain neutral and use Cinnamon symbolic foregro
 test("regression: semantic and interaction states explicitly use the symbolic foreground", () => {
     assert.match(ruleBody(".xpuwlm-status"), /font-weight:\s*bold/u);
     assert.match(ruleBody(".xpuwlm-primary-button"), /font-weight:\s*bold/u);
-    assert.match(ruleBody(".xpuwlm-tab-active"), /border-bottom-width:\s*2px/u);
+    assert.match(ruleBody(".xpuwlm-tab-active"), /border-bottom-width:\s*3px/u);
     assert.match(ruleBody(".xpuwlm-tab-active"), /border-bottom-color:\s*symbolic/u);
     assert.match(ruleBody(".xpuwlm-toggle-on"), /border-color:\s*symbolic/u);
     assert.match(ruleBody(".xpuwlm-toggle-on"), /font-weight:\s*bold/u);

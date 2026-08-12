@@ -1027,7 +1027,8 @@ test("alerts screen renders empty, active, resolved, and fallback evidence", () 
         selectedTab: "alerts",
         metrics: {load: 42, queueDepth: 0, runningProfiles: 0},
     }), NOW));
-    assert.equal(findActors(root, (actor) => actor.text === "No active jobs").length, 2);
+    assert.equal(findActors(root, (actor) => actor.text === "No active jobs").length, 1);
+    assert.equal(findActors(root, (actor) => actor.styleClasses.has("xpuwlm-running-card")).length, 1);
 
     const alerts = [
         {id: "active", profileId: "hardware-health", title: "Voltage drift", summary: "", severity: "warning", timestamp: NOW, confidence: null, riskScore: 0.7, resolved: false},

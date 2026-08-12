@@ -23,6 +23,8 @@ test("regression: every panel icon remains caller-labelled and themeable", () =>
     const names = [
         "xpuwlm-symbolic.svg",
         "xpuwlm-symbolic-v2.svg",
+        "xpuwlm-device-symbolic.svg",
+        "xpuwlm-sliders-symbolic.svg",
         ...Object.keys(STATUS_PALETTES).map((status) => `xpuwlm-status-${status}-symbolic.svg`),
     ];
     for (const name of names) {

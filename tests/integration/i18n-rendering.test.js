@@ -59,7 +59,7 @@ test("panel and header strings are translated through the port", () => {
         assert.equal(model.panel.tooltip, "[XPU Workload Manager — online]");
         assert.equal(model.panel.label.startsWith("[TPU]"), true);
         assert.equal(model.runtimeStatus, "[Online]");
-        assert.equal(model.headerSubtitle.includes("[Online]"), true);
+        assert.equal(model.headerSubtitle.includes("[Online]"), false);
         assert.equal(model.headerSubtitle.includes("[2 active jobs]"), true);
         assert.equal(model.metrics[1].label, "[Queue]");
         assert.equal(model.metrics[1].suffix, "[jobs]");

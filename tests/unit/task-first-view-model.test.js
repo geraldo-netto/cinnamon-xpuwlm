@@ -54,7 +54,60 @@ test("tool projection has fixed task order with readiness from live ports", () =
     assert.equal(projected.diagnostics.toolSetup[0].title, "Extract calendar events");
     assert.equal(projected.diagnostics.toolSetup[0].detail, "Provider missing");
     assert.equal(projected.diagnostics.setupCount, 1);
-    assert.equal(projected.headerSubtitle, "AMD GPU · Online · 4 tools ready · 1 active job");
+    assert.equal(projected.headerSubtitle, "AMD GPU · 4 tools ready · 1 active job");
+});
+
+test("header, System, and Diagnostics project exact healthy and offline states", () => {
+    const healthy = ViewModel.toViewModel(state(), NOW);
+    assert.equal(healthy.headerSubtitle, "AMD GPU · 5 tools ready · No active jobs");
+    assert.deepEqual(healthy.system.statuses, [
+        {
+            id: "device", icon: "xpuwlm-device-symbolic", title: "AMD GPU",
+            detail: "Ready for workloads", status: "Ready", tone: "healthy",
+        },
+        {
+            id: "runtime", icon: "drive-multidisk-symbolic", title: "Local runtime",
+            detail: "Models and services available", status: "Ready", tone: "healthy",
+        },
+    ]);
+    assert.deepEqual(healthy.diagnostics.health, [
+        {
+            id: "device", icon: "xpuwlm-device-symbolic", title: "Device",
+            detail: "AMD GPU", status: "Online", tone: "healthy",
+        },
+        {
+            id: "runtime", icon: "drive-multidisk-symbolic", title: "Local runtime",
+            detail: "Snapshot contract is readable", status: "Online", tone: "healthy",
+        },
+        {
+            id: "service", icon: "system-run-symbolic", title: "Workload service",
+            detail: "Runtime controls are available", status: "Ready", tone: "healthy",
+        },
+    ]);
+
+    const offlineState = state({
+        device: {
+            backend: "gpu", available: false, name: "AMD GPU", load: 0,
+            reason: "Permission denied",
+        },
+        health: {device: "absent", runtime: "stale", detail: "Snapshot expired"},
+    });
+    assert.deepEqual(ViewModel.systemModel(offlineState).statuses, [
+        {
+            id: "device", icon: "xpuwlm-device-symbolic", title: "AMD GPU",
+            detail: "Permission denied", status: "No device", tone: "unavailable",
+        },
+        {
+            id: "runtime", icon: "drive-multidisk-symbolic", title: "Local runtime",
+            detail: "Snapshot expired", status: "Runtime stale", tone: "unavailable",
+        },
+    ]);
+    assert.equal(
+        ViewModel.toViewModel(state({
+            health: {device: "present", runtime: "absent", detail: "Runtime missing"},
+        }), NOW).headerSubtitle,
+        "AMD GPU · Runtime absent · 5 tools ready · No active jobs",
+    );
 });
 
 test("activity separates live, review, recent, and runtime-reported work", () => {

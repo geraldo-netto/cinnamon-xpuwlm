@@ -52,10 +52,10 @@ test("popup width never exceeds the work area or the preferred width", () => {
 });
 
 test("scroll height leaves room for the header and footer at every work-area size", () => {
-    assert.equal(Layout.scrollHeight(1080, 1), Layout.PREFERRED_SCROLL_HEIGHT);
-    assert.equal(Layout.scrollHeight(600, 1), 330);
+    assert.equal(Layout.scrollHeight(1080, 1), 756);
+    assert.equal(Layout.scrollHeight(600, 1), 420);
     assert.equal(Layout.scrollHeight(200, 1), Layout.MINIMUM_SCROLL_HEIGHT);
-    assert.equal(Layout.scrollHeight(2160, 2), Layout.PREFERRED_SCROLL_HEIGHT);
+    assert.equal(Layout.scrollHeight(2160, 2), 756);
     assert.equal(Layout.scrollHeight(0, 1), Layout.PREFERRED_SCROLL_HEIGHT);
 });
 
@@ -69,7 +69,7 @@ test("the approved reference viewports resolve to complete layout descriptions",
         mode: "wide",
         styleClass: "xpuwlm-mode-wide",
         widthPx: 560,
-        scrollHeightPx: 480,
+        scrollHeightPx: 756,
         metricColumns: 4,
         evidenceColumns: 2,
         wrapText: false,
@@ -84,7 +84,7 @@ test("the approved reference viewports resolve to complete layout descriptions",
         mode: "compact",
         styleClass: "xpuwlm-mode-compact",
         widthPx: 432,
-        scrollHeightPx: 480,
+        scrollHeightPx: 630,
         metricColumns: 2,
         evidenceColumns: 2,
         wrapText: true,
@@ -99,7 +99,7 @@ test("the approved reference viewports resolve to complete layout descriptions",
         mode: "dense",
         styleClass: "xpuwlm-mode-dense",
         widthPx: 352,
-        scrollHeightPx: 330,
+        scrollHeightPx: 420,
         metricColumns: 2,
         evidenceColumns: 1,
         wrapText: true,
@@ -114,7 +114,7 @@ test("the approved reference viewports resolve to complete layout descriptions",
         mode: "dense",
         styleClass: "xpuwlm-mode-dense",
         widthPx: 592,
-        scrollHeightPx: 440,
+        scrollHeightPx: 560,
         metricColumns: 2,
         evidenceColumns: 1,
         wrapText: true,

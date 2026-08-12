@@ -207,6 +207,7 @@ class MenuView {
             this._bodyKey = null;
         }
         this._selectedTab = model.selectedTab;
+        this._setScreenStyle(model.selectedTab);
         this._footer.visible = model.showTabs && model.selectedTab === "overview" && this._detail === null;
         for (const [tab, button] of this._tabButtons) {
             const selected = model.selectedTab === tab;
@@ -255,7 +256,7 @@ class MenuView {
         header.add_child(new this._St.Icon({
             icon_name: "xpuwlm-symbolic",
             icon_type: this._St.IconType.SYMBOLIC,
-            icon_size: 32,
+            icon_size: 28,
             style_class: "xpuwlm-brand-icon",
         }));
         const copy = this._box("xpuwlm-header-copy", true, true);
@@ -305,6 +306,8 @@ class MenuView {
     }
 
     _buildTabs() {
+        this._content = this._box("xpuwlm-content", true);
+        this._root.add_child(this._content);
         const row = this._box("xpuwlm-tabs");
         this._setAccessibleRole(row, "PAGE_TAB_LIST");
         this._tabButtons = new Map();
@@ -322,7 +325,7 @@ class MenuView {
             this._tabButtons.set(tab, button);
         }
         this._tabs = {actor: row};
-        this._root.add_child(row);
+        this._content.add_child(row);
     }
 
     _onTabKeyPress(event) {
@@ -376,13 +379,13 @@ class MenuView {
         this._scroll.set_auto_scrolling(true);
         this._body = this._box("xpuwlm-body", true);
         this._scroll.add_actor(this._body);
-        this._root.add_child(this._scroll);
+        this._content.add_child(this._scroll);
     }
 
     _buildFooter() {
-        const footer = this._box("xpuwlm-footer");
+        const footer = this._box("xpuwlm-footer", false, true);
+        footer.add_child(this._box("xpuwlm-control-spacer", false, true));
         const refresh = this._button("xpuwlm-secondary-button", _("Refresh XPU status"), this._actions.refresh);
-        refresh.x_expand = true;
         refresh.set_child(this._label(_("Refresh"), "xpuwlm-button-label"));
         footer.add_child(refresh);
         const settings = this._button("xpuwlm-secondary-button", _("Open XPU Workload Manager settings"), this._actions.openSettings);
@@ -464,11 +467,11 @@ class MenuView {
             format(_("%s, %s. %s"), tool.title, tool.status, tool.description),
             () => this._openDetail(tool.detail),
         ), `tool:${tool.id}`);
-        const row = this._box("xpuwlm-tool-row-content");
+        const row = this._box("xpuwlm-tool-row-content", false, true);
         row.add_child(new this._St.Icon({
             icon_name: tool.icon,
             icon_type: this._St.IconType.SYMBOLIC,
-            icon_size: 20,
+            icon_size: 24,
             style_class: "xpuwlm-profile-icon",
         }));
         const copy = this._box("xpuwlm-profile-copy", true, true);
@@ -1328,20 +1331,32 @@ class MenuView {
     }
 
     _renderRunningActivity(activity) {
+        if (activity.running.length === 0) {
+            const card = this._box("xpuwlm-running-card", true);
+            card.add_child(this._label(_("Running now"), "xpuwlm-profile-title"));
+            const empty = this._box("xpuwlm-running-empty", false, true);
+            empty.add_child(new this._St.Icon({
+                icon_name: "emblem-ok-symbolic",
+                icon_type: this._St.IconType.SYMBOLIC,
+                icon_size: 28,
+                style_class: "xpuwlm-healthy-icon",
+            }));
+            const copy = this._box("xpuwlm-profile-copy", true, true);
+            copy.add_child(this._label(_("No active jobs"), "xpuwlm-hero-title", true));
+            copy.add_child(this._label(
+                _("Start a tool when you are ready"),
+                "xpuwlm-hero-description",
+                true,
+            ));
+            empty.add_child(copy);
+            card.add_child(empty);
+            this._body.add_child(card);
+            return false;
+        }
         this._addGroupHeading(
             _("Running now"),
             format(ngettext("%d active job", "%d active jobs", activity.activeCount), activity.activeCount),
         );
-        if (activity.running.length === 0) {
-            this._body.add_child(this._hero(
-                "media-playback-start-symbolic",
-                _("No active jobs"),
-                _("No active jobs"),
-                _("Start a tool when you are ready"),
-                "xpuwlm-hero-neutral",
-            ));
-            return false;
-        }
         for (const item of activity.running) {
             this._body.add_child(this._activityRow(item));
         }
@@ -1388,13 +1403,35 @@ class MenuView {
 
     _activityRow(item) {
         const row = this._box("xpuwlm-history-row");
-        row.add_child(this._label(item.tone === "healthy" ? "✓" : "•", "xpuwlm-history-mark"));
+        row.add_child(new this._St.Icon({
+            icon_name: this._activityIcon(item),
+            icon_type: this._St.IconType.SYMBOLIC,
+            icon_size: 24,
+            style_class: `xpuwlm-row-icon xpuwlm-row-icon-${item.tone}`,
+        }));
         const copy = this._box("xpuwlm-profile-copy", true, true);
         copy.add_child(this._label(item.title, "xpuwlm-profile-title", true));
         copy.add_child(this._label(item.detail, "xpuwlm-profile-description", true));
         row.add_child(copy);
         row.add_child(this._label(item.status, `xpuwlm-status xpuwlm-status-${item.tone}`));
         return row;
+    }
+
+    _activityIcon(item) {
+        const identity = String(item.id || "");
+        if (identity.includes("event")) {
+            return "x-office-calendar-symbolic";
+        }
+        if (identity.includes("picture")) {
+            return "image-x-generic-symbolic";
+        }
+        if (identity.includes("organizer")) {
+            return "folder-symbolic";
+        }
+        if (identity.includes("text")) {
+            return "edit-select-all-symbolic";
+        }
+        return "folder-documents-symbolic";
     }
 
     _renderActivityControls(canClear) {
@@ -1425,10 +1462,13 @@ class MenuView {
             () => this._setClearConfirmation(true), canClear,
         );
         controls.add_child(clear);
+        controls.add_child(this._box("xpuwlm-control-spacer", false, true));
         const refresh = this._eventAction(
             _("Refresh"), _("Refresh activity"), "activity-refresh", this._actions.refresh, true,
         );
         controls.add_child(refresh);
+        controls.add_style_class_name("xpuwlm-activity-controls");
+        controls.x_expand = true;
         this._body.add_child(controls);
         return true;
     }
@@ -1464,17 +1504,17 @@ class MenuView {
             _("Open advanced workload profiles"),
             () => this._openDetail("profiles"),
         ), "system-profiles");
-        const row = this._box("xpuwlm-tool-row-content");
+        const row = this._box("xpuwlm-tool-row-content", false, true);
         row.add_child(new this._St.Icon({
-            icon_name: "preferences-system-symbolic",
+            icon_name: "xpuwlm-sliders-symbolic",
             icon_type: this._St.IconType.SYMBOLIC,
-            icon_size: 20,
-            style_class: "xpuwlm-profile-icon",
+            icon_size: 24,
+            style_class: "xpuwlm-row-icon",
         }));
         const copy = this._box("xpuwlm-profile-copy", true, true);
         copy.add_child(this._label(_("Advanced workload profiles"), "xpuwlm-profile-title"));
         copy.add_child(this._label(
-            _("Enable profiles and adjust scheduling weights"),
+            _("Enable, disable, and tune profile weights"),
             "xpuwlm-profile-description",
             true,
         ));
@@ -1487,6 +1527,14 @@ class MenuView {
 
     _statusRow(status) {
         const row = this._box("xpuwlm-state-row");
+        if (status.icon) {
+            row.add_child(new this._St.Icon({
+                icon_name: status.icon,
+                icon_type: this._St.IconType.SYMBOLIC,
+                icon_size: 24,
+                style_class: "xpuwlm-row-icon",
+            }));
+        }
         const copy = this._box("xpuwlm-profile-copy", true, true);
         copy.add_child(this._label(status.title, "xpuwlm-profile-title", true));
         copy.add_child(this._label(status.detail, "xpuwlm-profile-description", true));
@@ -1507,7 +1555,13 @@ class MenuView {
             format(_("Open setup details, %s"), model.diagnostics.setupStatus),
             () => this._openDetail("setup"),
         ), "diagnostics-setup");
-        const setupRow = this._box("xpuwlm-tool-row-content");
+        const setupRow = this._box("xpuwlm-tool-row-content", false, true);
+        setupRow.add_child(new this._St.Icon({
+            icon_name: "package-x-generic-symbolic",
+            icon_type: this._St.IconType.SYMBOLIC,
+            icon_size: 24,
+            style_class: "xpuwlm-row-icon",
+        }));
         const setupCopy = this._box("xpuwlm-profile-copy", true, true);
         setupCopy.add_child(this._label(
             format(_("Needs setup (%d)"), model.diagnostics.setupCount),
@@ -1527,23 +1581,34 @@ class MenuView {
         setup.set_child(setupRow);
         this._body.add_child(setup);
         this._addGroupHeading(_("Current state"), "");
-        const current = this._box("xpuwlm-diagnostics-current");
+        const current = this._box("xpuwlm-diagnostics-current", true);
         for (const item of model.diagnostics.current) {
-            const metric = this._box("xpuwlm-metric", true, true);
-            metric.add_child(this._label(item.label, "xpuwlm-metric-name"));
+            const metric = this._box("xpuwlm-diagnostics-metric");
+            const name = this._label(item.label, "xpuwlm-metric-name");
+            name.x_expand = true;
+            metric.add_child(name);
             metric.add_child(this._label(item.value, "xpuwlm-metric-value"));
             current.add_child(metric);
         }
         this._body.add_child(current);
         this._addGroupHeading(_("Recent issues"), `${model.diagnostics.issues.length}`);
         if (model.diagnostics.issues.length === 0) {
-            this._body.add_child(this._hero(
-                "emblem-ok-symbolic",
-                _("No recent issues"),
-                _("Everything looks healthy"),
-                _("No active runtime alerts require review."),
-                "xpuwlm-hero-ok",
+            const healthy = this._box("xpuwlm-healthy-card");
+            healthy.add_child(new this._St.Icon({
+                icon_name: "emblem-ok-symbolic",
+                icon_type: this._St.IconType.SYMBOLIC,
+                icon_size: 24,
+                style_class: "xpuwlm-healthy-icon",
+            }));
+            const copy = this._box("xpuwlm-profile-copy", true, true);
+            copy.add_child(this._label(_("No problems detected"), "xpuwlm-profile-title", true));
+            copy.add_child(this._label(
+                _("Runtime and device are responding normally"),
+                "xpuwlm-profile-description",
+                true,
             ));
+            healthy.add_child(copy);
+            this._body.add_child(healthy);
         } else {
             for (const alert of model.diagnostics.issues) {
                 this._body.add_child(this._alertCard(alert));
@@ -1556,20 +1621,30 @@ class MenuView {
                 true,
             ));
         }
+        this._body.add_child(this._diagnosticsActions(model.diagnostics.report));
+        return true;
+    }
+
+    _diagnosticsActions(report) {
         const controls = this._box("xpuwlm-event-controls");
-        controls.add_child(this._eventAction(
+        controls.add_style_class_name("xpuwlm-diagnostics-actions");
+        controls.x_expand = true;
+        const openLogs = this._eventAction(
             _("Open logs"), _("Open workload service logs"), "diagnostics-logs",
             () => this._openLogs(), true,
-        ));
-        controls.add_child(this._eventAction(
+        );
+        const copyReport = this._eventAction(
             _("Copy report"), _("Copy diagnostics report"), "diagnostics-copy",
-            () => this._copyReport(model.diagnostics.report), true,
-        ));
-        controls.add_child(this._eventAction(
+            () => this._copyReport(report), true,
+        );
+        const refresh = this._eventAction(
             _("Refresh"), _("Refresh diagnostics"), "diagnostics-refresh", this._actions.refresh, true,
-        ));
-        this._body.add_child(controls);
-        return true;
+        );
+        for (const action of [openLogs, copyReport, refresh]) {
+            action.x_expand = true;
+            controls.add_child(action);
+        }
+        return controls;
     }
 
     _openLogs() {
@@ -1791,9 +1866,19 @@ class MenuView {
 
     _addGroupHeading(title, value) {
         const heading = this._box("xpuwlm-group-heading");
-        heading.add_child(this._label(title, "xpuwlm-group-title"));
+        const titleLabel = this._label(title, "xpuwlm-group-title");
+        titleLabel.x_expand = true;
+        heading.add_child(titleLabel);
         heading.add_child(this._label(value, "xpuwlm-group-value"));
         this._body.add_child(heading);
+    }
+
+    _setScreenStyle(screen) {
+        for (const name of TAB_NAMES) {
+            this._root.remove_style_class_name(`xpuwlm-screen-${name}`);
+        }
+        this._root.add_style_class_name(`xpuwlm-screen-${screen}`);
+        return screen;
     }
 
     _hero(iconName, kicker, title, description, styleClass) {
@@ -1803,6 +1888,7 @@ class MenuView {
             icon_type: this._St.IconType.SYMBOLIC,
             icon_size: 36,
             style_class: "xpuwlm-hero-icon",
+            x_align: this._Clutter.ActorAlign.CENTER,
         }));
         hero.add_child(this._label(kicker, "xpuwlm-hero-kicker"));
         hero.add_child(this._label(title, "xpuwlm-hero-title", true));
@@ -1852,6 +1938,7 @@ class MenuView {
             can_focus: true,
             reactive: true,
             track_hover: true,
+            x_fill: true,
         });
         button.set_accessible_name(accessibleName);
         this._setAccessibleRole(button, role);

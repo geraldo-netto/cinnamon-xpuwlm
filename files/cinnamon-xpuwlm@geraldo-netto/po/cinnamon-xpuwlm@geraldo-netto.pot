@@ -637,7 +637,7 @@ msgid "Enable %s"
 msgstr ""
 
 #: lib/menu-view.js
-msgid "Enable profiles and adjust scheduling weights"
+msgid "Enable, disable, and tune profile weights"
 msgstr ""
 
 #: lib/menu-view.js
@@ -650,10 +650,6 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Every workload profile can run"
-msgstr ""
-
-#: lib/menu-view.js
-msgid "Everything looks healthy"
 msgstr ""
 
 #: lib/menu-view.js
@@ -812,6 +808,10 @@ msgstr ""
 msgid "Model output remains advisory. Device authorization, backups, shutdown thresholds, firmware limits, and access control stay deterministic and outside this applet."
 msgstr ""
 
+#: lib/view-model.js
+msgid "Models and services available"
+msgstr ""
+
 #: metadata.json
 msgid "Monitor and manage local XPU workload profiles across TPU, NPU, and GPU accelerators."
 msgstr ""
@@ -872,12 +872,8 @@ msgstr ""
 msgid "No accelerator these profiles can use is attached to this machine. There is nothing to install: they stay unavailable until supported hardware is present."
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/menu-view.js lib/view-model.js
 msgid "No active jobs"
-msgstr ""
-
-#: lib/menu-view.js
-msgid "No active runtime alerts require review."
 msgstr ""
 
 #: lib/view-model.js
@@ -920,6 +916,10 @@ msgstr ""
 msgid "No picture was chosen"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "No problems detected"
+msgstr ""
+
 #: lib/view-model.js
 msgid "No profile that accepts a picture can serve right now; Diagnostics says why"
 msgstr ""
@@ -930,10 +930,6 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "No recent activity"
-msgstr ""
-
-#: lib/menu-view.js
-msgid "No recent issues"
 msgstr ""
 
 #: lib/domain.js
@@ -1074,6 +1070,10 @@ msgstr ""
 
 #: lib/menu-view.js lib/view-model.js
 msgid "Ready"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Ready for workloads"
 msgstr ""
 
 #: lib/view-model.js
@@ -1226,6 +1226,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Runtime absent"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Runtime and device are responding normally"
 msgstr ""
 
 #: lib/manager.js
