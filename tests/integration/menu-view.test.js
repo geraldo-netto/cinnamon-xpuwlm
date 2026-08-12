@@ -40,7 +40,7 @@ function baseState(overrides = {}) {
     };
 }
 
-function harness() {
+function harness(actionScheduler = null) {
     const calls = [];
     const tooltips = [];
     const actions = {};
@@ -65,6 +65,7 @@ function harness() {
         Atk: createAtk(),
         menu,
         actions,
+        ...(actionScheduler === null ? {} : {actionScheduler}),
         tooltips: (actor, text) => {
             const tooltip = {actor, text};
             tooltips.push(tooltip);
@@ -73,6 +74,82 @@ function harness() {
     });
     return {calls, menu, tooltips, view, root: menu.actors[0]};
 }
+
+test("button actions wait until clicked dispatch has unwound", () => {
+    const scheduled = [];
+    const scheduler = {
+        schedule(delayMs, callback) {
+            const task = {handle: scheduled.length + 1, delayMs, callback};
+            scheduled.push(task);
+            return task.handle;
+        },
+        cancel() { return true; },
+    };
+    const {view} = harness(scheduler);
+    let calls = 0;
+    const action = view._button("xpuwlm-secondary-button", "Deferred action", () => {
+        calls += 1;
+        action.destroy();
+    });
+    view._body.add_child(action);
+
+    action.click();
+    action.click();
+    assert.equal(calls, 0, "clicked dispatch must return before its callback changes actors");
+    assert.equal(scheduled.length, 1, "double activation before dispatch coalesces");
+    assert.equal(scheduled[0].delayMs, 0);
+    assert.equal(action.xpuwlmActionPending, true);
+
+    assert.equal(scheduled[0].callback(), false);
+    assert.equal(calls, 1);
+    assert.equal(action.destroyed, true);
+    assert.equal(action.xpuwlmActionPending, false);
+});
+
+test("destroy cancels every deferred button action and late callbacks stay inert", () => {
+    const scheduled = [];
+    const cancelled = [];
+    const scheduler = {
+        schedule(_delayMs, callback) {
+            const task = {handle: scheduled.length + 1, callback};
+            scheduled.push(task);
+            return task.handle;
+        },
+        cancel(handle) { cancelled.push(handle); return true; },
+    };
+    const {view} = harness(scheduler);
+    let calls = 0;
+    for (const name of ["First action", "Second action"]) {
+        const action = view._button("xpuwlm-secondary-button", name, () => { calls += 1; });
+        view._body.add_child(action);
+        action.click();
+    }
+
+    assert.equal(view.destroy(), true);
+    assert.deepEqual(cancelled, [1, 2]);
+    assert.equal(view._cancelDeferredActions(), 0);
+    for (const task of scheduled) {
+        assert.equal(task.callback(), false);
+    }
+    assert.equal(calls, 0);
+});
+
+test("menu validates action schedulers and releases a failed scheduling latch", () => {
+    for (const scheduler of [{}, {schedule() {}}, {cancel() {}}]) {
+        assert.throws(() => harness(scheduler), /action scheduler/u);
+    }
+    const {view} = harness({
+        schedule() { throw new Error("scheduler stopped"); },
+        cancel() { return true; },
+    });
+    const action = view._button("xpuwlm-secondary-button", "Failed action", () => {});
+    assert.throws(() => action.click(), /scheduler stopped/u);
+    assert.equal(action.xpuwlmActionPending, false);
+});
+
+test("the immediate test scheduler has an inert cancellation boundary", () => {
+    assert.equal(Menu.IMMEDIATE_ACTION_SCHEDULER.cancel(1), false);
+});
 
 function eventWorkflow(overrides = {}) {
     return {

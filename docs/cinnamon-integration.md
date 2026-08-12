@@ -47,7 +47,7 @@ Coral inference service
 Compiled *_edgetpu.tflite model -> Edge TPU
 ```
 
-Keep inference out of `applet.js`. Applet code participates in the desktop UI event loop, so blocking model loading, file decoding, device recovery, or synchronous inference can make the panel unresponsive. GJS provides asynchronous D-Bus proxies and method calls through `Gio.DBusProxy`; use those calls and service-emitted signals to update the UI. [GJS D-Bus guide](https://gjs.guide/guides/gio/dbus.html) · [`Gio.DBusProxy` reference](https://docs.gtk.org/gio/class.DBusProxy.html)
+Keep inference out of `applet.js`. Applet code participates in the desktop UI event loop, so blocking model loading, file decoding, device recovery, synchronous inference, state-file replacement, or directory enumeration can make the panel unresponsive. GJS provides asynchronous D-Bus proxies and method calls through `Gio.DBusProxy`; use those calls and service-emitted signals to update the UI. Defer a button's state-changing action until the next main-loop turn when it can rebuild the popup, so Clutter finishes dispatching `clicked` before the action destroys that button's actor tree. [GJS D-Bus guide](https://gjs.guide/guides/gio/dbus.html) · [`Gio.DBusProxy` reference](https://docs.gtk.org/gio/class.DBusProxy.html)
 
 The service should normally be the only process that owns a given inference interpreter and its model schedule. Put requests into a bounded queue, serialize them initially, and add concurrency only after measuring the specific runtime, models, device count, and host. This also prevents multiple panel instances from independently loading models and competing for the same TPU.
 

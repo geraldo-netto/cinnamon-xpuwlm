@@ -193,6 +193,61 @@ function environment(overrides = {}) {
     return env;
 }
 
+function asyncListingEnvironment(listings = {}) {
+    const env = environment();
+    env.listings = listings;
+    env.enumerations = [];
+    class Cancellable {
+        constructor() { this.cancelled = false; }
+        cancel() { this.cancelled = true; }
+        is_cancelled() { return this.cancelled; }
+    }
+    env.Gio.Cancellable = Cancellable;
+    env.Gio.File.new_for_path = (root) => {
+        const source = {
+            enumerate_children_async(attributes, flags, priority, cancellable, callback) {
+                env.enumerations.push({source, attributes, flags, priority, cancellable, callback});
+            },
+            enumerate_children_finish() {
+                if (env.enumerateError?.[root]) {
+                    throw env.enumerateError[root];
+                }
+                const entries = [...(env.listings[root] || [])];
+                let index = 0;
+                return {
+                    next_files_async(count, priority, cancellable, callback) {
+                        callback(this, {count, priority, cancellable});
+                    },
+                    next_files_finish(result) {
+                        if (result.cancellable?.is_cancelled()) {
+                            throw ioError(env, "CANCELLED");
+                        }
+                        const batch = entries.slice(index, index + result.count).map((entry) => ({
+                            get_name: () => entry.name,
+                            get_file_type: () => entry.type ?? env.Gio.FileType.REGULAR,
+                        }));
+                        index += batch.length;
+                        return batch;
+                    },
+                    close_async(priority, cancellable, callback) {
+                        callback(this, {priority, cancellable});
+                    },
+                    close_finish() {
+                        env.closed += 1;
+                        return true;
+                    },
+                };
+            },
+        };
+        return source;
+    };
+    env.completeEnumeration = () => {
+        const request = env.enumerations.shift();
+        request.callback(request.source, {});
+    };
+    return env;
+}
+
 function picture(env, path, size = 4096) {
     env.files.set(path, {size});
 }
@@ -408,6 +463,88 @@ test("the cap is shared across roots rather than won by the first", () => {
     assert.equal(perRoot.size, roots.length, "every root is represented, not just the first");
     assert.ok(listed.pictures.length <= Cinnamon.MAX_INPUT_FILES);
     assert.ok(listed.omitted > 0, "and what was left out is counted rather than hidden");
+});
+
+test("the production input catalog lists roots asynchronously and keeps bounds", () => {
+    const roots = ["/first", "/second"];
+    const env = asyncListingEnvironment(Object.fromEntries(roots.map((root, rootIndex) => [
+        root,
+        [
+            {name: "notes.txt"},
+            ...Array.from({length: 40}, (_unused, index) => ({
+                name: `${rootIndex}-${String(index).padStart(2, "0")}.png`,
+            })),
+            {name: ".hidden.png"},
+        ],
+    ])));
+    const warnings = [];
+    const catalog = Cinnamon.createInputCatalog(env, {warn: (message) => warnings.push(message)});
+    const completions = [];
+
+    const cancel = catalog.picturesAsync(roots, (error, listed) => completions.push({error, listed}));
+    assert.equal(typeof cancel, "function");
+    assert.deepEqual(completions, [], "enumeration never completes in caller's stack");
+    env.completeEnumeration();
+    assert.deepEqual(completions, [], "roots are sequenced, not fanned out without a bound");
+    env.completeEnumeration();
+
+    assert.equal(completions.length, 1);
+    assert.equal(completions[0].error, null);
+    assert.equal(completions[0].listed.pictures.length, Cinnamon.MAX_INPUT_FILES);
+    assert.equal(new Set(completions[0].listed.pictures.map((entry) => entry.root)).size, 2);
+    assert.equal(completions[0].listed.omitted, 16);
+    assert.equal(env.closed, 2);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /16 picture/u);
+});
+
+test("asynchronous input listing cancels cleanly and isolates one unreadable root", () => {
+    const denied = new Error("permission denied");
+    const env = asyncListingEnvironment({"/good": [{name: "cat.png"}]});
+    env.enumerateError = {"/broken": denied};
+    const warnings = [];
+    const catalog = Cinnamon.createInputCatalog(env, {warn: (message) => warnings.push(message)});
+    const completions = [];
+    catalog.picturesAsync(["/broken", "/good"], (error, listed) => completions.push({error, listed}));
+    env.completeEnumeration();
+    assert.match(warnings[0], /permission denied/u);
+    env.completeEnumeration();
+    assert.deepEqual(completions[0], {
+        error: null,
+        listed: {pictures: [{root: "/good", name: "cat.png", path: "/good/cat.png"}], omitted: 0},
+    });
+
+    const cancelled = [];
+    const cancel = catalog.picturesAsync(["/good"], (error, listed) => cancelled.push({error, listed}));
+    assert.equal(cancel(), true);
+    assert.equal(cancel(), false);
+    env.completeEnumeration();
+    assert.deepEqual(cancelled, []);
+    assert.throws(() => catalog.picturesAsync([], null), /callback/u);
+});
+
+test("asynchronous input listing reports absent and synchronous start failures", () => {
+    const absent = asyncListingEnvironment();
+    absent.enumerateError = {"/missing": ioError(absent, "NOT_FOUND")};
+    const absentReplies = [];
+    Cinnamon.listInputImagesAsync(
+        "/missing", absent, new absent.Gio.Cancellable(),
+        (error, names) => absentReplies.push({error, names}),
+    );
+    absent.completeEnumeration();
+    assert.deepEqual(absentReplies, [{error: null, names: []}]);
+
+    const failed = asyncListingEnvironment();
+    failed.Gio.File.new_for_path = () => ({
+        enumerate_children_async() { throw new Error("enumeration could not start"); },
+    });
+    const failures = [];
+    Cinnamon.listInputImagesAsync(
+        "/broken", failed, new failed.Gio.Cancellable(),
+        (error, names) => failures.push({error, names}),
+    );
+    assert.match(String(failures[0].error), /could not start/u);
+    assert.deepEqual(failures[0].names, []);
 });
 
 test("the image port exposes exactly what a submitter needs", async () => {

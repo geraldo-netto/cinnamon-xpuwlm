@@ -170,4 +170,54 @@ test("selection parser preserves path text and rejects ambiguous boundaries", ()
     );
     assert.match(String(Port.processFailure("x".repeat(800), 4)), /status 4/u);
     assert.ok(String(Port.processFailure("x".repeat(800), 4)).length < 600);
+    assert.equal(String(Port.processFailure(null, 3)), "Error: File chooser failed with status 3");
+    assert.equal(String(Port.processFailure("\n", 5)), "Error: File chooser failed with status 5");
+});
+
+test("external chooser contains synchronous process and communication failures", () => {
+    const launch = environment();
+    launch.Gio.Subprocess.new = () => { throw new Error("launch failed"); };
+    const launched = [];
+    assert.equal(new Port.ExternalChooserLifecycle(launch).choose(
+        {mode: "open", title: "Open"},
+        (error, paths) => launched.push([error, paths]),
+    ), false);
+    assert.match(String(launched[0][0]), /launch failed/u);
+
+    const communication = environment();
+    communication.Gio.Subprocess.new = (argv, flags) => ({
+        argv, flags,
+        communicate_utf8_async() { throw new Error("communication failed"); },
+        force_exit() {},
+    });
+    const communicated = [];
+    assert.equal(new Port.ExternalChooserLifecycle(communication).choose(
+        {mode: "open", title: "Open"},
+        (error, paths) => communicated.push([error, paths]),
+    ), false);
+    assert.match(String(communicated[0][0]), /communication failed/u);
+});
+
+test("external chooser contains completion and cleanup faults", () => {
+    const env = environment();
+    const lifecycle = new Port.ExternalChooserLifecycle(env);
+    const replies = [];
+    lifecycle.choose({mode: "open", title: "Open"}, (error, paths) => replies.push([error, paths]));
+    env.processes[0].communicate_utf8_finish = () => { throw new Error("finish failed"); };
+    env.processes[0].complete();
+    assert.match(String(replies[0][0]), /finish failed/u);
+
+    lifecycle.choose({mode: "open", title: "Open"}, (error, paths) => replies.push([error, paths]));
+    delete env.processes[1].get_exit_status;
+    env.processes[1].complete(0, "/selected.txt\n");
+    assert.deepEqual(replies[1], [null, ["/selected.txt"]]);
+
+    lifecycle._stop({
+        cancellable: {cancel() { throw new Error("cancel failed"); }},
+        process: {},
+    });
+    lifecycle._stop({
+        cancellable: {cancel() {}},
+        process: {force_exit() { throw new Error("exit failed"); }},
+    });
 });

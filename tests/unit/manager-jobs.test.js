@@ -176,7 +176,7 @@ function harness(options = {}) {
             return options.swept ?? 0;
         },
     };
-    const inputCatalog = options.inputCatalog === null ? null : {
+    const defaultInputCatalog = {
         pictures(roots) {
             if (options.listThrows) {
                 throw new Error("permission denied");
@@ -188,6 +188,9 @@ function harness(options = {}) {
             };
         },
     };
+    const inputCatalog = options.inputCatalog === null
+        ? null
+        : options.inputCatalog || defaultInputCatalog;
     options.scheduler = options.scheduler || fakeScheduler();
     const manager = new Manager.WorkloadManager({
         repository: {load: () => ({portfolio: null, selectedTab: "profiles"}), save() {}},
@@ -364,6 +367,89 @@ test("relisting happens on demand and when the published roots change", () => {
 
     assert.equal(manager.refreshInputs(), true, "an explicit refresh always relists");
     assert.equal(manager.state().inputs.pictures.length, 1);
+});
+
+test("asynchronous input relisting is sequenced, cancellable, and published later", () => {
+    const requests = [];
+    const cancelled = [];
+    const inputCatalog = {
+        picturesAsync(roots, callback) {
+            const request = {roots, callback, id: requests.length + 1};
+            requests.push(request);
+            return () => { cancelled.push(request.id); return true; };
+        },
+    };
+    const {manager} = harness({inputCatalog});
+    assert.equal(requests.length, 1);
+    assert.deepEqual(manager.state().inputs.pictures, []);
+
+    assert.equal(manager.refreshInputs(), true);
+    assert.deepEqual(cancelled, [1]);
+    assert.equal(requests.length, 2);
+    requests[0].callback(null, {
+        pictures: [{root: ROOT, name: "stale.png", path: `${ROOT}/stale.png`}], omitted: 0,
+    });
+    assert.deepEqual(manager.state().inputs.pictures, [], "superseded completion is ignored");
+    requests[1].callback(null, {
+        pictures: [{root: ROOT, name: "fresh.png", path: `${ROOT}/fresh.png`}], omitted: 2,
+    });
+    assert.deepEqual(manager.state().inputs.pictures.map((picture) => picture.name), ["fresh.png"]);
+    assert.equal(manager.state().inputs.omitted, 2);
+
+    manager.refreshInputs();
+    assert.equal(manager.dispose(), true);
+    assert.deepEqual(cancelled, [1, 3]);
+    requests[2].callback(null, {pictures: [], omitted: 0});
+    assert.deepEqual(manager.state().inputs.pictures.map((picture) => picture.name), ["fresh.png"]);
+});
+
+test("asynchronous input listing failures fail closed without hanging refresh", () => {
+    const warnings = [];
+    let callback;
+    const manager = new Manager.WorkloadManager({
+        repository: {load: () => ({}), save() {}},
+        runtimeGateway: {read: (_options, accept) => accept(snapshotWith([ROOT]))},
+        inputCatalog: {
+            picturesAsync(_roots, accept) { callback = accept; return () => true; },
+        },
+        errorReporter: {report() {}, recover() {}},
+        logger: {warn: (message) => warnings.push(message), error() {}},
+        workloadRegistry: registry(),
+    });
+    manager.start();
+    callback(new Error("directory stalled"), null);
+    assert.deepEqual(manager.state().inputs.pictures, []);
+    assert.match(warnings[0], /directory stalled/u);
+    assert.equal(Manager.validPictureListing({pictures: [], omitted: 0}), true);
+    for (const invalid of [null, {}, {pictures: {}, omitted: 0}, {pictures: [], omitted: -1}]) {
+        assert.equal(Manager.validPictureListing(invalid), false);
+    }
+    assert.equal(Manager.requireInputCatalog({picturesAsync() {}}).picturesAsync.length, 0);
+});
+
+test("asynchronous input relisting handles immediate, invalid, and thrown replies", () => {
+    const immediate = harness({
+        inputCatalog: {
+            picturesAsync(_roots, callback) {
+                callback(null, {pictures: [PICTURE], omitted: 0});
+                return () => { throw new Error("completed cancellation must not be retained"); };
+            },
+        },
+    });
+    assert.deepEqual(immediate.manager.state().inputs.pictures, [PICTURE]);
+    assert.equal(immediate.manager.dispose(), true);
+
+    const invalid = harness({
+        inputCatalog: {picturesAsync(_roots, callback) { callback(null, null); }},
+    });
+    assert.deepEqual(invalid.manager.state().inputs.pictures, []);
+    assert.ok(invalid.warnings.some((message) => message.includes("invalid result")));
+
+    const thrown = harness({
+        inputCatalog: {picturesAsync() { throw new Error("listing could not start"); }},
+    });
+    assert.deepEqual(thrown.manager.state().inputs.pictures, []);
+    assert.ok(thrown.warnings.some((message) => message.includes("could not start")));
 });
 
 test("an unreadable input directory leaves an empty list and one warning", () => {

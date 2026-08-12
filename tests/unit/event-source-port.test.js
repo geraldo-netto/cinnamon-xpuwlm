@@ -519,6 +519,15 @@ test("external source picker and exporter keep native UI outside Cinnamon", () =
     assert.equal(saved, "/events/external.ics");
     assert.equal(env.writes.at(-1).path, "/events/external.ics");
     assert.equal(Port.calendarExportPath("/events/report.ICS.ics.ICS"), "/events/report.ics");
+    assert.equal(Port.calendarExportPath(null), null);
+
+    exporter.saveIcs("calendar", ["/events/blocked.ics"], (error, path) => {
+        assert.match(String(error), /differ/u);
+        assert.equal(path, null);
+    });
+    requests[3].callback(null, ["/events/blocked.ics"]);
+    assert.throws(() => Port.createExternalEventExporter({}, lifecycle), /GIO and ByteArray/u);
+    assert.throws(() => Port.createExternalEventExporter(env, {}), /external/u);
 });
 
 test("external chooser adapters surface cancellation and selection failures", () => {

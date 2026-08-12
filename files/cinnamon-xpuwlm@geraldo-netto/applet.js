@@ -398,6 +398,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
                 Atk,
                 menu,
                 layout,
+                actionScheduler: this._scheduler,
                 actions: this._menuActions(),
                 // A Cinnamon tooltip attaches itself to the actor and dies with
                 // it, so the popup only has to hand over the pair.

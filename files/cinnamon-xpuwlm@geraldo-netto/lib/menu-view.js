@@ -79,6 +79,24 @@ function optionalAction(actions, name) {
     return actions && typeof actions[name] === "function" ? actions[name] : () => false;
 }
 
+const IMMEDIATE_ACTION_SCHEDULER = Object.freeze({
+    schedule(_delayMs, callback) {
+        callback();
+        return null;
+    },
+    cancel() {
+        return false;
+    },
+});
+
+function requireActionScheduler(candidate) {
+    if (!candidate || typeof candidate.schedule !== "function"
+            || typeof candidate.cancel !== "function") {
+        throw new TypeError("A menu action scheduler with schedule/cancel is required");
+    }
+    return candidate;
+}
+
 function setStyleClass(actor, className, enabled) {
     if (enabled) {
         actor.add_style_class_name(className);
@@ -106,7 +124,10 @@ function focusableControls(actor, found = []) {
 }
 
 class MenuView {
-    constructor({St, Clutter, Atk, menu, actions, layout, tooltips}) {
+    constructor({
+        St, Clutter, Atk, menu, actions, layout, tooltips,
+        actionScheduler = IMMEDIATE_ACTION_SCHEDULER,
+    }) {
         if (!St || !Clutter || !menu || typeof menu.addActor !== "function") {
             throw new TypeError("Cinnamon UI dependencies are required");
         }
@@ -117,6 +138,8 @@ class MenuView {
         // Absent, a disabled control still announces its reason through its
         // accessible name and the words printed on its row.
         this._tooltips = typeof tooltips === "function" ? tooltips : null;
+        this._actionScheduler = requireActionScheduler(actionScheduler);
+        this._deferredActions = new Set();
         this._actions = {
             selectTab: requireAction(actions, "selectTab"),
             toggleProfile: requireAction(actions, "toggleProfile"),
@@ -229,6 +252,7 @@ class MenuView {
         if (this._root === null) {
             return false;
         }
+        this._cancelDeferredActions();
         this._root.destroy();
         this._root = null;
         this._bodyKey = null;
@@ -1947,13 +1971,57 @@ class MenuView {
         });
         button.set_accessible_name(accessibleName);
         this._setAccessibleRole(button, role);
-        button.connect("clicked", () => callback());
+        button.xpuwlmActionPending = false;
+        button.connect("clicked", () => this._deferAction(button, callback));
         button.connect("key-focus-in", () => {
             this._focusedIdentity = button.xpuwlmIdentity === undefined
                 ? null
                 : button.xpuwlmIdentity;
         });
         return button;
+    }
+
+    // A callback commonly publishes state and rebuilds the body containing its
+    // own button. Running it inside St.Button's `clicked` emission re-enters
+    // Clutter actor teardown before Cinnamon has finished dispatching the
+    // signal. One main-loop turn lets dispatch unwind first; the per-button
+    // latch also collapses a double activation before that turn arrives.
+    _deferAction(button, callback) {
+        if (this._root === null || button.xpuwlmActionPending === true) {
+            return false;
+        }
+        button.xpuwlmActionPending = true;
+        let handle = null;
+        const run = () => {
+            if (handle !== null) {
+                this._deferredActions.delete(handle);
+            }
+            button.xpuwlmActionPending = false;
+            if (this._root === null) {
+                return false;
+            }
+            callback();
+            return false;
+        };
+        try {
+            handle = this._actionScheduler.schedule(0, run);
+        } catch (error) {
+            button.xpuwlmActionPending = false;
+            throw error;
+        }
+        if (handle !== null && button.xpuwlmActionPending) {
+            this._deferredActions.add(handle);
+        }
+        return true;
+    }
+
+    _cancelDeferredActions() {
+        const handles = [...this._deferredActions];
+        this._deferredActions.clear();
+        for (const handle of handles) {
+            this._actionScheduler.cancel(handle);
+        }
+        return handles.length;
     }
 
     _identify(actor, identity) {
@@ -2007,6 +2075,7 @@ class MenuView {
 }
 
 module.exports = {
+    IMMEDIATE_ACTION_SCHEDULER,
     jobDetail,
     MenuView,
     TAB_NAMES,
@@ -2014,6 +2083,7 @@ module.exports = {
     focusableControls,
     movedTabIndex,
     optionalAction,
+    requireActionScheduler,
     requireAction,
     setStyleClass,
     tabKeyMove,

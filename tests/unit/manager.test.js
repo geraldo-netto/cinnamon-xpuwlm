@@ -406,6 +406,46 @@ test("save and listener failures do not stop other observers", () => {
     assert.equal(errors.some((message) => message.includes("save")), true);
 });
 
+test("asynchronous save failures are reported after the interaction returns", () => {
+    const completions = [];
+    const {manager, errors} = harness({
+        repository: {
+            load: () => ({
+                selectedTab: "alerts",
+                portfolio: {
+                    paused: false,
+                    profiles: Domain.defaultProfileState(BuiltIns.coreCatalog()).profiles,
+                    pluginVersions: CORE_VERSIONS,
+                },
+            }),
+            save(_state, callback) { completions.push(callback); return true; },
+        },
+    });
+    manager.start();
+    assert.equal(manager.selectTab("profiles"), true);
+    assert.equal(errors.some((message) => message.includes("save")), false);
+    completions[0](new Error("disk stalled"));
+    assert.equal(errors.some((message) => message.includes("disk stalled")), true);
+
+    assert.equal(manager.selectTab("setup"), true);
+    assert.doesNotThrow(() => completions[1](null));
+});
+
+test("dispose flushes queued state and isolates a final flush failure", () => {
+    let flushes = 0;
+    const {manager, warnings} = harness({
+        repository: {
+            load: () => ({}),
+            save() {},
+            flush() { flushes += 1; throw new Error("final disk failure"); },
+        },
+    });
+    manager.start();
+    assert.equal(manager.dispose(), true);
+    assert.equal(flushes, 1);
+    assert.equal(warnings.some((message) => message.includes("final disk failure")), true);
+});
+
 test("listeners receive isolated state projections", () => {
     const {manager} = harness();
     let observedName = null;

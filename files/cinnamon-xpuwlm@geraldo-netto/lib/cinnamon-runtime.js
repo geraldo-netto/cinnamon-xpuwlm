@@ -802,10 +802,15 @@ class FileStateRepository {
             : expandHome(String(legacyPath), environment.GLib.get_home_dir());
         this._environment = environment;
         this._legacy = legacy;
+        this._file = null;
+        this._parentReady = false;
+        this._activeWrite = null;
+        this._pendingWrite = null;
     }
 
     load() {
         const text = this._readMigratedStateText();
+        this._prepareParent();
         if (text === null) {
             return this._legacy ? this._legacy.load() : EMPTY_APPLET_STATE;
         }
@@ -832,25 +837,182 @@ class FileStateRepository {
         }
     }
 
-    save(state) {
-        const Gio = this._environment.Gio;
-        const file = Gio.File.new_for_path(this._path);
+    _prepareParent() {
+        if (this._parentReady || typeof this._environment.Gio.File?.new_for_path !== "function") {
+            return false;
+        }
+        const file = this._fileForWrite();
+        if (typeof file.get_parent !== "function") {
+            return false;
+        }
         const parent = file.get_parent();
         if (parent !== null && !parent.query_exists(null)) {
             parent.make_directory_with_parents(null);
         }
-        const text = JSON.stringify({
+        this._parentReady = true;
+        return true;
+    }
+
+    _fileForWrite() {
+        if (this._file === null) {
+            this._file = this._environment.Gio.File.new_for_path(this._path);
+        }
+        return this._file;
+    }
+
+    _serialized(state) {
+        return JSON.stringify({
             portfolio: state.portfolio,
             selectedTab: state.selectedTab,
             activityClearedAt: state.activityClearedAt,
         });
-        file.replace_contents(
+    }
+
+    _entry(state, callback) {
+        return {
+            text: this._serialized(state),
+            callbacks: typeof callback === "function" ? [callback] : [],
+            cancellable: typeof this._environment.Gio.Cancellable === "function"
+                ? new this._environment.Gio.Cancellable()
+                : null,
+            settled: false,
+        };
+    }
+
+    _supportsAsyncWrites() {
+        const file = this._fileForWrite();
+        return typeof file.replace_contents_async === "function"
+            && typeof file.replace_contents_finish === "function";
+    }
+
+    save(state, callback = null) {
+        this._prepareParent();
+        const entry = this._entry(state, callback);
+        if (!this._supportsAsyncWrites()) {
+            this._replace(entry.text);
+            this._settleWrite(entry, null);
+            return false;
+        }
+        if (this._activeWrite === null) {
+            this._startWrite(entry);
+        } else if (this._pendingWrite === null) {
+            this._pendingWrite = entry;
+        } else {
+            entry.callbacks.unshift(...this._pendingWrite.callbacks);
+            this._pendingWrite.settled = true;
+            this._pendingWrite = entry;
+        }
+        return true;
+    }
+
+    _startWrite(entry) {
+        this._activeWrite = entry;
+        try {
+            this._fileForWrite().replace_contents_async(
+                entry.text,
+                null,
+                false,
+                this._environment.Gio.FileCreateFlags.REPLACE_DESTINATION,
+                entry.cancellable,
+                (source, result) => {
+                    if (this._activeWrite !== entry || entry.settled) {
+                        return;
+                    }
+                    let error = null;
+                    try {
+                        source.replace_contents_finish(result);
+                    } catch (caught) {
+                        error = caught;
+                    }
+                    this._finishWrite(entry, error);
+                },
+            );
+        } catch (error) {
+            this._finishWrite(entry, error);
+        }
+    }
+
+    _finishWrite(entry, error) {
+        if (this._activeWrite !== entry || entry.settled) {
+            return false;
+        }
+        this._activeWrite = null;
+        this._settleWrite(entry, error);
+        const pending = this._pendingWrite;
+        this._pendingWrite = null;
+        if (pending !== null) {
+            this._startWrite(pending);
+        }
+        return error === null;
+    }
+
+    _settleWrite(entry, error) {
+        if (entry.settled) {
+            return false;
+        }
+        entry.settled = true;
+        for (const callback of entry.callbacks) {
+            try {
+                callback(error);
+            } catch {
+                // Completion observers cannot break persistence ordering.
+            }
+        }
+        entry.callbacks = [];
+        return true;
+    }
+
+    _replace(text) {
+        const Gio = this._environment.Gio;
+        this._fileForWrite().replace_contents(
             text,
             null,
             false,
             Gio.FileCreateFlags.REPLACE_DESTINATION,
             null,
         );
+    }
+
+    _cancelWrite(entry) {
+        if (entry === null || entry.cancellable === null) {
+            return false;
+        }
+        entry.cancellable.cancel();
+        return true;
+    }
+
+    _settleOutstanding(entries, error) {
+        for (const entry of entries) {
+            if (entry !== null) {
+                this._settleWrite(entry, error);
+            }
+        }
+    }
+
+    // Teardown is outside button dispatch. Cancel the old in-flight write,
+    // then atomically publish the newest state so the replacement applet never
+    // starts from an older queued selection or policy value.
+    flush() {
+        const active = this._activeWrite;
+        const pending = this._pendingWrite;
+        const latest = pending || active;
+        if (latest === null) {
+            return false;
+        }
+        this._activeWrite = null;
+        this._pendingWrite = null;
+        this._cancelWrite(active);
+        let error = null;
+        try {
+            this._replace(latest.text);
+        } catch (caught) {
+            error = caught;
+        }
+        this._settleOutstanding([active, pending], error);
+        if (error !== null) {
+            throw error;
+        }
+        return true;
     }
 }
 
@@ -1066,6 +1228,7 @@ function createRuntimeGateway({
 // the byte ceiling below is a second, cheaper bound in front of it.
 const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
 const MAX_INPUT_FILES = 64;
+const INPUT_BATCH_SIZE = 32;
 const IMAGE_SUFFIXES = Object.freeze([
     ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff",
 ]);
@@ -1361,12 +1524,94 @@ function listInputImages(root, environment) {
     return names.sort();
 }
 
+function collectInputImagesAsync(
+    enumerator, environment, cancellable, names, callback,
+) {
+    if (names.length >= MAX_INPUT_FILES) {
+        closeEnumeratorAsync(enumerator, environment, cancellable, (error) => callback(error, names));
+        return;
+    }
+    try {
+        enumerator.next_files_async(
+            INPUT_BATCH_SIZE,
+            0,
+            cancellable,
+            (source, result) => {
+                let batch;
+                try {
+                    batch = source.next_files_finish(result);
+                } catch (error) {
+                    closeEnumeratorAsync(enumerator, environment, null, () => callback(error, []));
+                    return;
+                }
+                for (const info of batch) {
+                    if (names.length >= MAX_INPUT_FILES) {
+                        break;
+                    }
+                    if (info.get_file_type() === environment.Gio.FileType.REGULAR
+                            && isImageFilename(info.get_name())) {
+                        names.push(info.get_name());
+                    }
+                }
+                if (batch.length === 0 || names.length >= MAX_INPUT_FILES) {
+                    closeEnumeratorAsync(
+                        enumerator,
+                        environment,
+                        cancellable,
+                        (error) => callback(error, names.sort()),
+                    );
+                    return;
+                }
+                collectInputImagesAsync(
+                    enumerator,
+                    environment,
+                    cancellable,
+                    names,
+                    callback,
+                );
+            },
+        );
+    } catch (error) {
+        closeEnumeratorAsync(enumerator, environment, null, () => callback(error, []));
+    }
+}
+
+function listInputImagesAsync(root, environment, cancellable, callback) {
+    const directory = environment.Gio.File.new_for_path(root);
+    try {
+        directory.enumerate_children_async(
+            "standard::name,standard::type",
+            environment.Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
+            0,
+            cancellable,
+            (source, result) => {
+                let enumerator;
+                try {
+                    enumerator = source.enumerate_children_finish(result);
+                } catch (error) {
+                    if (isIoError(environment, error, "NOT_FOUND")) {
+                        callback(null, []);
+                    } else {
+                        callback(error, []);
+                    }
+                    return;
+                }
+                collectInputImagesAsync(
+                    enumerator, environment, cancellable, [], callback,
+                );
+            },
+        );
+    } catch (error) {
+        callback(error, []);
+    }
+}
+
 // Bounded per root rather than across all of them. Slicing the combined list
 // let the first root fill the budget and the rest vanish entirely — the
 // runtime would read a picture the popup never showed, which is the silence
 // this project's own rule about capped lists exists to prevent.
 function createInputCatalog(environment, logger) {
-    return {
+    const catalog = {
         pictures(roots) {
             const share = Math.max(1, Math.floor(MAX_INPUT_FILES / Math.max(1, roots.length)));
             const found = [];
@@ -1391,6 +1636,59 @@ function createInputCatalog(environment, logger) {
             return {pictures: found, omitted};
         },
     };
+    if (typeof environment?.Gio?.File?.new_for_path !== "function"
+            || typeof environment.Gio.Cancellable !== "function") {
+        return catalog;
+    }
+    catalog.picturesAsync = (roots, callback) => {
+        if (typeof callback !== "function") {
+            throw new TypeError("An input catalog callback is required");
+        }
+        const cancellable = typeof environment.Gio.Cancellable === "function"
+            ? new environment.Gio.Cancellable()
+            : null;
+        const share = Math.max(1, Math.floor(MAX_INPUT_FILES / Math.max(1, roots.length)));
+        const found = [];
+        let omitted = 0;
+        let index = 0;
+        const next = () => {
+            if (index >= roots.length) {
+                if (omitted > 0) {
+                    logger.warn(
+                        `${omitted} picture(s) in the runtime input roots are not listed; `
+                        + `at most ${share} per root are shown`,
+                    );
+                }
+                callback(null, {pictures: found, omitted});
+                return;
+            }
+            const root = roots[index];
+            index += 1;
+            listInputImagesAsync(root, environment, cancellable, (error, names) => {
+                if (error) {
+                    if (!isIoError(environment, error, "CANCELLED")) {
+                        logger.warn(`Could not list runtime input root ${root}: ${error}`);
+                        next();
+                    }
+                    return;
+                }
+                omitted += Math.max(0, names.length - share);
+                for (const name of names.slice(0, share)) {
+                    found.push({root, name, path: `${root}/${name}`});
+                }
+                next();
+            });
+        };
+        next();
+        return () => {
+            if (cancellable === null || cancellable.is_cancelled()) {
+                return false;
+            }
+            cancellable.cancel();
+            return true;
+        };
+    };
+    return catalog;
 }
 
 function callRuntimeMethod(method, argument, {cancellable}, callback, environment) {
@@ -1527,6 +1825,7 @@ module.exports = {
     RESIZE_INTERPOLATION,
     MAX_IMAGE_BYTES,
     MAX_INPUT_FILES,
+    INPUT_BATCH_SIZE,
     JOB_RESULT_METHOD,
     SUBMIT_JOB_METHOD,
     MAX_PCIE_DEVICES,
@@ -1557,6 +1856,7 @@ module.exports = {
     createRuntimeGateway,
     createImagePort,
     createInputCatalog,
+    collectInputImagesAsync,
     createRuntimeContractGateway,
     createRuntimeControlGateway,
     createRuntimeJobGateway,
@@ -1589,6 +1889,7 @@ module.exports = {
     isImageFilename,
     isIoError,
     listInputImages,
+    listInputImagesAsync,
     sweepStagedBuffers,
     listWorkloadDirectories,
     listUsbDeviceNamesAsync,

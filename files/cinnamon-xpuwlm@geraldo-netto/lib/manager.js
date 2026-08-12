@@ -182,10 +182,18 @@ function requireJobSubmitter(candidate) {
 }
 
 function requireInputCatalog(candidate) {
-    if (!candidate || typeof candidate.pictures !== "function") {
-        throw new TypeError("An input catalog with pictures is required");
+    if (!candidate || (typeof candidate.pictures !== "function"
+            && typeof candidate.picturesAsync !== "function")) {
+        throw new TypeError("An input catalog with pictures or picturesAsync is required");
     }
     return candidate;
+}
+
+function validPictureListing(candidate) {
+    return Boolean(candidate)
+        && Array.isArray(candidate.pictures)
+        && Number.isSafeInteger(candidate.omitted)
+        && candidate.omitted >= 0;
 }
 
 // What each profile declares about its input, read once from the same registry
@@ -332,6 +340,8 @@ class WorkloadManager {
         this._pictures = [];
         this._omittedPictures = 0;
         this._listedRoots = "";
+        this._inputListSequence = 0;
+        this._cancelInputList = null;
         this._job = NO_JOB;
         this._jobPending = null;
         this._jobSequence = 0;
@@ -505,6 +515,7 @@ class WorkloadManager {
         }
         this._snapshot = snapshot;
         this._reportUnknownContent(snapshot);
+        this._sweepOnce(this._inputRoots());
         this._relistPictures(false);
         if (recovered) {
             this._errors.recover(RUNTIME_READ_FAILURE);
@@ -622,17 +633,18 @@ class WorkloadManager {
         return true;
     }
 
-    // Listing a directory is synchronous I/O on the compositor's own thread, so
-    // it happens when the set of roots changes and when somebody opens the
-    // surface that shows it — not on every poll, and never on every render.
+    // Production listing is asynchronous and cancellable. The synchronous port
+    // remains only for minimal embedders and deterministic test doubles.
     _relistPictures(force) {
         const roots = this._inputRoots();
-        this._sweepOnce(roots);
         const key = JSON.stringify(roots);
         if (this._inputCatalog === null || (!force && key === this._listedRoots)) {
             return false;
         }
         this._listedRoots = key;
+        if (typeof this._inputCatalog.picturesAsync === "function") {
+            return this._relistPicturesAsync(roots);
+        }
         try {
             const listed = this._inputCatalog.pictures(roots);
             this._pictures = listed.pictures;
@@ -643,6 +655,50 @@ class WorkloadManager {
             this._logger.warn(`Could not list runtime input files: ${error}`);
         }
         return true;
+    }
+
+    _relistPicturesAsync(roots) {
+        this._cancelInputListing();
+        this._inputListSequence += 1;
+        const sequence = this._inputListSequence;
+        let completed = false;
+        try {
+            const cancel = this._inputCatalog.picturesAsync(roots, (error, listed) => {
+                completed = true;
+                this._acceptPictures(sequence, error, listed);
+            });
+            this._cancelInputList = !completed && typeof cancel === "function" ? cancel : null;
+        } catch (error) {
+            this._acceptPictures(sequence, error, null);
+        }
+        return true;
+    }
+
+    _acceptPictures(sequence, error, listed) {
+        if (this._disposed || sequence !== this._inputListSequence) {
+            return false;
+        }
+        this._cancelInputList = null;
+        if (error || !validPictureListing(listed)) {
+            this._pictures = [];
+            this._omittedPictures = 0;
+            this._logger.warn(`Could not list runtime input files: ${error || "invalid result"}`);
+        } else {
+            this._pictures = listed.pictures;
+            this._omittedPictures = listed.omitted;
+        }
+        this._publish();
+        return !error;
+    }
+
+    _cancelInputListing() {
+        this._inputListSequence += 1;
+        if (this._cancelInputList === null) {
+            return false;
+        }
+        const cancel = this._cancelInputList;
+        this._cancelInputList = null;
+        return cancel();
     }
 
     // The profiles a picture could actually be prepared for, decided from the
@@ -1030,7 +1086,15 @@ class WorkloadManager {
         this._cancelRuntimeControl();
         this._cancelContract();
         this._cancelJob();
+        this._cancelInputListing();
         this._stopControlWatch();
+        if (typeof this._repository.flush === "function") {
+            try {
+                this._repository.flush();
+            } catch (error) {
+                this._logger.warn(`Could not flush applet state: ${error}`);
+            }
+        }
         this._errors.recover(RUNTIME_READ_FAILURE);
         this._errors.recover(STATE_SAVE_FAILURE);
         this._errors.recover(RUNTIME_CONTROL_FAILURE);
@@ -1171,22 +1235,34 @@ class WorkloadManager {
     }
 
     _persist() {
+        const state = {
+            portfolio: {
+                ...this._portfolio.serialize(),
+                pluginVersions: {...this._pluginVersions},
+            },
+            selectedTab: this._selectedTab,
+            activityClearedAt: this._activityClearedAt,
+        };
+        let completed = false;
+        const completion = (error) => {
+            completed = true;
+            if (error) {
+                this._errors.report(
+                    STATE_SAVE_FAILURE,
+                    `Could not save applet state: ${error}`,
+                    this._clock.now(),
+                );
+            } else {
+                this._errors.recover(STATE_SAVE_FAILURE);
+            }
+        };
         try {
-            this._repository.save({
-                portfolio: {
-                    ...this._portfolio.serialize(),
-                    pluginVersions: {...this._pluginVersions},
-                },
-                selectedTab: this._selectedTab,
-                activityClearedAt: this._activityClearedAt,
-            });
-            this._errors.recover(STATE_SAVE_FAILURE);
+            const asynchronous = this._repository.save(state, completion);
+            if (asynchronous !== true && !completed) {
+                this._errors.recover(STATE_SAVE_FAILURE);
+            }
         } catch (error) {
-            this._errors.report(
-                STATE_SAVE_FAILURE,
-                `Could not save applet state: ${error}`,
-                this._clock.now(),
-            );
+            completion(error);
         }
     }
 
@@ -1250,4 +1326,5 @@ module.exports = {
     requireScheduler,
     sanitizeTab,
     sanitizeActivityClearedAt,
+    validPictureListing,
 };

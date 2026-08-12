@@ -71,6 +71,15 @@ Overflow remains vertically scrollable, footer actions stay inside the stable
 viewport, and navigation, recovery, and contextual actions remain present in
 every mode. An unusable measurement falls back to the default desktop layout.
 
+Every popup button crosses one shared main-loop boundary before its action is
+run. This lets Cinnamon finish the `clicked` signal before an action publishes
+state and rebuilds the actor tree containing that button. Repeated activation
+before the next turn is collapsed, and teardown cancels queued actions.
+Interactive applet-state writes are also serialized and coalesced through GIO's
+asynchronous replace API. Runtime input roots are enumerated asynchronously in
+bounded batches and cancelled when superseded or when the applet is removed, so
+a slow local, FUSE, or network-backed path does not block the compositor.
+
 The wide mode implements the approved v4 task-first mockups with a 560 px
 content width, 760 px maximum scroll region, framed non-Tools surfaces, aligned
 icon/copy/status columns, semantic status cues, a vertical Diagnostics state
