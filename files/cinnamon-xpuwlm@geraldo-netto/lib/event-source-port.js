@@ -12,8 +12,9 @@ const {_} = I18n;
 const SOURCE_ATTRIBUTES = "standard::name,standard::type,standard::size";
 
 function requireEnvironment(environment) {
-    if (!environment || !environment.Gtk || !environment.Gio || !environment.ByteArray) {
-        throw new TypeError("GTK, GIO, and ByteArray are required for event file access");
+    if (!environment || !environment.Gtk || !environment.Gdk
+        || !environment.Gio || !environment.ByteArray) {
+        throw new TypeError("GTK, GDK, GIO, and ByteArray are required for event file access");
     }
     return environment;
 }
@@ -98,6 +99,21 @@ function requireScheduler(candidate) {
     return candidate;
 }
 
+function applyNativeChooserHints(dialog, environment) {
+    dialog.realize();
+    const nativeWindow = dialog.get_window();
+    const setters = ["set_type_hint", "set_skip_taskbar_hint", "set_skip_pager_hint"];
+    if (!nativeWindow || setters.some((name) => typeof nativeWindow[name] !== "function")) {
+        throw new Error("Chooser native window is unavailable");
+    }
+    // Parentless GTK dialogs inherit Cinnamon's own WM_CLASS. Utility type is
+    // therefore required in addition to skip hints: Muffin otherwise treats
+    // the chooser as an interesting cinnamon.desktop window while mapping.
+    nativeWindow.set_type_hint(environment.Gdk.WindowTypeHint.UTILITY);
+    nativeWindow.set_skip_taskbar_hint(true);
+    nativeWindow.set_skip_pager_hint(true);
+}
+
 class GtkChooserLifecycle {
     constructor(candidate, scheduler) {
         this._environment = requireEnvironment(candidate);
@@ -128,6 +144,12 @@ class GtkChooserLifecycle {
             dialog.set_skip_taskbar_hint(true);
             dialog.set_skip_pager_hint(true);
             dialog.set_modal(true);
+            // GTK remembers both properties before realization, but on
+            // Cinnamon/X11 the resulting GdkWindow can still be mapped once
+            // without them. Realize without mapping, then apply the native
+            // hints too so grouped-window-list never owns the dialog even for
+            // one main-loop turn.
+            applyNativeChooserHints(dialog, this._environment);
             dialog.show_all();
             dialog.present();
         } catch (error) {

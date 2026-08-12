@@ -17,6 +17,7 @@ function environment(entries = {}) {
             FileQueryInfoFlags: {NOFOLLOW_SYMLINKS: 1},
             FileCreateFlags: {PRIVATE: 1},
         },
+        Gdk: {WindowTypeHint: {UTILITY: 5}},
     };
     class File {
         constructor(path) { this.path = path; }
@@ -73,6 +74,11 @@ function fakeGtk() {
             this.filters = [];
             this.signals = {};
             this.destroyCount = 0;
+            this.nativeWindow = {
+                set_type_hint: (value) => { this.nativeTypeHint = value; },
+                set_skip_taskbar_hint: (value) => { this.nativeSkipTaskbar = value; },
+                set_skip_pager_hint: (value) => { this.nativeSkipPager = value; },
+            };
             dialogs.push(this);
         }
         add_button(label, response) { this.buttons.push({label, response}); }
@@ -81,7 +87,15 @@ function fakeGtk() {
         set_current_name(name) { this.currentName = name; }
         connect(signal, callback) { this.signals[signal] = callback; return 17; }
         disconnect(signalId) { this.disconnected = signalId; delete this.signals.response; }
-        show_all() { this.shown = true; }
+        realize() { this.realized = true; }
+        get_window() { return this.nativeWindow; }
+        show_all() {
+            assert.equal(this.realized, true);
+            assert.equal(this.nativeTypeHint, 5);
+            assert.equal(this.nativeSkipTaskbar, true);
+            assert.equal(this.nativeSkipPager, true);
+            this.shown = true;
+        }
         present() { this.presented = true; }
         set_modal(value) { this.modal = value; }
         set_skip_taskbar_hint(value) { this.skipTaskbar = value; }
@@ -202,6 +216,9 @@ test("GTK pickers open only when invoked and report accept or cancel once", () =
     assert.equal(fileDialog.modal, true);
     assert.equal(fileDialog.skipTaskbar, true);
     assert.equal(fileDialog.skipPager, true);
+    assert.equal(fileDialog.nativeSkipTaskbar, true);
+    assert.equal(fileDialog.nativeSkipPager, true);
+    assert.equal(fileDialog.nativeTypeHint, env.Gdk.WindowTypeHint.UTILITY);
     assert.deepEqual(fileDialog.options, {title: "Choose event source files", action: env.Gtk.FileChooserAction.OPEN});
     assert.deepEqual(fileDialog.buttons, [
         {label: "Cancel", response: env.Gtk.ResponseType.CANCEL},
@@ -274,11 +291,14 @@ test("export creates a private new file and refuses source replacement", () => {
 });
 
 test("ports validate dependencies and chooser callbacks surface I/O failures", () => {
-    for (const candidate of [null, {}, {Gtk: {}}, {Gtk: {}, Gio: {}}, {Gtk: {}, Gio: {}, ByteArray: null}]) {
+    for (const candidate of [
+        null, {}, {Gtk: {}}, {Gtk: {}, Gdk: {}},
+        {Gtk: {}, Gdk: {}, Gio: {}}, {Gtk: {}, Gdk: {}, Gio: {}, ByteArray: null},
+    ]) {
         assert.throws(
             () => Port.requireEnvironment(candidate),
             (error) => error instanceof TypeError
-                && error.message === "GTK, GIO, and ByteArray are required for event file access",
+                && error.message === "GTK, GDK, GIO, and ByteArray are required for event file access",
         );
     }
     const env = tree();
@@ -378,6 +398,16 @@ test("chooser lifecycle validates collaborators and cleans failed presentation",
     assert.equal(dialog.destroyed, true);
     assert.equal(lifecycle.dispose(), true);
     assert.equal(dialog.destroyCount, 1, "failed presentation is removed before disposal");
+
+    const nativeLifecycle = immediateLifecycle(env);
+    const missingNativeWindow = new env.Gtk.FileChooserDialog({});
+    missingNativeWindow.get_window = () => null;
+    let nativeFailure = null;
+    assert.equal(nativeLifecycle.present(missingNativeWindow, () => [], (error) => {
+        nativeFailure = error;
+    }), true);
+    assert.match(String(nativeFailure), /native window is unavailable/u);
+    assert.equal(missingNativeWindow.destroyed, true);
 
     const schedulingFailure = new Port.GtkChooserLifecycle(env, {
         schedule() { throw new Error("no idle source"); },

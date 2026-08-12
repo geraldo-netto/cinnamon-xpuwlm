@@ -12,6 +12,7 @@ const ROOT = path.resolve(__dirname, "../..");
 function environment() {
     return {
         ByteArray: {},
+        Gdk: {WindowTypeHint: {UTILITY: 5}},
         Gio: {},
         Gtk: {ResponseType: {ACCEPT: 1, OK: 2}},
     };
@@ -25,8 +26,21 @@ function dialog() {
         disconnect(signalId) { assert.equal(signalId, 31); },
         set_skip_taskbar_hint(value) { assert.equal(value, true); this.skipTaskbar = true; },
         set_skip_pager_hint(value) { assert.equal(value, true); this.skipPager = true; },
+        realize() { this.realized = true; },
+        get_window() {
+            return {
+                set_type_hint: (value) => { assert.equal(value, 5); this.nativeTypeHint = value; },
+                set_skip_taskbar_hint: (value) => { assert.equal(value, true); this.nativeSkipTaskbar = true; },
+                set_skip_pager_hint: (value) => { assert.equal(value, true); this.nativeSkipPager = true; },
+            };
+        },
         set_modal(value) { assert.equal(value, true); },
-        show_all() {},
+        show_all() {
+            assert.equal(this.realized, true);
+            assert.equal(this.nativeTypeHint, 5);
+            assert.equal(this.nativeSkipTaskbar, true);
+            assert.equal(this.nativeSkipPager, true);
+        },
         present() {},
         hide() {},
         destroy() { this.destroyed = true; },
@@ -43,6 +57,9 @@ test("reload destroys a live GTK chooser and suppresses its retained response si
     lifecycle.present(chooser, () => ["private-path"], () => { callbacks += 1; });
     assert.equal(chooser.skipTaskbar, true);
     assert.equal(chooser.skipPager, true);
+    assert.equal(chooser.nativeSkipTaskbar, true);
+    assert.equal(chooser.nativeSkipPager, true);
+    assert.equal(chooser.nativeTypeHint, 5);
     const retainedNativeHandler = chooser.handler;
 
     assert.equal(lifecycle.dispose(), true);

@@ -27,6 +27,7 @@ function session() {
     };
     const environment = {
         ByteArray: {},
+        Gdk: {WindowTypeHint: {UTILITY: 5}},
         Gio: {},
         Gtk: {ResponseType: {ACCEPT: 1, OK: 2}},
     };
@@ -44,6 +45,14 @@ function session() {
                 disconnect() {},
                 set_skip_taskbar_hint() {},
                 set_skip_pager_hint() {},
+                realize() {},
+                get_window() {
+                    return {
+                        set_type_hint() {},
+                        set_skip_taskbar_hint() {},
+                        set_skip_pager_hint() {},
+                    };
+                },
                 set_modal() {},
                 show_all() {},
                 present() {},

@@ -20,13 +20,26 @@ class Dialog {
         this.handlers = {};
         this.paths = [];
         this.destroyed = false;
+        this.nativeWindow = {
+            set_type_hint: (value) => { this.nativeTypeHint = value; },
+            set_skip_taskbar_hint: (value) => { this.nativeSkipTaskbar = value; },
+            set_skip_pager_hint: (value) => { this.nativeSkipPager = value; },
+        };
     }
     add_button(label, response) { this.buttons.push([label, response]); }
     set_select_multiple(value) { this.multiple = value; }
     add_filter(filter) { this.filters.push(filter); }
     connect(name, callback) { this.handlers[name] = callback; return 23; }
     disconnect(signalId) { this.disconnected = signalId; delete this.handlers.response; }
-    show_all() { this.shown = true; }
+    realize() { this.realized = true; }
+    get_window() { return this.nativeWindow; }
+    show_all() {
+        assert.equal(this.realized, true);
+        assert.equal(this.nativeTypeHint, 5);
+        assert.equal(this.nativeSkipTaskbar, true);
+        assert.equal(this.nativeSkipPager, true);
+        this.shown = true;
+    }
     present() { this.presented = true; }
     set_modal(value) { this.modal = value; }
     set_skip_taskbar_hint(value) { this.skipTaskbar = value; }
@@ -72,7 +85,7 @@ function environment() {
             };
         }},
     };
-    return {Gtk, Gio, ByteArray: {}, dialogs, infos};
+    return {Gtk, Gdk: {WindowTypeHint: {UTILITY: 5}}, Gio, ByteArray: {}, dialogs, infos};
 }
 
 test("document filter matches only the explicit supported document surface", () => {
