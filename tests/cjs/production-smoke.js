@@ -3,6 +3,7 @@
 /* global print */
 
 const ByteArray = imports.byteArray;
+const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
 const sourceFiles = imports.system.programArgs.map((filename) => (
     GLib.canonicalize_filename(filename, GLib.get_current_dir())
@@ -60,5 +61,49 @@ for (const filename of sourceFiles) {
         loadModule(filename);
     }
 }
+
+function verifyNativeStateWrite() {
+    const runtimePath = sourceFiles.find((filename) => (
+        GLib.path_get_basename(filename) === "cinnamon-runtime.js"
+    ));
+    if (!runtimePath) {
+        throw new Error("cinnamon-runtime.js is required for the CJS state smoke");
+    }
+    const directory = GLib.dir_make_tmp("xpuwlm-cjs-state-XXXXXX");
+    const statePath = GLib.build_filenamev([directory, "state.json"]);
+    const repository = new (loadModule(runtimePath).FileStateRepository)({
+        path: statePath,
+        environment: {ByteArray, Gio, GLib},
+    });
+    const loop = GLib.MainLoop.new(null, false);
+    let writeError = null;
+    const asynchronous = repository.save({
+        portfolio: {paused: false, profiles: {}},
+        selectedTab: "profiles",
+        activityClearedAt: 42,
+    }, (error) => {
+        writeError = error;
+        loop.quit();
+    });
+    if (!asynchronous) {
+        throw new Error("CJS state smoke did not use the asynchronous GIO path");
+    }
+    loop.run();
+    try {
+        if (writeError) {
+            throw writeError;
+        }
+        const [ok, contents] = GLib.file_get_contents(statePath);
+        const stored = ok ? JSON.parse(ByteArray.toString(contents)) : null;
+        if (!stored || stored.selectedTab !== "profiles" || stored.activityClearedAt !== 42) {
+            throw new Error("CJS state smoke did not persist the expected state");
+        }
+    } finally {
+        Gio.File.new_for_path(statePath).delete(null);
+        Gio.File.new_for_path(directory).delete(null);
+    }
+}
+
+verifyNativeStateWrite();
 
 print(`CJS production smoke: ${sourceFiles.length} files compiled; ${Object.keys(modules).length} modules loaded`);

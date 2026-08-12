@@ -881,8 +881,10 @@ class FileStateRepository {
 
     _supportsAsyncWrites() {
         const file = this._fileForWrite();
-        return typeof file.replace_contents_async === "function"
-            && typeof file.replace_contents_finish === "function";
+        return typeof file.replace_contents_bytes_async === "function"
+            && typeof file.replace_contents_finish === "function"
+            && typeof this._environment.GLib.Bytes === "function"
+            && typeof this._environment.ByteArray?.fromString === "function";
     }
 
     save(state, callback = null) {
@@ -908,8 +910,10 @@ class FileStateRepository {
     _startWrite(entry) {
         this._activeWrite = entry;
         try {
-            this._fileForWrite().replace_contents_async(
-                entry.text,
+            this._fileForWrite().replace_contents_bytes_async(
+                new this._environment.GLib.Bytes(
+                    this._environment.ByteArray.fromString(entry.text),
+                ),
                 null,
                 false,
                 this._environment.Gio.FileCreateFlags.REPLACE_DESTINATION,

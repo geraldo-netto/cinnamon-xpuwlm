@@ -53,8 +53,8 @@ function asyncFileEnvironment({writeError = null, syncError = null} = {}) {
     const cancellations = [];
     const file = {
         get_parent: () => ({query_exists: () => true}),
-        replace_contents_async(text, etag, backup, flags, cancellable, callback) {
-            pending.push({text, etag, backup, flags, cancellable, callback});
+        replace_contents_bytes_async(bytes, etag, backup, flags, cancellable, callback) {
+            pending.push({text: bytes.data, bytes, etag, backup, flags, cancellable, callback});
         },
         replace_contents_finish() {
             if (writeError !== null) {
@@ -74,12 +74,19 @@ function asyncFileEnvironment({writeError = null, syncError = null} = {}) {
     class Cancellable {
         cancel() { cancellations.push(this); }
     }
+    class Bytes {
+        constructor(data) { this.data = data; }
+    }
     const environment = {
         GLib: {
             get_home_dir: () => "/home/user",
             file_get_contents: () => [false, null],
+            Bytes,
         },
-        ByteArray: {toString: (value) => String(value)},
+        ByteArray: {
+            fromString: (value) => String(value),
+            toString: (value) => String(value),
+        },
         Gio: {
             Cancellable,
             FileCreateFlags: {REPLACE_DESTINATION: 2},
@@ -91,7 +98,7 @@ function asyncFileEnvironment({writeError = null, syncError = null} = {}) {
         const item = pending[index];
         item.callback(file, {});
     };
-    return {environment, writes, pending, cancellations, finish};
+    return {environment, writes, pending, cancellations, finish, Bytes};
 }
 
 test("regression: profile intent is stored in an applet-owned atomically replaced file", () => {
@@ -121,6 +128,7 @@ test("regression: interactive state writes serialize and coalesce without blocki
     assert.equal(repository.save(state("alerts"), (error) => completions.push(["alerts", error])), true);
     assert.equal(repository.save(state("profiles"), (error) => completions.push(["profiles", error])), true);
     assert.equal(io.pending.length, 1, "only one filesystem write is in flight");
+    assert.equal(io.pending[0].bytes instanceof io.Bytes, true, "GJS receives GLib.Bytes");
     assert.deepEqual(io.writes, []);
 
     io.finish();
@@ -175,7 +183,7 @@ test("regression: state-write setup and observers cannot corrupt the queue", () 
     const started = asyncFileEnvironment();
     const original = started.environment.Gio.File.new_for_path;
     const file = original();
-    file.replace_contents_async = () => { throw new Error("write could not start"); };
+    file.replace_contents_bytes_async = () => { throw new Error("write could not start"); };
     started.environment.Gio.File.new_for_path = () => file;
     const repository = new Cinnamon.FileStateRepository({
         path: "/state.json", environment: started.environment,

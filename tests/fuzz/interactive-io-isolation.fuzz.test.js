@@ -18,8 +18,8 @@ function asynchronousStateEnvironment() {
     const written = [];
     const file = {
         get_parent: () => ({query_exists: () => true}),
-        replace_contents_async(text, _etag, _backup, _flags, _cancellable, callback) {
-            pending.push({text, callback});
+        replace_contents_bytes_async(bytes, _etag, _backup, _flags, _cancellable, callback) {
+            pending.push({text: bytes.data, callback});
         },
         replace_contents_finish(result) {
             written.push(result.text);
@@ -35,8 +35,12 @@ function asynchronousStateEnvironment() {
             entry.callback(file, {text: entry.text});
         },
         environment: {
-            GLib: {get_home_dir: () => "/home/tester", file_get_contents: () => [false, null]},
-            ByteArray: {toString: String},
+            GLib: {
+                Bytes: class { constructor(data) { this.data = data; } },
+                get_home_dir: () => "/home/tester",
+                file_get_contents: () => [false, null],
+            },
+            ByteArray: {fromString: String, toString: String},
             Gio: {
                 Cancellable: class { cancel() {} },
                 FileCreateFlags: {REPLACE_DESTINATION: 2},
