@@ -39,7 +39,10 @@ test("file-organizer manifest pins explicit manual files and GPU-first policy", 
     assert.equal(manifest.id, Organizer.PROFILE_ID);
     assert.equal(manifest.plugin.entryPoint, Organizer.PROFILE_ID);
     assert.deepEqual(manifest.plugin.triggers, ["manual"]);
-    assert.deepEqual(manifest.plugin.permissions, ["files:read-selected"]);
+    assert.deepEqual(manifest.plugin.permissions, [
+        "accelerator:gpu",
+        "files:read-selected",
+    ]);
     assert.equal(sources.minItems, 1);
     assert.equal(sources.maxItems, Organizer.MAX_PLAN_ITEMS);
     assert.equal(sources.uniqueItems, true);

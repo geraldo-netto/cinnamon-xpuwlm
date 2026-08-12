@@ -65,7 +65,10 @@ test("event provider manifest keeps execution explicit and bounded", (t) => {
     assert.equal(declaration.entryPoint, EventImport.EVENT_PROFILE_ID);
     assert.ok(declaration.protocol.capabilities.includes("execute"));
     assert.deepEqual(declaration.triggers, ["manual"]);
-    assert.deepEqual(declaration.permissions, ["files:read-selected"]);
+    assert.deepEqual(declaration.permissions, [
+        "accelerator:gpu",
+        "files:read-selected",
+    ]);
     assert.equal(sources.minItems, 1);
     assert.equal(sources.maxItems, EventImport.MAX_SOURCES);
     assert.equal(sources.uniqueItems, true);

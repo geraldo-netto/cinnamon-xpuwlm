@@ -39,7 +39,10 @@ test("selected-document manifest pins manual grants, bounds, and accelerator pol
     assert.equal(manifest.id, Question.PROFILE_ID);
     assert.equal(manifest.plugin.entryPoint, Question.PROFILE_ID);
     assert.deepEqual(manifest.plugin.triggers, ["manual"]);
-    assert.deepEqual(manifest.plugin.permissions, ["files:read-selected"]);
+    assert.deepEqual(manifest.plugin.permissions, [
+        "accelerator:gpu",
+        "files:read-selected",
+    ]);
     assert.equal(input.sources.maxItems, Question.MAX_SOURCES);
     assert.equal(input.question.maxLength, Question.MAX_QUESTION_CHARACTERS);
     assert.deepEqual(manifest.requirements.acceleratorPreference, ["gpu"]);

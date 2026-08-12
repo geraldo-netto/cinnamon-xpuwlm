@@ -39,7 +39,10 @@ test("selected-text manifest pins manual one-shot access, bounds, and accelerato
     assert.equal(manifest.id, Selected.PROFILE_ID);
     assert.equal(manifest.plugin.entryPoint, Selected.PROFILE_ID);
     assert.deepEqual(manifest.plugin.triggers, ["manual"]);
-    assert.deepEqual(manifest.plugin.permissions, ["clipboard:read-once"]);
+    assert.deepEqual(manifest.plugin.permissions, [
+        "accelerator:gpu",
+        "clipboard:read-once",
+    ]);
     assert.equal(input.selection.maxLength, Selected.MAX_SELECTION_CHARACTERS);
     assert.equal(input.language.maxLength, Selected.MAX_LANGUAGE_CHARACTERS);
     assert.deepEqual(input.operation.enum, Selected.OPERATIONS);
