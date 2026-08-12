@@ -43,6 +43,7 @@ const {_} = I18n;
 
 const UUID = "cinnamon-xpuwlm@geraldo-netto";
 const PANEL_STATUSES = Object.freeze(["online", "attention", "detected", "paused", "unavailable"]);
+const MIN_PANEL_ICON_SIZE = 32;
 
 // Binds the applet UUID text domain and routes the shared translation port
 // through GJS gettext. Absent gettext (test harnesses) keeps the identity
@@ -68,6 +69,12 @@ function installTranslations(gettextModule, environment) {
 function panelIconFilename(status) {
     const safeStatus = PANEL_STATUSES.includes(status) ? status : "unavailable";
     return `xpuwlm-status-${safeStatus}-symbolic.svg`;
+}
+
+function panelIconSize(requestedSize) {
+    return Number.isFinite(requestedSize) && requestedSize > 0
+        ? Math.max(MIN_PANEL_ICON_SIZE, Math.floor(requestedSize))
+        : MIN_PANEL_ICON_SIZE;
 }
 
 function defaultEnvironment() {
@@ -196,6 +203,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._bindSettings();
         this._registerIconPath();
         this.set_applet_icon_symbolic_path(`${metadata.path}/icons/xpuwlm-symbolic-v2.svg`);
+        this._applyPanelIconSize(this._iconSize);
         this.set_applet_tooltip(_("XPU Workload Manager — starting"));
         this.actor.set_accessible_name(_("XPU Workload Manager, starting"));
     }
@@ -419,6 +427,10 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         }
     }
 
+    on_panel_icon_size_changed(size) {
+        this._applyPanelIconSize(size);
+    }
+
     on_applet_removed_from_panel() {
         this._teardown();
     }
@@ -639,7 +651,21 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this.set_applet_icon_symbolic_path(
             `${this._metadata.path}/icons/${panelIconFilename(iconStatus)}`,
         );
+        this._applyPanelIconSize(this._iconSize);
         this._panelIconStatus = iconStatus;
+        return true;
+    }
+
+    _applyPanelIconSize(requestedSize) {
+        const icon = this._applet_icon;
+        if (!icon || typeof icon.set_icon_size !== "function") {
+            return false;
+        }
+        const size = panelIconSize(requestedSize);
+        if (typeof icon.get_icon_size === "function" && icon.get_icon_size() === size) {
+            return false;
+        }
+        icon.set_icon_size(size);
         return true;
     }
 
@@ -813,6 +839,7 @@ function main(metadata, orientation, panelHeight, instanceId) {
 if (typeof module !== "undefined") {
     module.exports = {
         UUID,
+        MIN_PANEL_ICON_SIZE,
         PANEL_STATUSES,
         XpuWorkloadApplet,
         defaultEnvironment,
@@ -820,6 +847,7 @@ if (typeof module !== "undefined") {
         installTranslations,
         main,
         panelIconFilename,
+        panelIconSize,
         resolveWorkloadCatalog,
         resolveWorkloadRegistry,
         unavailableEventFilePorts,

@@ -9,7 +9,7 @@ const test = require("node:test");
 
 const ICON_DIRECTORY = path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto/icons");
 const STATUSES = Object.freeze(["online", "detected", "attention", "paused", "unavailable"]);
-const SIZES = Object.freeze([16, 20, 24]);
+const SIZES = Object.freeze([16, 20, 24, 32]);
 const SKIP_HOST_GATES = process.env.XPUWLM_SKIP_HOST_GATES === "1" && !process.env.CI;
 const HOST_GATE_OPTIONS = SKIP_HOST_GATES
     ? {skip: "XPUWLM_SKIP_HOST_GATES=1: icon raster gate skipped locally"}

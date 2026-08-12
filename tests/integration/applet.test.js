@@ -866,6 +866,33 @@ test("panel uses cached symbolic state icons and explicit accessible status", ()
     assert.equal(AppletModule.panelIconFilename("online"), "xpuwlm-status-online-symbolic.svg");
 });
 
+test("panel icon stays at least 32 pixels and preserves larger zone sizes", () => {
+    const {applet} = appletHarness();
+    const icon = {
+        size: 16,
+        get_icon_size() { return this.size; },
+        set_icon_size(size) { this.size = size; },
+    };
+    applet._applet_icon = icon;
+
+    assert.equal(applet.on_panel_icon_size_changed(16), undefined);
+    assert.equal(icon.size, 32);
+    applet.on_panel_icon_size_changed(48);
+    assert.equal(icon.size, 48);
+    assert.equal(AppletModule.panelIconSize(undefined), 32);
+    assert.equal(AppletModule.panelIconSize(31.9), 32);
+    assert.equal(AppletModule.panelIconSize(40), 40);
+
+    const setIcon = applet.set_applet_icon_symbolic_path.bind(applet);
+    applet.set_applet_icon_symbolic_path = (path) => {
+        setIcon(path);
+        icon.size = 16;
+    };
+    applet._panelIconStatus = "detected";
+    assert.equal(applet._setPanelIcon("online"), true);
+    assert.equal(icon.size, 32);
+});
+
 test("critical alerts notify once per occurrence through the applet", () => {
     const delivered = [];
     const {applet, manager} = appletHarness({

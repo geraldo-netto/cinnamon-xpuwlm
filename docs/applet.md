@@ -20,7 +20,11 @@ theme. Online, detected, attention, paused, and unavailable states also use
 different center shapes, and the tooltip plus accessible name state the status
 in text, so meaning never depends on color alone.
 
-[Review the actual-size 16/20/24-pixel light and dark status montage](../design/prototype/mockup/xpuwlm-panel-status-montage.png).
+The applet enforces a 32×32-pixel minimum panel icon and retains any larger
+panel-zone size. This keeps the compact status glyph legible in a tall panel
+even when Cinnamon's zone preference still requests 16 pixels.
+
+[Review the compact light and dark status montage](../design/prototype/mockup/xpuwlm-panel-status-montage.png).
 
 When alerts need review, the highest active severity is stated as text in the
 panel label, tooltip, and accessible name, and each Activity/Diagnostics alert
