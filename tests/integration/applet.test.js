@@ -144,7 +144,9 @@ test("missing GTK ports fail explicitly without opening or overwriting anything"
     ports.picker.chooseFolder((error) => errors.push(error));
     ports.exporter.saveIcs("calendar", ["/source"], (error) => errors.push(error));
     AppletModule.unavailableDocumentPicker().chooseFiles((error) => errors.push(error));
-    assert.equal(errors.length, 4);
+    AppletModule.unavailableClipboardReader().readText((error) => errors.push(error));
+    assert.equal(AppletModule.unavailableClipboardReader().cancel(), true);
+    assert.equal(errors.length, 5);
     assert.equal(errors.every((error) => /unavailable/u.test(String(error))), true);
 });
 
@@ -490,6 +492,62 @@ test("selected-document readiness, actions, subscription, and teardown stay isol
     applet._teardown();
     assert.ok(calls.some((call) => call[0] === "question-unsubscribe"));
     assert.ok(calls.some((call) => call[0] === "dispose-question"));
+});
+
+test("selected-text readiness, actions, subscription, and teardown stay one-shot", () => {
+    const calls = [];
+    const selectedText = {
+        workflow: {
+            available: false, availabilityDetail: "", phase: "idle", operation: "", jobId: "",
+            message: "", progress: null, result: "", tasks: [], providerId: "",
+            accelerator: "", evidence: null,
+        },
+        state() { return {...this.workflow}; },
+        subscribe(listener) { this.listener = listener; return () => calls.push(["text-unsubscribe"]); },
+        setAvailability(available, detail) {
+            this.workflow.available = available;
+            this.workflow.availabilityDetail = detail;
+            if (this.listener) { this.listener(); }
+        },
+        start(operation, language) { calls.push(["start-text", operation, language]); },
+        cancel() { calls.push(["cancel-text"]); },
+        reset() { calls.push(["reset-text"]); },
+        dispose() { calls.push(["dispose-text"]); },
+    };
+    const provider = {
+        id: "selected-text-tools", version: "1", source: "external", distribution: "provider",
+        workerState: "ready",
+        protocol: {minimum: 1, maximum: 1, capabilities: ["execute"]},
+        triggers: ["manual"], artifacts: [],
+        permissions: [{name: "clipboard:read-once", granted: true}],
+        configurationSchema: {}, secretConfigurationKeys: [],
+    };
+    const inventoryGateway = {
+        describe(callback) {
+            callback(null, {version: 1, generatedAt: 1, plugins: [provider]});
+            return true;
+        },
+        cancel() { calls.push(["inventory-cancel"]); },
+    };
+    const {applet} = appletHarness({
+        selectedTextController: selectedText,
+        pluginInventoryGateway: inventoryGateway,
+    });
+    assert.equal(applet._latestState.selectedText.available, true);
+    const actions = applet._menuActions();
+    actions.startSelectedText("translate", "Italian");
+    actions.cancelSelectedText();
+    actions.resetSelectedText();
+    assert.deepEqual(calls.slice(0, 3), [
+        ["start-text", "translate", "Italian"], ["cancel-text"], ["reset-text"],
+    ]);
+    const latest = applet._latestState;
+    applet._latestState = null;
+    assert.doesNotThrow(() => selectedText.listener());
+    applet._latestState = latest;
+    applet._teardown();
+    assert.ok(calls.some((call) => call[0] === "text-unsubscribe"));
+    assert.ok(calls.some((call) => call[0] === "dispose-text"));
 });
 
 test("polling refresh remains cacheable while manual refresh requests fresh detection", () => {

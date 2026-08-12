@@ -116,6 +116,12 @@ msgid_plural "%d runtime items name workloads that are not installed here"
 msgstr[0] ""
 msgstr[1] ""
 
+#: lib/menu-view.js
+msgid "%d suggestion"
+msgid_plural "%d suggestions"
+msgstr[0] ""
+msgstr[1] ""
+
 #: lib/view-model.js
 msgid "%d workload plug-in changed"
 msgid_plural "%d workload plug-ins changed"
@@ -175,6 +181,10 @@ msgid "%s tab, selected"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "%s the explicit clipboard selection"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "%s timezone"
 msgstr ""
 
@@ -216,6 +226,10 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "A qualified event model is not configured"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "A qualified selected-text provider is not configured"
 msgstr ""
 
 #: settings-schema.json
@@ -334,6 +348,10 @@ msgstr ""
 msgid "Cancel event extraction"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Cancel selected-text request"
+msgstr ""
+
 #: lib/view-model.js
 msgid "Cancelled"
 msgstr ""
@@ -396,6 +414,14 @@ msgstr ""
 
 #: lib/event-source-port.js lib/menu-view.js
 msgid "Choose one event source folder"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Clear"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Clear selected-text result"
 msgstr ""
 
 #: lib/menu-view.js
@@ -527,11 +553,23 @@ msgid "Evidence: %s%s · characters %d–%d"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Explain"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Extract events"
 msgstr ""
 
 #: lib/menu-view.js
 msgid "Extract events from selected files"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Extract tasks"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Extracted tasks"
 msgstr ""
 
 #: lib/view-model.js
@@ -847,6 +885,10 @@ msgid "Reading the snapshot failed, so device and workload telemetry are unknown
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Reads the clipboard once only after an operation is chosen"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Ready"
 msgstr ""
 
@@ -920,6 +962,14 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Review export"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Review result"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Rewrite"
 msgstr ""
 
 #: lib/menu-view.js
@@ -1026,6 +1076,18 @@ msgstr ""
 msgid "Selected sources"
 msgstr ""
 
+#: applet.js
+msgid "Selected-text provider is not ready"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Selected-text tools"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Selection digest %s · span %d–%d"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Setup"
 msgstr ""
@@ -1056,6 +1118,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "State"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Summarize"
 msgstr ""
 
 #: lib/view-model.js
@@ -1264,6 +1330,18 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Train a local Resource Scheduler forecast"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Translate"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Translate the explicit clipboard selection"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Translation target language"
 msgstr ""
 
 #: lib/menu-view.js lib/view-model.js

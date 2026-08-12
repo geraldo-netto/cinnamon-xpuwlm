@@ -144,6 +144,9 @@ class MenuView {
             startDocumentQuestion: optionalAction(actions, "startDocumentQuestion"),
             cancelDocumentQuestion: optionalAction(actions, "cancelDocumentQuestion"),
             resetDocumentQuestion: optionalAction(actions, "resetDocumentQuestion"),
+            startSelectedText: optionalAction(actions, "startSelectedText"),
+            cancelSelectedText: optionalAction(actions, "cancelSelectedText"),
+            resetSelectedText: optionalAction(actions, "resetSelectedText"),
         };
         this._policyPaused = false;
         this._controlPending = false;
@@ -575,7 +578,112 @@ class MenuView {
         this._renderRun(model.run);
         this._renderEventImport(model.eventImport);
         this._renderDocumentQuestion(model.documentQuestion);
+        this._renderSelectedText(model.selectedText);
         this._renderBlockedProfiles(model);
+    }
+
+    _renderSelectedText(model) {
+        if (model === null || model === undefined) {
+            return false;
+        }
+        this._addSectionHeading(
+            model.title,
+            _("Reads the clipboard once only after an operation is chosen"),
+        );
+        this._renderSelectedTextStatus(model);
+        if (model.operationEnabled) {
+            this._renderSelectedTextOperations(model);
+        }
+        if (model.complete) {
+            this._renderSelectedTextResult(model);
+        }
+        this._renderSelectedTextActions(model);
+        return true;
+    }
+
+    _renderSelectedTextStatus(model) {
+        for (const [text, style] of [
+            [model.message, "xpuwlm-event-message"],
+            [model.progressText, "xpuwlm-event-progress"],
+        ]) {
+            if (text !== "") {
+                this._body.add_child(this._label(text, style, true));
+            }
+        }
+        if (!model.available && model.phase === "idle") {
+            this._body.add_child(this._label(
+                model.availabilityDetail || _("A qualified selected-text provider is not configured"),
+                "xpuwlm-run-note",
+                true,
+            ));
+        }
+        return true;
+    }
+
+    _renderSelectedTextActions(model) {
+        const controls = this._box("xpuwlm-event-controls");
+        if (model.cancelEnabled) {
+            controls.add_child(this._eventAction(
+                _("Cancel"), _("Cancel selected-text request"), "selected-text-cancel",
+                this._actions.cancelSelectedText, true,
+            ));
+        }
+        if (model.complete || model.phase === "error") {
+            controls.add_child(this._eventAction(
+                _("Clear"), _("Clear selected-text result"), "selected-text-reset",
+                this._actions.resetSelectedText, true,
+            ));
+        }
+        this._body.add_child(controls);
+        return true;
+    }
+
+    _renderSelectedTextOperations(model) {
+        const controls = this._box("xpuwlm-event-controls");
+        for (const [operation, label] of [
+            ["explain", _("Explain")],
+            ["summarize", _("Summarize")],
+            ["rewrite", _("Rewrite")],
+            ["extract-tasks", _("Extract tasks")],
+        ]) {
+            controls.add_child(this._eventAction(
+                label,
+                format(_("%s the explicit clipboard selection"), label),
+                `selected-text-${operation}`,
+                () => this._actions.startSelectedText(operation, null),
+                model.operationEnabled,
+            ));
+        }
+        this._body.add_child(controls);
+        const translation = this._box("xpuwlm-event-controls");
+        const language = this._entry("", _("Translation target language"), "selected-text-language");
+        translation.add_child(language);
+        translation.add_child(this._eventAction(
+            _("Translate"), _("Translate the explicit clipboard selection"), "selected-text-translate",
+            () => this._actions.startSelectedText("translate", language.get_text()),
+            model.operationEnabled,
+        ));
+        this._body.add_child(translation);
+        return true;
+    }
+
+    _renderSelectedTextResult(model) {
+        this._addGroupHeading(
+            _("Review result"),
+            `${model.providerId} · ${model.accelerator.toUpperCase()}`,
+        );
+        this._body.add_child(this._label(model.result, "xpuwlm-event-confirmation", true));
+        if (model.tasks.length > 0) {
+            this._addGroupHeading(_("Extracted tasks"), format(
+                ngettext("%d suggestion", "%d suggestions", model.tasks.length),
+                model.tasks.length,
+            ));
+            for (const task of model.tasks) {
+                this._body.add_child(this._label(task, "xpuwlm-event-evidence", true));
+            }
+        }
+        this._body.add_child(this._label(model.evidenceText, "xpuwlm-event-evidence", true));
+        return true;
     }
 
     _renderDocumentQuestion(model) {

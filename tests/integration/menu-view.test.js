@@ -52,6 +52,7 @@ function harness() {
         "resetEventImport",
         "chooseQuestionFiles", "startDocumentQuestion", "cancelDocumentQuestion",
         "resetDocumentQuestion",
+        "startSelectedText", "cancelSelectedText", "resetSelectedText",
     ]) {
         actions[name] = (...args) => calls.push([name, ...args]);
     }
@@ -101,6 +102,24 @@ function documentWorkflow(overrides = {}) {
         providerId: "",
         accelerator: "",
         citations: [],
+        ...overrides,
+    };
+}
+
+function selectedTextWorkflow(overrides = {}) {
+    return {
+        available: true,
+        availabilityDetail: "",
+        phase: "idle",
+        operation: "",
+        jobId: "",
+        message: "",
+        progress: null,
+        result: "",
+        tasks: [],
+        providerId: "",
+        accelerator: "",
+        evidence: null,
         ...overrides,
     };
 }
@@ -363,6 +382,137 @@ test("selected-document render helpers preserve every branch and actor effect", 
     assert.equal(findActors(full.root, (actor) => actor.text === "Ready").length, 1);
     assert.equal(button(full.root, "Choose documents for one question").reactive, true);
     assert.equal(button(full.root, "Ask the explicit question over selected documents").reactive, true);
+});
+
+test("selected-text UI reads once on operation click and exposes review-only results", () => {
+    const {calls, view, root} = harness();
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        selectedText: selectedTextWorkflow(),
+    }), NOW));
+    button(root, "Summarize the explicit clipboard selection").click();
+    assert.deepEqual(calls.at(-1), ["startSelectedText", "summarize", null]);
+    const language = findActors(
+        root, (actor) => actor.accessibleName === "Translation target language",
+    )[0];
+    language.set_text("Italian");
+    button(root, "Translate the explicit clipboard selection").click();
+    assert.deepEqual(calls.at(-1), ["startSelectedText", "translate", "Italian"]);
+
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        selectedText: selectedTextWorkflow({phase: "running", message: "Generating"}),
+    }), NOW));
+    button(root, "Cancel selected-text request").click();
+    assert.deepEqual(calls.at(-1), ["cancelSelectedText"]);
+
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        selectedText: selectedTextWorkflow({
+            phase: "complete",
+            result: "A concise explanation.",
+            tasks: ["Review the change"],
+            providerId: "qwen3-gpu",
+            accelerator: "gpu",
+            evidence: {
+                selectionSha256: "a".repeat(64), textSha256: "a".repeat(64),
+                span: {start: 0, end: 24},
+            },
+        }),
+    }), NOW));
+    for (const text of [
+        "A concise explanation.", "Review the change",
+        "Selection digest aaaaaaaaaaaa · span 0–24",
+    ]) {
+        assert.equal(findActors(root, (actor) => actor.text === text).length, 1);
+    }
+    assert.equal(button(root, "Apply selected-text result"), undefined);
+    assert.equal(button(root, "Paste selected-text result"), undefined);
+    assert.equal(button(root, "Create extracted tasks"), undefined);
+    button(root, "Clear selected-text result").click();
+    assert.deepEqual(calls.at(-1), ["resetSelectedText"]);
+});
+
+test("selected-text render helpers preserve hidden, unavailable, and empty branches", () => {
+    const empty = harness();
+    assert.equal(empty.view._renderSelectedText(null), false);
+    assert.equal(empty.view._renderSelectedText(undefined), false);
+    const unavailable = harness();
+    assert.equal(unavailable.view._renderSelectedText(ViewModel.selectedTextModel({
+        selectedText: selectedTextWorkflow({
+            available: false, phase: "error", availabilityDetail: "Provider missing",
+        }),
+    })), true);
+    assert.equal(findActors(unavailable.root, (actor) => actor.text === "Provider missing").length, 0);
+    assert.equal(button(unavailable.root, "Clear selected-text result").reactive, true);
+
+    const status = harness();
+    status.view._renderSelectedTextStatus({
+        available: false, phase: "idle", availabilityDetail: "Provider missing",
+        message: "", progressText: "",
+    });
+    assert.equal(findActors(status.root, (actor) => actor.text === "Provider missing").length, 1);
+    const before = findActors(status.root, () => true).length;
+    status.view._renderSelectedTextStatus({
+        available: true, phase: "idle", availabilityDetail: "", message: "", progressText: "",
+    });
+    assert.equal(findActors(status.root, () => true).length, before);
+
+    const detailed = harness();
+    detailed.view._layout = {...detailed.view._layout, wrapText: true};
+    assert.equal(detailed.view._renderSelectedTextStatus({
+        available: true, phase: "running", availabilityDetail: "",
+        message: "Generating", progressText: "50% · Qwen",
+    }), true);
+    for (const text of ["Generating", "50% · Qwen"]) {
+        const actor = findActors(detailed.root, (candidate) => candidate.text === text)[0];
+        assert.equal(actor.clutter_text.line_wrap, true);
+    }
+
+    const actions = harness();
+    assert.equal(actions.view._renderSelectedTextActions({
+        cancelEnabled: false, complete: false, phase: "idle",
+    }), true);
+    assert.equal(button(actions.root, "Cancel selected-text request"), undefined);
+    assert.equal(button(actions.root, "Clear selected-text result"), undefined);
+    assert.equal(actions.view._renderSelectedTextActions({
+        cancelEnabled: true, complete: false, phase: "running",
+    }), true);
+    assert.equal(button(actions.root, "Cancel selected-text request").reactive, true);
+
+    const operations = harness();
+    assert.equal(operations.view._renderSelectedTextOperations({operationEnabled: true}), true);
+    for (const name of [
+        "Explain the explicit clipboard selection",
+        "Summarize the explicit clipboard selection",
+        "Rewrite the explicit clipboard selection",
+        "Extract tasks the explicit clipboard selection",
+        "Translate the explicit clipboard selection",
+    ]) {
+        assert.equal(button(operations.root, name).reactive, true, name);
+    }
+
+    const result = harness();
+    result.view._layout = {...result.view._layout, wrapText: true};
+    assert.equal(result.view._renderSelectedTextResult({
+        providerId: "qwen3-gpu", accelerator: "gpu", result: "Summary",
+        tasks: [], evidenceText: "Selection digest aaaaaaaaaaaa · span 0–7",
+    }), true);
+    assert.equal(findActors(result.root, (actor) => actor.text === "qwen3-gpu · GPU").length, 1);
+    assert.equal(findActors(result.root, (actor) => actor.text === "Extracted tasks").length, 0);
+    for (const text of ["Summary", "Selection digest aaaaaaaaaaaa · span 0–7"]) {
+        const actor = findActors(result.root, (candidate) => candidate.text === text)[0];
+        assert.equal(actor.clutter_text.line_wrap, true);
+    }
+
+    const disabled = harness();
+    disabled.view._renderSelectedText({
+        title: "Selected-text tools", available: true, phase: "running",
+        availabilityDetail: "", message: "", progressText: "",
+        operationEnabled: false, cancelEnabled: true, complete: false,
+    });
+    assert.equal(button(disabled.root, "Explain the explicit clipboard selection"), undefined);
+    assert.equal(findActors(disabled.root, (actor) => actor.text === "Review result").length, 0);
 });
 
 test("event preview exposes grounded evidence, labelled edits, decisions, and confirmation", () => {

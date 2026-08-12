@@ -4,7 +4,6 @@
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0054 | open | high | m | OMNI-0241 | Selected-text tools: capture text only after an explicit user action, offer explain/summarize/rewrite/translate/task extraction, submit one bounded selection, expose cancellation and review, and never install a clipboard monitor or retain selection history. |
 | XTPU-0055 | open | high | l | OMNI-0242 | File organizer: select explicit files, display evidence-backed tag/name/folder/duplicate suggestions as a review-only plan, and expose no automatic move, rename, overwrite, delete, or arbitrary-command action. |
 
 ## Blocked

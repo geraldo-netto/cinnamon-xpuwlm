@@ -7,6 +7,7 @@ const I18n = require("./i18n.js");
 const Job = require("./runtime-job-contract.js");
 const Manager = require("./manager.js");
 const ProfileBlockers = require("./profile-blockers.js");
+const SelectedText = require("./selected-text.js");
 
 const {_, N_, format, ngettext} = I18n;
 
@@ -647,6 +648,35 @@ function documentQuestionModel(state) {
     };
 }
 
+function selectedTextModel(state) {
+    const workflow = state.selectedText;
+    if (workflow === null || workflow === undefined) {
+        return null;
+    }
+    const visible = workflow.available === true || workflow.phase !== "idle";
+    if (!visible) {
+        return null;
+    }
+    return {
+        ...workflow,
+        title: _("Selected-text tools"),
+        operationEnabled: workflow.available === true
+            && !["selecting", "submitting", "running", "cancelling"].includes(workflow.phase),
+        cancelEnabled: ["selecting", "submitting", "running"].includes(workflow.phase),
+        complete: workflow.phase === "complete",
+        progressText: progressText(workflow.progress),
+        evidenceText: workflow.evidence === null
+            ? ""
+            : format(
+                _("Selection digest %s · span %d–%d"),
+                workflow.evidence.selectionSha256.slice(0, 12),
+                workflow.evidence.span.start,
+                workflow.evidence.span.end,
+            ),
+        operations: [...SelectedText.OPERATIONS],
+    };
+}
+
 function formatLoad(value) {
     return typeof value === "number" && Number.isFinite(value)
         ? `${Math.round(value)}%`
@@ -971,6 +1001,7 @@ function toViewModel(state, nowMs = Date.now()) {
         run: runModel(state),
         eventImport: eventImportModel(state),
         documentQuestion: documentQuestionModel(state),
+        selectedText: selectedTextModel(state),
         inexecutableCount: blocked.length,
         pausedProfiles,
         activeAlerts,
@@ -1001,6 +1032,7 @@ function toViewModel(state, nowMs = Date.now()) {
             inputs: state.inputs,
             eventImport: state.eventImport,
             documentQuestion: state.documentQuestion,
+            selectedText: state.selectedText,
         }),
     };
 }
@@ -1044,6 +1076,7 @@ module.exports = {
     eventImportModel,
     documentCitationText,
     documentQuestionModel,
+    selectedTextModel,
     evidenceText,
     formatFraction,
     formatLoad,

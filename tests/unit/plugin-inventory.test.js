@@ -103,6 +103,39 @@ test("selected-document readiness independently requires its qualified external 
     assert.throws(() => Inventory.documentQuestionReadiness({}), /valid plug-in inventory/u);
 });
 
+test("selected-text readiness requires a qualified one-shot external worker", () => {
+    const selectedTextPlugin = plugin({
+        id: "selected-text-tools",
+        distribution: "private-selected-text-provider",
+        artifacts: [],
+        permissions: [{name: "clipboard:read-once", granted: true}],
+    });
+    assert.deepEqual(Inventory.selectedTextReadiness(inventory({
+        plugins: [selectedTextPlugin],
+    })), {available: true, detail: ""});
+    const cases = [
+        [[], /install and configure/iu],
+        [[{...selectedTextPlugin, source: "bundled"}], /external/iu],
+        [[{...selectedTextPlugin, workerState: "starting"}], /GPU or NPU/iu],
+        [[{...selectedTextPlugin,
+            protocol: {minimum: 1, maximum: 1, capabilities: ["health"]}}], /execute/iu],
+        [[{...selectedTextPlugin,
+            permissions: [{name: "clipboard:read-once", granted: false}]}], /one-shot/iu],
+        [[{...selectedTextPlugin, artifacts: [{
+            id: "qwen3", version: "1", format: "gguf", ready: false, reason: "Qwen missing",
+        }]}], /Qwen missing/u],
+        [[{...selectedTextPlugin, artifacts: [{
+            id: "qwen3", version: "1", format: "gguf", ready: false, reason: "",
+        }]}], /Install qwen3/u],
+    ];
+    for (const [plugins, pattern] of cases) {
+        const readiness = Inventory.selectedTextReadiness(inventory({plugins}));
+        assert.equal(readiness.available, false);
+        assert.match(readiness.detail, pattern);
+    }
+    assert.throws(() => Inventory.selectedTextReadiness({}), /valid plug-in inventory/u);
+});
+
 test("gateway validates replies and discards a superseded callback", () => {
     const callbacks = [];
     const cancellables = [];

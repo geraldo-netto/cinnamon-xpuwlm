@@ -174,6 +174,14 @@ selection and one explicit question, keeps no question history, and displays
 only a grounded answer with mandatory file/page/span citations. See
 [Ask selected files](document-questions.md).
 
+An installed and live-qualified external `selected-text-tools` worker adds a
+separate Selected-text tools surface. Choosing Explain, Summarize, Rewrite,
+Translate, or Extract tasks is the explicit action that reads the clipboard
+once. The selection is submitted in that request and never copied into applet
+state or history. Results are review-only: the applet has no paste, apply,
+task-creation, or clipboard-monitor action. See
+[Selected-text tools](selected-text-tools.md).
+
 ## Accessible semantics
 
 Controls expose their ATK role and state, not only an accessible name: the tab

@@ -196,6 +196,35 @@ function documentQuestionReadiness(inventory) {
     return Object.freeze({available: detail === "", detail});
 }
 
+function selectedTextReadinessDetail(plugin) {
+    if (plugin === null) {
+        return "Install and configure a selected-text provider";
+    }
+    if (plugin.source !== "external") {
+        return "Install an external selected-text provider";
+    }
+    if (plugin.workerState !== "ready") {
+        return "Configure and qualify a GPU or NPU generation provider";
+    }
+    if (!plugin.protocol.capabilities.includes("execute")) {
+        return "Update the selected-text provider to one that can execute workloads";
+    }
+    if (plugin.permissions.some((permission) => !permission.granted)) {
+        return "Grant one-shot clipboard access";
+    }
+    const missing = plugin.artifacts.find((artifact) => !artifact.ready);
+    return missing ? missing.reason || `Install ${missing.id}` : "";
+}
+
+function selectedTextReadiness(inventory) {
+    if (!validInventory(inventory)) {
+        throw new TypeError("Selected-text readiness requires a valid plug-in inventory");
+    }
+    const plugin = inventory.plugins.find((candidate) => candidate.id === "selected-text-tools") || null;
+    const detail = selectedTextReadinessDetail(plugin);
+    return Object.freeze({available: detail === "", detail});
+}
+
 class PluginInventoryGateway {
     constructor({sendText, cancellableFactory = () => null}) {
         if (typeof sendText !== "function") {
@@ -259,6 +288,7 @@ module.exports = {
     MAX_PLUGINS,
     PluginInventoryGateway,
     documentQuestionReadiness,
+    selectedTextReadiness,
     documentReadinessDetail,
     exactRecord,
     eventReadiness,

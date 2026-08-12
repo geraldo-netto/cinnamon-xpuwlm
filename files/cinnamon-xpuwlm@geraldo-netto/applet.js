@@ -6,6 +6,7 @@ const ByteArray = imports.byteArray;
 const Gettext = imports.gettext;
 const Clutter = imports.gi.Clutter;
 const GdkPixbuf = imports.gi.GdkPixbuf;
+const Gdk = imports.gi.Gdk;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
 const Gtk = imports.gi.Gtk;
@@ -19,6 +20,7 @@ const Util = imports.misc.util;
 
 const AlertNotifier = require("./lib/alert-notifier.js");
 const CinnamonRuntime = require("./lib/cinnamon-runtime.js");
+const ClipboardSelectionPort = require("./lib/clipboard-selection-port.js");
 const Domain = require("./lib/domain.js");
 const DocumentQuestion = require("./lib/document-question.js");
 const DocumentSourcePort = require("./lib/document-source-port.js");
@@ -31,6 +33,7 @@ const Layout = require("./lib/layout.js");
 const Manager = require("./lib/manager.js");
 const Menu = require("./lib/menu-view.js");
 const PluginInventory = require("./lib/plugin-inventory.js");
+const SelectedText = require("./lib/selected-text.js");
 const ViewModel = require("./lib/view-model.js");
 const WorkloadRegistry = require("./lib/workload-registry.js");
 
@@ -66,7 +69,7 @@ function panelIconFilename(status) {
 }
 
 function defaultEnvironment() {
-    return {ByteArray, GdkPixbuf, Gio, GLib, Gtk};
+    return {ByteArray, Gdk, GdkPixbuf, Gio, GLib, Gtk};
 }
 
 function unavailableEventFilePorts() {
@@ -79,6 +82,13 @@ function unavailableEventFilePorts() {
 
 function unavailableDocumentPicker() {
     return {chooseFiles: (callback) => callback(new Error("GTK document access is unavailable"), null)};
+}
+
+function unavailableClipboardReader() {
+    return {
+        readText: (callback) => callback(new Error("GTK clipboard text access is unavailable"), null),
+        cancel: () => true,
+    };
 }
 
 function defaultLogger() {
@@ -117,6 +127,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._unsubscribe = null;
         this._eventUnsubscribe = null;
         this._documentUnsubscribe = null;
+        this._selectedTextUnsubscribe = null;
         try {
             this._construct(metadata, instanceId, overrides);
         } catch (error) {
@@ -138,6 +149,11 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             }
         });
         this._documentUnsubscribe = this._documentQuestion.subscribe(() => {
+            if (this._latestState) {
+                this._render(this._latestState);
+            }
+        });
+        this._selectedTextUnsubscribe = this._selectedText.subscribe(() => {
             if (this._latestState) {
                 this._render(this._latestState);
             }
@@ -222,6 +238,23 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             || this._createEventImportController();
         this._documentQuestion = overrides.documentQuestionController
             || this._createDocumentQuestionController();
+        this._selectedText = overrides.selectedTextController
+            || this._createSelectedTextController();
+    }
+
+    _createSelectedTextController() {
+        let clipboard;
+        try {
+            clipboard = ClipboardSelectionPort.createGtkClipboardSelectionReader(this._environment);
+        } catch {
+            clipboard = unavailableClipboardReader();
+        }
+        return new SelectedText.SelectedTextController({
+            clipboard,
+            gateway: CinnamonRuntime.createRuntimeJobGateway(this._environment),
+            scheduler: this._scheduler,
+            clock: this._clock,
+        });
     }
 
     _createDocumentQuestionController() {
@@ -375,6 +408,9 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             startDocumentQuestion: (question) => this._documentQuestion.start(question),
             cancelDocumentQuestion: () => this._documentQuestion.cancel(),
             resetDocumentQuestion: () => this._documentQuestion.reset(),
+            startSelectedText: (operation, language) => this._selectedText.start(operation, language),
+            cancelSelectedText: () => this._selectedText.cancel(),
+            resetSelectedText: () => this._selectedText.reset(),
         };
     }
 
@@ -455,6 +491,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             ...state,
             eventImport: this._eventImport.state(),
             documentQuestion: this._documentQuestion.state(),
+            selectedText: this._selectedText.state(),
         };
         const model = ViewModel.toViewModel(this._latestState);
         if (this._view) {
@@ -476,6 +513,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
                 if (error) {
                     this._eventImport.setAvailability(false, _("Event provider is not ready"));
                     this._documentQuestion.setAvailability(false, _("Document provider is not ready"));
+                    this._selectedText.setAvailability(false, _("Selected-text provider is not ready"));
                     return;
                 }
                 const readiness = PluginInventory.eventReadiness(inventory);
@@ -485,10 +523,16 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
                     documentReadiness.available,
                     documentReadiness.detail,
                 );
+                const selectedTextReadiness = PluginInventory.selectedTextReadiness(inventory);
+                this._selectedText.setAvailability(
+                    selectedTextReadiness.available,
+                    selectedTextReadiness.detail,
+                );
             });
         } catch {
             this._eventImport.setAvailability(false, _("Event provider is not ready"));
             this._documentQuestion.setAvailability(false, _("Document provider is not ready"));
+            this._selectedText.setAvailability(false, _("Selected-text provider is not ready"));
             return false;
         }
     }
@@ -553,6 +597,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         const unsubscribe = this._unsubscribe;
         const eventUnsubscribe = this._eventUnsubscribe;
         const documentUnsubscribe = this._documentUnsubscribe;
+        const selectedTextUnsubscribe = this._selectedTextUnsubscribe;
         const manager = this._manager;
         const notifier = this._notifier;
         const settings = this.settings;
@@ -560,16 +605,19 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._unsubscribe = null;
         this._eventUnsubscribe = null;
         this._documentUnsubscribe = null;
+        this._selectedTextUnsubscribe = null;
         this._runIsolated([
             ["stop the refresh timer", () => poller && poller.stop()],
             ["release the state subscription", () => unsubscribe && unsubscribe()],
             ["release the event subscription", () => eventUnsubscribe && eventUnsubscribe()],
             ["release the document subscription", () => documentUnsubscribe && documentUnsubscribe()],
+            ["release the selected-text subscription", () => selectedTextUnsubscribe && selectedTextUnsubscribe()],
             ["cancel plug-in inventory", () => this._pluginInventoryGateway && this._pluginInventoryGateway.cancel()],
             ["destroy the popup menu", () => this._destroyMenu()],
             ["dispose the workload manager", () => manager && manager.dispose()],
             ["dispose event import", () => this._eventImport && this._eventImport.dispose()],
             ["dispose document question", () => this._documentQuestion && this._documentQuestion.dispose()],
+            ["dispose selected-text tools", () => this._selectedText && this._selectedText.dispose()],
             ["dispose the alert notifier", () => notifier && notifier.dispose()],
             ["finalize the applet settings", () => settings && settings.finalize()],
         ]);
@@ -596,5 +644,6 @@ if (typeof module !== "undefined") {
         resolveWorkloadRegistry,
         unavailableEventFilePorts,
         unavailableDocumentPicker,
+        unavailableClipboardReader,
     };
 }

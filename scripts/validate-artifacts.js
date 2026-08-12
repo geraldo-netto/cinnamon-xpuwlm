@@ -12,6 +12,7 @@ const filesRoot = path.join(repositoryRoot, "files");
 const appletRoot = path.join(filesRoot, UUID);
 const PAYLOAD_TOP_LEVEL = Object.freeze([
     "applet.js",
+    "clipboard-selection-port.js",
     "domain.js",
     "document-question.js",
     "document-source-port.js",
@@ -47,6 +48,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "runtime-snapshot-contract.js",
     "runtime-snapshot-schema-validator.js",
     "runtime-snapshot.schema.json",
+    "selected-text.js",
     "settings-schema.json",
     "snapshot-validator.js",
     "stylesheet.css",
