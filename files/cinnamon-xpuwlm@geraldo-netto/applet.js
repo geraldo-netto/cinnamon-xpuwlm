@@ -283,6 +283,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             picker = DocumentSourcePort.createExternalDocumentPicker(
                 this._environment,
                 this._chooserLifecycle,
+                _("Choose files to organize"),
             );
         } catch {
             picker = unavailableDocumentPicker();
@@ -507,9 +508,8 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
                 if (open) {
                     this._applyLayout();
                     this._refreshEventAvailability();
-                    // Listing the input directory is synchronous I/O, so it
-                    // happens when somebody looks at the list and not on the
-                    // poll interval.
+                    // Input enumeration is asynchronous and starts only when
+                    // somebody opens the popup, never on the poll interval.
                     this._manager.refreshInputs();
                 }
             });
@@ -688,7 +688,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     }
 
     _openSettings() {
-        Util.spawnCommandLineAsync(`cinnamon-settings applets ${UUID}`);
+        Util.spawnCommandLineAsync(`xlet-settings applet ${UUID} -i ${this.instance_id}`);
     }
 
     _clearActivity() {

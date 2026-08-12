@@ -31,6 +31,7 @@ const DEFAULTS = {
 class FakeTextIconApplet {
     constructor(orientation, panelHeight, instanceId) {
         this.baseArguments = {orientation, panelHeight, instanceId};
+        this.instance_id = instanceId;
         this.actor = new FakeActor();
         this.iconPath = null;
         this.symbolicIconPaths = [];
@@ -331,7 +332,7 @@ test("menu actions delegate without mixing responsibilities", () => {
         ["clearActivity"],
     ]);
     assert.deepEqual(spawned.slice(-2), [
-        `cinnamon-settings applets ${AppletModule.UUID}`,
+        `xlet-settings applet ${AppletModule.UUID} -i 7`,
         "x-terminal-emulator -e journalctl --user -u omnitensor.service -f",
     ]);
     assert.deepEqual(copiedReports.slice(-2), [["diagnostics", -1], ["store"]]);
@@ -697,7 +698,7 @@ test("selected-text readiness, actions, subscription, and teardown stay one-shot
         dispose() { calls.push(["dispose-text"]); },
     };
     const provider = {
-        id: "selected-text-tools", version: "1", source: "external", distribution: "provider",
+        id: "selected-text-tools", version: "1.1.0", source: "external", distribution: "provider",
         workerState: "ready",
         protocol: {minimum: 1, maximum: 1, capabilities: ["execute"]},
         triggers: ["manual"], artifacts: [],

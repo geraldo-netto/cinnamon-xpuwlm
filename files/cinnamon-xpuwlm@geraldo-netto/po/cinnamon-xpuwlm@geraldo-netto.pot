@@ -456,6 +456,10 @@ msgstr ""
 msgid "Choose files for a review-only organization plan"
 msgstr ""
 
+#: applet.js
+msgid "Choose files to organize"
+msgstr ""
+
 #: lib/event-source-port.js lib/menu-view.js
 msgid "Choose folder"
 msgstr ""

@@ -20,14 +20,26 @@ function documentFilter(Gtk) {
     return filter;
 }
 
-function createGtkDocumentPicker(candidate, chooserLifecycle) {
+function pickerTitle(candidate) {
+    if (typeof candidate !== "string" || candidate.trim() === "" || [...candidate].length > 120) {
+        throw new TypeError("A bounded document picker title is required");
+    }
+    return candidate;
+}
+
+function createGtkDocumentPicker(
+    candidate,
+    chooserLifecycle,
+    title = _("Choose documents to ask"),
+) {
     const environment = EventSourcePort.requireEnvironment(candidate);
     const lifecycle = EventSourcePort.requireChooserLifecycle(chooserLifecycle);
     const Gtk = environment.Gtk;
+    const dialogTitle = pickerTitle(title);
     return {
         chooseFiles(callback) {
             const dialog = new Gtk.FileChooserDialog({
-                title: _("Choose documents to ask"),
+                title: dialogTitle,
                 action: Gtk.FileChooserAction.OPEN,
             });
             EventSourcePort.addChooserButtons(dialog, Gtk, _("Choose documents"));
@@ -44,14 +56,19 @@ function createGtkDocumentPicker(candidate, chooserLifecycle) {
     };
 }
 
-function createExternalDocumentPicker(candidate, chooserLifecycle) {
+function createExternalDocumentPicker(
+    candidate,
+    chooserLifecycle,
+    title = _("Choose documents to ask"),
+) {
     const environment = EventSourcePort.requireFileEnvironment(candidate);
     const lifecycle = ExternalChooser.requireChooserLifecycle(chooserLifecycle);
+    const dialogTitle = pickerTitle(title);
     return {
         chooseFiles(callback) {
             return EventSourcePort.externalSelection(lifecycle, {
                 mode: "open",
-                title: _("Choose documents to ask"),
+                title: dialogTitle,
                 multiple: true,
                 filter: {
                     name: _("Documents and images"),
@@ -62,4 +79,9 @@ function createExternalDocumentPicker(candidate, chooserLifecycle) {
     };
 }
 
-module.exports = {createExternalDocumentPicker, createGtkDocumentPicker, documentFilter};
+module.exports = {
+    createExternalDocumentPicker,
+    createGtkDocumentPicker,
+    documentFilter,
+    pickerTitle,
+};

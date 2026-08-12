@@ -106,6 +106,7 @@ test("selected-document readiness independently requires its qualified external 
 test("selected-text readiness requires a qualified one-shot external worker", () => {
     const selectedTextPlugin = plugin({
         id: "selected-text-tools",
+        version: "1.1.0",
         distribution: "private-selected-text-provider",
         artifacts: [],
         permissions: [{name: "clipboard:read-once", granted: true}],
@@ -116,6 +117,7 @@ test("selected-text readiness requires a qualified one-shot external worker", ()
     const cases = [
         [[], /install and configure/iu],
         [[{...selectedTextPlugin, source: "bundled"}], /external/iu],
+        [[{...selectedTextPlugin, version: "1.0.0"}], /operation-quality acceptance/iu],
         [[{...selectedTextPlugin, workerState: "starting"}], /GPU or NPU/iu],
         [[{...selectedTextPlugin,
             protocol: {minimum: 1, maximum: 1, capabilities: ["health"]}}], /execute/iu],
@@ -134,6 +136,15 @@ test("selected-text readiness requires a qualified one-shot external worker", ()
         assert.match(readiness.detail, pattern);
     }
     assert.throws(() => Inventory.selectedTextReadiness({}), /valid plug-in inventory/u);
+});
+
+test("selected-text version gate fails closed below the quality-qualified release", () => {
+    for (const value of [null, "", "1", "1.0", "1.0.0", "0.99.99", "01.1.0", "x.y.z"]) {
+        assert.equal(Inventory.selectedTextVersionQualified(value), false, String(value));
+    }
+    for (const value of ["1.1.0", "1.2.3", "2.0.0", "999999.999999.999999"]) {
+        assert.equal(Inventory.selectedTextVersionQualified(value), true, value);
+    }
 });
 
 test("file-organizer readiness requires a qualified external review-only worker", () => {

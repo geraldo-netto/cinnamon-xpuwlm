@@ -153,3 +153,26 @@ test("external document picker delegates isolated selection then describes files
     assert.equal(reply.error, null);
     assert.deepEqual(reply.sources.map((source) => source.name), ["guide.pdf"]);
 });
+
+test("document pickers accept one bounded workflow-specific title", () => {
+    const env = environment();
+    const externalRequests = [];
+    const external = Port.createExternalDocumentPicker(env, {
+        choose(options) { externalRequests.push(options); return true; },
+        dispose() { return true; },
+    }, "Choose files to organize");
+    external.chooseFiles(() => {});
+    assert.equal(externalRequests[0].title, "Choose files to organize");
+
+    const gtk = Port.createGtkDocumentPicker(
+        env,
+        lifecycle(env),
+        "Choose files to organize",
+    );
+    gtk.chooseFiles(() => {});
+    assert.equal(env.dialogs.at(-1).options.title, "Choose files to organize");
+
+    for (const title of [null, "", " ", "x".repeat(121)]) {
+        assert.throws(() => Port.pickerTitle(title), /bounded document picker title/u);
+    }
+});

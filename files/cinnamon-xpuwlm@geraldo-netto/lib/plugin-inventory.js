@@ -23,6 +23,7 @@ const WORKER_STATES = new Set([
 ]);
 const IDENTIFIER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const PERMISSION = /^[a-z][a-z0-9-]*:[a-zA-Z0-9*._/-]+$/u;
+const SEMANTIC_VERSION = /^(0|[1-9]\d{0,5})\.(0|[1-9]\d{0,5})\.(0|[1-9]\d{0,5})$/u;
 const contractViolation = Contract.contractViolation;
 
 function isRecord(value) {
@@ -200,8 +201,9 @@ function selectedTextReadinessDetail(plugin) {
     if (plugin === null) {
         return "Install and configure a selected-text provider";
     }
-    if (plugin.source !== "external") {
-        return "Install an external selected-text provider";
+    const providerDetail = selectedTextProviderDetail(plugin);
+    if (providerDetail !== "") {
+        return providerDetail;
     }
     if (plugin.workerState !== "ready") {
         return "Configure and qualify a GPU or NPU generation provider";
@@ -214,6 +216,25 @@ function selectedTextReadinessDetail(plugin) {
     }
     const missing = plugin.artifacts.find((artifact) => !artifact.ready);
     return missing ? missing.reason || `Install ${missing.id}` : "";
+}
+
+function selectedTextProviderDetail(plugin) {
+    if (plugin.source !== "external") {
+        return "Install an external selected-text provider";
+    }
+    return selectedTextVersionQualified(plugin.version)
+        ? ""
+        : "Install a selected-text provider with operation-quality acceptance";
+}
+
+function selectedTextVersionQualified(version) {
+    const match = typeof version === "string" ? SEMANTIC_VERSION.exec(version) : null;
+    if (match === null) {
+        return false;
+    }
+    const major = Number(match[1]);
+    const minor = Number(match[2]);
+    return major > 1 || (major === 1 && minor >= 1);
 }
 
 function selectedTextReadiness(inventory) {
@@ -320,6 +341,7 @@ module.exports = {
     fileOrganizerReadiness,
     fileOrganizerReadinessDetail,
     selectedTextReadiness,
+    selectedTextVersionQualified,
     documentReadinessDetail,
     exactRecord,
     eventReadiness,
