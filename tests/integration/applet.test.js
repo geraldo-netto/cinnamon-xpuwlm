@@ -406,6 +406,101 @@ test("event import is gated by live plug-in readiness and actions stay local", (
     ]);
 });
 
+test("every chooser action releases popup focus before its deferred native dialog", () => {
+    const scheduled = [];
+    const cancelled = [];
+    const chooserLifecycle = {
+        present() { return true; },
+        dispose() { this.disposed = true; return true; },
+    };
+    const {applet, menus} = appletHarness({
+        chooserLifecycle,
+        scheduler: {
+            schedule(delayMs, callback) {
+                const task = {handle: scheduled.length + 1, delayMs, callback};
+                scheduled.push(task);
+                return task.handle;
+            },
+            cancel(handle) { cancelled.push(handle); return true; },
+        },
+    });
+    const calls = [];
+    applet._eventImport.chooseFiles = () => calls.push("event-files");
+    applet._eventImport.chooseFolder = () => calls.push("event-folder");
+    applet._eventImport.confirmExport = () => calls.push("event-export");
+    applet._documentQuestion.chooseFiles = () => calls.push("question-files");
+    applet._fileOrganizer.chooseFiles = () => calls.push("organizer-files");
+    const actions = applet._menuActions();
+
+    for (const [name, expected] of [
+        ["chooseEventFiles", "event-files"],
+        ["chooseEventFolder", "event-folder"],
+        ["confirmEventExport", "event-export"],
+        ["chooseQuestionFiles", "question-files"],
+        ["chooseOrganizerFiles", "organizer-files"],
+    ]) {
+        applet.on_applet_clicked();
+        assert.equal(menus[0].isOpen, true);
+        assert.equal(actions[name](), true);
+        assert.equal(menus[0].isOpen, false);
+        assert.equal(calls.includes(expected), false);
+        const task = scheduled.at(-1);
+        assert.equal(task.delayMs, 0);
+        task.callback();
+        assert.equal(calls.at(-1), expected);
+    }
+
+    applet.on_applet_clicked();
+    assert.equal(actions.chooseEventFiles(), true);
+    assert.equal(actions.chooseEventFolder(), false, "only one chooser launch may be pending");
+    const pending = scheduled.at(-1);
+    assert.equal(applet._teardown(), true);
+    assert.equal(cancelled.includes(pending.handle), true);
+    assert.equal(chooserLifecycle.disposed, true);
+    const before = calls.length;
+    pending.callback();
+    assert.equal(calls.length, before, "a removed applet cannot open a chooser");
+    assert.equal(actions.chooseEventFiles(), false);
+    assert.equal(applet._cancelChooserLaunch(), false);
+});
+
+test("chooser completion restores popup focus with visible result feedback", () => {
+    const scheduled = [];
+    const {applet, menus, views} = appletHarness({
+        scheduler: {
+            schedule(delayMs, callback) {
+                scheduled.push({delayMs, callback});
+                return scheduled.length;
+            },
+            cancel() { return true; },
+        },
+    });
+    applet._eventImport.chooseFiles = () => {
+        applet._eventImport._replace({phase: "selecting", message: ""});
+        return true;
+    };
+    applet.on_applet_clicked();
+    assert.equal(applet._menuActions().chooseEventFiles(), true);
+    scheduled.at(-1).callback();
+    assert.equal(menus[0].isOpen, false, "the chooser owns focus while selection is pending");
+    applet._documentQuestion._replace({phase: "error", message: "Unrelated document error"});
+    assert.equal(menus[0].isOpen, false, "an unrelated workflow cannot steal chooser focus");
+
+    applet._eventImport._replace({phase: "idle", message: "Selection cancelled"});
+    assert.equal(menus[0].isOpen, true);
+    assert.equal(menus[0].openCount, 1);
+    assert.equal(views[0].models.at(-1).eventImport.message, "Selection cancelled");
+    assert.equal(applet._restoreChooserFeedback(applet._eventImport, "idle"), false);
+
+    menus[0].close();
+    applet._eventImport.chooseFiles = () => false;
+    applet.on_applet_clicked();
+    assert.equal(applet._menuActions().chooseEventFiles(), true);
+    scheduled.at(-1).callback();
+    assert.equal(menus[0].isOpen, true, "a refused chooser action restores the popup");
+    applet._teardown();
+});
+
 test("event readiness transport failures fail closed and late replies are ignored", () => {
     let reply = null;
     const pendingGateway = {

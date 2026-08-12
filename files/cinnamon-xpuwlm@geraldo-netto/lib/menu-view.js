@@ -667,7 +667,7 @@ class MenuView {
         if (model.phase === "selected") {
             controls.add_child(this._eventAction(
                 _("Create plan"), _("Suggest organization without changing files"),
-                "organizer-start", this._actions.startFileOrganizer, model.startEnabled,
+                "organizer-start", this._actions.startFileOrganizer, model.startEnabled, true,
             ));
         }
         if (model.cancelEnabled) {
@@ -863,7 +863,7 @@ class MenuView {
         if (question !== null) {
             controls.add_child(this._eventAction(
                 _("Ask"), _("Ask the explicit question over selected documents"), "question-start",
-                () => this._actions.startDocumentQuestion(question.get_text()), model.askEnabled,
+                () => this._actions.startDocumentQuestion(question.get_text()), model.askEnabled, true,
             ));
         }
         if (model.cancelEnabled) {
@@ -1044,7 +1044,7 @@ class MenuView {
         if (model.phase === "selected") {
             controls.add_child(this._eventAction(
                 _("Extract events"), _("Extract events from selected files"), "event-start",
-                this._actions.startEventImport, model.startEnabled,
+                this._actions.startEventImport, model.startEnabled, true,
             ));
         }
         if (model.cancelEnabled) {
@@ -1056,13 +1056,13 @@ class MenuView {
         if (model.phase === "preview") {
             controls.add_child(this._eventAction(
                 _("Review export"), _("Review confirmed events before export"), "event-review-export",
-                this._actions.beginEventExport, model.exportRefusal === "",
+                this._actions.beginEventExport, model.exportRefusal === "", true,
             ));
         }
         if (model.phase === "confirm-export") {
             controls.add_child(this._eventAction(
                 _("Write calendar file"), _("Confirm and write a new calendar file"), "event-confirm-export",
-                this._actions.confirmEventExport, true,
+                this._actions.confirmEventExport, true, true,
             ));
             controls.add_child(this._eventAction(
                 _("Back"), _("Return to event preview"), "event-back-preview",
@@ -1079,9 +1079,13 @@ class MenuView {
         return true;
     }
 
-    _eventAction(label, accessibleName, identity, action, enabled) {
+    _eventAction(label, accessibleName, identity, action, enabled, primary = false) {
         const button = this._identify(
-            this._button("xpuwlm-secondary-button", accessibleName, action),
+            this._button(
+                primary ? "xpuwlm-primary-button" : "xpuwlm-secondary-button",
+                accessibleName,
+                action,
+            ),
             identity,
         );
         button.set_child(this._label(label, "xpuwlm-button-label"));

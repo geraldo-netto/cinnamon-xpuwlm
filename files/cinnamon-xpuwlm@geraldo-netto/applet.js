@@ -130,6 +130,9 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._documentUnsubscribe = null;
         this._selectedTextUnsubscribe = null;
         this._fileOrganizerUnsubscribe = null;
+        this._chooserLifecycle = null;
+        this._chooserLaunchHandle = null;
+        this._chooserFeedback = null;
         try {
             this._construct(metadata, instanceId, overrides);
         } catch (error) {
@@ -149,11 +152,16 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             if (this._latestState) {
                 this._render(this._latestState);
             }
+            this._restoreChooserFeedback(this._eventImport, this._eventImport.state().phase);
         });
         this._documentUnsubscribe = this._documentQuestion.subscribe(() => {
             if (this._latestState) {
                 this._render(this._latestState);
             }
+            this._restoreChooserFeedback(
+                this._documentQuestion,
+                this._documentQuestion.state().phase,
+            );
         });
         this._selectedTextUnsubscribe = this._selectedText.subscribe(() => {
             if (this._latestState) {
@@ -164,6 +172,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             if (this._latestState) {
                 this._render(this._latestState);
             }
+            this._restoreChooserFeedback(this._fileOrganizer, this._fileOrganizer.state().phase);
         });
         this._manager.start();
         this._refreshEventAvailability();
@@ -239,6 +248,14 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     }
 
     _createEventPorts(overrides) {
+        try {
+            this._chooserLifecycle = EventSourcePort.requireChooserLifecycle(
+                overrides.chooserLifecycle
+                || new EventSourcePort.GtkChooserLifecycle(this._environment, this._scheduler),
+            );
+        } catch {
+            this._chooserLifecycle = null;
+        }
         this._pluginInventoryGateway = overrides.pluginInventoryGateway
             || CinnamonRuntime.createPluginInventoryGateway(this._environment);
         this._eventImport = overrides.eventImportController
@@ -254,7 +271,10 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     _createFileOrganizerController() {
         let picker;
         try {
-            picker = DocumentSourcePort.createGtkDocumentPicker(this._environment);
+            picker = DocumentSourcePort.createGtkDocumentPicker(
+                this._environment,
+                this._chooserLifecycle,
+            );
         } catch {
             picker = unavailableDocumentPicker();
         }
@@ -284,7 +304,10 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     _createDocumentQuestionController() {
         let picker;
         try {
-            picker = DocumentSourcePort.createGtkDocumentPicker(this._environment);
+            picker = DocumentSourcePort.createGtkDocumentPicker(
+                this._environment,
+                this._chooserLifecycle,
+            );
         } catch {
             picker = unavailableDocumentPicker();
         }
@@ -300,8 +323,14 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         let ports;
         try {
             ports = {
-                picker: EventSourcePort.createGtkEventSourcePicker(this._environment),
-                exporter: EventSourcePort.createGtkEventExporter(this._environment),
+                picker: EventSourcePort.createGtkEventSourcePicker(
+                    this._environment,
+                    this._chooserLifecycle,
+                ),
+                exporter: EventSourcePort.createGtkEventExporter(
+                    this._environment,
+                    this._chooserLifecycle,
+                ),
             };
         } catch {
             ports = unavailableEventFilePorts();
@@ -418,24 +447,34 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             openSettings: () => this._openSettings(),
             acknowledgeCatalogChanges: () => this._manager.acknowledgeCatalogChanges(),
             submitJob: (id, picture) => this._manager.submitJob(id, picture),
-            chooseEventFiles: () => this._eventImport.chooseFiles(),
-            chooseEventFolder: () => this._eventImport.chooseFolder(),
+            chooseEventFiles: () => this._launchChooser(
+                () => this._eventImport.chooseFiles(), this._eventImport, "selecting",
+            ),
+            chooseEventFolder: () => this._launchChooser(
+                () => this._eventImport.chooseFolder(), this._eventImport, "selecting",
+            ),
             startEventImport: () => this._eventImport.start(),
             cancelEventImport: () => this._eventImport.cancel(),
             editEventCandidate: (id, patch) => this._eventImport.edit(id, patch),
             decideEventCandidate: (id, decision) => this._eventImport.decide(id, decision),
             beginEventExport: () => this._eventImport.beginExport(),
-            confirmEventExport: () => this._eventImport.confirmExport(),
+            confirmEventExport: () => this._launchChooser(
+                () => this._eventImport.confirmExport(), this._eventImport, "exporting",
+            ),
             backEventPreview: () => this._eventImport.backToPreview(),
             resetEventImport: () => this._eventImport.reset(),
-            chooseQuestionFiles: () => this._documentQuestion.chooseFiles(),
+            chooseQuestionFiles: () => this._launchChooser(
+                () => this._documentQuestion.chooseFiles(), this._documentQuestion, "selecting",
+            ),
             startDocumentQuestion: (question) => this._documentQuestion.start(question),
             cancelDocumentQuestion: () => this._documentQuestion.cancel(),
             resetDocumentQuestion: () => this._documentQuestion.reset(),
             startSelectedText: (operation, language) => this._selectedText.start(operation, language),
             cancelSelectedText: () => this._selectedText.cancel(),
             resetSelectedText: () => this._selectedText.reset(),
-            chooseOrganizerFiles: () => this._fileOrganizer.chooseFiles(),
+            chooseOrganizerFiles: () => this._launchChooser(
+                () => this._fileOrganizer.chooseFiles(), this._fileOrganizer, "selecting",
+            ),
             startFileOrganizer: () => this._fileOrganizer.start(),
             cancelFileOrganizer: () => this._fileOrganizer.cancel(),
             resetFileOrganizer: () => this._fileOrganizer.reset(),
@@ -621,6 +660,51 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         Util.spawnCommandLineAsync(`cinnamon-settings applets ${UUID}`);
     }
 
+    _launchChooser(action, owner, pendingPhase) {
+        if (this._destroyed || typeof action !== "function"
+            || this._chooserLaunchHandle !== null) {
+            return false;
+        }
+        if (!this.menu || this.menu.isOpen !== true || typeof this.menu.close !== "function") {
+            return action();
+        }
+        this.menu.close(false);
+        this._chooserFeedback = {owner, pendingPhase};
+        this._chooserLaunchHandle = this._scheduler.schedule(0, () => {
+            this._chooserLaunchHandle = null;
+            if (!this._destroyed) {
+                const launched = action();
+                if (launched === false) {
+                    this._restoreChooserFeedback(owner, "");
+                }
+            }
+        });
+        return true;
+    }
+
+    _restoreChooserFeedback(owner, currentPhase) {
+        if (this._destroyed || this._chooserFeedback === null
+            || owner !== this._chooserFeedback.owner
+            || currentPhase === this._chooserFeedback.pendingPhase) {
+            return false;
+        }
+        this._chooserFeedback = null;
+        if (!this.menu || this.menu.isOpen === true || typeof this.menu.open !== "function") {
+            return false;
+        }
+        this.menu.open(false);
+        return true;
+    }
+
+    _cancelChooserLaunch() {
+        if (this._chooserLaunchHandle === null) {
+            return false;
+        }
+        const handle = this._chooserLaunchHandle;
+        this._chooserLaunchHandle = null;
+        return this._scheduler.cancel(handle);
+    }
+
     // Teardown attempts every step even after a failure, and stays idempotent
     // afterwards, so a partially failed removal never leaks a timer or a
     // subscription and never runs twice.
@@ -638,14 +722,19 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         const manager = this._manager;
         const notifier = this._notifier;
         const settings = this.settings;
+        const chooserLifecycle = this._chooserLifecycle;
         this._poller = null;
         this._unsubscribe = null;
         this._eventUnsubscribe = null;
         this._documentUnsubscribe = null;
         this._selectedTextUnsubscribe = null;
         this._fileOrganizerUnsubscribe = null;
+        this._chooserLifecycle = null;
+        this._chooserFeedback = null;
         this._runIsolated([
             ["stop the refresh timer", () => poller && poller.stop()],
+            ["cancel a pending chooser launch", () => this._cancelChooserLaunch()],
+            ["destroy open file choosers", () => chooserLifecycle && chooserLifecycle.dispose()],
             ["release the state subscription", () => unsubscribe && unsubscribe()],
             ["release the event subscription", () => eventUnsubscribe && eventUnsubscribe()],
             ["release the document subscription", () => documentUnsubscribe && documentUnsubscribe()],

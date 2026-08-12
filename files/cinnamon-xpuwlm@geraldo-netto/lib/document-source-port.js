@@ -19,8 +19,9 @@ function documentFilter(Gtk) {
     return filter;
 }
 
-function createGtkDocumentPicker(candidate) {
+function createGtkDocumentPicker(candidate, chooserLifecycle) {
     const environment = EventSourcePort.requireEnvironment(candidate);
+    const lifecycle = EventSourcePort.requireChooserLifecycle(chooserLifecycle);
     const Gtk = environment.Gtk;
     return {
         chooseFiles(callback) {
@@ -36,6 +37,7 @@ function createGtkDocumentPicker(candidate) {
                 environment,
                 (current) => EventSourcePort.describeSourcePaths(current.get_filenames(), environment),
                 callback,
+                lifecycle,
             );
         },
     };

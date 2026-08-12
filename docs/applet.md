@@ -374,4 +374,39 @@ Install the contents of `files/cinnamon-xpuwlm@geraldo-netto/` at:
 ~/.local/share/cinnamon/applets/cinnamon-xpuwlm@geraldo-netto
 ```
 
-Then add **XPU Workload Manager** from Cinnamon Settings → Applets. Reload an installed copy with Cinnamon's `ReloadXlet` D-Bus method after changes.
+Then add **XPU Workload Manager** from Cinnamon Settings → Applets. Reload an
+installed copy with the exact command below:
+
+```bash
+gdbus call --session \
+  --dest org.Cinnamon \
+  --object-path /org/Cinnamon \
+  --method org.Cinnamon.ReloadXlet \
+  'cinnamon-xpuwlm@geraldo-netto' 'APPLET'
+```
+
+`APPLET` is case-sensitive. Do not substitute `applet`, a numeric value, or an
+empty argument: Cinnamon unloads the current xlet before resolving that type,
+so an invalid value can leave the applet absent instead of reloaded. Repeating
+the command with `APPLET` restores it.
+
+## File chooser interaction
+
+All event import, calendar export, document-question, and file-organizer
+choices use Cinnamon's familiar native GTK chooser. Choosing an action first
+closes the applet popup and releases its input grab; the chooser is presented
+on the next main-loop turn as a focused modal window. The GTK response signal
+disconnects and destroys the chooser before application state is rendered, and
+selection results are delivered on a later main-loop turn. The popup then
+reopens on the rendered result so keyboard and pointer users see the same
+feedback. Applet removal or reload destroys every still-open chooser and
+cancels undelivered responses.
+
+Cancellation is explicit and non-destructive: the relevant surface reports
+that selection or export was cancelled and remains usable. Accepted selections
+show the chosen source names; I/O and validation failures show an error; a
+successful export reports the new path. No chooser scans, writes, or submits
+anything until its labeled confirmation action is used.
+
+See the [case-specific full Laws of UX audit](chooser-ux-audit.md) for the
+design-to-verification matrix covering all chooser workflows.

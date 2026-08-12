@@ -42,8 +42,17 @@ test("file organizer projection is hidden until ready or explicitly active", () 
     assert.equal(ViewModel.fileOrganizerModel({fileOrganizer: null}), null);
     assert.equal(ViewModel.fileOrganizerModel({}), null);
     assert.equal(ViewModel.fileOrganizerModel({fileOrganizer: workflow({
-        available: false, phase: "idle",
+        available: false, phase: "idle", message: "",
     })}), null);
+    assert.notEqual(ViewModel.fileOrganizerModel({fileOrganizer: workflow({
+        available: true, phase: "idle", message: "",
+    })}), null);
+    assert.notEqual(ViewModel.fileOrganizerModel({fileOrganizer: workflow({
+        available: false, phase: "running", message: "",
+    })}), null);
+    assert.equal(ViewModel.fileOrganizerModel({fileOrganizer: workflow({
+        available: false, phase: "idle", message: "Selection cancelled",
+    })}).message, "Selection cancelled");
     assert.notEqual(ViewModel.fileOrganizerModel({fileOrganizer: workflow({
         available: false, phase: "error",
     })}), null);

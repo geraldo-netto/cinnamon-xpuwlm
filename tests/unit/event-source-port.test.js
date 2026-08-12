@@ -72,15 +72,20 @@ function fakeGtk() {
             this.filenames = [];
             this.filters = [];
             this.signals = {};
+            this.destroyCount = 0;
             dialogs.push(this);
         }
         add_button(label, response) { this.buttons.push({label, response}); }
         set_select_multiple(value) { this.multiple = value; }
         add_filter(filter) { this.filters.push(filter); }
         set_current_name(name) { this.currentName = name; }
-        connect(signal, callback) { this.signals[signal] = callback; }
+        connect(signal, callback) { this.signals[signal] = callback; return 17; }
+        disconnect(signalId) { this.disconnected = signalId; delete this.signals.response; }
         show_all() { this.shown = true; }
-        destroy() { this.destroyed = true; }
+        present() { this.presented = true; }
+        set_modal(value) { this.modal = value; }
+        hide() { this.hidden = true; }
+        destroy() { this.destroyed = true; this.destroyCount += 1; }
         get_filenames() { return this.filenames; }
         get_filename() { return this.filenames[0]; }
         respond(response) { this.signals.response(this, response); }
@@ -96,6 +101,39 @@ function fakeGtk() {
         FileChooserDialog: Dialog,
         FileFilter: Filter,
         dialogs,
+    };
+}
+
+function immediateLifecycle(env) {
+    return new Port.GtkChooserLifecycle(env, {
+        schedule(_delayMs, callback) { callback(); return 1; },
+        cancel() { return true; },
+    });
+}
+
+function queuedScheduler() {
+    const callbacks = new Map();
+    const cancelled = [];
+    let nextHandle = 1;
+    return {
+        callbacks,
+        cancelled,
+        schedule(delayMs, callback) {
+            assert.equal(delayMs, 0);
+            const handle = nextHandle;
+            nextHandle += 1;
+            callbacks.set(handle, callback);
+            return handle;
+        },
+        cancel(handle) {
+            cancelled.push(handle);
+            return callbacks.delete(handle);
+        },
+        flush(handle) {
+            const callback = callbacks.get(handle);
+            callbacks.delete(handle);
+            callback();
+        },
     };
 }
 
@@ -151,13 +189,15 @@ test("folder enumeration is non-recursive and bounded", () => {
 
 test("GTK pickers open only when invoked and report accept or cancel once", () => {
     const env = tree();
-    const picker = Port.createGtkEventSourcePicker(env);
+    const picker = Port.createGtkEventSourcePicker(env, immediateLifecycle(env));
     assert.equal(env.Gtk.dialogs.length, 0);
     let files = null;
     assert.equal(picker.chooseFiles((error, selected) => { assert.equal(error, null); files = selected; }), true);
     const fileDialog = env.Gtk.dialogs[0];
     assert.equal(fileDialog.multiple, true);
     assert.equal(fileDialog.shown, true);
+    assert.equal(fileDialog.presented, true);
+    assert.equal(fileDialog.modal, true);
     assert.deepEqual(fileDialog.options, {title: "Choose event source files", action: env.Gtk.FileChooserAction.OPEN});
     assert.deepEqual(fileDialog.buttons, [
         {label: "Cancel", response: env.Gtk.ResponseType.CANCEL},
@@ -171,6 +211,8 @@ test("GTK pickers open only when invoked and report accept or cancel once", () =
     fileDialog.respond(env.Gtk.ResponseType.ACCEPT);
     assert.equal(files[0].name, "one.txt");
     assert.equal(fileDialog.destroyed, true);
+    assert.equal(fileDialog.hidden, true);
+    assert.equal(fileDialog.disconnected, 17);
 
     let folder = null;
     assert.equal(picker.chooseFolder((error, selected) => { assert.equal(error, null); folder = selected; }), true);
@@ -194,7 +236,7 @@ test("GTK pickers open only when invoked and report accept or cancel once", () =
 
 test("export creates a private new file and refuses source replacement", () => {
     const env = tree();
-    const exporter = Port.createGtkEventExporter(env);
+    const exporter = Port.createGtkEventExporter(env, immediateLifecycle(env));
     let saved = null;
     exporter.saveIcs("BEGIN:VCALENDAR\r\n", ["/events/one.txt"], (error, path) => {
         assert.equal(error, null);
@@ -247,12 +289,104 @@ test("ports validate dependencies and chooser callbacks surface I/O failures", (
             && error.message === "Chooser selection and callback functions are required",
     );
     let failure = null;
-    Port.createGtkEventSourcePicker(env).chooseFiles((error) => { failure = error; });
+    Port.createGtkEventSourcePicker(env, immediateLifecycle(env)).chooseFiles((error) => {
+        failure = error;
+    });
     env.Gtk.dialogs[0].filenames = ["/missing.txt"];
     env.Gtk.dialogs[0].respond(env.Gtk.ResponseType.ACCEPT);
     assert.match(String(failure), /missing/u);
     assert.equal(Port.responseAccepted(env.Gtk, env.Gtk.ResponseType.OK), true);
     assert.equal(Port.responseAccepted(env.Gtk, env.Gtk.ResponseType.CANCEL), false);
+});
+
+test("chooser lifecycle destroys native UI before deferred result delivery", () => {
+    const env = tree();
+    const scheduler = queuedScheduler();
+    const lifecycle = new Port.GtkChooserLifecycle(env, scheduler);
+    const dialog = new env.Gtk.FileChooserDialog({title: "test"});
+    let reply = "pending";
+    lifecycle.present(dialog, () => ["selected"], (error, selected) => {
+        assert.equal(dialog.destroyed, true);
+        reply = [error, selected];
+    });
+    const responseHandler = dialog.signals.response;
+    responseHandler(dialog, env.Gtk.ResponseType.ACCEPT);
+    assert.equal(reply, "pending");
+    assert.equal(dialog.hidden, true);
+    assert.equal(dialog.destroyed, true);
+    assert.equal(lifecycle._respond(
+        dialog, env.Gtk.ResponseType.ACCEPT, () => ["again"], () => {},
+    ), false);
+    scheduler.flush(1);
+    assert.deepEqual(reply, [null, ["selected"]]);
+});
+
+test("chooser lifecycle disposal closes open dialogs and cancels pending replies", () => {
+    const env = tree();
+    const scheduler = queuedScheduler();
+    const lifecycle = new Port.GtkChooserLifecycle(env, scheduler);
+    const pendingDialog = new env.Gtk.FileChooserDialog({title: "pending"});
+    let callbacks = 0;
+    lifecycle.present(pendingDialog, () => [], () => { callbacks += 1; });
+    pendingDialog.respond(env.Gtk.ResponseType.CANCEL);
+    const openDialog = new env.Gtk.FileChooserDialog({title: "open"});
+    lifecycle.present(openDialog, () => [], () => { callbacks += 1; });
+
+    assert.equal(lifecycle.dispose(), true);
+    assert.equal(lifecycle.dispose(), false);
+    assert.deepEqual(scheduler.cancelled, [1]);
+    assert.equal(openDialog.destroyed, true);
+    assert.equal(openDialog.hidden, true);
+    assert.equal(callbacks, 0);
+    assert.throws(
+        () => lifecycle.present(new env.Gtk.FileChooserDialog({}), () => [], () => {}),
+        /disposed/u,
+    );
+
+    const racedScheduler = queuedScheduler();
+    const racedLifecycle = new Port.GtkChooserLifecycle(env, racedScheduler);
+    const racedDialog = new env.Gtk.FileChooserDialog({title: "race"});
+    racedLifecycle.present(racedDialog, () => [], () => { callbacks += 1; });
+    racedDialog.respond(env.Gtk.ResponseType.CANCEL);
+    racedLifecycle._disposed = true;
+    racedScheduler.flush(1);
+    assert.equal(callbacks, 0, "a callback already entering teardown stays suppressed");
+});
+
+test("chooser lifecycle validates collaborators and cleans failed presentation", () => {
+    const env = tree();
+    for (const scheduler of [null, {}, {schedule() {}}, {cancel() {}}]) {
+        assert.throws(() => Port.requireScheduler(scheduler), /scheduler/u);
+    }
+    assert.equal(Port.requireScheduler({schedule() {}, cancel() {}}).cancel(), undefined);
+    for (const lifecycle of [null, {}, {present() {}}, {dispose() {}}]) {
+        assert.throws(() => Port.requireChooserLifecycle(lifecycle), /lifecycle/u);
+    }
+    const lifecycle = immediateLifecycle(env);
+    assert.equal(Port.requireChooserLifecycle(lifecycle), lifecycle);
+    const dialog = new env.Gtk.FileChooserDialog({});
+    dialog.present = () => { throw new Error("cannot focus"); };
+    let presentationFailure = null;
+    assert.equal(lifecycle.present(dialog, () => [], (error) => {
+        presentationFailure = error;
+    }), true);
+    assert.match(String(presentationFailure), /cannot focus/u);
+    assert.equal(dialog.destroyed, true);
+    assert.equal(lifecycle.dispose(), true);
+    assert.equal(dialog.destroyCount, 1, "failed presentation is removed before disposal");
+
+    const schedulingFailure = new Port.GtkChooserLifecycle(env, {
+        schedule() { throw new Error("no idle source"); },
+        cancel() { return true; },
+    });
+    const failingDialog = new env.Gtk.FileChooserDialog({});
+    let failure = null;
+    schedulingFailure.present(failingDialog, () => [], (error, selected) => {
+        failure = [error, selected];
+    });
+    failingDialog.respond(env.Gtk.ResponseType.CANCEL);
+    assert.match(String(failure[0]), /no idle source/u);
+    assert.equal(failure[1], null);
 });
 
 test("environment and private writer return and close their exact resources", () => {

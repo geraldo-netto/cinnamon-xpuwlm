@@ -319,7 +319,9 @@ test("selected-document UI asks explicitly and renders only public citations", (
         root, (actor) => actor.accessibleName === "Question for selected documents",
     )[0];
     input.set_text("What must I restart?");
-    button(root, "Ask the explicit question over selected documents").click();
+    const ask = button(root, "Ask the explicit question over selected documents");
+    assert.equal(ask.styleClasses.has("xpuwlm-primary-button"), true);
+    ask.click();
     assert.deepEqual(calls.at(-1), ["startDocumentQuestion", "What must I restart?"]);
 
     view.render(ViewModel.toViewModel(baseState({
@@ -555,7 +557,9 @@ test("file organizer UI displays evidence-backed advice and exposes no apply act
         fileOrganizer: fileOrganizerWorkflow({phase: "selected", sources: [source]}),
     }), NOW));
     button(root, "Choose files for a review-only organization plan").click();
-    button(root, "Suggest organization without changing files").click();
+    const createPlan = button(root, "Suggest organization without changing files");
+    assert.equal(createPlan.styleClasses.has("xpuwlm-primary-button"), true);
+    createPlan.click();
     assert.deepEqual(calls.slice(-2), [["chooseOrganizerFiles"], ["startFileOrganizer"]]);
 
     view.render(ViewModel.toViewModel(baseState({
@@ -953,6 +957,13 @@ test("event action matrix and editable fields pin enablement and accessibility",
             assert.equal(actor.reactive, true, `${phase}:${actor.xpuwlmIdentity}`);
             assert.equal(actor.can_focus, true, `${phase}:${actor.xpuwlmIdentity}`);
             assert.equal(actor.accessibleStates.has("sensitive"), true, `${phase}:${actor.xpuwlmIdentity}`);
+            const primary = ["event-start", "event-review-export", "event-confirm-export"]
+                .includes(actor.xpuwlmIdentity);
+            assert.equal(
+                actor.styleClasses.has(primary ? "xpuwlm-primary-button" : "xpuwlm-secondary-button"),
+                true,
+                `${phase}:${actor.xpuwlmIdentity}:hierarchy`,
+            );
         }
     }
 

@@ -28,6 +28,9 @@ test("document question projection is hidden until ready or explicitly active", 
     assert.equal(ViewModel.documentQuestionModel({
         documentQuestion: workflow({available: false}),
     }), null);
+    assert.equal(ViewModel.documentQuestionModel({documentQuestion: workflow({
+        available: false, message: "Selection cancelled",
+    })}).message, "Selection cancelled");
     assert.equal(ViewModel.documentQuestionModel({
         documentQuestion: workflow({available: false, phase: "error"}),
     }).available, false);

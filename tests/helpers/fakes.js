@@ -165,6 +165,9 @@ class FakeMenu {
     constructor() {
         this.actors = [];
         this.toggleCount = 0;
+        this.closeCount = 0;
+        this.openCount = 0;
+        this.isOpen = false;
         this.destroyed = false;
         this.signals = new Map();
         this.nextSignalId = 1;
@@ -191,6 +194,17 @@ class FakeMenu {
 
     toggle() {
         this.toggleCount += 1;
+        this.isOpen = !this.isOpen;
+    }
+
+    close() {
+        this.closeCount += 1;
+        this.isOpen = false;
+    }
+
+    open() {
+        this.openCount += 1;
+        this.isOpen = true;
     }
 
     destroy() {

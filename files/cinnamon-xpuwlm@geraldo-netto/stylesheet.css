@@ -615,6 +615,15 @@
     padding: 4px 0;
 }
 
+/* Chooser workflow targets stay comfortably keyboard/mouse/touch reachable in
+   every layout, while the one next-step action keeps the familiar primary
+   hierarchy. */
+.xpuwlm-event-controls .xpuwlm-primary-button,
+.xpuwlm-event-controls .xpuwlm-secondary-button,
+.xpuwlm-event-controls .xpuwlm-event-decision {
+    min-height: 44px;
+}
+
 .xpuwlm-event-decision {
     min-height: 34px;
     padding: 4px 10px;

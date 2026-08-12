@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Port = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/document-source-port.js");
+const EventSourcePort = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/event-source-port.js");
 
 class Filter {
     constructor() { this.patterns = []; this.name = ""; }
@@ -23,10 +24,21 @@ class Dialog {
     add_button(label, response) { this.buttons.push([label, response]); }
     set_select_multiple(value) { this.multiple = value; }
     add_filter(filter) { this.filters.push(filter); }
-    connect(name, callback) { this.handlers[name] = callback; }
+    connect(name, callback) { this.handlers[name] = callback; return 23; }
+    disconnect(signalId) { this.disconnected = signalId; delete this.handlers.response; }
     show_all() { this.shown = true; }
+    present() { this.presented = true; }
+    set_modal(value) { this.modal = value; }
+    hide() { this.hidden = true; }
     get_filenames() { return this.paths; }
     destroy() { this.destroyed = true; }
+}
+
+function lifecycle(env) {
+    return new EventSourcePort.GtkChooserLifecycle(env, {
+        schedule(_delayMs, callback) { callback(); return 1; },
+        cancel() { return true; },
+    });
 }
 
 function environment() {
@@ -73,7 +85,7 @@ test("document filter matches only the explicit supported document surface", () 
 test("GTK document picker opens only on invocation and returns described files", () => {
     const env = environment();
     env.infos.set("/private/guide.pdf", {type: 1, name: "guide.pdf", size: 42});
-    const picker = Port.createGtkDocumentPicker(env);
+    const picker = Port.createGtkDocumentPicker(env, lifecycle(env));
     assert.equal(env.dialogs.length, 0);
     let reply = null;
     picker.chooseFiles((error, sources) => { reply = {error, sources}; });
@@ -81,6 +93,8 @@ test("GTK document picker opens only on invocation and returns described files",
     assert.equal(dialog.options.title, "Choose documents to ask");
     assert.equal(dialog.multiple, true);
     assert.equal(dialog.shown, true);
+    assert.equal(dialog.presented, true);
+    assert.equal(dialog.modal, true);
     dialog.paths = ["/private/guide.pdf"];
     dialog.handlers.response(dialog, env.Gtk.ResponseType.ACCEPT);
     assert.deepEqual(reply, {
@@ -91,11 +105,13 @@ test("GTK document picker opens only on invocation and returns described files",
         }],
     });
     assert.equal(dialog.destroyed, true);
+    assert.equal(dialog.hidden, true);
+    assert.equal(dialog.disconnected, 23);
 });
 
 test("document picker reports cancellation without retaining a recent selection", () => {
     const env = environment();
-    const picker = Port.createGtkDocumentPicker(env);
+    const picker = Port.createGtkDocumentPicker(env, lifecycle(env));
     let reply = null;
     picker.chooseFiles((error, sources) => { reply = {error, sources}; });
     const dialog = env.dialogs[0];

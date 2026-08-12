@@ -582,7 +582,7 @@ function eventImportModel(state) {
     if (workflow === null || workflow === undefined) {
         return null;
     }
-    const visible = workflow.available === true || workflow.phase !== "idle";
+    const visible = workflow.available === true || workflow.phase !== "idle" || workflow.message !== "";
     if (!visible) {
         return null;
     }
@@ -625,7 +625,7 @@ function documentQuestionModel(state) {
     if (workflow === null || workflow === undefined) {
         return null;
     }
-    const visible = workflow.available === true || workflow.phase !== "idle";
+    const visible = workflow.available === true || workflow.phase !== "idle" || workflow.message !== "";
     if (!visible) {
         return null;
     }
@@ -693,7 +693,7 @@ function fileOrganizerModel(state) {
     if (workflow === null || workflow === undefined) {
         return null;
     }
-    const visible = workflow.available === true || workflow.phase !== "idle";
+    const visible = workflow.available === true || workflow.phase !== "idle" || workflow.message !== "";
     if (!visible) {
         return null;
     }

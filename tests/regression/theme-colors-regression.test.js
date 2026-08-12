@@ -235,6 +235,13 @@ test("regression: semantic and interaction states explicitly use the symbolic fo
     assert.doesNotMatch(stylesheet, /\.xpuwlm-panel-/u);
 });
 
+test("regression: chooser-flow targets keep a 44px acquisition area", () => {
+    assert.match(
+        stylesheet,
+        /\.xpuwlm-event-controls \.xpuwlm-primary-button,[\s\S]*?\.xpuwlm-event-controls \.xpuwlm-event-decision\s*\{\s*min-height:\s*44px;/u,
+    );
+});
+
 test("regression: St resolves visible cues in light, dark, and high-contrast palettes", HOST_GATE_OPTIONS, () => {
     const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "xpuwlm-theme-"));
     const palettes = [

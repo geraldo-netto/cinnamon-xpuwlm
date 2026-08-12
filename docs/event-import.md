@@ -40,6 +40,13 @@ event.
    the first equal title/start/location tuple.
 5. Review the final kept set, then confirm export and choose a new `.ics` file.
 
+Each chooser action closes the applet popup before presenting the native GTK
+dialog, so focus is visible and keyboard navigation stays with the chooser.
+Cancel returns to the import surface with an explicit cancellation message;
+accepted sources, validation errors, and the final exported path are shown in
+that surface. Reloading or removing the applet closes an outstanding chooser
+without delivering a late selection.
+
 Supported source suffixes are `.ics`, `.jpeg`, `.jpg`, `.md`, `.pdf`, `.png`,
 `.txt`, and `.webp`. Inputs must be absolute, non-empty regular files no larger
 than 128 MiB each. Symlinks, hidden files, recursive discovery, duplicate paths,

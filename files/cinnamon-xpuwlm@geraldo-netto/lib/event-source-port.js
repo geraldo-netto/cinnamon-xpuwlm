@@ -90,22 +90,124 @@ function addChooserButtons(dialog, Gtk, acceptLabel) {
     dialog.add_button(acceptLabel, Gtk.ResponseType.ACCEPT);
 }
 
-function connectChooser(dialog, environment, selected, callback) {
+function requireScheduler(candidate) {
+    if (!candidate || typeof candidate.schedule !== "function"
+        || typeof candidate.cancel !== "function") {
+        throw new TypeError("A chooser scheduler is required");
+    }
+    return candidate;
+}
+
+class GtkChooserLifecycle {
+    constructor(candidate, scheduler) {
+        this._environment = requireEnvironment(candidate);
+        this._scheduler = requireScheduler(scheduler);
+        this._dialogs = new Map();
+        this._pending = new Set();
+        this._disposed = false;
+    }
+
+    present(dialog, selected, callback) {
+        if (typeof selected !== "function" || typeof callback !== "function") {
+            throw new TypeError("Chooser selection and callback functions are required");
+        }
+        if (this._disposed) {
+            throw new Error("Chooser lifecycle is disposed");
+        }
+        const signalId = dialog.connect(
+            "response",
+            (_dialog, response) => this._respond(dialog, response, selected, callback),
+        );
+        this._dialogs.set(dialog, signalId);
+        try {
+            // Cinnamon's popup has no Gtk.Window that can be a transient
+            // parent. The caller closes that popup first; modal + present then
+            // gives the standard GTK chooser a visible, focused launch.
+            dialog.set_modal(true);
+            dialog.show_all();
+            dialog.present();
+        } catch (error) {
+            this._dialogs.delete(dialog);
+            this._close(dialog, signalId);
+            this._defer(callback, error, null);
+        }
+        return true;
+    }
+
+    _respond(dialog, response, selected, callback) {
+        if (!this._dialogs.has(dialog)) {
+            return false;
+        }
+        const signalId = this._dialogs.get(dialog);
+        this._dialogs.delete(dialog);
+        let error = null;
+        let value = null;
+        try {
+            value = responseAccepted(this._environment.Gtk, response) ? selected(dialog) : [];
+        } catch (selectionError) {
+            error = selectionError;
+        }
+        this._close(dialog, signalId);
+        this._defer(callback, error, value);
+        return true;
+    }
+
+    _close(dialog, signalId) {
+        dialog.disconnect(signalId);
+        dialog.hide();
+        dialog.destroy();
+    }
+
+    _defer(callback, error, value) {
+        const pending = {handle: null};
+        this._pending.add(pending);
+        try {
+            pending.handle = this._scheduler.schedule(0, () => {
+                if (!this._pending.delete(pending) || this._disposed) {
+                    return;
+                }
+                callback(error, value);
+            });
+        } catch (scheduleError) {
+            this._pending.delete(pending);
+            callback(scheduleError, null);
+        }
+    }
+
+    dispose() {
+        if (this._disposed) {
+            return false;
+        }
+        this._disposed = true;
+        const dialogs = [...this._dialogs.entries()];
+        this._dialogs.clear();
+        for (const [dialog, signalId] of dialogs) {
+            this._close(dialog, signalId);
+        }
+        for (const pending of this._pending) {
+            if (pending.handle !== null && pending.handle !== undefined) {
+                this._scheduler.cancel(pending.handle);
+            }
+        }
+        this._pending.clear();
+        return true;
+    }
+}
+
+function requireChooserLifecycle(candidate) {
+    if (!candidate || typeof candidate.present !== "function"
+        || typeof candidate.dispose !== "function") {
+        throw new TypeError("A GTK chooser lifecycle is required");
+    }
+    return candidate;
+}
+
+function connectChooser(dialog, environment, selected, callback, candidate) {
     if (typeof selected !== "function" || typeof callback !== "function") {
         throw new TypeError("Chooser selection and callback functions are required");
     }
-    const Gtk = environment.Gtk;
-    dialog.connect("response", (_dialog, response) => {
-        try {
-            callback(null, responseAccepted(Gtk, response) ? selected(dialog) : []);
-        } catch (error) {
-            callback(error, null);
-        } finally {
-            dialog.destroy();
-        }
-    });
-    dialog.show_all();
-    return true;
+    requireEnvironment(environment);
+    return requireChooserLifecycle(candidate).present(dialog, selected, callback);
 }
 
 function sourceFilter(Gtk) {
@@ -118,8 +220,9 @@ function sourceFilter(Gtk) {
     return filter;
 }
 
-function createGtkEventSourcePicker(candidate) {
+function createGtkEventSourcePicker(candidate, chooserLifecycle) {
     const environment = requireEnvironment(candidate);
+    const lifecycle = requireChooserLifecycle(chooserLifecycle);
     const Gtk = environment.Gtk;
     return {
         chooseFiles(callback) {
@@ -135,6 +238,7 @@ function createGtkEventSourcePicker(candidate) {
                 environment,
                 (current) => describeSourcePaths(current.get_filenames(), environment),
                 callback,
+                lifecycle,
             );
         },
         chooseFolder(callback) {
@@ -148,6 +252,7 @@ function createGtkEventSourcePicker(candidate) {
                 environment,
                 (current) => folderSources(current.get_filename(), environment),
                 callback,
+                lifecycle,
             );
         },
     };
@@ -165,8 +270,9 @@ function writeNewPrivateFile(path, text, environment) {
     return path;
 }
 
-function createGtkEventExporter(candidate) {
+function createGtkEventExporter(candidate, chooserLifecycle) {
     const environment = requireEnvironment(candidate);
+    const lifecycle = requireChooserLifecycle(chooserLifecycle);
     const Gtk = environment.Gtk;
     return {
         saveIcs(calendar, forbiddenPaths, callback) {
@@ -185,20 +291,23 @@ function createGtkEventExporter(candidate) {
                     );
                 }
                 return writeNewPrivateFile(path, calendar, environment);
-            }, callback);
+            }, callback, lifecycle);
         },
     };
 }
 
 module.exports = {
     SOURCE_ATTRIBUTES,
+    GtkChooserLifecycle,
     addChooserButtons,
     connectChooser,
     createGtkEventExporter,
     createGtkEventSourcePicker,
     describeSourcePaths,
     folderSources,
+    requireChooserLifecycle,
     requireEnvironment,
+    requireScheduler,
     responseAccepted,
     sourceDescription,
     sourceFilter,

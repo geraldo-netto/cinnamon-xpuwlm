@@ -35,6 +35,12 @@ arbitrary-command action. Choosing **Clear** only clears the displayed plan; it
 does not touch a selected file. Cancellation and every refusal likewise leave
 all files unchanged.
 
+Choosing files first closes the applet popup, then presents the familiar native
+GTK chooser with visible focus and keyboard navigation. Cancelling reports
+**Selection cancelled**; acceptance lists the selected files; validation and
+I/O failures appear in the organizer surface. Reloading or removing the applet
+closes an outstanding chooser and suppresses its late response.
+
 ## Runtime and dependencies
 
 The applet uses its existing GTK file picker and D-Bus job client; no extra

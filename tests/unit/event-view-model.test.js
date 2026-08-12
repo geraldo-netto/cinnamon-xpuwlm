@@ -46,6 +46,9 @@ test("event projection is absent until ready or an explicit workflow exists", ()
     assert.equal(ViewModel.eventImportModel({}), null);
     assert.equal(ViewModel.eventImportModel({eventImport: null}), null);
     assert.equal(ViewModel.eventImportModel({eventImport: workflow({available: false})}), null);
+    assert.equal(ViewModel.eventImportModel({eventImport: workflow({
+        available: false, message: "Selection cancelled",
+    })}).message, "Selection cancelled");
     assert.equal(ViewModel.eventImportModel({
         eventImport: workflow({available: false, phase: "error", message: "setup"}),
     }).available, false);
