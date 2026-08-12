@@ -161,6 +161,10 @@ function sanitizeTab(value) {
     return TAB_SET.has(value) ? value : "overview";
 }
 
+function sanitizeActivityClearedAt(value) {
+    return Number.isSafeInteger(value) && value >= 0 ? value : 0;
+}
+
 // Every method the manager calls, checked at construction. A port that is
 // missing one fails here rather than at the moment a user is waiting for the
 // outcome of a job that has already run.
@@ -310,6 +314,7 @@ class WorkloadManager {
         this._catalogChanges = NO_CATALOG_CHANGES;
         this._portfolio = new Domain.WorkloadPortfolio(null, this._catalog);
         this._selectedTab = "overview";
+        this._activityClearedAt = 0;
         this._unknownContentKey = null;
         this._snapshot = Domain.unavailableSnapshot(_("Monitoring has not started"), this._clock.now());
         this._listeners = new Set();
@@ -353,6 +358,7 @@ class WorkloadManager {
             this._catalogChanges = reconciled.firstRun ? NO_CATALOG_CHANGES : reconciled.changes;
             this._portfolio = new Domain.WorkloadPortfolio(reconciled.state, this._catalog);
             this._selectedTab = sanitizeTab(saved?.selectedTab);
+            this._activityClearedAt = sanitizeActivityClearedAt(saved?.activityClearedAt);
             if (reconciled.changed) {
                 this._persist();
             }
@@ -361,6 +367,7 @@ class WorkloadManager {
             this._catalogChanges = NO_CATALOG_CHANGES;
             this._portfolio = new Domain.WorkloadPortfolio(null, this._catalog);
             this._selectedTab = "overview";
+            this._activityClearedAt = 0;
         }
         this._started = true;
         this._startControlWatch();
@@ -941,6 +948,21 @@ class WorkloadManager {
         return this._portfolio.paused ? this._sendControl("set-paused", null, false) : false;
     }
 
+    clearActivity() {
+        this._ensureActive();
+        const jobRunning = this._job.pending === true || this._job.state === "running";
+        const hadJob = Boolean(this._job.profileId);
+        this._activityClearedAt = this._clock.now();
+        if (!jobRunning) {
+            this._job = NO_JOB;
+        }
+        this._persist();
+        this._publish();
+        return hadJob || this._snapshot.alerts.some(
+            (alert) => alert.resolved && alert.timestamp <= this._activityClearedAt,
+        );
+    }
+
     subscribe(listener) {
         this._ensureActive();
         if (typeof listener !== "function") {
@@ -960,6 +982,9 @@ class WorkloadManager {
     state() {
         const snapshot = this._freshSnapshot();
         const activeAlerts = snapshot.alerts.filter((alert) => !alert.resolved);
+        const visibleAlerts = snapshot.alerts.filter(
+            (alert) => !alert.resolved || alert.timestamp > this._activityClearedAt,
+        );
         return {
             selectedTab: this._selectedTab,
             paused: this._portfolio.paused,
@@ -968,7 +993,7 @@ class WorkloadManager {
             devices: snapshot.devices.map((device) => ({...device})),
             health: {...snapshot.health},
             metrics: {...snapshot.metrics},
-            alerts: snapshot.alerts.map((alert) => ({...alert})),
+            alerts: visibleAlerts.map((alert) => ({...alert})),
             attentionCount: activeAlerts.length,
             unknownContent: {...(snapshot.unknownContent || Domain.NO_UNKNOWN_CONTENT)},
             stale: snapshot.stale,
@@ -1153,6 +1178,7 @@ class WorkloadManager {
                     pluginVersions: {...this._pluginVersions},
                 },
                 selectedTab: this._selectedTab,
+                activityClearedAt: this._activityClearedAt,
             });
             this._errors.recover(STATE_SAVE_FAILURE);
         } catch (error) {
@@ -1223,4 +1249,5 @@ module.exports = {
     requireRuntimeGateway,
     requireScheduler,
     sanitizeTab,
+    sanitizeActivityClearedAt,
 };

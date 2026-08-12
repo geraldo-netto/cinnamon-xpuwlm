@@ -445,6 +445,9 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             resumeAll: () => this._manager.resumeAll(),
             refresh: () => this._manager.retryDeviceDetection(),
             openSettings: () => this._openSettings(),
+            clearActivity: () => this._clearActivity(),
+            openLogs: () => this._openLogs(),
+            copyReport: (report) => this._copyReport(report),
             acknowledgeCatalogChanges: () => this._manager.acknowledgeCatalogChanges(),
             submitJob: (id, picture) => this._manager.submitJob(id, picture),
             chooseEventFiles: () => this._launchChooser(
@@ -658,6 +661,51 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
 
     _openSettings() {
         Util.spawnCommandLineAsync(`cinnamon-settings applets ${UUID}`);
+    }
+
+    _clearActivity() {
+        const results = [
+            this._clearWorkflowHistory(this._eventImport),
+            this._clearWorkflowHistory(this._documentQuestion),
+            this._clearWorkflowHistory(this._selectedText),
+            this._clearWorkflowHistory(this._fileOrganizer),
+            this._manager.clearActivity(),
+        ];
+        return results.some(Boolean);
+    }
+
+    _clearWorkflowHistory(controller) {
+        const phase = controller.state().phase;
+        return ["complete", "error"].includes(phase) ? controller.reset() : false;
+    }
+
+    _openLogs() {
+        try {
+            Util.spawnCommandLineAsync(
+                "x-terminal-emulator -e journalctl --user -u omnitensor.service -f",
+            );
+            return true;
+        } catch (error) {
+            this._logger.warn(`Could not open workload service logs: ${error}`);
+            return false;
+        }
+    }
+
+    _copyReport(report) {
+        try {
+            if (typeof report !== "string" || report === "") {
+                return false;
+            }
+            const clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD);
+            clipboard.set_text(report, -1);
+            if (typeof clipboard.store === "function") {
+                clipboard.store();
+            }
+            return true;
+        } catch (error) {
+            this._logger.warn(`Could not copy diagnostics report: ${error}`);
+            return false;
+        }
     }
 
     _launchChooser(action, owner, pendingPhase) {

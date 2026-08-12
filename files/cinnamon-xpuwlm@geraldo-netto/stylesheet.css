@@ -21,7 +21,10 @@
 .xpuwlm-history-row,
 .xpuwlm-state-row,
 .xpuwlm-recovery-row,
-.xpuwlm-weight-control {
+.xpuwlm-weight-control,
+.xpuwlm-tool-row-content,
+.xpuwlm-diagnostics-current,
+.xpuwlm-event-controls {
     spacing: 8px;
 }
 
@@ -172,7 +175,8 @@
 .xpuwlm-weight-button,
 .xpuwlm-toggle,
 .xpuwlm-paused-summary,
-.xpuwlm-tab {
+.xpuwlm-tab,
+.xpuwlm-back-button {
     min-height: 34px;
     padding: 6px 10px;
     border: 1px solid rgba(127, 127, 127, 0.28);
@@ -185,7 +189,8 @@
 .xpuwlm-weight-button:hover,
 .xpuwlm-toggle:hover,
 .xpuwlm-paused-summary:hover,
-.xpuwlm-tab:hover {
+.xpuwlm-tab:hover,
+.xpuwlm-back-button:hover {
     background-color: rgba(127, 127, 127, 0.22);
 }
 
@@ -224,7 +229,9 @@
 .xpuwlm-weight-button:focus,
 .xpuwlm-toggle:focus,
 .xpuwlm-paused-summary:focus,
-.xpuwlm-tab:focus {
+.xpuwlm-tab:focus,
+.xpuwlm-back-button:focus,
+.xpuwlm-tool-row:focus {
     border-width: 2px;
     border-color: symbolic;
 }
@@ -323,11 +330,55 @@
 .xpuwlm-profile-row,
 .xpuwlm-history-row,
 .xpuwlm-state-row,
-.xpuwlm-recovery-row {
+.xpuwlm-recovery-row,
+.xpuwlm-tool-row {
     min-height: 54px;
     padding: 7px 10px;
     border-bottom: 1px solid rgba(127, 127, 127, 0.16);
     background-color: rgba(127, 127, 127, 0.05);
+}
+
+.xpuwlm-tool-row {
+    border: 1px solid rgba(127, 127, 127, 0.16);
+    border-radius: 8px;
+}
+
+.xpuwlm-tool-row:hover {
+    background-color: rgba(127, 127, 127, 0.14);
+}
+
+.xpuwlm-tool-row-content {
+    min-height: 40px;
+}
+
+.xpuwlm-tool-chevron {
+    min-width: 12px;
+    font-size: 1.25em;
+    opacity: 0.6;
+}
+
+.xpuwlm-back-button {
+    min-height: 30px;
+    padding: 4px 8px;
+}
+
+.xpuwlm-confirmation {
+    padding: 10px;
+    spacing: 8px;
+    border: 1px solid rgba(127, 127, 127, 0.28);
+    border-radius: 8px;
+    background-color: rgba(127, 127, 127, 0.1);
+}
+
+.xpuwlm-diagnostics-current {
+    padding: 1px;
+    border: 1px solid rgba(127, 127, 127, 0.22);
+    border-radius: 8px;
+    background-color: rgba(127, 127, 127, 0.1);
+}
+
+.xpuwlm-diagnostics-current .xpuwlm-metric {
+    min-width: 105px;
 }
 
 .xpuwlm-profile-disabled {

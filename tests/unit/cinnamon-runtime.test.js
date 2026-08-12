@@ -549,6 +549,7 @@ test("settings repository avoids redundant writes", () => {
     const values = {
         "profile-state": {paused: false, profiles: {}},
         "selected-tab": "overview",
+        "activity-cleared-at": 0,
     };
     const writes = [];
     const settings = {
@@ -560,11 +561,15 @@ test("settings repository avoids redundant writes", () => {
     };
     assert.throws(() => new Cinnamon.CinnamonSettingsRepository(null), /settings/);
     const repository = new Cinnamon.CinnamonSettingsRepository(settings);
-    assert.deepEqual(repository.load(), {portfolio: values["profile-state"], selectedTab: "overview"});
-    repository.save({portfolio: values["profile-state"], selectedTab: "overview"});
+    assert.deepEqual(repository.load(), {
+        portfolio: values["profile-state"], selectedTab: "overview", activityClearedAt: 0,
+    });
+    repository.save({portfolio: values["profile-state"], selectedTab: "overview", activityClearedAt: 0});
     assert.equal(writes.length, 0);
-    repository.save({portfolio: {paused: true, profiles: {}}, selectedTab: "alerts"});
-    assert.deepEqual(writes, ["profile-state", "selected-tab"]);
+    repository.save({
+        portfolio: {paused: true, profiles: {}}, selectedTab: "alerts", activityClearedAt: NOW,
+    });
+    assert.deepEqual(writes, ["profile-state", "selected-tab", "activity-cleared-at"]);
 });
 
 test("renamed state repository uses legacy fallback only for its canonical path", () => {

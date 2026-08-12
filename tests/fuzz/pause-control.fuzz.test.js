@@ -25,7 +25,7 @@ function generator(seed) {
     };
 }
 
-test("fuzz: pause control follows policy across effective-screen transitions", () => {
+test("fuzz: recovery preserves resume without restoring a global pause control", () => {
     const random = generator(0x50415553);
     const calls = [];
     const actions = Object.fromEntries([
@@ -72,18 +72,24 @@ test("fuzz: pause control follows policy across effective-screen transitions", (
             generatedAt: NOW,
         }, NOW);
 
-        const expectedAction = paused ? "resumeAll" : "pauseAll";
-        const expectedName = paused ? "Resume all workloads" : "Pause all workloads";
         assert.equal(model.policyPaused, paused);
         assert.equal(model.screen, available
             ? (paused ? "paused" : Manager.sanitizeTab(selectedTab))
             : "unavailable");
         view.render(model);
-        const control = findActors(menu.actors[0], (actor) => (
-            actor instanceof FakeButton && actor.accessibleName === expectedName
+        const resume = findActors(menu.actors[0], (actor) => (
+            actor instanceof FakeButton && actor.accessibleName === "Resume all workloads"
         ))[0];
-        assert.ok(control);
-        control.click();
-        assert.equal(calls.at(-1), expectedAction);
+        const pause = findActors(menu.actors[0], (actor) => (
+            actor instanceof FakeButton && actor.accessibleName === "Pause all workloads"
+        ))[0];
+        assert.equal(pause, undefined);
+        if (paused) {
+            assert.ok(resume);
+            resume.click();
+            assert.equal(calls.at(-1), "resumeAll");
+        } else {
+            assert.equal(resume, undefined);
+        }
     }
 });

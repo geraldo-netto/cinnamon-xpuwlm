@@ -72,7 +72,7 @@ test("regression: the state file wins over lagging legacy xlet settings", () => 
         environment,
         legacy: legacyOf({portfolio: {paused: true, profiles: {}}, selectedTab: "overview"}),
     });
-    assert.deepEqual(repository.load(), fresh);
+    assert.deepEqual(repository.load(), {...fresh, activityClearedAt: null});
 });
 
 test("regression: a missing state file migrates from the legacy settings once", () => {

@@ -16,16 +16,14 @@ msgstr ""
 msgid " · page %d"
 msgstr ""
 
-#: lib/menu-view.js
-msgid "%d active"
-msgstr ""
+#: lib/menu-view.js lib/view-model.js
+msgid "%d active job"
+msgid_plural "%d active jobs"
+msgstr[0] ""
+msgstr[1] ""
 
 #: lib/menu-view.js
 msgid "%d active · %d paused · weight 1–5"
-msgstr ""
-
-#: lib/menu-view.js
-msgid "%d active · highest severity %s · no automatic action"
 msgstr ""
 
 #: lib/menu-view.js
@@ -63,6 +61,10 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/view-model.js
+msgid "%d needs setup"
+msgstr ""
+
+#: lib/view-model.js
 msgid "%d observation ahead"
 msgid_plural "%d observations ahead"
 msgstr[0] ""
@@ -72,19 +74,9 @@ msgstr[1] ""
 msgid "%d of %d active"
 msgstr ""
 
-#: lib/menu-view.js
-msgid "%d of %d available"
-msgstr ""
-
 #: lib/view-model.js
 msgid "%d of %d workload profile can run on this machine"
 msgid_plural "%d of %d workload profiles can run on this machine"
-msgstr[0] ""
-msgstr[1] ""
-
-#: lib/menu-view.js
-msgid "%d paused profile"
-msgid_plural "%d paused profiles"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -122,9 +114,33 @@ msgid_plural "%d suggestions"
 msgstr[0] ""
 msgstr[1] ""
 
+#: lib/menu-view.js
+msgid "%d tool"
+msgid_plural "%d tools"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/view-model.js
+msgid "%d tool or profile needs attention"
+msgid_plural "%d tools or profiles need attention"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/view-model.js
+msgid "%d tool ready"
+msgid_plural "%d tools ready"
+msgstr[0] ""
+msgstr[1] ""
+
 #: lib/view-model.js
 msgid "%d workload plug-in changed"
 msgid_plural "%d workload plug-ins changed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/view-model.js
+msgid "%d workload reported by the runtime"
+msgid_plural "%d workloads reported by the runtime"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -152,7 +168,7 @@ msgstr ""
 msgid "%s Detected"
 msgstr ""
 
-#: lib/domain.js
+#: lib/domain.js lib/view-model.js
 msgid "%s accelerator"
 msgstr ""
 
@@ -197,7 +213,11 @@ msgid "%s · page %d · span %d–%d"
 msgstr ""
 
 #: lib/view-model.js
-msgid "%s · see Setup"
+msgid "%s · see Diagnostics"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "%s, %s. %s"
 msgstr ""
 
 #: lib/view-model.js
@@ -265,11 +285,11 @@ msgid "Accel Unknown"
 msgstr ""
 
 #: lib/view-model.js
-msgid "Accelerator discovery failed"
+msgid "Accelerator"
 msgstr ""
 
-#: lib/menu-view.js
-msgid "Accelerator load"
+#: lib/view-model.js
+msgid "Accelerator discovery failed"
 msgstr ""
 
 #: lib/view-model.js
@@ -280,12 +300,16 @@ msgstr ""
 msgid "Accelerator state unknown"
 msgstr ""
 
-#: lib/menu-view.js
-msgid "Accelerators"
+#: lib/view-model.js
+msgid "Active jobs"
 msgstr ""
 
 #: lib/menu-view.js
-msgid "Active profiles"
+msgid "Activity"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Advanced workload profiles"
 msgstr ""
 
 #: lib/view-model.js
@@ -293,15 +317,11 @@ msgid "After enough history, use omnitensor-train-model with queueDepth first, i
 msgstr ""
 
 #: lib/menu-view.js
-msgid "Alerts"
-msgstr ""
-
-#: lib/menu-view.js
 msgid "All local profiles are paused"
 msgstr ""
 
-#: lib/menu-view.js
-msgid "All monitored signals are within their review thresholds."
+#: lib/view-model.js
+msgid "Analyze a picture"
 msgstr ""
 
 #: lib/menu-view.js
@@ -321,14 +341,14 @@ msgid "Ask"
 msgstr ""
 
 #: lib/view-model.js
-msgid "Ask selected files"
+msgid "Ask documents"
 msgstr ""
 
 #: lib/menu-view.js
 msgid "Ask the explicit question over selected documents"
 msgstr ""
 
-#: lib/menu-view.js lib/view-model.js
+#: lib/view-model.js
 msgid "Attention"
 msgstr ""
 
@@ -340,8 +360,16 @@ msgstr ""
 msgid "Back"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Back to %s"
+msgstr ""
+
 #: lib/event-source-port.js lib/menu-view.js
 msgid "Cancel"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Cancel clearing activity history"
 msgstr ""
 
 #: lib/menu-view.js
@@ -416,6 +444,10 @@ msgstr ""
 msgid "Choose files"
 msgstr ""
 
+#: lib/view-model.js
+msgid "Choose files and ask a grounded question"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Choose files for a review-only organization plan"
 msgstr ""
@@ -430,6 +462,18 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Clear"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Clear History"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Clear recent activity history"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Clear recent activity?"
 msgstr ""
 
 #: lib/menu-view.js
@@ -449,11 +493,19 @@ msgid "Confidence"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Configuration"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Confirm and write a new calendar file"
 msgstr ""
 
 #: lib/menu-view.js
 msgid "Confirm calendar export"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Confirm clearing recent activity history"
 msgstr ""
 
 #: lib/view-model.js
@@ -493,7 +545,31 @@ msgid "Consent is granted from a terminal rather than from this popup: every pee
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Copy diagnostics report"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Copy report"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Could not copy report"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Could not finish"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Could not open logs"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Create plan"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Current state"
 msgstr ""
 
 #: lib/menu-view.js
@@ -502,6 +578,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Detection failed"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Device"
 msgstr ""
 
 #: lib/view-model.js
@@ -518,6 +598,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Device unknown"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Diagnostics"
 msgstr ""
 
 #: lib/menu-view.js
@@ -553,6 +637,10 @@ msgid "Enable %s"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Enable profiles and adjust scheduling weights"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Ends"
 msgstr ""
 
@@ -562,6 +650,10 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Every workload profile can run"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Everything looks healthy"
 msgstr ""
 
 #: lib/menu-view.js
@@ -578,6 +670,14 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Explain"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Explain, summarize, rewrite, or translate"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Extract calendar events"
 msgstr ""
 
 #: lib/menu-view.js
@@ -598,10 +698,6 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Failed"
-msgstr ""
-
-#: lib/view-model.js
-msgid "File organizer"
 msgstr ""
 
 #: applet.js
@@ -625,11 +721,19 @@ msgid "General"
 msgstr ""
 
 #: lib/view-model.js
+msgid "Generated"
+msgstr ""
+
+#: lib/view-model.js
 msgid "Grant the permission these profiles ask for"
 msgstr ""
 
 #: lib/menu-view.js
 msgid "Grounded answer"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Health"
 msgstr ""
 
 #: lib/view-model.js
@@ -638,10 +742,6 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Idle"
-msgstr ""
-
-#: lib/view-model.js
-msgid "Import events"
 msgstr ""
 
 #: lib/menu-view.js
@@ -661,6 +761,10 @@ msgid "Installed"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Jobs, results, and alerts"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Keep"
 msgstr ""
 
@@ -673,11 +777,15 @@ msgid "Keep current name"
 msgstr ""
 
 #: lib/view-model.js
+msgid "Last update"
+msgstr ""
+
+#: lib/view-model.js
 msgid "Last update %s"
 msgstr ""
 
 #: lib/menu-view.js
-msgid "Load %s"
+msgid "Live runtime and device information"
 msgstr ""
 
 #: lib/view-model.js
@@ -688,20 +796,16 @@ msgstr ""
 msgid "Local policy paused"
 msgstr ""
 
+#: lib/view-model.js
+msgid "Local runtime"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Location"
 msgstr ""
 
 #: lib/menu-view.js
-msgid "Manage paused profiles"
-msgstr ""
-
-#: lib/menu-view.js
-msgid "Manage profiles"
-msgstr ""
-
-#: lib/menu-view.js
-msgid "Manage workload profiles"
+msgid "Logs opened"
 msgstr ""
 
 #: settings-schema.json
@@ -728,12 +832,12 @@ msgstr ""
 msgid "NPU"
 msgstr ""
 
-#: lib/menu-view.js
-msgid "Needs review"
-msgstr ""
-
 #: lib/view-model.js
 msgid "Needs setup"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Needs setup (%d)"
 msgstr ""
 
 #: lib/view-model.js
@@ -769,7 +873,15 @@ msgid "No accelerator these profiles can use is attached to this machine. There 
 msgstr ""
 
 #: lib/menu-view.js
-msgid "No active alerts"
+msgid "No active jobs"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "No active runtime alerts require review."
+msgstr ""
+
+#: lib/view-model.js
+msgid "No additional detail"
 msgstr ""
 
 #: lib/menu-view.js
@@ -778,6 +890,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "No device"
+msgstr ""
+
+#: lib/view-model.js
+msgid "No device detail"
 msgstr ""
 
 #: lib/view-model.js
@@ -805,11 +921,19 @@ msgid "No picture was chosen"
 msgstr ""
 
 #: lib/view-model.js
-msgid "No profile that accepts a picture can serve right now; the Setup tab says why"
+msgid "No profile that accepts a picture can serve right now; Diagnostics says why"
 msgstr ""
 
 #: lib/view-model.js
 msgid "No qualified model is available"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "No recent activity"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "No recent issues"
 msgstr ""
 
 #: lib/domain.js
@@ -837,7 +961,7 @@ msgid "No tags suggested"
 msgstr ""
 
 #: lib/menu-view.js
-msgid "No workload profile can run on this machine yet. Open the Setup tab to see what each one needs."
+msgid "No workload profile can run on this machine yet. Open Diagnostics to see what each one needs."
 msgstr ""
 
 #: lib/view-model.js
@@ -872,12 +996,28 @@ msgstr ""
 msgid "Open XPU Workload Manager settings"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Open advanced workload profiles"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Open logs"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Open setup details, %s"
+msgstr ""
+
 #: lib/view-model.js
 msgid "Open the settings and confirm the runtime state path."
 msgstr ""
 
 #: lib/menu-view.js
-msgid "Overview"
+msgid "Open workload service logs"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Organize files"
 msgstr ""
 
 #: settings-schema.json
@@ -908,10 +1048,6 @@ msgstr ""
 msgid "Preparing the picture…"
 msgstr ""
 
-#: lib/menu-view.js
-msgid "Profiles"
-msgstr ""
-
 #: lib/view-model.js
 msgid "Profiles remain saved locally. No data, authorization, or backup policy is changed."
 msgstr ""
@@ -924,7 +1060,7 @@ msgstr ""
 msgid "Question for selected documents"
 msgstr ""
 
-#: lib/menu-view.js lib/view-model.js
+#: lib/view-model.js
 msgid "Queue"
 msgstr ""
 
@@ -936,12 +1072,20 @@ msgstr ""
 msgid "Reads the clipboard once only after an operation is chosen"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/menu-view.js lib/view-model.js
 msgid "Ready"
 msgstr ""
 
+#: lib/view-model.js
+msgid "Ready tools"
+msgstr ""
+
 #: lib/menu-view.js
-msgid "Recently resolved"
+msgid "Recent"
+msgstr ""
+
+#: lib/menu-view.js lib/view-model.js
+msgid "Recent issues"
 msgstr ""
 
 #: lib/menu-view.js
@@ -950,6 +1094,14 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Refresh XPU status"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Refresh activity"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Refresh diagnostics"
 msgstr ""
 
 #: settings-schema.json
@@ -968,8 +1120,16 @@ msgstr ""
 msgid "Repair the declared model installation"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Report copied"
+msgstr ""
+
 #: lib/view-model.js
 msgid "Reported by the runtime"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Required service or input is unavailable"
 msgstr ""
 
 #: lib/menu-view.js
@@ -978,10 +1138,6 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Resource Scheduler has no bundled weights, but OmniTensor supports one opt-in self-supervised forecast recipe for it. Record representative real queue history first; never substitute synthetic samples."
-msgstr ""
-
-#: lib/menu-view.js
-msgid "Resume all"
 msgstr ""
 
 #: lib/menu-view.js
@@ -1004,8 +1160,16 @@ msgstr ""
 msgid "Return to event preview"
 msgstr ""
 
+#: lib/view-model.js
+msgid "Review"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Review confirmed events before export"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Review events before exporting"
 msgstr ""
 
 #: lib/menu-view.js
@@ -1016,8 +1180,16 @@ msgstr ""
 msgid "Review organization plan"
 msgstr ""
 
+#: lib/view-model.js
+msgid "Review required before continuing"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Review result"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Review suggestions; files are never changed"
 msgstr ""
 
 #: lib/menu-view.js
@@ -1033,11 +1205,23 @@ msgid "Run %s on %s"
 msgstr ""
 
 #: lib/view-model.js
-msgid "Run a picture"
+msgid "Run the available visual model"
 msgstr ""
 
-#: lib/menu-view.js lib/view-model.js
+#: lib/view-model.js
 msgid "Running"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Running jobs and runtime alerts are not stopped or dismissed."
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Running now"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Runtime"
 msgstr ""
 
 #: lib/view-model.js
@@ -1046,6 +1230,18 @@ msgstr ""
 
 #: lib/manager.js
 msgid "Runtime control service is unavailable; start it and retry"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Runtime control state is not known"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Runtime controls are available"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Runtime controls are unavailable"
 msgstr ""
 
 #: settings-schema.json
@@ -1076,6 +1272,10 @@ msgstr ""
 msgid "Runtime snapshot is stale"
 msgstr ""
 
+#: lib/view-model.js
+msgid "Runtime snapshot monitoring"
+msgstr ""
+
 #: lib/domain.js
 msgid "Runtime snapshot timestamp is invalid"
 msgstr ""
@@ -1095,6 +1295,12 @@ msgstr ""
 #: lib/view-model.js
 msgid "Runtime unreadable"
 msgstr ""
+
+#: lib/view-model.js
+msgid "Runtime workload"
+msgid_plural "Runtime workloads"
+msgstr[0] ""
+msgstr[1] ""
 
 #: lib/menu-view.js
 msgid "Safe by default · no write, shutdown, authorization, or backup policy changed"
@@ -1137,10 +1343,6 @@ msgid "Selected-text provider is not ready"
 msgstr ""
 
 #: lib/view-model.js
-msgid "Selected-text tools"
-msgstr ""
-
-#: lib/view-model.js
 msgid "Selection digest %s · span %d–%d"
 msgstr ""
 
@@ -1152,8 +1354,16 @@ msgstr ""
 msgid "Show XPU status beside the panel icon"
 msgstr ""
 
+#: lib/view-model.js
+msgid "Snapshot contract is readable"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Start a new event import"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Start a tool when you are ready"
 msgstr ""
 
 #: lib/view-model.js
@@ -1177,6 +1387,14 @@ msgid "State"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Status"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Submitted"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Suggest organization without changing files"
 msgstr ""
 
@@ -1194,6 +1412,10 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Summarize"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "System"
 msgstr ""
 
 #: lib/view-model.js
@@ -1396,6 +1618,14 @@ msgstr ""
 msgid "Title"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Tools"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Tools and workload profiles are ready"
+msgstr ""
+
 #: lib/view-model.js
 msgid "Track each profile's model work in OmniTensor. Do not attach arbitrary weights or reuse Resource Scheduler's scalar forecast recipe for a different task."
 msgstr ""
@@ -1416,8 +1646,16 @@ msgstr ""
 msgid "Translation target language"
 msgstr ""
 
-#: lib/menu-view.js lib/view-model.js
+#: lib/view-model.js
 msgid "Unavailable"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Unavailable tools"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Unknown"
 msgstr ""
 
 #: lib/alert-notifier.js lib/view-model.js
@@ -1426,10 +1664,6 @@ msgstr ""
 
 #: lib/domain.js
 msgid "Unsupported runtime snapshot version"
-msgstr ""
-
-#: lib/view-model.js
-msgid "Updated %s"
 msgstr ""
 
 #: lib/view-model.js
@@ -1453,7 +1687,7 @@ msgid "Weight %d"
 msgstr ""
 
 #: lib/menu-view.js
-msgid "Weights apply only when queues contend"
+msgid "What needs setup"
 msgstr ""
 
 #: lib/view-model.js
@@ -1462,6 +1696,18 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Which extra depends on the accelerator: see the Dependencies table in the OmniTensor installation guide."
+msgstr ""
+
+#: lib/view-model.js
+msgid "Work in progress"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Work with selected text"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Working"
 msgstr ""
 
 #: lib/menu-view.js
@@ -1480,12 +1726,20 @@ msgstr ""
 msgid "Workload runtime"
 msgstr ""
 
+#: lib/view-model.js
+msgid "Workload service"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Write calendar file"
 msgstr ""
 
 #: lib/menu-view.js metadata.json
 msgid "XPU Workload Manager"
+msgstr ""
+
+#: lib/view-model.js
+msgid "XPU Workload Manager diagnostics"
 msgstr ""
 
 #: lib/view-model.js
@@ -1538,10 +1792,6 @@ msgstr ""
 
 #: lib/alert-notifier.js
 msgid "XPU critical alert — %s"
-msgstr ""
-
-#: lib/menu-view.js
-msgid "You’re all caught up"
 msgstr ""
 
 #: lib/view-model.js
@@ -1616,4 +1866,8 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "warning"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "‹ %s"
 msgstr ""

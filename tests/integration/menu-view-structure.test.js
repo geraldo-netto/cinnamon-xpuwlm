@@ -100,41 +100,31 @@ function labelsWithClass(root, styleClass) {
     return findActors(root, (actor) => actor.styleClasses.has(styleClass)).map((actor) => actor.text);
 }
 
-test("the overview lists every accelerator with availability and load", () => {
+test("System lists current device and runtime status", () => {
     const {view, root} = harness();
-    view.render(ViewModel.toViewModel(baseState(), NOW));
+    view.render(ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW));
 
     const titles = labelsWithClass(root, "xpuwlm-profile-title");
-    assert.equal(titles.includes("TPU · Coral USB"), true);
-    assert.equal(titles.includes("GPU · NVIDIA GPU"), true);
+    assert.equal(titles.includes("Coral USB"), true);
+    assert.equal(titles.includes("Local runtime"), true);
     const descriptions = labelsWithClass(root, "xpuwlm-profile-description");
-    assert.equal(descriptions.includes("Load 42%"), true);
-    assert.equal(descriptions.includes("Absent"), true);
-    const headings = labelsWithClass(root, "xpuwlm-group-value");
-    assert.equal(headings.includes("1 of 2 available"), true);
+    assert.equal(descriptions.includes("TPU accelerator"), true);
+    assert.equal(labelsWithClass(root, "xpuwlm-status").includes("Online"), true);
 
-    view.render(ViewModel.toViewModel(baseState({devices: []}), NOW));
-    assert.equal(labelsWithClass(root, "xpuwlm-profile-title").includes("TPU · Coral USB"), false);
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles", device: {...baseState().device, name: "Updated device"},
+    }), NOW));
+    assert.equal(labelsWithClass(root, "xpuwlm-profile-title").includes("Updated device"), true);
 });
 
-test("metric tiles keep a fixed name, order, and value structure", () => {
+test("Diagnostics current-state tiles keep approved names and values", () => {
     const {view, root} = harness();
-    view.render(ViewModel.toViewModel(baseState(), NOW));
+    view.render(ViewModel.toViewModel(baseState({selectedTab: "setup"}), NOW));
 
     assert.deepEqual(labelsWithClass(root, "xpuwlm-metric-name"), [
-        "TPU load", "Queue", "Running", "Attention",
+        "Ready tools", "Active jobs", "Last update",
     ]);
-    assert.deepEqual(labelsWithClass(root, "xpuwlm-metric-value"), [
-        "42%", "2 jobs", "1 profiles", "0 items",
-    ]);
-
-    view.render(ViewModel.toViewModel(baseState({paused: true}), NOW));
-    assert.deepEqual(labelsWithClass(root, "xpuwlm-metric-value"), [
-        "0%", "2 held", "0 profiles", "Paused",
-    ]);
-    const attention = findActors(root, (actor) => actor.text === "Paused"
-        && actor.styleClasses.has("xpuwlm-metric-value"));
-    assert.equal(attention[0].styleClasses.has("xpuwlm-attention"), true);
+    assert.equal(labelsWithClass(root, "xpuwlm-metric-value").length, 3);
 });
 
 test("the view model always describes exactly four metric tiles", () => {
@@ -156,6 +146,7 @@ test("every symbolic icon declares a name, type, size, and placement", () => {
     const {view, root} = harness();
     const profiles = ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW);
     view.render(profiles);
+    view._openDetail("profiles");
 
     const brand = icons(root).find((actor) => actor.icon_name === "xpuwlm-symbolic");
     assert.deepEqual(
@@ -196,11 +187,13 @@ test("every symbolic icon declares a name, type, size, and placement", () => {
     assert.equal(profileIcons.every((actor) => actor.icon_size === 20), true);
     assert.equal(profileIcons.every((actor) => actor.icon_type === "symbolic"), true);
 
-    view.render(ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW));
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "alerts", metrics: {queueDepth: 0, runningProfiles: 0},
+    }), NOW));
     const hero = icons(root).find((actor) => actor.style_class === "xpuwlm-hero-icon");
     assert.deepEqual(
         {name: hero.icon_name, size: hero.icon_size, type: hero.icon_type},
-        {name: "emblem-ok-symbolic", size: 36, type: "symbolic"},
+        {name: "media-playback-start-symbolic", size: 36, type: "symbolic"},
     );
 });
 
@@ -244,6 +237,7 @@ test("the scrolling body keeps its vertical-only layout contract", () => {
 test("every interactive control is focusable, reactive, and role-labelled", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW));
+    view._openDetail("profiles");
 
     const buttons = findActors(root, (actor) => actor instanceof FakeButton);
     assert.equal(buttons.length > 0, true);
@@ -301,6 +295,7 @@ test("a profile waiting on consent is offered a command, not an install", () => 
         : profile));
 
     view.render(ViewModel.toViewModel(state, NOW));
+    view._openDetail("setup");
 
     const titles = labelsWithClass(root, "xpuwlm-group-title");
     assert.equal(

@@ -68,7 +68,7 @@ test("event projection maps candidates, evidence, decisions, and nullable edits 
         ],
     })});
 
-    assert.equal(model.title, "Import events");
+    assert.equal(model.title, "Extract calendar events");
     assert.equal(model.chooserEnabled, true);
     assert.equal(model.startEnabled, false);
     assert.equal(model.cancelEnabled, false);

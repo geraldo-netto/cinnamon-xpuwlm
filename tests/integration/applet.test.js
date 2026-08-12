@@ -24,6 +24,7 @@ const DEFAULTS = {
     "show-panel-label": false,
     "profile-state": Domain.defaultProfileState(BuiltIns.coreCatalog()),
     "selected-tab": "overview",
+    "activity-cleared-at": 0,
     "identity-migration-version": 0,
 };
 
@@ -60,6 +61,7 @@ class BoundSettings extends FakeSettings {
 const iconPaths = [];
 const notifications = [];
 const spawned = [];
+const copiedReports = [];
 const timers = new Map();
 let nextTimerId = 1;
 
@@ -70,6 +72,7 @@ global.imports = {
     gi: {
         Atk: createAtk(),
         Clutter: {ActorAlign: {CENTER: "center"}},
+        Gdk: {SELECTION_CLIPBOARD: "clipboard"},
         Gio: {
             File: {
                 new_for_path: () => ({
@@ -83,6 +86,15 @@ global.imports = {
             file_get_contents: () => [false, ""],
         },
         Gtk: {
+            Clipboard: {
+                get(selection) {
+                    assert.equal(selection, "clipboard");
+                    return {
+                        set_text(text, length) { copiedReports.push([text, length]); },
+                        store() { copiedReports.push(["store"]); },
+                    };
+                },
+            },
             IconTheme: {
                 get_default: () => ({
                     get_search_path: () => iconPaths.slice(),
@@ -201,6 +213,7 @@ function managerFake(initial = liveState()) {
         pauseAll() { this.calls.push(["pauseAll"]); },
         resumeAll() { this.calls.push(["resumeAll"]); },
         acknowledgeCatalogChanges() { this.calls.push(["acknowledgeCatalogChanges"]); },
+        clearActivity() { this.calls.push(["clearActivity"]); return true; },
         refreshInputs() { this.calls.push(["refreshInputs"]); },
         submitJob(id, picture) { this.calls.push(["submitJob", id, picture]); },
         dispose() { this.calls.push(["dispose"]); },
@@ -303,6 +316,9 @@ test("menu actions delegate without mixing responsibilities", () => {
     actions.openSettings();
     actions.submitJob("visual-library", {root: "/root", name: "cat.png", path: "/root/cat.png"});
     actions.acknowledgeCatalogChanges();
+    assert.equal(actions.clearActivity(), true);
+    assert.equal(actions.openLogs(), true);
+    assert.equal(actions.copyReport("diagnostics"), true);
     assert.deepEqual(manager.calls.slice(1), [
         ["selectTab", "alerts"],
         ["toggleProfile", "hardware-health"],
@@ -312,8 +328,69 @@ test("menu actions delegate without mixing responsibilities", () => {
         ["retryDeviceDetection"],
         ["submitJob", "visual-library", {root: "/root", name: "cat.png", path: "/root/cat.png"}],
         ["acknowledgeCatalogChanges"],
+        ["clearActivity"],
     ]);
-    assert.equal(spawned.at(-1), `cinnamon-settings applets ${AppletModule.UUID}`);
+    assert.deepEqual(spawned.slice(-2), [
+        `cinnamon-settings applets ${AppletModule.UUID}`,
+        "x-terminal-emulator -e journalctl --user -u omnitensor.service -f",
+    ]);
+    assert.deepEqual(copiedReports.slice(-2), [["diagnostics", -1], ["store"]]);
+});
+
+test("diagnostic actions fail closed and report local launch errors", () => {
+    const warnings = [];
+    const {applet} = appletHarness({
+        logger: {warn(message) { warnings.push(message); }, error() {}},
+    });
+    assert.equal(applet._copyReport(""), false);
+
+    const originalSpawn = global.imports.misc.util.spawnCommandLineAsync;
+    const originalClipboardGet = global.imports.gi.Gtk.Clipboard.get;
+    global.imports.misc.util.spawnCommandLineAsync = () => { throw new Error("no terminal"); };
+    global.imports.gi.Gtk.Clipboard.get = () => { throw new Error("no clipboard"); };
+    try {
+        assert.equal(applet._openLogs(), false);
+        assert.equal(applet._copyReport("diagnostics"), false);
+    } finally {
+        global.imports.misc.util.spawnCommandLineAsync = originalSpawn;
+        global.imports.gi.Gtk.Clipboard.get = originalClipboardGet;
+    }
+    assert.equal(warnings.some((message) => message.includes("no terminal")), true);
+    assert.equal(warnings.some((message) => message.includes("no clipboard")), true);
+});
+
+test("Clear History preserves in-progress and review workflow state", () => {
+    const {applet, manager} = appletHarness();
+    const phases = ["complete", "preview", "running", "error"];
+    const resets = [];
+    for (const [index, controller] of [
+        applet._eventImport,
+        applet._documentQuestion,
+        applet._selectedText,
+        applet._fileOrganizer,
+    ].entries()) {
+        controller.state = () => ({phase: phases[index]});
+        controller.reset = () => { resets.push(phases[index]); return true; };
+    }
+
+    assert.equal(applet._clearActivity(), true);
+    assert.deepEqual(resets, ["complete", "error"]);
+    assert.equal(manager.calls.at(-1)[0], "clearActivity");
+});
+
+test("Clear History reports no change when every workflow and manager history is active", () => {
+    const {applet, manager} = appletHarness();
+    manager.clearActivity = () => false;
+    for (const controller of [
+        applet._eventImport,
+        applet._documentQuestion,
+        applet._selectedText,
+        applet._fileOrganizer,
+    ]) {
+        controller.state = () => ({phase: "preview"});
+        controller.reset = () => { throw new Error("active workflow must not reset"); };
+    }
+    assert.equal(applet._clearActivity(), false);
 });
 
 test("event import is gated by live plug-in readiness and actions stay local", () => {

@@ -30,7 +30,7 @@ function viewHarness() {
     return view;
 }
 
-test("visual: Manage profiles reveals the complete Needs setup group", () => {
+test("visual: Advanced profiles reveals the complete Needs setup group", () => {
     const view = viewHarness();
     const model = {
         blockedGroup: {
@@ -44,7 +44,7 @@ test("visual: Manage profiles reveals the complete Needs setup group", () => {
     assert.equal(view._renderBlockedProfiles(model), true);
     assert.equal(view._blocked.list.visible, false);
 
-    view._manageButton.click();
+    assert.equal(view._focusBlockedDisclosure(), true);
 
     const disclosure = view._blocked.disclosure;
     const texts = findActors(disclosure, (actor) => typeof actor.text === "string")

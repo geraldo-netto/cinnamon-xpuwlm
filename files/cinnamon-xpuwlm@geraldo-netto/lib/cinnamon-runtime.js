@@ -701,7 +701,11 @@ class CachedDeviceDetector {
 // through GIO (replace_contents uses a temp file plus rename), with a one-time
 // migration read from the legacy xlet-settings keys.
 const STATE_FILE_MAX_BYTES = 64 * 1024;
-const EMPTY_APPLET_STATE = Object.freeze({portfolio: null, selectedTab: null});
+const EMPTY_APPLET_STATE = Object.freeze({
+    portfolio: null,
+    selectedTab: null,
+    activityClearedAt: null,
+});
 
 function isRecord(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -806,11 +810,7 @@ class FileStateRepository {
             return this._legacy ? this._legacy.load() : EMPTY_APPLET_STATE;
         }
         try {
-            const parsed = JSON.parse(text);
-            return {
-                portfolio: parsed?.portfolio ?? null,
-                selectedTab: parsed?.selectedTab ?? null,
-            };
+            return persistedAppletState(JSON.parse(text));
         } catch {
             return EMPTY_APPLET_STATE;
         }
@@ -842,6 +842,7 @@ class FileStateRepository {
         const text = JSON.stringify({
             portfolio: state.portfolio,
             selectedTab: state.selectedTab,
+            activityClearedAt: state.activityClearedAt,
         });
         file.replace_contents(
             text,
@@ -851,6 +852,15 @@ class FileStateRepository {
             null,
         );
     }
+}
+
+function persistedAppletState(parsed) {
+    const source = parsed && typeof parsed === "object" ? parsed : {};
+    return {
+        portfolio: source.portfolio ?? null,
+        selectedTab: source.selectedTab ?? null,
+        activityClearedAt: source.activityClearedAt ?? null,
+    };
 }
 
 // Falls back to the legacy xlet-settings store when the environment cannot
@@ -880,6 +890,7 @@ class CinnamonSettingsRepository {
         return {
             portfolio: this._settings.getValue("profile-state"),
             selectedTab: this._settings.getValue("selected-tab"),
+            activityClearedAt: this._settings.getValue("activity-cleared-at"),
         };
     }
 
@@ -891,6 +902,10 @@ class CinnamonSettingsRepository {
         }
         if (this._settings.getValue("selected-tab") !== selectedTab) {
             this._settings.setValue("selected-tab", selectedTab);
+        }
+        const activityClearedAt = state.activityClearedAt;
+        if (this._settings.getValue("activity-cleared-at") !== activityClearedAt) {
+            this._settings.setValue("activity-cleared-at", activityClearedAt);
         }
     }
 }

@@ -6,17 +6,14 @@ const ViewModel = require("./view-model.js");
 
 const {_, N_, format, ngettext} = I18n;
 
-// Initial placeholders only: render() updates each tile name from the view
-// model, so the first tile can follow the active backend (TPU/NPU/GPU).
-const METRIC_NAMES = Object.freeze([N_("Accelerator load"), N_("Queue"), N_("Running"), N_("Attention")]);
-// Setup sits last: it is a reference screen, consulted when something is
-// missing, not part of the daily loop the first three tabs cover.
-const TAB_NAMES = Object.freeze(["overview", "profiles", "alerts", "setup"]);
+// Persisted identifiers stay compatible with earlier releases; labels and
+// ordering now describe user goals instead of implementation structure.
+const TAB_NAMES = Object.freeze(["overview", "alerts", "profiles", "setup"]);
 const TAB_LABELS = Object.freeze({
-    overview: N_("Overview"),
-    profiles: N_("Profiles"),
-    alerts: N_("Alerts"),
-    setup: N_("Setup"),
+    overview: N_("Tools"),
+    alerts: N_("Activity"),
+    profiles: N_("System"),
+    setup: N_("Diagnostics"),
 });
 
 // Tab-strip key handling, kept pure so the expected arrow, Home, and End
@@ -128,6 +125,9 @@ class MenuView {
             resumeAll: requireAction(actions, "resumeAll"),
             refresh: requireAction(actions, "refresh"),
             openSettings: requireAction(actions, "openSettings"),
+            clearActivity: optionalAction(actions, "clearActivity"),
+            openLogs: optionalAction(actions, "openLogs"),
+            copyReport: optionalAction(actions, "copyReport"),
             acknowledgeCatalogChanges: requireAction(actions, "acknowledgeCatalogChanges"),
             submitJob: requireAction(actions, "submitJob"),
             chooseEventFiles: optionalAction(actions, "chooseEventFiles"),
@@ -157,18 +157,19 @@ class MenuView {
         this._bodyKey = null;
         this._model = null;
         this._selectedTab = TAB_NAMES[0];
+        this._detail = null;
+        this._confirmClearHistory = false;
+        this._diagnosticFeedback = "";
         this._focusedIdentity = null;
         // Disclosure state belongs to the popup, not to saved policy: it is a
         // reading position, and it survives body rebuilds so a refresh never
         // collapses the group under the user's cursor.
         this._blockedExpanded = false;
-        this._focusBlockedOnRender = false;
         this._blocked = null;
         this._layout = layout || Layout.defaultLayout();
         this._root = this._box("xpuwlm-root", true);
         this._buildHeader();
         this._buildCatalogNotice();
-        this._buildMetrics();
         this._buildTabs();
         this._buildBody();
         this._buildFooter();
@@ -185,7 +186,6 @@ class MenuView {
         }
         this._layout = next;
         this._applyLayoutStyles();
-        this._layoutMetrics();
         this._bodyKey = null;
         if (this._model !== null) {
             this.render(this._model);
@@ -197,25 +197,17 @@ class MenuView {
         this._model = model;
         this._policyPaused = model.policyPaused;
         this._controlPending = model.controlPending;
-        this._statusLabel.set_text(model.device.status);
         this._subtitleLabel.set_text(model.headerSubtitle);
-        this._pauseLabel.set_text(this._policyPaused ? _("Resume all") : _("Pause all"));
-        this._pauseButton.set_accessible_name(this._policyPaused
-            ? _("Resume all workloads")
-            : _("Pause all workloads"));
-        this._setButtonEnabled(this._pauseButton, !this._controlPending);
-        setStyleClass(this._statusLabel, "xpuwlm-status-unavailable", !model.device.available);
-        for (let index = 0; index < this._metricValues.length; index += 1) {
-            const metric = model.metrics[index];
-            const suffix = metric.suffix ? ` ${metric.suffix}` : "";
-            this._metricNames[index].set_text(metric.label);
-            this._metricValues[index].set_text(`${metric.value}${suffix}`);
-            setStyleClass(this._metricValues[index], "xpuwlm-attention", metric.tone === "attention");
-        }
         this._renderCatalogNotice(model.catalogNotice);
         this._tabs.actor.visible = model.showTabs;
-        this._manageButton.visible = model.showTabs;
+        if (this._selectedTab !== model.selectedTab) {
+            this._detail = null;
+            this._confirmClearHistory = false;
+            this._diagnosticFeedback = "";
+            this._bodyKey = null;
+        }
         this._selectedTab = model.selectedTab;
+        this._footer.visible = model.showTabs && model.selectedTab === "overview" && this._detail === null;
         for (const [tab, button] of this._tabButtons) {
             const selected = model.selectedTab === tab;
             setStyleClass(button, "xpuwlm-tab-active", selected);
@@ -241,7 +233,9 @@ class MenuView {
         this._bodyKey = null;
         this._model = null;
         this._focusedIdentity = null;
-        this._focusBlockedOnRender = false;
+        this._detail = null;
+        this._confirmClearHistory = false;
+        this._diagnosticFeedback = "";
         return true;
     }
 
@@ -267,22 +261,10 @@ class MenuView {
         const copy = this._box("xpuwlm-header-copy", true, true);
         const titleRow = this._box("xpuwlm-title-row");
         titleRow.add_child(this._label(_("XPU Workload Manager"), "xpuwlm-title"));
-        this._statusLabel = this._label(_("Unavailable"), "xpuwlm-status");
-        titleRow.add_child(this._statusLabel);
         copy.add_child(titleRow);
         this._subtitleLabel = this._label(_("Starting monitoring…"), "xpuwlm-subtitle", true);
         copy.add_child(this._subtitleLabel);
         header.add_child(copy);
-        this._pauseButton = this._button("xpuwlm-secondary-button", _("Pause all workloads"), () => {
-            if (this._policyPaused) {
-                this._actions.resumeAll();
-            } else {
-                this._actions.pauseAll();
-            }
-        });
-        this._pauseLabel = this._label(_("Pause all"), "xpuwlm-button-label");
-        this._pauseButton.set_child(this._pauseLabel);
-        header.add_child(this._pauseButton);
         this._root.add_child(header);
     }
 
@@ -320,34 +302,6 @@ class MenuView {
         this._catalogNoticeDismiss.set_text(notice.dismissLabel);
         this._catalogNotice.set_accessible_name(notice.accessibleName);
         return true;
-    }
-
-    _buildMetrics() {
-        this._metrics = this._box("xpuwlm-metrics", true);
-        this._layoutMetrics();
-        this._root.add_child(this._metrics);
-    }
-
-    _layoutMetrics() {
-        destroyChildren(this._metrics);
-        this._metricNames = [];
-        this._metricValues = [];
-        const columns = this._layout.metricColumns;
-        let row = null;
-        for (let index = 0; index < METRIC_NAMES.length; index += 1) {
-            if (index % columns === 0) {
-                row = this._box("xpuwlm-metric-row");
-                this._metrics.add_child(row);
-            }
-            const metric = this._box("xpuwlm-metric", true, true);
-            const name = this._label(_(METRIC_NAMES[index]), "xpuwlm-metric-name");
-            metric.add_child(name);
-            const value = this._label("—", "xpuwlm-metric-value");
-            metric.add_child(value);
-            row.add_child(metric);
-            this._metricNames.push(name);
-            this._metricValues.push(value);
-        }
     }
 
     _buildTabs() {
@@ -427,15 +381,8 @@ class MenuView {
 
     _buildFooter() {
         const footer = this._box("xpuwlm-footer");
-        this._manageButton = this._button(
-            "xpuwlm-primary-button",
-            _("Manage workload profiles"),
-            () => this._manageProfiles(),
-        );
-        this._manageButton.x_expand = true;
-        this._manageButton.set_child(this._label(_("Manage profiles"), "xpuwlm-button-label"));
-        footer.add_child(this._manageButton);
         const refresh = this._button("xpuwlm-secondary-button", _("Refresh XPU status"), this._actions.refresh);
+        refresh.x_expand = true;
         refresh.set_child(this._label(_("Refresh"), "xpuwlm-button-label"));
         footer.add_child(refresh);
         const settings = this._button("xpuwlm-secondary-button", _("Open XPU Workload Manager settings"), this._actions.openSettings);
@@ -445,6 +392,7 @@ class MenuView {
             icon_size: 16,
         }));
         footer.add_child(settings);
+        this._footer = footer;
         this._root.add_child(footer);
     }
 
@@ -460,10 +408,7 @@ class MenuView {
             ));
         }
         this._renderScreen(model);
-        const restored = this._restoreBodyFocus(previous);
-        return this._focusBlockedOnRender && this._selectedTab === "profiles"
-            ? this._focusBlockedDisclosure()
-            : restored;
+        return this._restoreBodyFocus(previous);
     }
 
     // A rebuilt body keeps the caret on the same semantic control; when that
@@ -493,61 +438,106 @@ class MenuView {
             this._renderUnavailable(model);
         } else if (model.screen === "paused") {
             this._renderPaused(model);
+        } else if (this._detail !== null) {
+            this._renderDetail(model);
         } else if (model.screen === "profiles") {
-            this._renderProfiles(model);
+            this._renderSystem(model);
         } else if (model.screen === "alerts") {
-            this._renderAlerts(model);
+            this._renderActivity(model);
         } else if (model.screen === "setup") {
-            this._renderSetup(model);
+            this._renderDiagnostics(model);
         } else {
-            this._renderOverview(model);
+            this._renderTools(model);
         }
     }
 
-    _renderOverview(model) {
-        this._renderAccelerators(model);
-        this._addSectionHeading(_("Active profiles"), _("Weights apply only when queues contend"));
-        for (const group of model.enabledGroups) {
-            this._addGroupHeading(group.name, format(_("%d active"), group.profiles.length));
-            for (const profile of group.profiles) {
-                this._body.add_child(this._profileRow(profile, false));
-            }
+    _renderTools(model) {
+        for (const tool of model.tools) {
+            this._body.add_child(this._toolRow(tool));
         }
-        if (model.pausedProfiles.length > 0) {
-            const paused = this._identify(
-                this._button("xpuwlm-paused-summary", _("Manage paused profiles"), () => this._actions.selectTab("profiles")),
-                "paused-summary",
-            );
-            paused.set_child(this._label(
-                `${format(ngettext("%d paused profile", "%d paused profiles", model.pausedProfiles.length), model.pausedProfiles.length)}  ›`,
-                "xpuwlm-button-label",
-            ));
-            this._body.add_child(paused);
-        }
+        return model.tools.length;
     }
 
-    _renderAccelerators(model) {
-        if (model.devices.length === 0) {
-            return;
+    _toolRow(tool) {
+        const button = this._identify(this._button(
+            "xpuwlm-tool-row",
+            format(_("%s, %s. %s"), tool.title, tool.status, tool.description),
+            () => this._openDetail(tool.detail),
+        ), `tool:${tool.id}`);
+        const row = this._box("xpuwlm-tool-row-content");
+        row.add_child(new this._St.Icon({
+            icon_name: tool.icon,
+            icon_type: this._St.IconType.SYMBOLIC,
+            icon_size: 20,
+            style_class: "xpuwlm-profile-icon",
+        }));
+        const copy = this._box("xpuwlm-profile-copy", true, true);
+        copy.add_child(this._label(tool.title, "xpuwlm-profile-title", true));
+        copy.add_child(this._label(tool.description, "xpuwlm-profile-description", true));
+        row.add_child(copy);
+        row.add_child(this._label(tool.status, `xpuwlm-status xpuwlm-status-${tool.statusTone}`));
+        row.add_child(this._label("›", "xpuwlm-tool-chevron"));
+        button.set_child(row);
+        this._setButtonEnabled(button, tool.enabled);
+        return button;
+    }
+
+    _openDetail(detail) {
+        this._detail = detail;
+        this._confirmClearHistory = false;
+        this._bodyKey = null;
+        if (this._model !== null) {
+            this.render(this._model);
         }
-        const availableCount = model.devices.filter((device) => device.available).length;
-        this._addGroupHeading(_("Accelerators"), format(_("%d of %d available"), availableCount, model.devices.length));
-        for (const device of model.devices) {
-            const row = this._box("xpuwlm-state-row");
-            const copy = this._box("xpuwlm-profile-copy", true, true);
-            copy.add_child(this._label(`${device.backendText} · ${device.name}`, "xpuwlm-profile-title", true));
-            copy.add_child(this._label(
-                device.available ? format(_("Load %s"), device.loadText) : device.statusText,
-                "xpuwlm-profile-description",
-                true,
-            ));
-            row.add_child(copy);
-            row.add_child(this._label(
-                device.statusText,
-                device.available ? "xpuwlm-status xpuwlm-status-healthy" : "xpuwlm-status xpuwlm-status-unavailable",
-            ));
-            this._body.add_child(row);
+        return detail;
+    }
+
+    _closeDetail() {
+        if (this._detail === null) {
+            return false;
         }
+        this._detail = null;
+        this._bodyKey = null;
+        if (this._model !== null) {
+            this.render(this._model);
+        }
+        return true;
+    }
+
+    _renderDetail(model) {
+        const detail = this._detail;
+        const back = this._identify(this._button(
+            "xpuwlm-back-button",
+            format(_("Back to %s"), _(TAB_LABELS[this._selectedTab])),
+            () => this._closeDetail(),
+        ), "detail-back");
+        back.set_child(this._label(
+            format(_("‹ %s"), _(TAB_LABELS[this._selectedTab])),
+            "xpuwlm-button-label",
+        ));
+        this._body.add_child(back);
+        if (detail === "documents") {
+            return this._renderDocumentQuestion(model.documentQuestion);
+        }
+        if (detail === "events") {
+            return this._renderEventImport(model.eventImport);
+        }
+        if (detail === "text") {
+            return this._renderSelectedText(model.selectedText);
+        }
+        if (detail === "organizer") {
+            return this._renderFileOrganizer(model.fileOrganizer);
+        }
+        if (detail === "picture") {
+            return this._renderRun(model.run);
+        }
+        if (detail === "profiles") {
+            return this._renderProfiles(model);
+        }
+        if (detail === "setup") {
+            return this._renderSetupDetails(model);
+        }
+        return false;
     }
 
     // Profiles that can run come first and read normally. Everything the
@@ -571,20 +561,13 @@ class MenuView {
         }
         if (model.runnableGroups.length === 0) {
             this._body.add_child(this._label(
-                _("No workload profile can run on this machine yet. Open the Setup tab to see what each one needs."),
+                _("No workload profile can run on this machine yet. Open Diagnostics to see what each one needs."),
                 "xpuwlm-empty-note",
                 true,
             ));
         }
-        // Above the collapsed group deliberately: what a user can run now
-        // belongs with the profiles that run, and the group of profiles that
-        // cannot stays at the bottom where it was.
-        this._renderRun(model.run);
-        this._renderEventImport(model.eventImport);
-        this._renderDocumentQuestion(model.documentQuestion);
-        this._renderSelectedText(model.selectedText);
-        this._renderFileOrganizer(model.fileOrganizer);
         this._renderBlockedProfiles(model);
+        return true;
     }
 
     _renderFileOrganizer(model) {
@@ -1213,17 +1196,7 @@ class MenuView {
         return true;
     }
 
-    _manageProfiles() {
-        this._focusBlockedOnRender = true;
-        const selected = this._actions.selectTab("profiles");
-        if (this._focusBlockedOnRender && this._selectedTab === "profiles") {
-            this._focusBlockedDisclosure();
-        }
-        return selected;
-    }
-
     _focusBlockedDisclosure() {
-        this._focusBlockedOnRender = false;
         if (this._blocked === null) {
             return false;
         }
@@ -1267,10 +1240,15 @@ class MenuView {
     // remedy rather than by profile, because one package or one artifact
     // usually unblocks several profiles at once, and because two of the three
     // remedies are a command while the third is the absence of one.
-    _renderSetup(model) {
+    _renderSetupDetails(model) {
         const setup = model.setup;
-        this._addSectionHeading(setup.title, setup.summary);
-        if (setup.resolved) {
+        const toolSetup = model.diagnostics.toolSetup;
+        const resolved = setup.resolved && toolSetup.length === 0;
+        this._addSectionHeading(
+            resolved ? setup.title : _("What needs setup"),
+            model.diagnostics.setupSummary,
+        );
+        if (resolved) {
             this._body.add_child(this._hero(
                 "emblem-ok-symbolic",
                 _("Ready"),
@@ -1280,10 +1258,24 @@ class MenuView {
             ));
             return false;
         }
+        if (toolSetup.length > 0) {
+            this._addGroupHeading(
+                _("Unavailable tools"),
+                format(ngettext("%d tool", "%d tools", toolSetup.length), toolSetup.length),
+            );
+            for (const tool of toolSetup) {
+                this._body.add_child(this._statusRow(tool));
+            }
+        }
         for (const section of setup.sections) {
             this._renderSetupSection(section);
         }
         return true;
+    }
+
+    // Compatibility for callers that exercise this focused renderer directly.
+    _renderSetup(model) {
+        return this._renderSetupDetails(model);
     }
 
     _renderSetupSection(section) {
@@ -1327,39 +1319,277 @@ class MenuView {
         return label;
     }
 
-    _renderAlerts(model) {
+    _renderActivity(model) {
+        this._addSectionHeading(_("Activity"), _("Jobs, results, and alerts"));
+        this._renderRunningActivity(model.activity);
+        this._renderRecentActivity(model);
+        this._renderActivityControls(model.activity.canClear || model.resolvedAlerts.length > 0);
+        return true;
+    }
+
+    _renderRunningActivity(activity) {
+        this._addGroupHeading(
+            _("Running now"),
+            format(ngettext("%d active job", "%d active jobs", activity.activeCount), activity.activeCount),
+        );
+        if (activity.running.length === 0) {
+            this._body.add_child(this._hero(
+                "media-playback-start-symbolic",
+                _("No active jobs"),
+                _("No active jobs"),
+                _("Start a tool when you are ready"),
+                "xpuwlm-hero-neutral",
+            ));
+            return false;
+        }
+        for (const item of activity.running) {
+            this._body.add_child(this._activityRow(item));
+        }
+        this._body.add_child(this._activityPauseButton());
+        return true;
+    }
+
+    _activityPauseButton() {
+        const pause = this._identify(this._button(
+            "xpuwlm-secondary-button",
+            _("Pause all workloads"),
+            this._actions.pauseAll,
+        ), "activity-pause");
+        pause.set_child(this._label(_("Pause all"), "xpuwlm-button-label"));
+        this._setButtonEnabled(pause, !this._controlPending);
+        return pause;
+    }
+
+    _renderRecentActivity(model) {
+        this._addGroupHeading(_("Recent"), `${model.activity.recent.length + model.activeAlerts.length + model.resolvedAlerts.length}`);
+        for (const item of model.activity.recent) {
+            this._body.add_child(this._activityRow(item));
+        }
         this._renderUnknownContent(model.unknownContent);
-        if (model.activeAlerts.length === 0) {
-            const hero = this._hero(
+        for (const alert of model.activeAlerts) {
+            this._body.add_child(this._alertCard(alert));
+        }
+        for (const alert of model.resolvedAlerts.slice(0, 5)) {
+            this._body.add_child(this._activityRow({
+                id: `alert:${alert.id}`,
+                title: alert.title,
+                detail: `${alert.profileTitle} · ${alert.age}`,
+                status: _("Resolved"),
+                tone: "healthy",
+            }));
+        }
+        const recentCount = model.activity.recent.length
+            + model.activeAlerts.length + model.resolvedAlerts.length;
+        if (recentCount === 0) {
+            this._body.add_child(this._label(_("No recent activity"), "xpuwlm-empty-note", true));
+        }
+        return true;
+    }
+
+    _activityRow(item) {
+        const row = this._box("xpuwlm-history-row");
+        row.add_child(this._label(item.tone === "healthy" ? "✓" : "•", "xpuwlm-history-mark"));
+        const copy = this._box("xpuwlm-profile-copy", true, true);
+        copy.add_child(this._label(item.title, "xpuwlm-profile-title", true));
+        copy.add_child(this._label(item.detail, "xpuwlm-profile-description", true));
+        row.add_child(copy);
+        row.add_child(this._label(item.status, `xpuwlm-status xpuwlm-status-${item.tone}`));
+        return row;
+    }
+
+    _renderActivityControls(canClear) {
+        if (this._confirmClearHistory) {
+            const confirmation = this._box("xpuwlm-confirmation", true);
+            confirmation.add_child(this._label(_("Clear recent activity?"), "xpuwlm-profile-title"));
+            confirmation.add_child(this._label(
+                _("Running jobs and runtime alerts are not stopped or dismissed."),
+                "xpuwlm-profile-description",
+                true,
+            ));
+            const controls = this._box("xpuwlm-event-controls");
+            controls.add_child(this._eventAction(
+                _("Cancel"), _("Cancel clearing activity history"), "clear-history-cancel",
+                () => this._setClearConfirmation(false), true,
+            ));
+            controls.add_child(this._eventAction(
+                _("Clear History"), _("Confirm clearing recent activity history"), "clear-history-confirm",
+                () => this._clearActivity(), true, true,
+            ));
+            confirmation.add_child(controls);
+            this._body.add_child(confirmation);
+            return true;
+        }
+        const controls = this._box("xpuwlm-event-controls");
+        const clear = this._eventAction(
+            _("Clear History"), _("Clear recent activity history"), "clear-history",
+            () => this._setClearConfirmation(true), canClear,
+        );
+        controls.add_child(clear);
+        const refresh = this._eventAction(
+            _("Refresh"), _("Refresh activity"), "activity-refresh", this._actions.refresh, true,
+        );
+        controls.add_child(refresh);
+        this._body.add_child(controls);
+        return true;
+    }
+
+    _setClearConfirmation(visible) {
+        this._confirmClearHistory = visible === true;
+        this._bodyKey = null;
+        if (this._model !== null) {
+            this.render(this._model);
+        }
+        return this._confirmClearHistory;
+    }
+
+    _clearActivity() {
+        const cleared = this._actions.clearActivity();
+        this._confirmClearHistory = false;
+        this._bodyKey = null;
+        if (this._model !== null) {
+            this.render(this._model);
+        }
+        return cleared;
+    }
+
+    _renderSystem(model) {
+        this._addSectionHeading(_("System"), "");
+        this._addGroupHeading(_("Status"), "");
+        for (const status of model.system.statuses) {
+            this._body.add_child(this._statusRow(status));
+        }
+        this._addGroupHeading(_("Configuration"), "");
+        const profiles = this._identify(this._button(
+            "xpuwlm-tool-row",
+            _("Open advanced workload profiles"),
+            () => this._openDetail("profiles"),
+        ), "system-profiles");
+        const row = this._box("xpuwlm-tool-row-content");
+        row.add_child(new this._St.Icon({
+            icon_name: "preferences-system-symbolic",
+            icon_type: this._St.IconType.SYMBOLIC,
+            icon_size: 20,
+            style_class: "xpuwlm-profile-icon",
+        }));
+        const copy = this._box("xpuwlm-profile-copy", true, true);
+        copy.add_child(this._label(_("Advanced workload profiles"), "xpuwlm-profile-title"));
+        copy.add_child(this._label(
+            _("Enable profiles and adjust scheduling weights"),
+            "xpuwlm-profile-description",
+            true,
+        ));
+        row.add_child(copy);
+        row.add_child(this._label("›", "xpuwlm-tool-chevron"));
+        profiles.set_child(row);
+        this._body.add_child(profiles);
+        return true;
+    }
+
+    _statusRow(status) {
+        const row = this._box("xpuwlm-state-row");
+        const copy = this._box("xpuwlm-profile-copy", true, true);
+        copy.add_child(this._label(status.title, "xpuwlm-profile-title", true));
+        copy.add_child(this._label(status.detail, "xpuwlm-profile-description", true));
+        row.add_child(copy);
+        row.add_child(this._label(status.status, `xpuwlm-status xpuwlm-status-${status.tone}`));
+        return row;
+    }
+
+    _renderDiagnostics(model) {
+        this._addSectionHeading(_("Diagnostics"), _("Live runtime and device information"));
+        this._addGroupHeading(_("Health"), "");
+        for (const status of model.diagnostics.health) {
+            this._body.add_child(this._statusRow(status));
+        }
+        this._addGroupHeading(_("Setup"), "");
+        const setup = this._identify(this._button(
+            "xpuwlm-tool-row",
+            format(_("Open setup details, %s"), model.diagnostics.setupStatus),
+            () => this._openDetail("setup"),
+        ), "diagnostics-setup");
+        const setupRow = this._box("xpuwlm-tool-row-content");
+        const setupCopy = this._box("xpuwlm-profile-copy", true, true);
+        setupCopy.add_child(this._label(
+            format(_("Needs setup (%d)"), model.diagnostics.setupCount),
+            "xpuwlm-profile-title",
+        ));
+        setupCopy.add_child(this._label(
+            model.diagnostics.setupSummary,
+            "xpuwlm-profile-description",
+            true,
+        ));
+        setupRow.add_child(setupCopy);
+        setupRow.add_child(this._label(
+            model.diagnostics.setupStatus,
+            `xpuwlm-status xpuwlm-status-${model.diagnostics.setupCount === 0 ? "healthy" : "watching"}`,
+        ));
+        setupRow.add_child(this._label("›", "xpuwlm-tool-chevron"));
+        setup.set_child(setupRow);
+        this._body.add_child(setup);
+        this._addGroupHeading(_("Current state"), "");
+        const current = this._box("xpuwlm-diagnostics-current");
+        for (const item of model.diagnostics.current) {
+            const metric = this._box("xpuwlm-metric", true, true);
+            metric.add_child(this._label(item.label, "xpuwlm-metric-name"));
+            metric.add_child(this._label(item.value, "xpuwlm-metric-value"));
+            current.add_child(metric);
+        }
+        this._body.add_child(current);
+        this._addGroupHeading(_("Recent issues"), `${model.diagnostics.issues.length}`);
+        if (model.diagnostics.issues.length === 0) {
+            this._body.add_child(this._hero(
                 "emblem-ok-symbolic",
-                _("No active alerts"),
-                _("You’re all caught up"),
-                _("All monitored signals are within their review thresholds."),
+                _("No recent issues"),
+                _("Everything looks healthy"),
+                _("No active runtime alerts require review."),
                 "xpuwlm-hero-ok",
-            );
-            this._body.add_child(hero);
+            ));
         } else {
-            this._addSectionHeading(
-                _("Needs review"),
-                format(_("%d active · highest severity %s · no automatic action"), model.activeAlerts.length, model.highestSeverityText),
-            );
-            for (const alert of model.activeAlerts) {
+            for (const alert of model.diagnostics.issues) {
                 this._body.add_child(this._alertCard(alert));
             }
         }
-        if (model.resolvedAlerts.length > 0) {
-            this._addGroupHeading(_("Recently resolved"), `${model.resolvedAlerts.length}`);
-            for (const alert of model.resolvedAlerts.slice(0, 5)) {
-                const row = this._box("xpuwlm-history-row");
-                row.add_child(this._label("✓", "xpuwlm-history-mark"));
-                const copy = this._box("xpuwlm-profile-copy", true, true);
-                copy.add_child(this._label(alert.title, "xpuwlm-profile-title", true));
-                copy.add_child(this._label(`${alert.profileTitle} · ${alert.age}`, "xpuwlm-profile-description", true));
-                row.add_child(copy);
-                row.add_child(this._label(_("Resolved"), "xpuwlm-status xpuwlm-status-ok"));
-                this._body.add_child(row);
-            }
+        if (this._diagnosticFeedback !== "") {
+            this._body.add_child(this._label(
+                this._diagnosticFeedback,
+                "xpuwlm-control-feedback xpuwlm-control-pending",
+                true,
+            ));
         }
+        const controls = this._box("xpuwlm-event-controls");
+        controls.add_child(this._eventAction(
+            _("Open logs"), _("Open workload service logs"), "diagnostics-logs",
+            () => this._openLogs(), true,
+        ));
+        controls.add_child(this._eventAction(
+            _("Copy report"), _("Copy diagnostics report"), "diagnostics-copy",
+            () => this._copyReport(model.diagnostics.report), true,
+        ));
+        controls.add_child(this._eventAction(
+            _("Refresh"), _("Refresh diagnostics"), "diagnostics-refresh", this._actions.refresh, true,
+        ));
+        this._body.add_child(controls);
+        return true;
+    }
+
+    _openLogs() {
+        const opened = this._actions.openLogs();
+        this._diagnosticFeedback = opened === false ? _("Could not open logs") : _("Logs opened");
+        this._bodyKey = null;
+        if (this._model !== null) {
+            this.render(this._model);
+        }
+        return opened;
+    }
+
+    _copyReport(report) {
+        const copied = this._actions.copyReport(report);
+        this._diagnosticFeedback = copied === false ? _("Could not copy report") : _("Report copied");
+        this._bodyKey = null;
+        if (this._model !== null) {
+            this.render(this._model);
+        }
+        return copied;
     }
 
     _renderPaused(model) {
@@ -1416,6 +1646,19 @@ class MenuView {
         );
         retry.set_child(this._label(_("Retry detection"), "xpuwlm-button-label"));
         this._body.add_child(retry);
+        if (model.policyPaused) {
+            const resume = this._identify(
+                this._button(
+                    "xpuwlm-secondary-button xpuwlm-state-action",
+                    _("Resume all workloads"),
+                    this._actions.resumeAll,
+                ),
+                "resume-all",
+            );
+            resume.set_child(this._label(_("Resume all workloads"), "xpuwlm-button-label"));
+            this._setButtonEnabled(resume, !this._controlPending);
+            this._body.add_child(resume);
+        }
     }
 
     _profileRow(profile, editableWeight) {
@@ -1538,7 +1781,9 @@ class MenuView {
         const heading = this._box("xpuwlm-section-heading");
         const copy = this._box("xpuwlm-profile-copy", true, true);
         copy.add_child(this._label(title, "xpuwlm-section-title", true));
-        copy.add_child(this._label(description, "xpuwlm-section-description", true));
+        if (description) {
+            copy.add_child(this._label(description, "xpuwlm-section-description", true));
+        }
         heading.add_child(copy);
         this._body.add_child(heading);
         return heading;

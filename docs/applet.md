@@ -23,9 +23,9 @@ in text, so meaning never depends on color alone.
 [Review the actual-size 16/20/24-pixel light and dark status montage](../design/prototype/mockup/xpuwlm-panel-status-montage.png).
 
 When alerts need review, the highest active severity is stated as text in the
-panel label, tooltip, and accessible name, in the attention metric tile, and in
-the alerts section heading. Resolved alerts and unknown severities never raise
-it. The alert card border colour is a second cue, never the only one.
+panel label, tooltip, and accessible name, and each Activity/Diagnostics alert
+card names its severity. Resolved alerts and unknown severities never raise it.
+The alert card border colour is a second cue, never the only one.
 
 ## Lifecycle
 
@@ -50,22 +50,22 @@ the next observation rather than dropped.
 
 St stylesheets have no media queries, so the popup resolves its own breakpoints
 in `lib/layout.js` from the monitor work area, the display scale factor, and the
-text scale factor. The result is pure data — width, scroll height, metric
-columns, evidence columns, and a wrap flag — applied imperatively by the menu
+text scale factor. The result is pure data — width, scroll height, evidence
+columns, and a wrap flag — applied imperatively by the menu
 view and re-measured every time the popup opens.
 
 | Mode | Content width | Layout |
 | --- | --- | --- |
-| Wide | above 520 px | Four metric tiles in one row, single-line rows |
-| Compact | 401–520 px | Two metric columns, wrapped descriptive text, 44 px targets |
+| Wide | above 520 px | Single-line rows and horizontal controls |
+| Compact | 401–520 px | Wrapped descriptive text and 44 px targets |
 | Dense | 400 px and below | Compact rules plus single-column alert evidence |
 
 The popup never claims more width than the work area offers, its scroll region
 is bounded to the work-area height so the footer actions stay visible, and
-navigation, pause/resume, recovery, and manager actions remain present in every
-mode. An unusable measurement falls back to the default desktop layout.
+navigation, recovery, and contextual actions remain present in every mode. An
+unusable measurement falls back to the default desktop layout.
 
-## Profiles that cannot run, and the Setup tab
+## System profiles and Diagnostics setup
 
 The runtime refuses to serve a profile for three genuinely different reasons,
 and the user's next action differs in each:
@@ -102,25 +102,19 @@ relabelled or dropped.
 fallback phrases, and the mirrored schema against the service sources wherever
 both checkouts are present.
 
-The Profiles tab lists the profiles that run first, grouped as before, and
-collapses everything else into a single `Needs setup (n)` group at the
-bottom. Every count is derived from the live snapshot, so the group shrinks by
-itself as models and runtimes are installed and is correct on a host where more
-or fewer profiles run. Its rows keep their enable and weight controls, because
-the profile is still part of the catalog, but the controls are insensitive:
-they would change a policy the scheduler will never read. The reason is in the
-row, in each control's accessible name, and in a tooltip on the row, which
-stays reactive so the pointer falls through the disabled controls and still
-gets an answer.
+The System tab shows current device/runtime status and progressively discloses
+Advanced workload profiles. That detail lists runnable profiles first and
+collapses everything else into a single `Needs setup (n)` group at the bottom.
+Every count is derived from the live snapshot, so the group shrinks as models
+and runtimes are installed. Its rows keep enable and weight controls, but
+controls that the runtime cannot apply are insensitive and name the reason in
+text, accessible names, and tooltips.
 
-The Setup tab holds the detail the collapsed group deliberately leaves out. It
-is organised by remedy rather than by profile, because one package or one
-artifact usually unblocks several profiles at once, and it names every affected
-profile under the remedy it needs. Commands are selectable labels rather than a
-Copy button, because St offers no clipboard action here and a control that does
-nothing is exactly what these two changes exist to remove. When nothing is
-missing the tab says so and states how many profiles run, rather than rendering
-empty.
+Diagnostics always shows device, runtime, workload-service, current-state, and
+recent-issue information. Its Needs setup row opens remedy detail organised by
+remedy rather than profile, because one package or artifact can unblock several
+profiles. Commands remain selectable labels. When nothing is missing the detail
+says so and states how many profiles run instead of rendering empty.
 
 Resource Scheduler is the one bundled null-model profile with a supported
 local recipe. Its Setup section starts with bounded, opt-in snapshot recording:
@@ -158,8 +152,8 @@ forecast. Their distinct corpus, privacy, task metrics, preprocessing,
 post-processing, result-consumer, signing, and acceptance work remains tracked
 in OmniTensor. Setup intentionally offers no generic artifact command for them.
 
-An installed and live-qualified external `event-extraction` worker adds a
-separate Import events surface to Profiles. It is not inferred from the bundled
+An installed and live-qualified external `event-extraction` worker enables the
+Extract calendar events tool. It is not inferred from the bundled
 catalog: the applet checks `DescribePlugins` on startup and whenever the popup
 opens, then requires a ready executable worker, granted declared permissions,
 and ready declared artifacts. File choice is explicit, folder choice is
@@ -168,22 +162,22 @@ popup, and export requires human Keep/Reject decisions plus a separate
 confirmation. See [Private event import](event-import.md) for dependencies,
 formats, accelerator policy, privacy, and write guarantees.
 
-An installed and live-qualified external `ask-selected-files` worker adds a
-separate Ask selected files surface. It accepts one explicit bounded file
+An installed and live-qualified external `ask-selected-files` worker enables
+Ask documents. It accepts one explicit bounded file
 selection and one explicit question, keeps no question history, and displays
 only a grounded answer with mandatory file/page/span citations. See
 [Ask selected files](document-questions.md).
 
-An installed and live-qualified external `selected-text-tools` worker adds a
-separate Selected-text tools surface. Choosing Explain, Summarize, Rewrite,
+An installed and live-qualified external `selected-text-tools` worker enables
+Work with selected text. Choosing Explain, Summarize, Rewrite,
 Translate, or Extract tasks is the explicit action that reads the clipboard
 once. The selection is submitted in that request and never copied into applet
 state or history. Results are review-only: the applet has no paste, apply,
 task-creation, or clipboard-monitor action. See
 [Selected-text tools](selected-text-tools.md).
 
-An installed and live-qualified external `file-organizer` worker adds a manual
-File organizer surface. It accepts only files chosen for that request and shows
+An installed and live-qualified external `file-organizer` worker enables
+Organize files. It accepts only files chosen for that request and shows
 evidence-backed tags, names, relative folders, and exact duplicate groups as a
 review-only plan. The applet has no apply, move, rename, overwrite, delete, or
 command action. See [File organizer](file-organizer.md).
@@ -259,8 +253,8 @@ rather than a single `device` object. Each entry requires `id`, `backend`
 aggregates `devices` to a primary device — the first available device in
 tpu > npu > gpu hierarchy order — which drives the panel label (for example
 "GPU 55%", "TPU Detected", "Accel Offline", "Accel Unknown", "Accel Paused"),
-while the menu overview's "Accelerators" group lists every device with its
-availability and per-device load. The applet contract deliberately exposes no
+while the System and Diagnostics tabs report the current device/runtime state.
+The applet contract deliberately exposes no
 CPU scheduling backend; the OmniTensor reference additionally refuses CPU-only
 inference providers. Host-side capture, decoding, validation, preprocessing,
 transport, and result handling can still use the CPU. An absent declared

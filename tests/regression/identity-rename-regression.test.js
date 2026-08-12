@@ -152,7 +152,7 @@ test("regression: new applet state wins, otherwise the old identity is a read-on
         legacyPath,
         environment: environmentOf({[legacyPath]: JSON.stringify(legacyState)}),
     });
-    assert.deepEqual(migrated.load(), legacyState);
+    assert.deepEqual(migrated.load(), {...legacyState, activityClearedAt: null});
 
     const current = new Cinnamon.FileStateRepository({
         path: currentPath,
@@ -162,7 +162,7 @@ test("regression: new applet state wins, otherwise the old identity is a read-on
             [currentPath]: JSON.stringify(currentState),
         }),
     });
-    assert.deepEqual(current.load(), currentState);
+    assert.deepEqual(current.load(), {...currentState, activityClearedAt: null});
 });
 
 test("regression: an absent current state never probes a null legacy path", () => {
@@ -175,6 +175,8 @@ test("regression: an absent current state never probes a null legacy path", () =
         reads.push(path);
         return null;
     };
-    assert.deepEqual(repository.load(), {portfolio: null, selectedTab: null});
+    assert.deepEqual(repository.load(), {
+        portfolio: null, selectedTab: null, activityClearedAt: null,
+    });
     assert.deepEqual(reads, ["/home/user/.config/xpu-workload-manager/applet-state.json"]);
 });

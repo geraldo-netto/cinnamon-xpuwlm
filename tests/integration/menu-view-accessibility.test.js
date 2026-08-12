@@ -86,16 +86,17 @@ test("the selected state follows the active tab in both directions", () => {
     view.render(ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW));
     assert.deepEqual(
         tabs(root).map((tab) => tab.accessibleStates.has("selected")),
-        [false, false, true, false],
+        [false, true, false, false],
     );
     assert.deepEqual(tabs(root).map((tab) => tab.accessibleName), [
-        "Overview tab", "Profiles tab", "Alerts tab, selected", "Setup tab",
+        "Tools tab", "Activity tab, selected", "System tab", "Diagnostics tab",
     ]);
 });
 
 test("profile toggles are toggle buttons carrying their checked state", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW));
+    view._openDetail("profiles");
 
     const controls = toggles(root);
     assert.equal(controls.length, BuiltIns.coreCatalog().size);
@@ -114,6 +115,7 @@ test("profile toggles are toggle buttons carrying their checked state", () => {
 test("unavailable weight controls report an insensitive state", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW));
+    view._openDetail("profiles");
 
     const decrease = findActors(root, (actor) => actor instanceof FakeButton
         && actor.accessibleName === "Decrease Desktop context weight")[0];
@@ -128,10 +130,9 @@ test("action buttons keep the push button role", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
     for (const name of [
-        "Pause all workloads",
-        "Manage workload profiles",
         "Refresh XPU status",
         "Open XPU Workload Manager settings",
+        "Ask documents, Unavailable. Choose files and ask a grounded question",
     ]) {
         const button = findActors(root, (actor) => actor.accessibleName === name)[0];
         assert.equal(button.accessibleRole, "push-button", name);
@@ -145,6 +146,7 @@ test("a Cinnamon build without Atk roles or states still renders", () => {
             baseState({selectedTab: "profiles"}),
             NOW,
         )));
+        view._openDetail("profiles");
         assert.equal(tabs(root).every((tab) => tab.accessibleStates.size === 0), true);
         assert.equal(toggles(root).every((toggle) => toggle.accessibleStates.size === 0), true);
     }
@@ -160,17 +162,16 @@ test("actors without accessible state support are left untouched", () => {
     assert.equal(view._setAccessibleState({add_accessible_state() {}}, "MISSING_STATE", true), false);
 });
 
-test("Manage profiles focuses an expanded Needs setup disclosure", () => {
+test("Advanced profiles focuses an expanded Needs setup disclosure", () => {
     const current = baseState({selectedTab: "profiles"});
     current.profiles = current.profiles.map((profile) => profile.id === "desktop-context"
         ? {...profile, status: "unavailable", detail: "gpu: ncnn is not installed"}
         : profile);
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(current, NOW));
-    const manage = findActors(root, (actor) => actor instanceof FakeButton
-        && actor.accessibleName === "Manage workload profiles")[0];
-
-    manage.click();
+    findActors(root, (actor) => actor instanceof FakeButton
+        && actor.accessibleName === "Open advanced workload profiles")[0].click();
+    view._focusBlockedDisclosure();
 
     const disclosure = findActors(root, (actor) => actor.xpuwlmIdentity === "blocked-disclosure")[0];
     assert.equal(disclosure.focused, true);

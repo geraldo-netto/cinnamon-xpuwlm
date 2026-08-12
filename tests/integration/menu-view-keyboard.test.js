@@ -77,7 +77,7 @@ test("key symbols map to the expected tab movements", () => {
 
 test("tab movement wraps in both directions and jumps to the ends", () => {
     const count = Menu.TAB_NAMES.length;
-    assert.deepEqual(Menu.TAB_NAMES, ["overview", "profiles", "alerts", "setup"]);
+    assert.deepEqual(Menu.TAB_NAMES, ["overview", "alerts", "profiles", "setup"]);
     assert.equal(Menu.movedTabIndex("next", 0, count), 1);
     assert.equal(Menu.movedTabIndex("next", count - 1, count), 0);
     assert.equal(Menu.movedTabIndex("previous", 0, count), count - 1);
@@ -95,18 +95,18 @@ test("tab movement wraps in both directions and jumps to the ends", () => {
 test("arrow keys select and focus the neighbouring tab", () => {
     const {calls, view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
-    const [overview, profiles, alerts, setup] = tabs(root);
+    const [overview, activity, system, setup] = tabs(root);
 
     assert.deepEqual(overview.pressKey(CLUTTER.KEY_Right), [true]);
-    assert.deepEqual(calls, [["selectTab", "profiles"]]);
-    assert.equal(profiles.focused, true);
-    assert.equal(profiles.can_focus, true);
+    assert.deepEqual(calls, [["selectTab", "alerts"]]);
+    assert.equal(activity.focused, true);
+    assert.equal(activity.can_focus, true);
     assert.equal(overview.can_focus, false);
-    assert.equal(alerts.can_focus, false);
+    assert.equal(system.can_focus, false);
     assert.equal(setup.can_focus, false);
 
-    view.render(ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW));
-    profiles.pressKey(CLUTTER.KEY_Left);
+    view.render(ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW));
+    activity.pressKey(CLUTTER.KEY_Left);
     assert.deepEqual(calls.at(-1), ["selectTab", "overview"]);
     assert.equal(overview.focused, true);
 });
@@ -128,9 +128,9 @@ test("arrow selection wraps around the tab strip", () => {
 test("Home and End reach the first and last tab directly", () => {
     const {calls, view, root} = harness();
     view.render(ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW));
-    const [overview, profiles, , setup] = tabs(root);
+    const [overview, , system, setup] = tabs(root);
 
-    profiles.pressKey(CLUTTER.KEY_End);
+    system.pressKey(CLUTTER.KEY_End);
     assert.deepEqual(calls.at(-1), ["selectTab", "setup"]);
     assert.equal(setup.focused, true);
 
@@ -163,7 +163,7 @@ test("unhandled keys propagate so Cinnamon keeps its own shortcuts", () => {
 test("only the selected tab stays reachable with the Tab key", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW));
-    assert.deepEqual(tabs(root).map((tab) => tab.can_focus), [false, false, true, false]);
+    assert.deepEqual(tabs(root).map((tab) => tab.can_focus), [false, true, false, false]);
 });
 
 test("a Clutter build without key constants leaves the tab strip inert", () => {

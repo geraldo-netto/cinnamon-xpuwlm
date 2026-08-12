@@ -54,7 +54,7 @@ test("document question projection preserves answer, exact citations, and phase 
         accelerator: "gpu",
         citations: [citation],
     })});
-    assert.equal(complete.title, "Ask selected files");
+    assert.equal(complete.title, "Ask documents");
     assert.equal(complete.complete, true);
     assert.equal(complete.chooserEnabled, true);
     assert.equal(complete.askEnabled, false);

@@ -29,7 +29,7 @@ test("selected-text projection preserves review evidence and exact phase control
             span: {start: 0, end: 7},
         },
     })});
-    assert.equal(complete.title, "Selected-text tools");
+    assert.equal(complete.title, "Work with selected text");
     assert.equal(complete.complete, true);
     assert.equal(complete.operationEnabled, true);
     assert.equal(complete.cancelEnabled, false);

@@ -208,7 +208,8 @@ test("view model groups profiles, separates alerts, and creates stable body key"
     assert.equal(model.pausedProfiles.length, 3);
     assert.equal(model.activeAlerts.length, 1);
     assert.equal(model.resolvedAlerts.length, 1);
-    assert.match(model.headerSubtitle, /Updated just now/);
+    assert.match(model.headerSubtitle, /tools ready/u);
+    assert.match(model.headerSubtitle, /active job/u);
     assert.match(
         ViewModel.toViewModel(state({
             source: "probe",
@@ -295,7 +296,7 @@ test("each blocked profile names its own reason and points at Setup", () => {
         assert.equal(blocked.executable, false, kind);
         assert.equal(blocked.blocker.kind, kind);
         assert.equal(blocked.blocker.reason, reason);
-        assert.equal(blocked.executableText, `${reason} · see Setup`);
+        assert.equal(blocked.executableText, `${reason} · see Diagnostics`);
     }
 
     // An unrecognised reason is quoted, never relabelled or dropped.

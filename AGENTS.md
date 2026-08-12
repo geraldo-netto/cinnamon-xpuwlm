@@ -43,6 +43,7 @@ These rules apply to the entire repository.
   - mutation tests covering changed logic.
 - Achieve at least 80% coverage for every changed or added function or method, regardless of programming language. Aggregate file or project coverage does not replace this per-function requirement.
 - Run the complete relevant local test, regression, fuzz, mutation, and coverage suites before declaring work complete.
+- A user may explicitly waive one or more named local quality gates for the current scoped commit. A waiver is one-time: stop or skip only the named gates, never report them as passing, and disclose the waiver and partial result in the commit message and final handoff. All remaining applicable gates must still pass.
 - If required tooling is missing or a quality gate cannot run, record the blocker in `TODO.md`; do not treat the implementation or fix as complete.
 
 ## UX and UI
@@ -56,7 +57,7 @@ These rules apply to the entire repository.
 ## Git
 
 - Never push automatically. Push only when the user explicitly requests it.
-- After an implementation or fix passes every applicable local test, regression, fuzz, mutation, and per-function coverage gate, commit the scoped changes automatically.
+- After an implementation or fix passes every applicable local test, regression, fuzz, mutation, and per-function coverage gate, commit the scoped changes automatically. A gate explicitly waived under the one-time rule above does not prevent that scoped commit.
 - Do not commit a failing, incomplete, or blocked implementation or fix.
 - Do not stage or commit unrelated user changes.
 - Use concise Conventional Commit messages.

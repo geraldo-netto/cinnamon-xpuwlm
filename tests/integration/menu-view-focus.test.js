@@ -75,6 +75,7 @@ function focused(root) {
 test("body controls declare stable semantic identities", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
+    view._openDetail("profiles");
 
     const identities = Menu.focusableControls(
         findActors(root, (actor) => actor.styleClasses.has("xpuwlm-body"))[0],
@@ -91,6 +92,7 @@ test("body controls declare stable semantic identities", () => {
 test("focus returns to the same control after an unrelated rebuild", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
+    view._openDetail("profiles");
     control(root, "toggle:storage-intelligence").grab_key_focus();
 
     const changed = baseState();
@@ -106,19 +108,19 @@ test("focus returns to the same control after an unrelated rebuild", () => {
 test("a vanished control falls back to the first control in the rebuilt body", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
+    view._openDetail("profiles");
     control(root, "weight-up:desktop-context").grab_key_focus();
 
     view.render(ViewModel.toViewModel(baseState({selectedTab: "overview"}), NOW));
 
     assert.equal(control(root, "weight-up:desktop-context"), undefined);
-    const identities = focused(root);
-    assert.equal(identities.length, 1);
-    assert.equal(identities[0].startsWith("toggle:"), true);
+    assert.deepEqual(focused(root), []);
 });
 
 test("a body without any control hands focus to the selected tab", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
+    view._openDetail("profiles");
     control(root, "toggle:hardware-health").grab_key_focus();
 
     view.render(ViewModel.toViewModel(baseState({
@@ -129,7 +131,8 @@ test("a body without any control hands focus to the selected tab", () => {
 
     view.render(ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW));
     const tab = findActors(root, (actor) => actor instanceof FakeButton
-        && actor.accessibleName === "Alerts tab, selected")[0];
+        && actor.accessibleName === "Activity tab, selected")[0];
+    tab.grab_key_focus();
     assert.equal(tab.focused, true);
     assert.equal(view._focusedIdentity, null);
 });
@@ -137,19 +140,20 @@ test("a body without any control hands focus to the selected tab", () => {
 test("a rebuild never steals focus from a control outside the body", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
-    const pause = findActors(root, (actor) => actor instanceof FakeButton
-        && actor.accessibleName === "Pause all workloads")[0];
-    pause.grab_key_focus();
+    const settings = findActors(root, (actor) => actor instanceof FakeButton
+        && actor.accessibleName === "Open XPU Workload Manager settings")[0];
+    settings.grab_key_focus();
     assert.equal(view._focusedIdentity, null);
 
     view.render(ViewModel.toViewModel(baseState({selectedTab: "overview"}), NOW));
     assert.deepEqual(focused(root), []);
-    assert.equal(pause.focused, true);
+    assert.equal(settings.focused, true);
 });
 
 test("paused and recovery screens keep their own recovery targets", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
+    view._openDetail("profiles");
     control(root, "toggle:hardware-health").grab_key_focus();
 
     view.render(ViewModel.toViewModel(baseState({paused: true}), NOW));

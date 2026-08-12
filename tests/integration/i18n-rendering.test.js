@@ -60,7 +60,7 @@ test("panel and header strings are translated through the port", () => {
         assert.equal(model.panel.label.startsWith("[TPU]"), true);
         assert.equal(model.runtimeStatus, "[Online]");
         assert.equal(model.headerSubtitle.includes("[Online]"), true);
-        assert.equal(model.headerSubtitle.includes("[Updated %s]".replace("%s", "[just now]")), true);
+        assert.equal(model.headerSubtitle.includes("[2 active jobs]"), true);
         assert.equal(model.metrics[1].label, "[Queue]");
         assert.equal(model.metrics[1].suffix, "[jobs]");
     } finally {
@@ -117,16 +117,15 @@ test("menu chrome renders translated labels and accessible names", () => {
         const root = menu.actors[0];
         const labels = findActors(root, (actor) => typeof actor.text === "string").map((actor) => actor.text);
         assert.equal(labels.includes("[XPU Workload Manager]"), true);
-        assert.equal(labels.includes("[Pause all]"), true);
-        assert.equal(labels.includes("[Overview]"), true);
+        assert.equal(labels.includes("[Tools]"), true);
         const model = ViewModel.toViewModel(liveState(), NOW);
         view.render(model);
         const tabButtons = findActors(root, (actor) => actor.styleClasses && actor.styleClasses.has("xpuwlm-tab"));
         assert.deepEqual(tabButtons.map((button) => button.accessibleName), [
-            "[%s tab, selected]".replace("%s", "[Overview]"),
-            "[%s tab]".replace("%s", "[Profiles]"),
-            "[%s tab]".replace("%s", "[Alerts]"),
-            "[%s tab]".replace("%s", "[Setup]"),
+            "[%s tab, selected]".replace("%s", "[Tools]"),
+            "[%s tab]".replace("%s", "[Activity]"),
+            "[%s tab]".replace("%s", "[System]"),
+            "[%s tab]".replace("%s", "[Diagnostics]"),
         ]);
     } finally {
         I18n.reset();

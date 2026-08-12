@@ -72,6 +72,10 @@
     "type": "generic",
     "default": "overview"
   },
+  "activity-cleared-at": {
+    "type": "generic",
+    "default": 0
+  },
   "identity-migration-version": {
     "type": "generic",
     "default": 0

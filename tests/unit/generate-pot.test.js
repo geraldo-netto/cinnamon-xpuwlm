@@ -167,7 +167,7 @@ test("every runtime UI string family is catalogued from the sources", () => {
         "Monitoring has not started",
         "Runtime snapshot is stale",
         "No accelerator available",
-        "Overview",
+        "Tools",
         "Healthy",
         "advisory",
         "%s tab, selected",

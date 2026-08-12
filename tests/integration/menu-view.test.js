@@ -142,6 +142,19 @@ function fileOrganizerWorkflow(overrides = {}) {
     };
 }
 
+function allToolsState(overrides = {}) {
+    return baseState({
+        eventImport: eventWorkflow(),
+        documentQuestion: documentWorkflow(),
+        selectedText: selectedTextWorkflow(),
+        fileOrganizer: fileOrganizerWorkflow(),
+        inputs: {
+            roots: ["/pictures"], pictures: [], runnable: ["visual-library"], omitted: 0,
+        },
+        ...overrides,
+    });
+}
+
 function eventCandidate(overrides = {}) {
     return {
         candidateId: "event-1",
@@ -209,36 +222,30 @@ test("style and child helpers make updates idempotent", () => {
     assert.equal(actor.children.length, 0);
 });
 
-test("pause control defaults to local pause intent before first render", () => {
-    const {calls, root} = harness();
-    button(root, "Pause all workloads").click();
-    assert.deepEqual(calls, [["pauseAll"]]);
+test("header has no duplicate pause control before first render", () => {
+    const {root} = harness();
+    assert.equal(button(root, "Pause all workloads"), undefined);
 });
 
-test("overview exposes grouped profiles and all primary actions", () => {
+test("Tools exposes task navigation, refresh, and settings", () => {
     const {calls, view, root} = harness();
     view.render(ViewModel.toViewModel(baseState(), NOW));
-    assert.equal(button(root, "Overview tab, selected").styleClasses.has("xpuwlm-tab-active"), true);
-    assert.equal(button(root, "Profiles tab").styleClasses.has("xpuwlm-tab-active"), false);
-    button(root, "Profiles tab").click();
-    button(root, "Manage workload profiles").click();
+    assert.equal(button(root, "Tools tab, selected").styleClasses.has("xpuwlm-tab-active"), true);
+    assert.equal(button(root, "System tab").styleClasses.has("xpuwlm-tab-active"), false);
+    button(root, "System tab").click();
     button(root, "Refresh XPU status").click();
     button(root, "Open XPU Workload Manager settings").click();
-    button(root, "Pause all workloads").click();
-    control(root, "Disable Hardware health").click();
     assert.deepEqual(calls, [
-        ["selectTab", "profiles"],
         ["selectTab", "profiles"],
         ["refresh"],
         ["openSettings"],
-        ["pauseAll"],
-        ["toggleProfile", "hardware-health"],
     ]);
 });
 
 test("profiles screen offers weight and enable controls", () => {
     const {calls, view, root} = harness();
     view.render(ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW));
+    view._openDetail("profiles");
     button(root, "Decrease Hardware health weight").click();
     button(root, "Increase Hardware health weight").click();
     control(root, "Enable Network & peripherals").click();
@@ -266,6 +273,7 @@ test("event import stays hidden until live readiness and starts from explicit se
         selectedTab: "profiles",
         eventImport: eventWorkflow({available: false, availabilityDetail: "Provider missing"}),
     }), NOW));
+    view._openDetail("events");
     assert.equal(button(root, "Choose event source files"), undefined);
 
     view.render(ViewModel.toViewModel(baseState({
@@ -306,6 +314,7 @@ test("selected-document UI asks explicitly and renders only public citations", (
         selectedTab: "profiles",
         documentQuestion: documentWorkflow({available: false}),
     }), NOW));
+    view._openDetail("documents");
     assert.equal(button(root, "Choose documents for one question"), undefined);
 
     view.render(ViewModel.toViewModel(baseState({
@@ -410,6 +419,7 @@ test("selected-text UI reads once on operation click and exposes review-only res
         selectedTab: "profiles",
         selectedText: selectedTextWorkflow(),
     }), NOW));
+    view._openDetail("text");
     button(root, "Summarize the explicit clipboard selection").click();
     assert.deepEqual(calls.at(-1), ["startSelectedText", "summarize", null]);
     const language = findActors(
@@ -556,6 +566,7 @@ test("file organizer UI displays evidence-backed advice and exposes no apply act
         selectedTab: "profiles",
         fileOrganizer: fileOrganizerWorkflow({phase: "selected", sources: [source]}),
     }), NOW));
+    view._openDetail("organizer");
     button(root, "Choose files for a review-only organization plan").click();
     const createPlan = button(root, "Suggest organization without changing files");
     assert.equal(createPlan.styleClasses.has("xpuwlm-primary-button"), true);
@@ -723,6 +734,7 @@ test("event preview exposes grounded evidence, labelled edits, decisions, and co
             candidates: [eventCandidate({confirmation: "confirmed"})],
         }),
     }), NOW));
+    view._openDetail("events");
 
     for (const label of ["Title", "Starts", "Ends", "Timezone", "Location"]) {
         assert.equal(findActors(root, (actor) => actor.text === label).length, 1, label);
@@ -768,6 +780,7 @@ test("event progress is cancellable and decisions are announced without color al
             message: "Working",
         }),
     }), NOW));
+    view._openDetail("events");
     assert.equal(findActors(root, (actor) => /50% · Reading sources/u.test(actor.text)).length, 1);
     button(root, "Cancel event extraction").click();
     assert.deepEqual(calls, [["cancelEventImport"]]);
@@ -989,9 +1002,9 @@ test("pending runtime control is announced and disables policy controls", () => 
         selectedTab: "profiles",
         control: {pending: true, message: "Applying change in runtime…"},
     }), NOW));
+    view._openDetail("profiles");
     assert.equal(findActors(root, (actor) => actor.text === "Applying change in runtime…").length, 1);
     for (const accessibleName of [
-        "Pause all workloads",
         "Decrease Hardware health weight",
         "Increase Hardware health weight",
         "Disable Hardware health",
@@ -1005,13 +1018,16 @@ test("pending runtime control is announced and disables policy controls", () => 
     }), NOW));
     const feedback = findActors(root, (actor) => actor.text === "Runtime rejected the change; retry")[0];
     assert.equal(feedback.styleClasses.has("xpuwlm-control-error"), true);
-    assert.equal(button(root, "Pause all workloads").reactive, true);
+    assert.equal(control(root, "Disable Hardware health").reactive, true);
 });
 
 test("alerts screen renders empty, active, resolved, and fallback evidence", () => {
     const {view, root} = harness();
-    view.render(ViewModel.toViewModel(baseState({selectedTab: "alerts"}), NOW));
-    assert.equal(findActors(root, (actor) => actor.text === "No active alerts").length, 1);
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "alerts",
+        metrics: {load: 42, queueDepth: 0, runningProfiles: 0},
+    }), NOW));
+    assert.equal(findActors(root, (actor) => actor.text === "No active jobs").length, 2);
 
     const alerts = [
         {id: "active", profileId: "hardware-health", title: "Voltage drift", summary: "", severity: "warning", timestamp: NOW, confidence: null, riskScore: 0.7, resolved: false},
@@ -1070,16 +1086,14 @@ test("alerts screen renders critical and newer alerts before lower priorities", 
 test("paused screen invokes resume independently of button presentation text", () => {
     const {calls, view, root} = harness();
     view.render(ViewModel.toViewModel(baseState({paused: true}), NOW));
-    const headerResume = button(root, "Resume all workloads");
-    const label = headerResume.children[0];
+    const bodyResume = button(root, "Resume all workloads");
+    const label = bodyResume.children[0];
     label.set_text("Localized resume text");
-    headerResume.click();
-    const bodyResume = findActors(root, (actor) => actor instanceof FakeButton && actor.accessibleName === "Resume all workloads")[1];
     bodyResume.click();
-    assert.deepEqual(calls, [["resumeAll"], ["resumeAll"]]);
+    assert.deepEqual(calls, [["resumeAll"]]);
     assert.equal(findActors(root, (actor) => actor.text === "Local policy paused").length, 1);
     assert.equal(findActors(root, (actor) => actor.styleClasses.has("xpuwlm-tabs"))[0].visible, false);
-    assert.equal(button(root, "Manage workload profiles").visible, false);
+    assert.equal(view._footer.visible, false);
 });
 
 test("unavailable screen hides tabs and offers recovery", () => {
@@ -1088,23 +1102,21 @@ test("unavailable screen hides tabs and offers recovery", () => {
         device: {available: false, name: "No TPU", kind: "unknown", reason: "Reconnect device"},
     }), NOW));
     assert.equal(findActors(root, (actor) => actor.styleClasses.has("xpuwlm-tabs"))[0].visible, false);
-    assert.equal(button(root, "Manage workload profiles").visible, false);
+    assert.equal(view._footer.visible, false);
     assert.equal(findActors(root, (actor) => actor.text === "Reconnect device").length, 1);
     button(root, "Retry accelerator detection").click();
     assert.deepEqual(calls, [["refresh"]]);
 });
 
-test("unavailable screen keeps pause control aligned with policy intent", () => {
-    const {calls, view, root} = harness();
+test("unavailable screen omits unrelated pause controls", () => {
+    const {view, root} = harness();
     const device = {available: false, name: "No TPU", kind: "unknown", reason: "Reconnect device"};
     view.render(ViewModel.toViewModel(baseState({paused: true, device}), NOW));
 
     assert.equal(findActors(root, (actor) => actor.text === "Reconnect device").length, 1);
-    button(root, "Resume all workloads").click();
-
     view.render(ViewModel.toViewModel(baseState({paused: false, device}), NOW));
-    button(root, "Pause all workloads").click();
-    assert.deepEqual(calls, [["resumeAll"], ["pauseAll"]]);
+    assert.equal(button(root, "Pause all workloads"), undefined);
+    assert.equal(button(root, "Resume all workloads"), undefined);
 });
 
 test("body rendering skips unchanged content and destroy is idempotent", () => {
@@ -1223,6 +1235,7 @@ function blockedList(root) {
 test("profiles that cannot run collapse into one group under the ones that can", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(blockedState(), NOW));
+    view._openDetail("profiles");
 
     const body = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-body"))[0];
     const list = blockedList(root);
@@ -1236,10 +1249,10 @@ test("profiles that cannot run collapse into one group under the ones that can",
         findActors(list, (actor) => actor.styleClasses
             && actor.styleClasses.has("xpuwlm-profile-limitation")).map((actor) => actor.text),
         [
-            "No model installed · see Setup",
-            "No supported accelerator present · see Setup",
-            "gpu: a reason nobody wrote a label for · see Setup",
-            "Accelerator runtime not installed · see Setup",
+            "No model installed · see Diagnostics",
+            "No supported accelerator present · see Diagnostics",
+            "gpu: a reason nobody wrote a label for · see Diagnostics",
+            "Accelerator runtime not installed · see Diagnostics",
         ],
     );
 
@@ -1254,18 +1267,11 @@ test("profiles that cannot run collapse into one group under the ones that can",
     );
 });
 
-test("Manage profiles opens, expands, and focuses the readiness disclosure", () => {
-    const {calls, view, root} = harness();
-    view.render(ViewModel.toViewModel(blockedState("overview"), NOW));
-    view._actions.selectTab = (tab) => {
-        calls.push(["selectTab", tab]);
-        view.render(ViewModel.toViewModel(blockedState(tab), NOW));
-        return true;
-    };
-
-    button(root, "Manage workload profiles").click();
-
-    assert.deepEqual(calls, [["selectTab", "profiles"]]);
+test("Advanced profiles expands and focuses the readiness disclosure", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(blockedState("profiles"), NOW));
+    button(root, "Open advanced workload profiles").click();
+    view._focusBlockedDisclosure();
     assert.equal(blockedList(root).visible, true);
     assert.equal(disclosure(root).focused, true);
     assert.equal(disclosure(root).accessibleName, "Needs setup, 4 profiles, expanded");
@@ -1274,44 +1280,28 @@ test("Manage profiles opens, expands, and focuses the readiness disclosure", () 
     assert.equal(blockedList(root).visible, false, "the disclosure remains independently operable");
 });
 
-test("profile-management focus survives delayed selection and guarded actors", () => {
+test("profile-management focus survives guarded actors", () => {
     const delayed = harness();
     delayed.view.render(ViewModel.toViewModel(blockedState("profiles"), NOW));
+    delayed.view._openDetail("profiles");
     const staleDisclosure = disclosure(delayed.root);
-    delayed.view._selectedTab = "overview";
-    delayed.view._actions.selectTab = () => "scheduled";
-    assert.equal(delayed.view._manageProfiles(), "scheduled");
-    assert.equal(delayed.view._focusBlockedOnRender, true);
-    assert.notEqual(staleDisclosure.focused, true);
-
-    const overview = ViewModel.toViewModel(blockedState("overview"), NOW);
-    assert.equal(delayed.view._renderBody(overview), null);
-    assert.equal(delayed.view._focusBlockedOnRender, true);
-
-    const profiles = ViewModel.toViewModel(blockedState("profiles"), NOW);
-    delayed.view._selectedTab = "profiles";
-    assert.equal(delayed.view._renderBody(profiles), true);
-    assert.equal(delayed.view._focusBlockedOnRender, false);
-    assert.equal(disclosure(delayed.root).focused, true);
+    assert.equal(delayed.view._focusBlockedDisclosure(), true);
+    assert.equal(staleDisclosure.focused, true);
 
     const guarded = harness();
-    guarded.view._focusBlockedOnRender = true;
     assert.equal(guarded.view._focusBlockedDisclosure(), false);
-    assert.equal(guarded.view._focusBlockedOnRender, false);
-    guarded.view.render(profiles);
+    guarded.view.render(ViewModel.toViewModel(blockedState("profiles"), NOW));
+    guarded.view._openDetail("profiles");
     guarded.view._blocked.disclosure.grab_key_focus = null;
-    guarded.view._focusBlockedOnRender = true;
     assert.equal(guarded.view._focusBlockedDisclosure(), true);
-    assert.equal(guarded.view._focusBlockedOnRender, false);
     assert.equal(guarded.view._blockedExpanded, true);
-    guarded.view._focusBlockedOnRender = true;
     assert.equal(guarded.view.destroy(), true);
-    assert.equal(guarded.view._focusBlockedOnRender, false);
 });
 
 test("the collapsed group is operable and announces its own state", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(blockedState(), NOW));
+    view._openDetail("profiles");
 
     const toggle = disclosure(root);
     const list = blockedList(root);
@@ -1352,8 +1342,9 @@ test("the collapsed group is operable and announces its own state", () => {
 test("controls on a profile that cannot run are disabled and say why", () => {
     const {calls, tooltips, view, root} = harness();
     view.render(ViewModel.toViewModel(blockedState(), NOW));
+    view._openDetail("profiles");
 
-    const reason = "No model installed · see Setup";
+    const reason = "No model installed · see Diagnostics";
     const inert = control(root, "Disable Hardware health");
     assert.equal(inert.accessibleName, `Disable Hardware health — ${reason}`);
     assert.equal(inert.reactive, false, "a control that changes nothing is not offered");
@@ -1386,6 +1377,7 @@ test("controls on a profile that cannot run are disabled and say why", () => {
 test("a catalog the runtime serves whole carries no group and no limitation", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW));
+    view._openDetail("profiles");
 
     assert.equal(disclosure(root), undefined);
     assert.equal(blockedList(root), undefined);
@@ -1410,11 +1402,12 @@ test("a catalog nothing can run says so instead of showing an empty tab", () => 
         detail: "gpu: ncnn is not installed",
     }));
     view.render(ViewModel.toViewModel(state, NOW));
+    view._openDetail("profiles");
 
     const note = findActors(root, (actor) => actor.styleClasses
         && actor.styleClasses.has("xpuwlm-empty-note"))[0];
     assert.match(note.text, /No workload profile can run on this machine yet/u);
-    assert.match(note.text, /Setup tab/u);
+    assert.match(note.text, /Diagnostics/u);
     assert.equal(blockedList(root).children.length, state.profiles.length);
 });
 
@@ -1431,6 +1424,7 @@ test("the collapsed group and the setup tab report what they did", () => {
     assert.equal(view._renderBlockedProfiles({blockedGroup: undefined}), false);
 
     view.render(blocked);
+    view._openDetail("profiles");
     assert.equal(view._applyBlockedExpansion(), false, "the group starts collapsed");
     assert.equal(view._toggleBlockedProfiles(), true);
 
@@ -1447,13 +1441,14 @@ test("the collapsed group and the setup tab report what they did", () => {
     assert.equal(blockedList(root).vertical, true);
 
     view.render(ViewModel.toViewModel(blockedState("setup"), NOW));
+    view._openDetail("setup");
     const setupCopy = findActors(root, (actor) => actor.styleClasses
         && actor.styleClasses.has("xpuwlm-setup-row"))[0].children[0];
     assert.equal(setupCopy.vertical, true);
     assert.equal(setupCopy.x_expand, true);
 
     assert.equal(view._renderSetup(blocked), true);
-    assert.equal(view._renderSetup(ViewModel.toViewModel(baseState(), NOW)), false);
+    assert.equal(view._renderSetup(ViewModel.toViewModel(allToolsState(), NOW)), false);
     assert.equal(view._renderBlockedProfiles(blocked), true);
     assert.deepEqual(
         blocked.setup.sections.map((section) => view._renderSetupSection(section)),
@@ -1464,10 +1459,12 @@ test("the collapsed group and the setup tab report what they did", () => {
 test("the setup tab explains each remedy once, for every profile that needs it", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(blockedState("setup"), NOW));
+    view._openDetail("setup");
 
     const titles = findActors(root, (actor) => actor.styleClasses
         && actor.styleClasses.has("xpuwlm-group-title")).map((actor) => actor.text);
     assert.deepEqual(titles, [
+        "Unavailable tools",
         "Install the accelerator runtime",
         "No qualified model is available",
         "Connect supported hardware",
@@ -1475,7 +1472,7 @@ test("the setup tab explains each remedy once, for every profile that needs it",
     ]);
     const counts = findActors(root, (actor) => actor.styleClasses
         && actor.styleClasses.has("xpuwlm-group-value")).map((actor) => actor.text);
-    assert.deepEqual(counts, ["1 profile", "1 profile", "1 profile", "1 profile"]);
+    assert.deepEqual(counts, ["5 tools", "1 profile", "1 profile", "1 profile", "1 profile"]);
 
     // Every affected profile is named under its own remedy.
     const rows = findActors(root, (actor) => actor.styleClasses
@@ -1535,6 +1532,7 @@ test("resource scheduler setup renders the supported local forecast entry point"
         : profile));
 
     view.render(ViewModel.toViewModel(snapshot, NOW));
+    view._openDetail("setup");
 
     assert.equal(
         findActors(root, (actor) => actor.text === "Train a local Resource Scheduler forecast").length,
@@ -1555,11 +1553,12 @@ test("resource scheduler setup renders the supported local forecast entry point"
 
 test("the setup tab says so when nothing needs installing", () => {
     const {view, root} = harness();
-    view.render(ViewModel.toViewModel(baseState({selectedTab: "setup"}), NOW));
+    view.render(ViewModel.toViewModel(allToolsState({selectedTab: "setup"}), NOW));
+    view._openDetail("setup");
 
     assert.equal(findActors(root, (actor) => actor.text === "Every workload profile can run").length, 1);
     assert.equal(
-        findActors(root, (actor) => actor.text === "8 of 8 workload profiles can run on this machine").length,
+        findActors(root, (actor) => actor.text === "Tools and workload profiles are ready").length,
         1,
     );
     assert.equal(
@@ -1572,19 +1571,24 @@ test("the setup tab says so when nothing needs installing", () => {
     );
 });
 
-test("the setup tab joins the strip and is reachable from the collapsed group", () => {
+test("Diagnostics joins the strip and exposes setup from its status row", () => {
     const {calls, view, root} = harness();
     view.render(ViewModel.toViewModel(blockedState(), NOW));
+    view._openDetail("profiles");
 
-    // The terse group names Setup, and Setup is a tab the user can reach.
+    // The profile limitation points to Diagnostics, which is a tab the user
+    // can reach. Setup remains a focused drill-in from that screen.
     const limitation = findActors(root, (actor) => actor.styleClasses
         && actor.styleClasses.has("xpuwlm-profile-limitation"))[0];
-    assert.match(limitation.text, /see Setup$/u);
-    button(root, "Setup tab").click();
+    assert.match(limitation.text, /see Diagnostics$/u);
+    button(root, "Diagnostics tab").click();
     assert.deepEqual(calls, [["selectTab", "setup"]]);
 
-    view.render(ViewModel.toViewModel(blockedState("setup"), NOW));
-    assert.equal(button(root, "Setup tab, selected").styleClasses.has("xpuwlm-tab-active"), true);
+    const diagnostics = ViewModel.toViewModel(blockedState("setup"), NOW);
+    view.render(diagnostics);
+    assert.equal(button(root, "Diagnostics tab, selected").styleClasses.has("xpuwlm-tab-active"), true);
+    button(root, `Open setup details, ${diagnostics.diagnostics.setupStatus}`).click();
+    assert.equal(findActors(root, (actor) => actor.text === "What needs setup").length, 1);
 });
 
 test("the alerts screen states runtime content it could not render", () => {

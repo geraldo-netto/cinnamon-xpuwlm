@@ -387,6 +387,14 @@ test("chooser lifecycle validates collaborators and cleans failed presentation",
         assert.throws(() => Port.requireChooserLifecycle(lifecycle), /lifecycle/u);
     }
     const lifecycle = immediateLifecycle(env);
+    assert.throws(
+        () => lifecycle.present(new env.Gtk.FileChooserDialog({}), null, () => {}),
+        /selection and callback/u,
+    );
+    assert.throws(
+        () => lifecycle.present(new env.Gtk.FileChooserDialog({}), () => [], null),
+        /selection and callback/u,
+    );
     assert.equal(Port.requireChooserLifecycle(lifecycle), lifecycle);
     const dialog = new env.Gtk.FileChooserDialog({});
     dialog.present = () => { throw new Error("cannot focus"); };

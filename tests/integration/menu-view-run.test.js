@@ -86,6 +86,10 @@ function runRows(root) {
         && actor.styleClasses.has("xpuwlm-run-row"));
 }
 
+function openPictureTool(view) {
+    view._openDetail("picture");
+}
+
 function textWithClass(root, styleClass) {
     return findActors(root, (actor) => actor.styleClasses && actor.styleClasses.has(styleClass))
         .map((actor) => actor.text);
@@ -167,6 +171,7 @@ test("each picture becomes one button that submits it for one profile", () => {
     view.render(ViewModel.toViewModel(state({
         inputs: {pictures: pictures(["cat.png", "dog.jpg"])},
     }), NOW));
+    openPictureTool(view);
 
     const rows = runRows(root);
     assert.deepEqual(rows.map((row) => row.accessibleName).sort(), [
@@ -182,6 +187,7 @@ test("each picture becomes one button that submits it for one profile", () => {
 test("the rows carry identities so focus survives a refresh under the cursor", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(state(), NOW));
+    openPictureTool(view);
 
     assert.deepEqual(
         runRows(root).map((row) => row.xpuwlmIdentity),
@@ -192,6 +198,7 @@ test("the rows carry identities so focus survives a refresh under the cursor", (
 test("nothing to run is a sentence, never an empty list of buttons", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(state({inputs: {roots: [], pictures: []}}), NOW));
+    openPictureTool(view);
 
     assert.deepEqual(runRows(root), []);
     assert.equal(textWithClass(root, "xpuwlm-run-note").length, 1);
@@ -211,6 +218,7 @@ test("the last job's outcome names the picture, the profile, and the answer", ()
             message: "Job accepted",
         },
     }), NOW));
+    openPictureTool(view);
 
     const outcome = textWithClass(root, "xpuwlm-job-outcome");
     assert.equal(outcome.length, 1);
@@ -232,6 +240,7 @@ test("a job with no id yet reports what happened without an empty separator", ()
             message: "Preparing the picture…",
         },
     }), NOW));
+    openPictureTool(view);
 
     assert.match(textWithClass(root, "xpuwlm-job-outcome")[0], /Preparing the picture…$/u);
 });
@@ -240,6 +249,7 @@ test("a job acknowledgement rebuilds the body even though the snapshot is unchan
     const {view, root} = harness();
     const before = state();
     view.render(ViewModel.toViewModel(before, NOW));
+    openPictureTool(view);
     assert.deepEqual(textWithClass(root, "xpuwlm-job-outcome"), []);
 
     view.render(ViewModel.toViewModel(state({
@@ -260,11 +270,13 @@ test("a job acknowledgement rebuilds the body even though the snapshot is unchan
 test("a newly dropped picture rebuilds the body on the next render", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(state(), NOW));
+    openPictureTool(view);
     assert.equal(runRows(root).length, 1);
 
     view.render(ViewModel.toViewModel(state({
         inputs: {pictures: pictures(["cat.png", "dog.jpg"])},
     }), NOW));
+    openPictureTool(view);
 
     assert.equal(runRows(root).length, 2);
 });
@@ -294,6 +306,7 @@ test("an accepted job that has not finished does not read as finished", () => {
             reading: null,
         },
     }), NOW));
+    openPictureTool(view);
 
     const outcome = textWithClass(root, "xpuwlm-job-outcome")[0];
     assert.match(outcome, /Running/u);
@@ -321,6 +334,7 @@ test("a finished job prints the candidates it was run for", () => {
             },
         },
     }), NOW));
+    openPictureTool(view);
 
     const rows = textWithClass(root, "xpuwlm-job-reading");
     assert.equal(rows.length, 2);
@@ -345,6 +359,7 @@ test("a forecast renders one bounded advisory row without invented meaning", () 
             reading: {kind: "forecast", targetFeature: "queueDepth", horizon: 3, value: 2.5},
         },
     }), NOW));
+    openPictureTool(view);
 
     const rows = textWithClass(root, "xpuwlm-job-reading");
     assert.equal(rows.length, 1);
@@ -422,6 +437,7 @@ test("a capped picture list says how many it is not showing", () => {
     view.render(ViewModel.toViewModel(state({
         inputs: {pictures: pictures(many), omitted: 5},
     }), NOW));
+    openPictureTool(view);
 
     const notes = textWithClass(root, "xpuwlm-run-note");
     assert.equal(notes.length, 1);
@@ -431,6 +447,7 @@ test("a capped picture list says how many it is not showing", () => {
 test("a list that shows everything says nothing about omission", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(state(), NOW));
+    openPictureTool(view);
 
     assert.deepEqual(textWithClass(root, "xpuwlm-run-note"), []);
     assert.equal(ViewModel.runModel(state()).omitted, 0);

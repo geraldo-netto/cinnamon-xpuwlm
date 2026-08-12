@@ -276,7 +276,7 @@ function recoveryModel(state) {
     };
 }
 
-// The Setup tab is organised by remedy, not by profile, because one package or
+// Diagnostics setup detail is organised by remedy, not by profile, because one package or
 // one artifact usually unblocks several profiles at once. A missing declared
 // artifact, a supported local training recipe, and a profile with no qualified
 // model are different states: only the first two have honest commands. Every
@@ -402,10 +402,10 @@ function setupModel(profiles) {
 // a path or a normalisation.
 const MAX_RUN_PICTURES = 24;
 const MAX_READING_ROWS = 5;
-const RUN_TITLE = N_("Run a picture");
+const RUN_TITLE = N_("Analyze a picture");
 const NO_ROOTS_TEXT = N_("The runtime service is not configured to read input files, so no picture can be submitted");
 const NO_RUNNABLE_TEXT = N_("No installed profile states what input it needs, so no picture can be prepared");
-const NONE_SERVING_TEXT = N_("No profile that accepts a picture can serve right now; the Setup tab says why");
+const NONE_SERVING_TEXT = N_("No profile that accepts a picture can serve right now; Diagnostics says why");
 // A profile the same popup reports as paused, disabled, or unavailable will
 // refuse every job it is given. Offering it a picture anyway spends a decode,
 // a staged buffer, and a bus call to learn what the row above already said.
@@ -517,17 +517,320 @@ function jobModel(job, profiles) {
     if (!job || !job.profileId) {
         return null;
     }
-    const profile = profiles.find((candidate) => candidate.id === job.profileId);
+    const profile = profiles.find((candidate) => candidate.id === job.profileId)
+        || {title: job.profileId};
+    const optionalText = (value) => typeof value === "string" ? value : "";
     return {
         pending: job.pending === true,
-        title: profile ? profile.title : job.profileId,
-        sourceName: job.sourceName || "",
-        message: job.message || "",
-        jobId: job.jobId || "",
+        state: optionalText(job.state),
+        status: optionalText(job.status),
+        title: profile.title,
+        sourceName: optionalText(job.sourceName),
+        message: optionalText(job.message),
+        jobId: optionalText(job.jobId),
         tone: jobTone(job),
         stateText: jobStateText(job),
         progressText: progressText(job.progress),
         reading: readingModel(job.reading),
+    };
+}
+
+const TOOL_SPECS = Object.freeze([
+    Object.freeze({
+        id: "documents",
+        detail: "documents",
+        icon: "folder-documents-symbolic",
+        title: N_("Ask documents"),
+        description: N_("Choose files and ask a grounded question"),
+        workflow: "documentQuestion",
+    }),
+    Object.freeze({
+        id: "events",
+        detail: "events",
+        icon: "x-office-calendar-symbolic",
+        title: N_("Extract calendar events"),
+        description: N_("Review events before exporting"),
+        workflow: "eventImport",
+    }),
+    Object.freeze({
+        id: "text",
+        detail: "text",
+        icon: "edit-select-all-symbolic",
+        title: N_("Work with selected text"),
+        description: N_("Explain, summarize, rewrite, or translate"),
+        workflow: "selectedText",
+    }),
+    Object.freeze({
+        id: "organizer",
+        detail: "organizer",
+        icon: "folder-symbolic",
+        title: N_("Organize files"),
+        description: N_("Review suggestions; files are never changed"),
+        workflow: "fileOrganizer",
+    }),
+    Object.freeze({
+        id: "picture",
+        detail: "picture",
+        icon: "image-x-generic-symbolic",
+        title: N_("Analyze a picture"),
+        description: N_("Run the available visual model"),
+        workflow: null,
+    }),
+]);
+
+const ACTIVE_WORKFLOW_PHASES = new Set([
+    "selecting", "submitting", "running", "cancelling", "exporting",
+]);
+const REVIEW_WORKFLOW_PHASES = new Set(["preview", "confirm-export"]);
+const RECENT_WORKFLOW_PHASES = new Set(["complete", "error"]);
+
+function toolModels(state, workflows, run) {
+    return TOOL_SPECS.map((spec) => toolModel(spec, state, workflows, run));
+}
+
+function toolStatus(available, working) {
+    if (working) {
+        return {text: _("Working"), tone: "running"};
+    }
+    return available
+        ? {text: _("Ready"), tone: "healthy"}
+        : {text: _("Unavailable"), tone: "unavailable"};
+}
+
+function workflowPhase(workflow) {
+    return workflow && typeof workflow.phase === "string" ? workflow.phase : "idle";
+}
+
+function workflowAvailable(workflow) {
+    return Boolean(workflow && workflow.available === true);
+}
+
+function workflowAvailabilityDetail(workflow) {
+    return workflow && typeof workflow.availabilityDetail === "string"
+        ? workflow.availabilityDetail
+        : "";
+}
+
+function toolModel(spec, state, workflows, run) {
+    const picture = spec.workflow === null;
+    const workflow = picture ? null : state[spec.workflow];
+    const pictureReady = run.roots.length > 0 && run.profiles.length > 0;
+    const available = picture ? pictureReady : workflowAvailable(workflow);
+    const phase = workflowPhase(workflow);
+    const status = toolStatus(available, ACTIVE_WORKFLOW_PHASES.has(phase));
+    return {
+        id: spec.id,
+        detail: spec.detail,
+        icon: spec.icon,
+        title: _(spec.title),
+        description: _(spec.description),
+        available,
+        enabled: available || phase !== "idle",
+        phase,
+        status: status.text,
+        statusTone: status.tone,
+        setupDetail: picture ? run.reason : workflowAvailabilityDetail(workflow),
+        projected: picture ? run : workflows[spec.workflow],
+    };
+}
+
+function workflowActivity(id, title, workflow) {
+    if (workflow === null || workflow === undefined) {
+        return null;
+    }
+    const phase = workflow.phase || "idle";
+    if (ACTIVE_WORKFLOW_PHASES.has(phase)) {
+        return runningWorkflowActivity(id, title, workflow);
+    }
+    if (REVIEW_WORKFLOW_PHASES.has(phase)) {
+        return reviewWorkflowActivity(id, title, workflow);
+    }
+    if (!RECENT_WORKFLOW_PHASES.has(phase)) {
+        return null;
+    }
+    return recentWorkflowActivity(id, title, workflow);
+}
+
+function runningWorkflowActivity(id, title, workflow) {
+    return {
+        id, title,
+        detail: workflow.progressText || workflow.message || _("Work in progress"),
+        status: _("Running"), tone: "running", kind: "running",
+    };
+}
+
+function reviewWorkflowActivity(id, title, workflow) {
+    return {
+        id, title,
+        detail: workflow.message || _("Review required before continuing"),
+        status: _("Review"), tone: "watching", kind: "running",
+    };
+}
+
+function recentWorkflowActivity(id, title, workflow) {
+    const complete = workflow.phase === "complete";
+    return {
+        id, title,
+        detail: workflow.message || (complete ? _("Finished") : _("Could not finish")),
+        status: complete ? _("Finished") : _("Failed"),
+        tone: complete ? "healthy" : "unavailable", kind: "recent",
+    };
+}
+
+function jobActivity(job) {
+    if (job === null) {
+        return null;
+    }
+    const running = job.pending || job.state === "running";
+    return {
+        id: "picture-job",
+        title: job.title,
+        detail: [job.sourceName, job.message, job.progressText].filter(Boolean).join(" · "),
+        status: running ? _("Running") : (job.stateText || _("Submitted")),
+        tone: running ? "running" : (job.tone === "attention" ? "unavailable" : "healthy"),
+        kind: running ? "running" : "recent",
+    };
+}
+
+function activityModel(state, workflows, run) {
+    const items = [
+        workflowActivity("documents", _("Ask documents"), workflows.documentQuestion),
+        workflowActivity("events", _("Extract calendar events"), workflows.eventImport),
+        workflowActivity("text", _("Work with selected text"), workflows.selectedText),
+        workflowActivity("organizer", _("Organize files"), workflows.fileOrganizer),
+        jobActivity(run.job),
+    ].filter(Boolean);
+    const running = items.filter((item) => item.kind === "running");
+    const recent = items.filter((item) => item.kind === "recent");
+    const reportedRunning = Number.isInteger(state.metrics?.runningProfiles)
+        ? state.metrics.runningProfiles
+        : 0;
+    const otherRunning = Math.max(0, reportedRunning - running.length);
+    if (otherRunning > 0) {
+        running.push({
+            id: "runtime-workloads",
+            title: ngettext("Runtime workload", "Runtime workloads", otherRunning),
+            detail: format(
+                ngettext("%d workload reported by the runtime", "%d workloads reported by the runtime", otherRunning),
+                otherRunning,
+            ),
+            status: _("Running"),
+            tone: "running",
+            kind: "running",
+        });
+    }
+    return {
+        running,
+        recent,
+        activeCount: Math.max(reportedRunning, running.length),
+        canClear: recent.length > 0,
+    };
+}
+
+function workloadServiceStatus(control) {
+    if (control.available === true) {
+        return {status: _("Ready"), tone: "healthy", detail: _("Runtime controls are available")};
+    }
+    if (control.available === false) {
+        return {status: _("Unavailable"), tone: "unavailable", detail: _("Runtime controls are unavailable")};
+    }
+    return {status: _("Unknown"), tone: "watching", detail: _("Runtime control state is not known")};
+}
+
+function diagnosticsReport(state, tools, activity, setup, control, nowMs) {
+    const service = workloadServiceStatus(control);
+    const setupCount = tools.filter((tool) => !tool.available).length
+        + setup.sections.reduce((count, section) => count + section.profiles.length, 0);
+    return [
+        _("XPU Workload Manager diagnostics"),
+        `${_("Generated")}: ${new Date(nowMs).toISOString()}`,
+        `${_("Device")}: ${deviceStatusText(state)} — ${state.device.name || state.device.reason || _("Unknown")}`,
+        `${_("Runtime")}: ${runtimeStatusText(state)} — ${healthOf(state).detail || _("No additional detail")}`,
+        `${_("Workload service")}: ${service.status} — ${service.detail}`,
+        `${_("Ready tools")}: ${tools.filter((tool) => tool.available).length}/${tools.length}`,
+        `${_("Active jobs")}: ${activity.activeCount}`,
+        `${_("Needs setup")}: ${setupCount}`,
+        `${_("Recent issues")}: ${state.attentionCount}`,
+        `${_("Last update")}: ${formatRelativeTime(state.generatedAt, nowMs)}`,
+    ].join("\n");
+}
+
+function diagnosticsModel(state, tools, activity, setup, activeAlerts, control, nowMs) {
+    const service = workloadServiceStatus(control);
+    const toolSetup = tools.filter((tool) => !tool.available).map((tool) => ({
+        id: tool.id,
+        title: tool.title,
+        detail: tool.setupDetail || _("Required service or input is unavailable"),
+        status: _("Unavailable"),
+        tone: "unavailable",
+    }));
+    const profileSetupCount = setup.sections.reduce(
+        (count, section) => count + section.profiles.length,
+        0,
+    );
+    const setupCount = toolSetup.length + profileSetupCount;
+    return {
+        health: [
+            {
+                id: "device",
+                title: _("Device"),
+                detail: state.device.name || state.device.reason || _("No device detail"),
+                status: deviceStatusText(state),
+                tone: state.device.available ? "healthy" : "unavailable",
+            },
+            {
+                id: "runtime",
+                title: _("Local runtime"),
+                detail: healthOf(state).detail || _("Snapshot contract is readable"),
+                status: runtimeStatusText(state),
+                tone: healthOf(state).runtime === "connected" ? "healthy" : "unavailable",
+            },
+            {
+                id: "service",
+                title: _("Workload service"),
+                detail: service.detail,
+                status: service.status,
+                tone: service.tone,
+            },
+        ],
+        toolSetup,
+        profileSetupCount,
+        setupCount,
+        setupStatus: setupCount === 0 ? _("Ready") : format(_("%d needs setup"), setupCount),
+        setupSummary: setupCount === 0
+            ? _("Tools and workload profiles are ready")
+            : format(
+                ngettext("%d tool or profile needs attention", "%d tools or profiles need attention", setupCount),
+                setupCount,
+            ),
+        current: [
+            {label: _("Ready tools"), value: `${tools.filter((tool) => tool.available).length}`},
+            {label: _("Active jobs"), value: `${activity.activeCount}`},
+            {label: _("Last update"), value: formatRelativeTime(state.generatedAt, nowMs)},
+        ],
+        issues: activeAlerts,
+        report: diagnosticsReport(state, tools, activity, setup, control, nowMs),
+    };
+}
+
+function systemModel(state) {
+    return {
+        statuses: [
+            {
+                id: "device",
+                title: state.device.name || _("Accelerator"),
+                detail: format(_("%s accelerator"), backendLabel(state.device)),
+                status: deviceStatusText(state),
+                tone: state.device.available ? "healthy" : "unavailable",
+            },
+            {
+                id: "runtime",
+                title: _("Local runtime"),
+                detail: healthOf(state).detail || _("Runtime snapshot monitoring"),
+                status: runtimeStatusText(state),
+                tone: healthOf(state).runtime === "connected" ? "healthy" : "unavailable",
+            },
+        ],
     };
 }
 
@@ -593,7 +896,7 @@ function eventImportModel(state) {
     const rejected = candidates.filter((candidate) => candidate.rejected).length;
     return {
         ...workflow,
-        title: _("Import events"),
+        title: _("Extract calendar events"),
         chooserEnabled: workflow.available === true
             && !["selecting", "submitting", "running", "cancelling", "exporting"].includes(workflow.phase),
         startEnabled: workflow.available === true && workflow.phase === "selected",
@@ -631,7 +934,7 @@ function documentQuestionModel(state) {
     }
     return {
         ...workflow,
-        title: _("Ask selected files"),
+        title: _("Ask documents"),
         chooserEnabled: workflow.available === true
             && !["selecting", "submitting", "running", "cancelling"].includes(workflow.phase),
         askEnabled: workflow.available === true && workflow.phase === "selected",
@@ -660,7 +963,7 @@ function selectedTextModel(state) {
     }
     return {
         ...workflow,
-        title: _("Selected-text tools"),
+        title: _("Work with selected text"),
         operationEnabled: workflow.available === true
             && !["selecting", "submitting", "running", "cancelling"].includes(workflow.phase),
         cancelEnabled: ["selecting", "submitting", "running"].includes(workflow.phase),
@@ -699,7 +1002,7 @@ function fileOrganizerModel(state) {
     }
     return {
         ...workflow,
-        title: _("File organizer"),
+        title: _("Organize files"),
         chooserEnabled: workflow.available === true
             && !["selecting", "submitting", "running", "cancelling"].includes(workflow.phase),
         startEnabled: workflow.available === true && workflow.phase === "selected",
@@ -763,7 +1066,7 @@ function formatFraction(value) {
 // package, and one needs hardware that cannot be installed at all. A single
 // sentence for all three sent the user looking for a fix that, in the hardware
 // case, does not exist. Each profile therefore names its own reason in words,
-// and every reason points at the Setup tab where the remedy is written out.
+// and every reason points at Diagnostics where the remedy is written out.
 const BLOCKER_REASONS = Object.freeze({
     model: N_("No model installed"),
     runtime: N_("Accelerator runtime not installed"),
@@ -793,7 +1096,7 @@ function blockerModel(blocker) {
         kind: blocker.kind,
         detail: blocker.detail,
         reason,
-        text: format(_("%s · see Setup"), reason),
+        text: format(_("%s · see Diagnostics"), reason),
     };
 }
 
@@ -1026,6 +1329,19 @@ function toViewModel(state, nowMs = Date.now()) {
         .map((alert) => alertModel(alert, state.profiles, nowMs));
     const deviceStatus = deviceStatusText(state);
     const control = state.control || {pending: false, message: ""};
+    const workflows = {
+        eventImport: eventImportModel(state),
+        documentQuestion: documentQuestionModel(state),
+        selectedText: selectedTextModel(state),
+        fileOrganizer: fileOrganizerModel(state),
+    };
+    const run = runModel(state);
+    const tools = toolModels(state, workflows, run);
+    const activity = activityModel(state, workflows, run);
+    const setup = setupModel(profiles);
+    const diagnostics = diagnosticsModel(
+        state, tools, activity, setup, activeAlerts, control, nowMs,
+    );
     return {
         screen,
         policyPaused: state.paused === true,
@@ -1036,7 +1352,7 @@ function toViewModel(state, nowMs = Date.now()) {
         device: {...state.device, status: deviceStatus},
         devices: deviceModels(state),
         headerSubtitle: state.device.available
-            ? `${state.device.name} · ${runtimeStatusText(state)} · ${format(_("Updated %s"), formatRelativeTime(state.generatedAt, nowMs))}`
+            ? `${state.device.name} · ${runtimeStatusText(state)} · ${format(ngettext("%d tool ready", "%d tools ready", tools.filter((tool) => tool.available).length), tools.filter((tool) => tool.available).length)} · ${format(ngettext("%d active job", "%d active jobs", activity.activeCount), activity.activeCount)}`
             : `${runtimeStatusText(state)} · ${healthOf(state).detail || state.device.reason} · ${format(_("Last update %s"), formatRelativeTime(state.generatedAt, nowMs))}`,
         panel: panelModel(state),
         catalogNotice: catalogNoticeModel(state),
@@ -1047,12 +1363,16 @@ function toViewModel(state, nowMs = Date.now()) {
         runnableGroups: groupModels(profiles.filter((profile) => profile.blocker === null)),
         blockedProfiles: blocked,
         blockedGroup: blockedGroupModel(blocked),
-        setup: setupModel(profiles),
-        run: runModel(state),
-        eventImport: eventImportModel(state),
-        documentQuestion: documentQuestionModel(state),
-        selectedText: selectedTextModel(state),
-        fileOrganizer: fileOrganizerModel(state),
+        setup,
+        run,
+        eventImport: workflows.eventImport,
+        documentQuestion: workflows.documentQuestion,
+        selectedText: workflows.selectedText,
+        fileOrganizer: workflows.fileOrganizer,
+        tools,
+        activity,
+        system: systemModel(state),
+        diagnostics,
         inexecutableCount: blocked.length,
         pausedProfiles,
         activeAlerts,
@@ -1073,6 +1393,8 @@ function toViewModel(state, nowMs = Date.now()) {
             device: state.device,
             devices: state.devices,
             health: healthOf(state),
+            metrics: state.metrics,
+            generatedAt: state.generatedAt,
             paused: state.paused,
             control,
             // The run surface changes without the snapshot changing: a job
@@ -1107,8 +1429,10 @@ module.exports = {
     MAX_RUN_PICTURES,
     SEVERITY_LABELS,
     STATUS_LABELS,
+    TOOL_SPECS,
     BACKEND_LABELS,
     alertModel,
+    activityModel,
     backendLabel,
     blockedGroupModel,
     blockerModel,
@@ -1118,6 +1442,8 @@ module.exports = {
     catalogNoticeModel,
     deviceModels,
     deviceStatusText,
+    diagnosticsModel,
+    diagnosticsReport,
     formatCount,
     recoveryModel,
     runtimeStatusText,
@@ -1147,6 +1473,7 @@ module.exports = {
     setupKind,
     setupSection,
     setupSummary,
+    systemModel,
     severityText,
     canServe,
     jobModel,
@@ -1156,6 +1483,10 @@ module.exports = {
     runModel,
     runReason,
     toViewModel,
+    toolModels,
     unavailablePanel,
     unknownContentNotice,
+    workloadServiceStatus,
+    workflowActivity,
+    jobActivity,
 };

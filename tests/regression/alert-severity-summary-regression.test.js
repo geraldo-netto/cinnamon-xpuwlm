@@ -135,18 +135,18 @@ test("regression: the panel states severity in text, not only in colour", () => 
     assert.equal(clear.label, "TPU 42%");
 });
 
-test("regression: the popup summary repeats the severity as text", () => {
+test("regression: Activity repeats each active severity as text", () => {
     const model = ViewModel.toViewModel(state([alert("a", "warning"), alert("b", "critical")]), NOW);
     assert.equal(model.highestSeverity, "critical");
     assert.equal(model.highestSeverityText, "critical");
     assert.equal(model.metrics.at(-1).suffix, "items · critical");
 
     const texts = renderedTexts([alert("a", "warning"), alert("b", "critical")]);
-    assert.equal(
-        texts.includes("2 active · highest severity critical · no automatic action"),
-        true,
-    );
-    assert.equal(texts.includes("2 items · critical"), true);
+    assert.equal(texts.includes("Alert a"), true);
+    assert.equal(texts.includes("warning"), true);
+    assert.equal(texts.includes("Alert b"), true);
+    assert.equal(texts.includes("critical"), true);
+    assert.equal(texts.includes("2 items · critical"), false, "legacy metric tiles stay removed");
 });
 
 test("regression: a cleared alert list reports no severity anywhere", () => {
@@ -154,5 +154,7 @@ test("regression: a cleared alert list reports no severity anywhere", () => {
     assert.equal(model.highestSeverity, null);
     assert.equal(model.highestSeverityText, "none");
     assert.equal(model.metrics.at(-1).suffix, "items");
-    assert.equal(renderedTexts([]).includes("No active alerts"), true);
+    const texts = renderedTexts([]);
+    assert.equal(texts.includes("No recent activity"), true);
+    assert.equal(texts.includes("critical"), false);
 });

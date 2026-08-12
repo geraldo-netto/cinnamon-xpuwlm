@@ -60,7 +60,7 @@ test("file organizer projection is hidden until ready or explicitly active", () 
 
 test("file organizer projection preserves exact review text and controls", () => {
     const model = ViewModel.fileOrganizerModel({fileOrganizer: workflow()});
-    assert.equal(model.title, "File organizer");
+    assert.equal(model.title, "Organize files");
     assert.equal(model.chooserEnabled, true);
     assert.equal(model.startEnabled, false);
     assert.equal(model.cancelEnabled, false);

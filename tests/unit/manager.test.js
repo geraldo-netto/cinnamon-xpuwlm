@@ -127,8 +127,36 @@ function connectedSnapshot(generatedAt) {
 test("tab sanitization and silent logger are safe defaults", () => {
     assert.equal(Manager.sanitizeTab("profiles"), "profiles");
     assert.equal(Manager.sanitizeTab("future"), "overview");
+    assert.equal(Manager.sanitizeActivityClearedAt(NOW), NOW);
+    for (const value of [-1, 1.5, "10", null, Number.MAX_SAFE_INTEGER + 1]) {
+        assert.equal(Manager.sanitizeActivityClearedAt(value), 0);
+    }
     assert.doesNotThrow(() => Manager.createSilentLogger().warn("ignored"));
     assert.doesNotThrow(() => Manager.createSilentLogger().error("ignored"));
+});
+
+test("clearing activity preserves running jobs and hides only resolved history", () => {
+    const resolved = {
+        id: "resolved", profileId: "hardware-health", title: "Done", summary: "",
+        severity: "advisory", timestamp: NOW - 100, confidence: null, riskScore: null,
+        resolved: true,
+    };
+    const active = {...resolved, id: "active", title: "Review", resolved: false};
+    const runtimeGateway = {read: (_options, callback) => callback(Domain.normalizeSnapshot({
+        version: Domain.SNAPSHOT_VERSION,
+        generatedAt: NOW,
+        devices: [{id: "tpu-usb", backend: "tpu", available: true, name: "Coral", kind: "usb"}],
+        metrics: {queueDepth: 0, runningProfiles: 0},
+        profiles: {},
+        alerts: [resolved, active],
+    }, NOW, Domain.DEFAULT_STALE_AFTER_MS, BuiltIns.coreCatalog()))};
+    const {manager, saves} = harness({runtimeGateway});
+    manager.start();
+
+    assert.deepEqual(manager.state().alerts.map((alert) => alert.id), ["resolved", "active"]);
+    assert.equal(manager.clearActivity(), true);
+    assert.deepEqual(manager.state().alerts.map((alert) => alert.id), ["active"]);
+    assert.equal(saves.at(-1).activityClearedAt, NOW);
 });
 
 test("manager validates collaborators", () => {
