@@ -136,6 +136,41 @@ test("selected-text readiness requires a qualified one-shot external worker", ()
     assert.throws(() => Inventory.selectedTextReadiness({}), /valid plug-in inventory/u);
 });
 
+test("file-organizer readiness requires a qualified external review-only worker", () => {
+    const organizerPlugin = plugin({
+        id: "file-organizer",
+        distribution: "private-file-organizer-provider",
+        artifacts: [],
+    });
+    assert.deepEqual(Inventory.fileOrganizerReadiness(inventory({
+        plugins: [organizerPlugin],
+    })), {available: true, detail: ""});
+    assert.deepEqual(Inventory.fileOrganizerReadiness(inventory({
+        plugins: [plugin({source: "bundled"}), organizerPlugin],
+    })), {available: true, detail: ""});
+    const cases = [
+        [[], /install and configure/iu],
+        [[{...organizerPlugin, source: "bundled"}], /external/iu],
+        [[{...organizerPlugin, workerState: "starting"}], /GPU or NPU/iu],
+        [[{...organizerPlugin,
+            protocol: {minimum: 1, maximum: 1, capabilities: ["health"]}}], /execute/iu],
+        [[{...organizerPlugin,
+            permissions: [{name: "files:read-selected", granted: false}]}], /grant access/iu],
+        [[{...organizerPlugin, artifacts: [{
+            id: "qwen3", version: "1", format: "gguf", ready: false, reason: "Qwen missing",
+        }]}], /Qwen missing/u],
+        [[{...organizerPlugin, artifacts: [{
+            id: "qwen3", version: "1", format: "gguf", ready: false, reason: "",
+        }]}], /Install qwen3/u],
+    ];
+    for (const [plugins, pattern] of cases) {
+        const readiness = Inventory.fileOrganizerReadiness(inventory({plugins}));
+        assert.equal(readiness.available, false);
+        assert.match(readiness.detail, pattern);
+    }
+    assert.throws(() => Inventory.fileOrganizerReadiness({}), /valid plug-in inventory/u);
+});
+
 test("gateway validates replies and discards a superseded callback", () => {
     const callbacks = [];
     const cancellables = [];

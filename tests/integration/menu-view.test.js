@@ -53,6 +53,8 @@ function harness() {
         "chooseQuestionFiles", "startDocumentQuestion", "cancelDocumentQuestion",
         "resetDocumentQuestion",
         "startSelectedText", "cancelSelectedText", "resetSelectedText",
+        "chooseOrganizerFiles", "startFileOrganizer", "cancelFileOrganizer",
+        "resetFileOrganizer",
     ]) {
         actions[name] = (...args) => calls.push([name, ...args]);
     }
@@ -120,6 +122,22 @@ function selectedTextWorkflow(overrides = {}) {
         providerId: "",
         accelerator: "",
         evidence: null,
+        ...overrides,
+    };
+}
+
+function fileOrganizerWorkflow(overrides = {}) {
+    return {
+        available: true,
+        availabilityDetail: "",
+        phase: "idle",
+        sources: [],
+        jobId: "",
+        message: "",
+        progress: null,
+        providerId: "",
+        accelerator: "",
+        plan: [],
         ...overrides,
     };
 }
@@ -513,6 +531,181 @@ test("selected-text render helpers preserve hidden, unavailable, and empty branc
     });
     assert.equal(button(disabled.root, "Explain the explicit clipboard selection"), undefined);
     assert.equal(findActors(disabled.root, (actor) => actor.text === "Review result").length, 0);
+});
+
+test("file organizer UI displays evidence-backed advice and exposes no apply action", () => {
+    const source = {
+        path: "/private/guide.pdf", name: "guide.pdf", size: 12,
+        regular: true, symlink: false,
+    };
+    const plan = [{
+        fileId: "selected-file-1", fileName: "guide.pdf", sourceSha256: "a".repeat(64),
+        tags: ["project-notes"], proposedName: "mars-guide.pdf",
+        proposedFolder: "Projects/Mars", duplicateGroup: "duplicate-group-1",
+        reason: "The content describes the Mars project.",
+        evidence: [{
+            fileId: "selected-file-1", fileName: "guide.pdf",
+            sourceSha256: "a".repeat(64), page: 3, span: {start: 10, end: 42},
+            textSha256: "b".repeat(64),
+        }],
+    }];
+    const {calls, view, root} = harness();
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        fileOrganizer: fileOrganizerWorkflow({phase: "selected", sources: [source]}),
+    }), NOW));
+    button(root, "Choose files for a review-only organization plan").click();
+    button(root, "Suggest organization without changing files").click();
+    assert.deepEqual(calls.slice(-2), [["chooseOrganizerFiles"], ["startFileOrganizer"]]);
+
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        fileOrganizer: fileOrganizerWorkflow({
+            phase: "complete", sources: [source], providerId: "qwen3-gpu",
+            accelerator: "gpu", message: "Review-only plan ready; no files changed", plan,
+        }),
+    }), NOW));
+    for (const text of [
+        "guide.pdf", "project-notes", "Suggested name: mars-guide.pdf",
+        "Suggested folder: Projects/Mars", "Exact duplicate group: duplicate-group-1",
+        "The content describes the Mars project.", "guide.pdf · page 3 · span 10–42",
+    ]) {
+        assert.ok(findActors(root, (actor) => actor.text === text).length >= 1, text);
+    }
+    for (const forbidden of [
+        "Apply organization plan", "Move selected files", "Rename selected files",
+        "Delete duplicates", "Run organizer command",
+    ]) {
+        assert.equal(button(root, forbidden), undefined, forbidden);
+    }
+    button(root, "Clear the review-only organization plan").click();
+    assert.deepEqual(calls.at(-1), ["resetFileOrganizer"]);
+});
+
+test("file organizer render helpers preserve hidden, unavailable, empty, and cancel branches", () => {
+    const hidden = harness();
+    assert.equal(hidden.view._renderFileOrganizer(null), false);
+    assert.equal(hidden.view._renderFileOrganizer(undefined), false);
+
+    const unavailable = harness();
+    unavailable.view._layout = {...unavailable.view._layout, wrapText: true};
+    assert.equal(unavailable.view._renderFileOrganizerStatus({
+        available: false, phase: "idle", availabilityDetail: "Provider missing",
+        message: "", progressText: "",
+    }), true);
+    const missing = findActors(unavailable.root, (actor) => actor.text === "Provider missing")[0];
+    assert.equal(missing.clutter_text.line_wrap, true);
+
+    const fallback = harness();
+    fallback.view._renderFileOrganizerStatus({
+        available: false, phase: "idle", availabilityDetail: "",
+        message: "", progressText: "",
+    });
+    assert.equal(findActors(fallback.root, (actor) =>
+        actor.text === "A qualified file-organizer provider is not configured").length, 1);
+
+    const inactive = harness();
+    inactive.view._renderFileOrganizerStatus({
+        available: false, phase: "error", availabilityDetail: "Provider missing",
+        message: "", progressText: "",
+    });
+    assert.equal(findActors(inactive.root, (actor) => actor.text === "Provider missing").length, 0);
+
+    const status = harness();
+    status.view._layout = {...status.view._layout, wrapText: true};
+    assert.equal(status.view._renderFileOrganizerStatus({
+        available: true, phase: "running", availabilityDetail: "",
+        message: "Planning", progressText: "50% · Qwen",
+    }), true);
+    for (const [text, style] of [
+        ["Planning", "xpuwlm-event-message"], ["50% · Qwen", "xpuwlm-event-progress"],
+    ]) {
+        const actor = findActors(status.root, (candidate) => candidate.text === text)[0];
+        assert.equal(actor.styleClasses.has(style), true);
+        assert.equal(actor.clutter_text.line_wrap, true);
+    }
+
+    const sources = harness();
+    sources.view._layout = {...sources.view._layout, wrapText: true};
+    assert.equal(sources.view._renderFileOrganizerSources({sources: []}), false);
+    assert.equal(sources.view._renderFileOrganizerSources({
+        sources: [{name: "guide.pdf"}],
+    }), true);
+    const renderedSource = findActors(sources.root, (actor) => actor.text === "guide.pdf")[0];
+    assert.equal(renderedSource.styleClasses.has("xpuwlm-event-source"), true);
+    assert.equal(renderedSource.clutter_text.line_wrap, true);
+
+    const incomplete = harness();
+    assert.equal(incomplete.view._renderFileOrganizerPlan({complete: false}), false);
+
+    const complete = harness();
+    complete.view._layout = {...complete.view._layout, wrapText: true};
+    assert.equal(complete.view._renderFileOrganizerPlan({
+        complete: true, providerId: "qwen3-gpu", accelerator: "gpu",
+        plan: [{
+            fileName: "guide.pdf", tagsText: "project-notes",
+            nameText: "Suggested name: mars-guide.pdf",
+            folderText: "Suggested folder: Projects/Mars",
+            duplicateText: "No exact duplicate in this selection",
+            reason: "Grounded reason", evidence: [{text: "guide.pdf · page 3 · span 10–42"}],
+        }],
+    }), true);
+    assert.equal(findActors(complete.root, (actor) => actor.text === "qwen3-gpu · GPU").length, 1);
+    for (const text of [
+        "Suggested name: mars-guide.pdf", "Suggested folder: Projects/Mars",
+        "No exact duplicate in this selection", "Grounded reason",
+        "guide.pdf · page 3 · span 10–42",
+    ]) {
+        const actor = findActors(complete.root, (candidate) => candidate.text === text)[0];
+        assert.equal(actor.clutter_text.line_wrap, true, text);
+    }
+
+    const actions = harness();
+    assert.equal(actions.view._renderFileOrganizerActions({
+        phase: "running", chooserEnabled: false, startEnabled: false,
+        cancelEnabled: true, complete: false,
+    }), true);
+    const cancel = button(actions.root, "Cancel file organization");
+    assert.equal(cancel.reactive, true);
+    cancel.click();
+    assert.deepEqual(actions.calls.at(-1), ["cancelFileOrganizer"]);
+
+    const phases = [
+        ["idle", false, ["Choose files for a review-only organization plan"]],
+        ["selected", false, [
+            "Choose files for a review-only organization plan",
+            "Suggest organization without changing files",
+        ]],
+        ["complete", true, [
+            "Choose files for a review-only organization plan",
+            "Clear the review-only organization plan",
+        ]],
+        ["error", false, [
+            "Choose files for a review-only organization plan",
+            "Clear the review-only organization plan",
+        ]],
+    ];
+    const organizerActions = new Set([
+        "Choose files for a review-only organization plan",
+        "Suggest organization without changing files",
+        "Cancel file organization",
+        "Clear the review-only organization plan",
+    ]);
+    for (const [phase, completePlan, expected] of phases) {
+        const current = harness();
+        assert.equal(current.view._renderFileOrganizerActions({
+            phase, chooserEnabled: true, startEnabled: phase === "selected",
+            cancelEnabled: false, complete: completePlan,
+        }), true);
+        const buttons = findActors(current.root, (actor) => actor instanceof FakeButton)
+            .map((actor) => actor.accessibleName)
+            .filter((name) => organizerActions.has(name));
+        assert.deepEqual(buttons, expected, phase);
+        for (const actor of findActors(current.root, (candidate) => candidate instanceof FakeButton
+            && organizerActions.has(candidate.accessibleName))) {
+            assert.equal(actor.reactive, true, phase);
+        }
+    }
 });
 
 test("event preview exposes grounded evidence, labelled edits, decisions, and confirmation", () => {

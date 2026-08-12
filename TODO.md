@@ -4,7 +4,6 @@
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0055 | open | high | l | OMNI-0242 | File organizer: select explicit files, display evidence-backed tag/name/folder/duplicate suggestions as a review-only plan, and expose no automatic move, rename, overwrite, delete, or arbitrary-command action. |
 
 ## Blocked
 

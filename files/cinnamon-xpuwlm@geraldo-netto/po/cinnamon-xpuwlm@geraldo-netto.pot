@@ -229,6 +229,10 @@ msgid "A qualified event model is not configured"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "A qualified file-organizer provider is not configured"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "A qualified selected-text provider is not configured"
 msgstr ""
 
@@ -349,6 +353,10 @@ msgid "Cancel event extraction"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Cancel file organization"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Cancel selected-text request"
 msgstr ""
 
@@ -408,6 +416,10 @@ msgstr ""
 msgid "Choose files"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Choose files for a review-only organization plan"
+msgstr ""
+
 #: lib/event-source-port.js lib/menu-view.js
 msgid "Choose folder"
 msgstr ""
@@ -422,6 +434,10 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Clear selected-text result"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Clear the review-only organization plan"
 msgstr ""
 
 #: lib/menu-view.js
@@ -474,6 +490,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Consent is granted from a terminal rather than from this popup: every peer on the session bus runs as the same user, so the runtime could not tell a request made here from one made by anything else able to talk to it. Withdraw it again with omnitensor-grant revoke."
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Create plan"
 msgstr ""
 
 #: lib/menu-view.js
@@ -552,6 +572,10 @@ msgstr ""
 msgid "Evidence: %s%s · characters %d–%d"
 msgstr ""
 
+#: lib/view-model.js
+msgid "Exact duplicate group: %s"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Explain"
 msgstr ""
@@ -574,6 +598,14 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Failed"
+msgstr ""
+
+#: lib/view-model.js
+msgid "File organizer"
+msgstr ""
+
+#: applet.js
+msgid "File organizer provider is not ready"
 msgstr ""
 
 #: lib/view-model.js
@@ -630,6 +662,14 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Keep"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Keep current folder"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Keep current name"
 msgstr ""
 
 #: lib/view-model.js
@@ -740,6 +780,10 @@ msgstr ""
 msgid "No device"
 msgstr ""
 
+#: lib/view-model.js
+msgid "No exact duplicate in this selection"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "No input directory"
 msgstr ""
@@ -786,6 +830,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "No supported accelerator present"
+msgstr ""
+
+#: lib/view-model.js
+msgid "No tags suggested"
 msgstr ""
 
 #: lib/menu-view.js
@@ -965,6 +1013,10 @@ msgid "Review export"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Review organization plan"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Review result"
 msgstr ""
 
@@ -1069,6 +1121,10 @@ msgid "Selected documents"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Selected files for organization"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Selected files stay private to the isolated workload worker"
 msgstr ""
 
@@ -1118,6 +1174,22 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "State"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Suggest organization without changing files"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Suggested folder: %s"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Suggested name: %s"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Suggestions only: this applet never moves, renames, overwrites, or deletes files"
 msgstr ""
 
 #: lib/menu-view.js

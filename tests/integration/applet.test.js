@@ -416,6 +416,11 @@ test("event readiness transport failures fail closed and late replies are ignore
     reply(new Error("offline"), null);
     assert.equal(pending.applet._eventImport.state().available, false);
     assert.equal(pending.applet._eventImport.state().availabilityDetail, "Event provider is not ready");
+    assert.equal(pending.applet._fileOrganizer.state().available, false);
+    assert.equal(
+        pending.applet._fileOrganizer.state().availabilityDetail,
+        "File organizer provider is not ready",
+    );
     pending.applet._teardown();
     const readyAfterTeardown = {
         id: "event-extraction", version: "1", source: "external", distribution: "provider",
@@ -437,6 +442,11 @@ test("event readiness transport failures fail closed and late replies are ignore
     });
     assert.equal(thrown.applet._refreshEventAvailability(), false);
     assert.equal(thrown.applet._eventImport.state().available, false);
+    assert.equal(thrown.applet._fileOrganizer.state().available, false);
+    assert.equal(
+        thrown.applet._fileOrganizer.state().availabilityDetail,
+        "File organizer provider is not ready",
+    );
 });
 
 test("selected-document readiness, actions, subscription, and teardown stay isolated", () => {
@@ -548,6 +558,66 @@ test("selected-text readiness, actions, subscription, and teardown stay one-shot
     applet._teardown();
     assert.ok(calls.some((call) => call[0] === "text-unsubscribe"));
     assert.ok(calls.some((call) => call[0] === "dispose-text"));
+});
+
+test("file-organizer readiness, actions, subscription, and teardown stay review-only", () => {
+    const calls = [];
+    const fileOrganizer = {
+        workflow: {
+            available: false, availabilityDetail: "", phase: "idle", sources: [], jobId: "",
+            message: "", progress: null, providerId: "", accelerator: "", plan: [],
+        },
+        state() { return {...this.workflow}; },
+        subscribe(listener) { this.listener = listener; return () => calls.push(["organizer-unsubscribe"]); },
+        setAvailability(available, detail) {
+            this.workflow.available = available;
+            this.workflow.availabilityDetail = detail;
+            if (this.listener) { this.listener(); }
+        },
+        chooseFiles() { calls.push(["choose-organizer-files"]); },
+        start() { calls.push(["start-organizer"]); },
+        cancel() { calls.push(["cancel-organizer"]); },
+        reset() { calls.push(["reset-organizer"]); },
+        dispose() { calls.push(["dispose-organizer"]); },
+    };
+    const provider = {
+        id: "file-organizer", version: "1", source: "external", distribution: "provider",
+        workerState: "ready",
+        protocol: {minimum: 1, maximum: 1, capabilities: ["execute"]},
+        triggers: ["manual"], artifacts: [],
+        permissions: [{name: "files:read-selected", granted: true}],
+        configurationSchema: {}, secretConfigurationKeys: [],
+    };
+    const inventoryGateway = {
+        describe(callback) {
+            callback(null, {version: 1, generatedAt: 1, plugins: [provider]});
+            return true;
+        },
+        cancel() { calls.push(["inventory-cancel"]); },
+    };
+    const {applet} = appletHarness({
+        fileOrganizerController: fileOrganizer,
+        pluginInventoryGateway: inventoryGateway,
+    });
+    assert.equal(applet._latestState.fileOrganizer.available, true);
+    const actions = applet._menuActions();
+    actions.chooseOrganizerFiles();
+    actions.startFileOrganizer();
+    actions.cancelFileOrganizer();
+    actions.resetFileOrganizer();
+    assert.deepEqual(calls.slice(0, 4), [
+        ["choose-organizer-files"], ["start-organizer"],
+        ["cancel-organizer"], ["reset-organizer"],
+    ]);
+    assert.equal(actions.applyFileOrganizer, undefined);
+    assert.equal(actions.deleteOrganizerDuplicates, undefined);
+    const latest = applet._latestState;
+    applet._latestState = null;
+    assert.doesNotThrow(() => fileOrganizer.listener());
+    applet._latestState = latest;
+    applet._teardown();
+    assert.ok(calls.some((call) => call[0] === "organizer-unsubscribe"));
+    assert.ok(calls.some((call) => call[0] === "dispose-organizer"));
 });
 
 test("polling refresh remains cacheable while manual refresh requests fresh detection", () => {

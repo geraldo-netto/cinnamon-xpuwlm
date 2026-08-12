@@ -3,6 +3,7 @@
 const Domain = require("./domain.js");
 const DocumentQuestion = require("./document-question.js");
 const EventImport = require("./event-import.js");
+const FileOrganizer = require("./file-organizer.js");
 const I18n = require("./i18n.js");
 const Job = require("./runtime-job-contract.js");
 const Manager = require("./manager.js");
@@ -677,6 +678,55 @@ function selectedTextModel(state) {
     };
 }
 
+function organizerEvidenceText(evidence) {
+    return format(
+        _("%s · page %d · span %d–%d"),
+        evidence.fileName,
+        evidence.page,
+        evidence.span.start,
+        evidence.span.end,
+    );
+}
+
+function fileOrganizerModel(state) {
+    const workflow = state.fileOrganizer;
+    if (workflow === null || workflow === undefined) {
+        return null;
+    }
+    const visible = workflow.available === true || workflow.phase !== "idle";
+    if (!visible) {
+        return null;
+    }
+    return {
+        ...workflow,
+        title: _("File organizer"),
+        chooserEnabled: workflow.available === true
+            && !["selecting", "submitting", "running", "cancelling"].includes(workflow.phase),
+        startEnabled: workflow.available === true && workflow.phase === "selected",
+        cancelEnabled: ["submitting", "running"].includes(workflow.phase),
+        complete: workflow.phase === "complete",
+        progressText: progressText(workflow.progress),
+        plan: workflow.plan.map((item) => ({
+            ...item,
+            tagsText: item.tags.length === 0 ? _("No tags suggested") : item.tags.join(", "),
+            nameText: item.proposedName === null
+                ? _("Keep current name")
+                : format(_("Suggested name: %s"), item.proposedName),
+            folderText: item.proposedFolder === null
+                ? _("Keep current folder")
+                : format(_("Suggested folder: %s"), item.proposedFolder),
+            duplicateText: item.duplicateGroup === null
+                ? _("No exact duplicate in this selection")
+                : format(_("Exact duplicate group: %s"), item.duplicateGroup),
+            evidence: item.evidence.map((evidence) => ({
+                ...evidence,
+                text: organizerEvidenceText(evidence),
+            })),
+        })),
+        limits: {sources: FileOrganizer.MAX_PLAN_ITEMS},
+    };
+}
+
 function formatLoad(value) {
     return typeof value === "number" && Number.isFinite(value)
         ? `${Math.round(value)}%`
@@ -1002,6 +1052,7 @@ function toViewModel(state, nowMs = Date.now()) {
         eventImport: eventImportModel(state),
         documentQuestion: documentQuestionModel(state),
         selectedText: selectedTextModel(state),
+        fileOrganizer: fileOrganizerModel(state),
         inexecutableCount: blocked.length,
         pausedProfiles,
         activeAlerts,
@@ -1033,6 +1084,7 @@ function toViewModel(state, nowMs = Date.now()) {
             eventImport: state.eventImport,
             documentQuestion: state.documentQuestion,
             selectedText: state.selectedText,
+            fileOrganizer: state.fileOrganizer,
         }),
     };
 }
@@ -1076,6 +1128,8 @@ module.exports = {
     eventImportModel,
     documentCitationText,
     documentQuestionModel,
+    fileOrganizerModel,
+    organizerEvidenceText,
     selectedTextModel,
     evidenceText,
     formatFraction,

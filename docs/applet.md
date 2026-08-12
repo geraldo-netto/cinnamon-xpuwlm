@@ -182,6 +182,12 @@ state or history. Results are review-only: the applet has no paste, apply,
 task-creation, or clipboard-monitor action. See
 [Selected-text tools](selected-text-tools.md).
 
+An installed and live-qualified external `file-organizer` worker adds a manual
+File organizer surface. It accepts only files chosen for that request and shows
+evidence-backed tags, names, relative folders, and exact duplicate groups as a
+review-only plan. The applet has no apply, move, rename, overwrite, delete, or
+command action. See [File organizer](file-organizer.md).
+
 ## Accessible semantics
 
 Controls expose their ATK role and state, not only an accessible name: the tab

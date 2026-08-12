@@ -60,6 +60,7 @@ This document is application-neutral. It explains the hardware and software boun
   - [Private event import](docs/event-import.md) — supported sources, readiness, review, and safe export
   - [Ask selected files](docs/document-questions.md) — explicit selection, grounded answers, and exact citations
   - [Selected-text tools](docs/selected-text-tools.md) — one-shot clipboard access and review-only transformations
+  - [File organizer](docs/file-organizer.md) — explicit files, grounded metadata suggestions, and no automatic actions
   - [Reference UI/interaction design](design/prototype/DESIGN.md) — approved prototype rationale and states; not the live implementation
   - [Consolidated workload profiles](design/prototype/WORKLOADS.md)
   - [Prototype screen gallery](design/prototype/mockup/screens/all-screens.png)

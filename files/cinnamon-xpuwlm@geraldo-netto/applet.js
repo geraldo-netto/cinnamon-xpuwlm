@@ -26,6 +26,7 @@ const DocumentQuestion = require("./lib/document-question.js");
 const DocumentSourcePort = require("./lib/document-source-port.js");
 const EventImport = require("./lib/event-import.js");
 const EventSourcePort = require("./lib/event-source-port.js");
+const FileOrganizer = require("./lib/file-organizer.js");
 const FailureBackoff = require("./lib/failure-log-backoff.js");
 const I18n = require("./lib/i18n.js");
 const JobSubmission = require("./lib/job-submission.js");
@@ -128,6 +129,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._eventUnsubscribe = null;
         this._documentUnsubscribe = null;
         this._selectedTextUnsubscribe = null;
+        this._fileOrganizerUnsubscribe = null;
         try {
             this._construct(metadata, instanceId, overrides);
         } catch (error) {
@@ -154,6 +156,11 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             }
         });
         this._selectedTextUnsubscribe = this._selectedText.subscribe(() => {
+            if (this._latestState) {
+                this._render(this._latestState);
+            }
+        });
+        this._fileOrganizerUnsubscribe = this._fileOrganizer.subscribe(() => {
             if (this._latestState) {
                 this._render(this._latestState);
             }
@@ -240,6 +247,23 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             || this._createDocumentQuestionController();
         this._selectedText = overrides.selectedTextController
             || this._createSelectedTextController();
+        this._fileOrganizer = overrides.fileOrganizerController
+            || this._createFileOrganizerController();
+    }
+
+    _createFileOrganizerController() {
+        let picker;
+        try {
+            picker = DocumentSourcePort.createGtkDocumentPicker(this._environment);
+        } catch {
+            picker = unavailableDocumentPicker();
+        }
+        return new FileOrganizer.FileOrganizerController({
+            picker,
+            gateway: CinnamonRuntime.createRuntimeJobGateway(this._environment),
+            scheduler: this._scheduler,
+            clock: this._clock,
+        });
     }
 
     _createSelectedTextController() {
@@ -411,6 +435,10 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             startSelectedText: (operation, language) => this._selectedText.start(operation, language),
             cancelSelectedText: () => this._selectedText.cancel(),
             resetSelectedText: () => this._selectedText.reset(),
+            chooseOrganizerFiles: () => this._fileOrganizer.chooseFiles(),
+            startFileOrganizer: () => this._fileOrganizer.start(),
+            cancelFileOrganizer: () => this._fileOrganizer.cancel(),
+            resetFileOrganizer: () => this._fileOrganizer.reset(),
         };
     }
 
@@ -492,6 +520,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             eventImport: this._eventImport.state(),
             documentQuestion: this._documentQuestion.state(),
             selectedText: this._selectedText.state(),
+            fileOrganizer: this._fileOrganizer.state(),
         };
         const model = ViewModel.toViewModel(this._latestState);
         if (this._view) {
@@ -514,6 +543,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
                     this._eventImport.setAvailability(false, _("Event provider is not ready"));
                     this._documentQuestion.setAvailability(false, _("Document provider is not ready"));
                     this._selectedText.setAvailability(false, _("Selected-text provider is not ready"));
+                    this._fileOrganizer.setAvailability(false, _("File organizer provider is not ready"));
                     return;
                 }
                 const readiness = PluginInventory.eventReadiness(inventory);
@@ -528,11 +558,17 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
                     selectedTextReadiness.available,
                     selectedTextReadiness.detail,
                 );
+                const fileOrganizerReadiness = PluginInventory.fileOrganizerReadiness(inventory);
+                this._fileOrganizer.setAvailability(
+                    fileOrganizerReadiness.available,
+                    fileOrganizerReadiness.detail,
+                );
             });
         } catch {
             this._eventImport.setAvailability(false, _("Event provider is not ready"));
             this._documentQuestion.setAvailability(false, _("Document provider is not ready"));
             this._selectedText.setAvailability(false, _("Selected-text provider is not ready"));
+            this._fileOrganizer.setAvailability(false, _("File organizer provider is not ready"));
             return false;
         }
     }
@@ -598,6 +634,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         const eventUnsubscribe = this._eventUnsubscribe;
         const documentUnsubscribe = this._documentUnsubscribe;
         const selectedTextUnsubscribe = this._selectedTextUnsubscribe;
+        const fileOrganizerUnsubscribe = this._fileOrganizerUnsubscribe;
         const manager = this._manager;
         const notifier = this._notifier;
         const settings = this.settings;
@@ -606,18 +643,21 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._eventUnsubscribe = null;
         this._documentUnsubscribe = null;
         this._selectedTextUnsubscribe = null;
+        this._fileOrganizerUnsubscribe = null;
         this._runIsolated([
             ["stop the refresh timer", () => poller && poller.stop()],
             ["release the state subscription", () => unsubscribe && unsubscribe()],
             ["release the event subscription", () => eventUnsubscribe && eventUnsubscribe()],
             ["release the document subscription", () => documentUnsubscribe && documentUnsubscribe()],
             ["release the selected-text subscription", () => selectedTextUnsubscribe && selectedTextUnsubscribe()],
+            ["release the file-organizer subscription", () => fileOrganizerUnsubscribe && fileOrganizerUnsubscribe()],
             ["cancel plug-in inventory", () => this._pluginInventoryGateway && this._pluginInventoryGateway.cancel()],
             ["destroy the popup menu", () => this._destroyMenu()],
             ["dispose the workload manager", () => manager && manager.dispose()],
             ["dispose event import", () => this._eventImport && this._eventImport.dispose()],
             ["dispose document question", () => this._documentQuestion && this._documentQuestion.dispose()],
             ["dispose selected-text tools", () => this._selectedText && this._selectedText.dispose()],
+            ["dispose file organizer", () => this._fileOrganizer && this._fileOrganizer.dispose()],
             ["dispose the alert notifier", () => notifier && notifier.dispose()],
             ["finalize the applet settings", () => settings && settings.finalize()],
         ]);

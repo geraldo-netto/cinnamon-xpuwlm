@@ -147,6 +147,10 @@ class MenuView {
             startSelectedText: optionalAction(actions, "startSelectedText"),
             cancelSelectedText: optionalAction(actions, "cancelSelectedText"),
             resetSelectedText: optionalAction(actions, "resetSelectedText"),
+            chooseOrganizerFiles: optionalAction(actions, "chooseOrganizerFiles"),
+            startFileOrganizer: optionalAction(actions, "startFileOrganizer"),
+            cancelFileOrganizer: optionalAction(actions, "cancelFileOrganizer"),
+            resetFileOrganizer: optionalAction(actions, "resetFileOrganizer"),
         };
         this._policyPaused = false;
         this._controlPending = false;
@@ -579,7 +583,107 @@ class MenuView {
         this._renderEventImport(model.eventImport);
         this._renderDocumentQuestion(model.documentQuestion);
         this._renderSelectedText(model.selectedText);
+        this._renderFileOrganizer(model.fileOrganizer);
         this._renderBlockedProfiles(model);
+    }
+
+    _renderFileOrganizer(model) {
+        if (model === null || model === undefined) {
+            return false;
+        }
+        this._addSectionHeading(
+            model.title,
+            _("Suggestions only: this applet never moves, renames, overwrites, or deletes files"),
+        );
+        this._renderFileOrganizerStatus(model);
+        this._renderFileOrganizerSources(model);
+        this._renderFileOrganizerPlan(model);
+        this._renderFileOrganizerActions(model);
+        return true;
+    }
+
+    _renderFileOrganizerStatus(model) {
+        for (const [text, style] of [
+            [model.message, "xpuwlm-event-message"],
+            [model.progressText, "xpuwlm-event-progress"],
+        ]) {
+            if (text !== "") {
+                this._body.add_child(this._label(text, style, true));
+            }
+        }
+        if (!model.available && model.phase === "idle") {
+            this._body.add_child(this._label(
+                model.availabilityDetail || _("A qualified file-organizer provider is not configured"),
+                "xpuwlm-run-note",
+                true,
+            ));
+        }
+        return true;
+    }
+
+    _renderFileOrganizerSources(model) {
+        if (model.sources.length === 0) {
+            return false;
+        }
+        this._addGroupHeading(_("Selected files for organization"), format(
+            ngettext("%d file", "%d files", model.sources.length),
+            model.sources.length,
+        ));
+        for (const source of model.sources) {
+            this._body.add_child(this._label(source.name, "xpuwlm-event-source", true));
+        }
+        return true;
+    }
+
+    _renderFileOrganizerPlan(model) {
+        if (!model.complete) {
+            return false;
+        }
+        this._addGroupHeading(
+            _("Review organization plan"),
+            `${model.providerId} · ${model.accelerator.toUpperCase()}`,
+        );
+        for (const item of model.plan) {
+            this._addGroupHeading(item.fileName, item.tagsText);
+            for (const text of [item.nameText, item.folderText, item.duplicateText, item.reason]) {
+                this._body.add_child(this._label(text, "xpuwlm-event-evidence", true));
+            }
+            for (const evidence of item.evidence) {
+                this._body.add_child(this._label(evidence.text, "xpuwlm-event-evidence", true));
+            }
+        }
+        return true;
+    }
+
+    _renderFileOrganizerActions(model) {
+        const controls = this._box("xpuwlm-event-controls");
+        if (["idle", "selected", "complete", "error"].includes(model.phase)) {
+            controls.add_child(this._eventAction(
+                _("Choose files"), _("Choose files for a review-only organization plan"),
+                "organizer-choose-files", this._actions.chooseOrganizerFiles,
+                model.chooserEnabled,
+            ));
+        }
+        if (model.phase === "selected") {
+            controls.add_child(this._eventAction(
+                _("Create plan"), _("Suggest organization without changing files"),
+                "organizer-start", this._actions.startFileOrganizer, model.startEnabled,
+            ));
+        }
+        if (model.cancelEnabled) {
+            controls.add_child(this._eventAction(
+                _("Cancel"), _("Cancel file organization"), "organizer-cancel",
+                this._actions.cancelFileOrganizer, true,
+            ));
+        }
+        if (model.complete || model.phase === "error") {
+            controls.add_child(this._eventAction(
+                _("Clear"), _("Clear the review-only organization plan"), "organizer-reset",
+                this._actions.resetFileOrganizer, true,
+            ));
+        }
+        this._body.add_child(controls);
+        return true;
     }
 
     _renderSelectedText(model) {

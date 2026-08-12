@@ -18,6 +18,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "document-source-port.js",
     "event-import.js",
     "event-source-port.js",
+    "file-organizer.js",
     "failure-log-backoff.js",
     "failure-reporter.js",
     "i18n.js",
