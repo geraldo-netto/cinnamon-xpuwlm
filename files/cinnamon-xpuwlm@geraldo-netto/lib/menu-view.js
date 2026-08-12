@@ -242,7 +242,9 @@ class MenuView {
 
     _applyLayoutStyles() {
         this._root.set_style(`min-width: ${this._layout.widthPx}px; max-width: ${this._layout.widthPx}px;`);
-        this._scroll.set_style(`max-height: ${this._layout.scrollHeightPx}px;`);
+        const viewport = `${this._layout.scrollHeightPx}px`;
+        this._scroll.set_style(`min-height: ${viewport}; max-height: ${viewport};`);
+        this._scrollContent.set_style(`min-height: ${viewport};`);
         for (const styleClass of Layout.MODE_STYLE_CLASS_LIST) {
             this._root.remove_style_class_name(styleClass);
         }
@@ -372,13 +374,16 @@ class MenuView {
         this._scroll = new this._St.ScrollView({
             style_class: "xpuwlm-scroll vfade",
             x_fill: true,
-            y_fill: false,
+            y_fill: true,
             y_align: this._St.Align.START,
         });
         this._scroll.set_policy(this._St.PolicyType.NEVER, this._St.PolicyType.AUTOMATIC);
         this._scroll.set_auto_scrolling(true);
+        this._scrollContent = this._box("xpuwlm-scroll-content", true, true);
         this._body = this._box("xpuwlm-body", true);
-        this._scroll.add_actor(this._body);
+        this._body.y_expand = true;
+        this._scrollContent.add_child(this._body);
+        this._scroll.add_actor(this._scrollContent);
         this._content.add_child(this._scroll);
     }
 
@@ -396,7 +401,7 @@ class MenuView {
         }));
         footer.add_child(settings);
         this._footer = footer;
-        this._root.add_child(footer);
+        this._scrollContent.add_child(footer);
     }
 
     _renderBody(model) {

@@ -98,7 +98,10 @@ test("the wide layout keeps single-line rows", () => {
 
     assert.equal(root.styleClasses.has("xpuwlm-mode-wide"), true);
     assert.equal(root.style, `min-width: ${WIDE.widthPx}px; max-width: ${WIDE.widthPx}px;`);
-    assert.equal(scrollView(root).style, `max-height: ${WIDE.scrollHeightPx}px;`);
+    assert.equal(
+        scrollView(root).style,
+        `min-height: ${WIDE.scrollHeightPx}px; max-height: ${WIDE.scrollHeightPx}px;`,
+    );
 
     const subtitle = findActors(root, (actor) => actor.styleClasses.has("xpuwlm-subtitle"))[0];
     assert.equal(subtitle.clutter_text.line_wrap, false);
@@ -225,6 +228,23 @@ test("re-applying a layout rebuilds structure only when it actually changes", ()
     assert.equal(view.applyLayout(WIDE), true);
     assert.equal(subtitle.clutter_text.line_wrap, false);
     assert.equal(noticeDetail.clutter_text.line_wrap, false);
+    assert.equal(root.styleClasses.has("xpuwlm-mode-compact"), false);
+    assert.equal(root.styleClasses.has("xpuwlm-mode-wide"), true);
+});
+
+test("every tab keeps the largest tab's fixed viewport", () => {
+    const {view, root} = harness(WIDE);
+    const scroll = scrollView(root);
+    const scrollContent = scroll.children[0];
+    const expected = `min-height: ${WIDE.scrollHeightPx}px; max-height: ${WIDE.scrollHeightPx}px;`;
+
+    for (const selectedTab of Menu.TAB_NAMES) {
+        view.render(ViewModel.toViewModel(alertState({selectedTab}), NOW));
+        assert.equal(scroll.style, expected, selectedTab);
+        assert.equal(scroll.y_fill, true, selectedTab);
+        assert.equal(scrollContent.style, `min-height: ${WIDE.scrollHeightPx}px;`, selectedTab);
+        assert.equal(view._footer.parent, scrollContent, selectedTab);
+    }
 });
 
 test("a view without a rendered model still accepts a layout change", () => {

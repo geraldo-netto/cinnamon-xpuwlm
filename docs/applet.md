@@ -60,10 +60,12 @@ view and re-measured every time the popup opens.
 | Compact | 401–520 px | Wrapped descriptive text and 44 px targets |
 | Dense | 400 px and below | Compact rules plus single-column alert evidence |
 
-The popup never claims more width than the work area offers, its scroll region
-is bounded to the work-area height so the footer actions stay visible, and
-navigation, recovery, and contextual actions remain present in every mode. An
-unusable measurement falls back to the default desktop layout.
+The popup never claims more width than the work area offers. Every tab uses the
+same fixed-height scroll viewport, sized for the largest tab and bounded to the
+work-area height, so switching tabs never expands or contracts the popup.
+Overflow remains vertically scrollable, footer actions stay inside the stable
+viewport, and navigation, recovery, and contextual actions remain present in
+every mode. An unusable measurement falls back to the default desktop layout.
 
 The wide mode implements the approved v4 task-first mockups with a 560 px
 content width, 760 px maximum scroll region, framed non-Tools surfaces, aligned

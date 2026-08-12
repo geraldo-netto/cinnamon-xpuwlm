@@ -324,7 +324,13 @@
 }
 
 .xpuwlm-scroll {
+    min-height: 760px;
     max-height: 760px;
+}
+
+.xpuwlm-scroll-content {
+    min-height: 760px;
+    spacing: 12px;
 }
 
 .xpuwlm-content {

@@ -225,13 +225,25 @@ test("the scrolling body keeps its vertical-only layout contract", () => {
 
     assert.equal(scroll.style_class, "xpuwlm-scroll vfade");
     assert.equal(scroll.x_fill, true);
-    assert.equal(scroll.y_fill, false);
+    assert.equal(scroll.y_fill, true);
     assert.equal(scroll.y_align, "start");
     assert.deepEqual(scroll.policy, ["never", "automatic"]);
     assert.equal(scroll.autoScrolling, true);
     assert.equal(scroll.children.length, 1);
-    assert.equal(scroll.children[0].styleClasses.has("xpuwlm-body"), true);
-    assert.equal(scroll.children[0].vertical, true);
+    const scrollContent = scroll.children[0];
+    assert.equal(scrollContent.styleClasses.has("xpuwlm-scroll-content"), true);
+    assert.equal(scrollContent.vertical, true);
+    assert.equal(scrollContent.x_expand, true);
+    assert.equal(scrollContent.children[0].styleClasses.has("xpuwlm-body"), true);
+    assert.equal(scrollContent.children[0].vertical, true);
+    assert.equal(scrollContent.children[0].y_expand, true);
+    const footer = scrollContent.children[1];
+    assert.equal(footer.styleClasses.has("xpuwlm-footer"), true);
+    assert.equal(footer.vertical, false);
+    assert.equal(footer.x_expand, true);
+    assert.equal(footer.children[0].styleClasses.has("xpuwlm-control-spacer"), true);
+    assert.equal(footer.children[0].vertical, false);
+    assert.equal(footer.children[0].x_expand, true);
 });
 
 test("every interactive control is focusable, reactive, and role-labelled", () => {
