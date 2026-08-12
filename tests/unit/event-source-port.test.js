@@ -84,6 +84,8 @@ function fakeGtk() {
         show_all() { this.shown = true; }
         present() { this.presented = true; }
         set_modal(value) { this.modal = value; }
+        set_skip_taskbar_hint(value) { this.skipTaskbar = value; }
+        set_skip_pager_hint(value) { this.skipPager = value; }
         hide() { this.hidden = true; }
         destroy() { this.destroyed = true; this.destroyCount += 1; }
         get_filenames() { return this.filenames; }
@@ -198,6 +200,8 @@ test("GTK pickers open only when invoked and report accept or cancel once", () =
     assert.equal(fileDialog.shown, true);
     assert.equal(fileDialog.presented, true);
     assert.equal(fileDialog.modal, true);
+    assert.equal(fileDialog.skipTaskbar, true);
+    assert.equal(fileDialog.skipPager, true);
     assert.deepEqual(fileDialog.options, {title: "Choose event source files", action: env.Gtk.FileChooserAction.OPEN});
     assert.deepEqual(fileDialog.buttons, [
         {label: "Cancel", response: env.Gtk.ResponseType.CANCEL},
@@ -387,6 +391,36 @@ test("chooser lifecycle validates collaborators and cleans failed presentation",
     failingDialog.respond(env.Gtk.ResponseType.CANCEL);
     assert.match(String(failure[0]), /no idle source/u);
     assert.equal(failure[1], null);
+});
+
+test("chooser lifecycle attempts full teardown when native cleanup steps fail", () => {
+    const env = tree();
+    const lifecycle = immediateLifecycle(env);
+    const dialog = new env.Gtk.FileChooserDialog({title: "fragile"});
+    dialog.disconnect = () => { throw new Error("cannot disconnect"); };
+    dialog.hide = () => { throw new Error("cannot hide"); };
+    let failure = null;
+    lifecycle.present(dialog, () => [], (error) => { failure = error; });
+
+    dialog.respond(env.Gtk.ResponseType.CANCEL);
+    assert.match(String(failure), /cannot disconnect/u);
+    assert.equal(dialog.destroyed, true, "destroy still runs after earlier GTK failures");
+
+    const scheduler = queuedScheduler();
+    scheduler.cancel = () => { throw new Error("cannot cancel idle source"); };
+    const disposing = new Port.GtkChooserLifecycle(env, scheduler);
+    const pending = new env.Gtk.FileChooserDialog({title: "pending callback"});
+    const fragile = new env.Gtk.FileChooserDialog({title: "fragile disposal"});
+    const final = new env.Gtk.FileChooserDialog({title: "final disposal"});
+    disposing.present(pending, () => [], () => {});
+    pending.respond(env.Gtk.ResponseType.CANCEL);
+    disposing.present(fragile, () => [], () => {});
+    disposing.present(final, () => [], () => {});
+    fragile.disconnect = () => { throw new Error("cannot disconnect"); };
+
+    assert.doesNotThrow(() => disposing.dispose());
+    assert.equal(fragile.destroyed, true);
+    assert.equal(final.destroyed, true, "later dialogs close after an earlier GTK failure");
 });
 
 test("environment and private writer return and close their exact resources", () => {

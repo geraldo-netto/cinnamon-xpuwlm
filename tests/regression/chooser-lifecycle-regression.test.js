@@ -23,6 +23,8 @@ function dialog() {
         destroyed: false,
         connect(_signal, callback) { this.handler = callback; return 31; },
         disconnect(signalId) { assert.equal(signalId, 31); },
+        set_skip_taskbar_hint(value) { assert.equal(value, true); this.skipTaskbar = true; },
+        set_skip_pager_hint(value) { assert.equal(value, true); this.skipPager = true; },
         set_modal(value) { assert.equal(value, true); },
         show_all() {},
         present() {},
@@ -39,6 +41,8 @@ test("reload destroys a live GTK chooser and suppresses its retained response si
     const chooser = dialog();
     let callbacks = 0;
     lifecycle.present(chooser, () => ["private-path"], () => { callbacks += 1; });
+    assert.equal(chooser.skipTaskbar, true);
+    assert.equal(chooser.skipPager, true);
     const retainedNativeHandler = chooser.handler;
 
     assert.equal(lifecycle.dispose(), true);

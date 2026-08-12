@@ -14,7 +14,7 @@ or engineering constraint instead of being treated as a reason to add more UI.
 | Cognitive Load | Close the popup before opening the chooser, keep one focus context, use direct action labels, and retain chosen names so users need not remember them. |
 | Doherty Threshold | Hand focus to the chooser on the next zero-delay main-loop turn and return rendered feedback immediately after its response; add no artificial wait. |
 | Fitts's Law | Keep chooser-workflow targets at least 44px high and rely on the native dialog's conventional large Cancel/Accept targets. |
-| Flow | Preserve keyboard navigation, give the chooser exclusive visible focus, and restore the workflow popup when selection finishes. |
+| Flow | Preserve keyboard navigation, give the chooser exclusive visible focus, keep its parentless modal window out of taskbar/pager grouping, and restore the workflow popup when selection finishes. |
 | Goal-Gradient Effect | Expose a linear choose → submit → progress → review → confirm/result sequence and show progress during runtime work. |
 | Hick's Law | Render only actions valid for the current workflow phase; disable or omit unavailable choices. |
 | Jakob's Law | Use native GTK file/folder/save dialogs and familiar Choose, Cancel, Back, and Save language. |
@@ -31,7 +31,7 @@ or engineering constraint instead of being treated as a reason to add more UI.
 | Parkinson's Law | Bound source counts, file sizes, folder depth, question length, and each request to one explicit task. |
 | Peak-End Rule | End every chooser interaction by restoring the popup with a clear cancellation, selected-source, error, or saved-path message. |
 | Postel's Law | Treat GTK `OK` and `ACCEPT` as acceptance, every other response as safe cancellation, suppress repeated/late responses, and validate selected output strictly. |
-| Selective Attention | Never leave the applet popup competing with the modal chooser; move focus to the chooser and back to the resulting state. |
+| Selective Attention | Never leave the applet popup or grouped-window-list entry competing with the modal chooser; move focus to the chooser and back to the resulting state. |
 | Serial Position Effect | Put source choice at the start, final confirmation at the end, and order native dialog buttons Cancel then Accept. |
 | Tesler's Law | Keep scheduling, response de-duplication, cleanup, path validation, and reload safety in the lifecycle/port/controller rather than burdening the user. |
 | Von Restorff Effect | Give the single next-step action the primary style while alternatives, Back, Cancel, Clear, and reset actions remain secondary. |

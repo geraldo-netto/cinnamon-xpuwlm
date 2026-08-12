@@ -114,22 +114,26 @@ class GtkChooserLifecycle {
         if (this._disposed) {
             throw new Error("Chooser lifecycle is disposed");
         }
-        const signalId = dialog.connect(
-            "response",
-            (_dialog, response) => this._respond(dialog, response, selected, callback),
-        );
-        this._dialogs.set(dialog, signalId);
+        let signalId = null;
         try {
+            signalId = dialog.connect(
+                "response",
+                (_dialog, response) => this._respond(dialog, response, selected, callback),
+            );
+            this._dialogs.set(dialog, signalId);
             // Cinnamon's popup has no Gtk.Window that can be a transient
-            // parent. The caller closes that popup first; modal + present then
-            // gives the standard GTK chooser a visible, focused launch.
+            // parent. Keep this dialog out of grouped-window-list and pager
+            // ownership instead: it remains modal and visibly focused without
+            // creating an app-group entry whose GC teardown can re-enter GJS.
+            dialog.set_skip_taskbar_hint(true);
+            dialog.set_skip_pager_hint(true);
             dialog.set_modal(true);
             dialog.show_all();
             dialog.present();
         } catch (error) {
             this._dialogs.delete(dialog);
-            this._close(dialog, signalId);
-            this._defer(callback, error, null);
+            const closeError = this._close(dialog, signalId);
+            this._defer(callback, error || closeError, null);
         }
         return true;
     }
@@ -147,15 +151,28 @@ class GtkChooserLifecycle {
         } catch (selectionError) {
             error = selectionError;
         }
-        this._close(dialog, signalId);
-        this._defer(callback, error, value);
+        const closeError = this._close(dialog, signalId);
+        this._defer(callback, error || closeError, value);
         return true;
     }
 
     _close(dialog, signalId) {
-        dialog.disconnect(signalId);
-        dialog.hide();
-        dialog.destroy();
+        let failure = null;
+        const steps = [];
+        if (signalId !== null && signalId !== undefined) {
+            steps.push(() => dialog.disconnect(signalId));
+        }
+        steps.push(() => dialog.hide(), () => dialog.destroy());
+        for (const step of steps) {
+            try {
+                step();
+            } catch (error) {
+                if (failure === null) {
+                    failure = error;
+                }
+            }
+        }
+        return failure;
     }
 
     _defer(callback, error, value) {
@@ -186,7 +203,12 @@ class GtkChooserLifecycle {
         }
         for (const pending of this._pending) {
             if (pending.handle !== null && pending.handle !== undefined) {
-                this._scheduler.cancel(pending.handle);
+                try {
+                    this._scheduler.cancel(pending.handle);
+                } catch {
+                    // Teardown remains best-effort and must continue through
+                    // every native dialog and scheduled completion.
+                }
             }
         }
         this._pending.clear();

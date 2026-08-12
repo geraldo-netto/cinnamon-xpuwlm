@@ -29,6 +29,8 @@ class Dialog {
     show_all() { this.shown = true; }
     present() { this.presented = true; }
     set_modal(value) { this.modal = value; }
+    set_skip_taskbar_hint(value) { this.skipTaskbar = value; }
+    set_skip_pager_hint(value) { this.skipPager = value; }
     hide() { this.hidden = true; }
     get_filenames() { return this.paths; }
     destroy() { this.destroyed = true; }

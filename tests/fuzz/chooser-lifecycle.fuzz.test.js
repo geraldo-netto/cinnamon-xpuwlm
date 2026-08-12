@@ -42,6 +42,8 @@ function session() {
                 destroyed: 0,
                 connect(_signal, handler) { this.handler = handler; return 1; },
                 disconnect() {},
+                set_skip_taskbar_hint() {},
+                set_skip_pager_hint() {},
                 set_modal() {},
                 show_all() {},
                 present() {},

@@ -4,8 +4,7 @@
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0054 | in_progress | critical | m | XTPU-0050 | Live explicit-file chooser window churn drives Cinnamon's grouped-window-list teardown from GJS GC callbacks and freezes the desktop; make every chooser non-blocking, correctly parented/focused, and prove cancellation/selection leaves Cinnamon responsive. |
-| XTPU-0055 | in_progress | medium | s | XTPU-0054 | Reload guidance omits the exact case-sensitive Cinnamon D-Bus call, allowing an invalid xlet type to unload the applet and fail reload; document and test the safe `APPLET` invocation. |
+| XTPU-0054 | in_progress | critical | m | XTPU-0050 | Live explicit-file chooser window churn drives Cinnamon's grouped-window-list teardown from GJS GC callbacks and freezes the desktop; keep every chooser out of grouped-window-list tracking, non-blocking, focused, and teardown-safe on GTK failures, then prove cancellation/selection leaves Cinnamon responsive. |
 
 ## Blocked
 
