@@ -6,6 +6,15 @@ const path = require("node:path");
 const test = require("node:test");
 
 const Menu = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/menu-view.js");
+const DiagnosticsViewModel = require(
+    "../../files/cinnamon-xpuwlm@geraldo-netto/lib/diagnostics-view-model.js",
+);
+const PanelViewModel = require(
+    "../../files/cinnamon-xpuwlm@geraldo-netto/lib/panel-view-model.js",
+);
+const SetupViewModel = require(
+    "../../files/cinnamon-xpuwlm@geraldo-netto/lib/setup-view-model.js",
+);
 const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 const WorkflowMenu = require(
     "../../files/cinnamon-xpuwlm@geraldo-netto/lib/workflow-menu-view.js",
@@ -51,9 +60,34 @@ const PROJECTION_EXPORTS = Object.freeze([
     "workflowActivity",
 ]);
 
+const CORE_PROJECTION_EXPORTS = Object.freeze([
+    [DiagnosticsViewModel, [
+        "diagnosticsModel", "diagnosticsReport", "formatRelativeTime", "systemModel",
+        "workloadServiceStatus",
+    ]],
+    [PanelViewModel, [
+        "ALERT_SEVERITY_PRIORITY", "BACKEND_LABELS", "DEVICE_STATUS_LABELS",
+        "RUNTIME_STATUS_LABELS", "SEVERITY_LABELS", "attentionReviewText",
+        "backendLabel", "deviceStatusText", "formatLoad", "highestActiveSeverity",
+        "panelModel", "runtimeStatusText", "severityText", "unavailablePanel",
+    ]],
+    [SetupViewModel, [
+        "LOCAL_FORECAST_PROFILE", "SETUP_KIND_ORDER", "SETUP_SECTIONS", "setupKind",
+        "setupModel", "setupSection", "setupSummary",
+    ]],
+]);
+
 test("view-model facade preserves every extracted workflow projection", () => {
     for (const name of PROJECTION_EXPORTS) {
         assert.equal(ViewModel[name], WorkflowViewModel[name], name);
+    }
+});
+
+test("view-model facade preserves panel, diagnostics, and setup projections", () => {
+    for (const [owner, names] of CORE_PROJECTION_EXPORTS) {
+        for (const name of names) {
+            assert.equal(ViewModel[name], owner[name], name);
+        }
     }
 });
 
@@ -163,4 +197,7 @@ test("facades contain no extracted workflow implementation bodies", () => {
     assert.doesNotMatch(menuSource, /^\s+_renderMediaTranscription\(model\) \{/mu);
     assert.doesNotMatch(modelSource, /^function eventImportModel\(state\) \{/mu);
     assert.doesNotMatch(modelSource, /^function mediaTranscriptionModel\(state\) \{/mu);
+    assert.doesNotMatch(modelSource, /^function panelModel\(state\) \{/mu);
+    assert.doesNotMatch(modelSource, /^function diagnosticsModel\(/mu);
+    assert.doesNotMatch(modelSource, /^function setupModel\(profiles\) \{/mu);
 });

@@ -1,12 +1,48 @@
 "use strict";
 
 const Domain = require("./domain.js");
+const DiagnosticsViewModel = require("./diagnostics-view-model.js");
 const I18n = require("./i18n.js");
 const Manager = require("./manager.js");
+const PanelViewModel = require("./panel-view-model.js");
 const ProfileBlockers = require("./profile-blockers.js");
+const SetupViewModel = require("./setup-view-model.js");
 const WorkflowViewModel = require("./workflow-view-model.js");
 
 const {_, N_, format, ngettext} = I18n;
+const {
+    diagnosticsModel,
+    diagnosticsReport,
+    formatRelativeTime,
+    systemModel,
+    workloadServiceStatus,
+} = DiagnosticsViewModel;
+const {
+    ALERT_SEVERITY_PRIORITY,
+    BACKEND_LABELS,
+    DEVICE_STATUS_LABELS,
+    RUNTIME_STATUS_LABELS,
+    SEVERITY_LABELS,
+    attentionReviewText,
+    backendLabel,
+    deviceStatusText,
+    formatLoad,
+    healthOf,
+    highestActiveSeverity,
+    panelModel,
+    runtimeStatusText,
+    severityText,
+    unavailablePanel,
+} = PanelViewModel;
+const {
+    LOCAL_FORECAST_PROFILE,
+    SETUP_KIND_ORDER,
+    SETUP_SECTIONS,
+    setupKind,
+    setupModel,
+    setupSection,
+    setupSummary,
+} = SetupViewModel;
 const {
     JOB_STATE_LABELS,
     MAX_READING_ROWS,
@@ -47,67 +83,6 @@ const STATUS_LABELS = Object.freeze({
     idle: N_("Idle"),
     paused: N_("Paused"),
     unavailable: N_("Unavailable"),
-});
-
-const ALERT_SEVERITY_PRIORITY = Object.freeze({
-    advisory: 0,
-    warning: 1,
-    critical: 2,
-});
-
-const SEVERITY_LABELS = Object.freeze({
-    advisory: N_("advisory"),
-    warning: N_("warning"),
-    critical: N_("critical"),
-});
-
-// Severity is announced as text in the panel and popup summaries; the alert
-// card colour is a second cue, never the only one.
-function highestActiveSeverity(alerts) {
-    let highest = null;
-    for (const alert of alerts) {
-        const priority = ALERT_SEVERITY_PRIORITY[alert.severity];
-        if (alert.resolved === true || priority === undefined) {
-            continue;
-        }
-        if (highest === null || priority > ALERT_SEVERITY_PRIORITY[highest]) {
-            highest = alert.severity;
-        }
-    }
-    return highest;
-}
-
-function severityText(severity) {
-    return severity === null || severity === undefined
-        ? _("none")
-        : _(SEVERITY_LABELS[severity] || "none");
-}
-
-const BACKEND_LABELS = Object.freeze({
-    tpu: N_("TPU"),
-    npu: N_("NPU"),
-    gpu: N_("GPU"),
-});
-
-function backendLabel(device) {
-    const label = device && BACKEND_LABELS[device.backend];
-    return label ? _(label) : _("Accel");
-}
-
-const DEVICE_STATUS_LABELS = Object.freeze({
-    present: N_("Device detected"),
-    absent: N_("No device"),
-    unknown: N_("Device unknown"),
-});
-
-const RUNTIME_STATUS_LABELS = Object.freeze({
-    connected: N_("Online"),
-    "not-started": N_("Starting"),
-    absent: N_("Runtime absent"),
-    stale: N_("Runtime stale"),
-    malformed: N_("Runtime malformed"),
-    unreadable: N_("Runtime unreadable"),
-    "probe-failed": N_("Detection failed"),
 });
 
 // Specific telemetry and recovery guidance per runtime state. Nothing here
@@ -266,22 +241,6 @@ function unknownContentNotice(state) {
     return {title, detail, accessibleName: `${title}. ${detail}`};
 }
 
-function healthOf(state) {
-    return state.health || {device: "unknown", runtime: "unreadable", detail: ""};
-}
-
-function deviceStatusText(state) {
-    const health = healthOf(state);
-    return health.runtime === "connected" && health.device === "present"
-        ? _(RUNTIME_STATUS_LABELS.connected)
-        : _(DEVICE_STATUS_LABELS[health.device] || DEVICE_STATUS_LABELS.unknown);
-}
-
-function runtimeStatusText(state) {
-    const health = healthOf(state);
-    return _(RUNTIME_STATUS_LABELS[health.runtime] || RUNTIME_STATUS_LABELS.unreadable);
-}
-
 function recoveryModel(state) {
     const health = healthOf(state);
     const guidance = RUNTIME_RECOVERY[health.runtime] || RUNTIME_RECOVERY.connected;
@@ -304,297 +263,8 @@ function recoveryModel(state) {
     };
 }
 
-// Diagnostics setup detail is organised by remedy, not by profile, because one package or
-// one artifact usually unblocks several profiles at once. A missing declared
-// artifact, a supported local training recipe, and a profile with no qualified
-// model are different states: only the first two have honest commands. Every
-// string here is the applet's own; the runtime's words are repeated per profile
-// beside them.
-// Consent first: it is the only one a person can act on in seconds, and it
-// needs no install, no hardware, and no download.
-const LOCAL_FORECAST_PROFILE = "resource-scheduler";
-const SETUP_KIND_ORDER = Object.freeze([
-    "consent", "runtime", "forecast", "model", "model-design", "hardware", "unknown",
-]);
-
-const SETUP_SECTIONS = Object.freeze({
-    runtime: Object.freeze({
-        title: N_("Install the accelerator runtime"),
-        description: N_("The accelerator is present, but the Python package that drives it cannot be imported, so the runtime has no lane to run these profiles on. Install the matching extra and restart the service."),
-        command: N_("pip install 'omnitensor[gpu]'"),
-        note: N_("Which extra depends on the accelerator: see the Dependencies table in the OmniTensor installation guide."),
-    }),
-    model: Object.freeze({
-        title: N_("Repair the declared model installation"),
-        description: N_("These profiles declare a model, but its artifact is missing or its format cannot run on the selected accelerator. Restore the exact declared artifact, or qualify a compatible variant without changing its meaning."),
-        command: N_("omnitensor-prepare-artifact <model> --id <id> --version <v> --format <declared-format> --install-root ~/.local/share/omnitensor/artifacts"),
-        note: N_("Preparing an exact declared artifact repairs artifact-unavailable. A format-unsupported profile needs a qualified compatible variant and matching manifest contract; arbitrary weights are never a remedy."),
-    }),
-    forecast: Object.freeze({
-        title: N_("Train a local Resource Scheduler forecast"),
-        description: N_("Resource Scheduler has no bundled weights, but OmniTensor supports one opt-in self-supervised forecast recipe for it. Record representative real queue history first; never substitute synthetic samples."),
-        command: N_("omnitensor-record-runtime-snapshot --profile resource-scheduler --selector queueDepth --selector runningProfiles"),
-        note: N_("After enough history, use omnitensor-train-model with queueDepth first, install the restricted binding with omnitensor-install-trained-model, restart omnitensor.service, then run omnitensor-run-forecast. Follow “Local model training” in OmniTensor; no recorder timer is enabled automatically."),
-    }),
-    "model-design": Object.freeze({
-        title: N_("No qualified model is available"),
-        description: N_("These profiles do not declare a model or a supported training recipe. No generic install command can invent their task semantics, representative data, metrics, preprocessing, output consumer, or acceptance evidence."),
-        command: "",
-        note: N_("Track each profile's model work in OmniTensor. Do not attach arbitrary weights or reuse Resource Scheduler's scalar forecast recipe for a different task."),
-    }),
-    consent: Object.freeze({
-        title: N_("Grant the permission these profiles ask for"),
-        description: N_("These profiles declare a permission that has not been granted, so the runtime refuses every job they submit. Nothing is missing and nothing is broken \u2014 a person has to say yes. The profile's status line names the permission it is waiting on."),
-        command: N_("omnitensor-grant grant <profile> <permission> --reason \"why you are allowing it\""),
-        note: N_("Consent is granted from a terminal rather than from this popup: every peer on the session bus runs as the same user, so the runtime could not tell a request made here from one made by anything else able to talk to it. Withdraw it again with omnitensor-grant revoke."),
-    }),
-    hardware: Object.freeze({
-        title: N_("Connect supported hardware"),
-        description: N_("No accelerator these profiles can use is attached to this machine. There is nothing to install: they stay unavailable until supported hardware is present."),
-        command: "",
-        note: "",
-    }),
-    unknown: Object.freeze({
-        title: N_("Reported by the runtime"),
-        description: N_("The runtime refused these profiles for a reason this applet does not recognise, so its own words are repeated below without interpretation."),
-        command: "",
-        note: "",
-    }),
-});
-
-function setupSection(kind, members) {
-    const copy = SETUP_SECTIONS[kind] || SETUP_SECTIONS.unknown;
-    return {
-        kind,
-        title: _(copy.title),
-        description: _(copy.description),
-        command: copy.command === "" ? "" : _(copy.command),
-        note: copy.note === "" ? "" : _(copy.note),
-        profiles: members.map((profile) => ({
-            id: profile.id,
-            title: profile.title,
-            reason: profile.blocker.reason,
-        })),
-    };
-}
-
-function setupKind(profile) {
-    if (profile.blocker.kind !== "model") {
-        return profile.blocker.kind;
-    }
-    const detail = typeof profile.blocker.detail === "string" ? profile.blocker.detail : "";
-    const noReasonCode = typeof profile.reason !== "string" || profile.reason === "";
-    const modelIsUndeclared = profile.reason === "no-model"
-        || (noReasonCode && ProfileBlockers.mentions(detail, ProfileBlockers.MODEL_REASONS));
-    if (!modelIsUndeclared) {
-        return "model";
-    }
-    return profile.id === LOCAL_FORECAST_PROFILE ? "forecast" : "model-design";
-}
-
-function setupSummary(total, runnable) {
-    if (total === 0) {
-        return _("No workload profiles are installed.");
-    }
-    return format(
-        ngettext(
-            "%d of %d workload profile can run on this machine",
-            "%d of %d workload profiles can run on this machine",
-            total,
-        ),
-        runnable,
-        total,
-    );
-}
-
-// Useful when nothing is wrong, too: a screen that renders empty on a healthy
-// host reads as broken rather than as finished.
-function setupModel(profiles) {
-    const blocked = profiles.filter((profile) => profile.blocker !== null);
-    const sections = SETUP_KIND_ORDER
-        .map((kind) => [kind, blocked.filter((profile) => setupKind(profile) === kind)])
-        .filter(([, members]) => members.length > 0)
-        .map(([kind, members]) => setupSection(kind, members));
-    return {
-        resolved: blocked.length === 0,
-        title: blocked.length === 0 ? _("Nothing is missing") : _("What these profiles need"),
-        summary: setupSummary(profiles.length, profiles.length - blocked.length),
-        sections,
-    };
-}
-
-// The run surface: which profiles a picture can be prepared for, which
-// pictures the runtime is allowed to read, and what happened to the last job.
-// Everything it needs is already published — the roots come from the runtime's
-// own snapshot and the contracts from the manifests — so nothing here guesses
-// a path or a normalisation.
-
-function workloadServiceStatus(control) {
-    if (control.available === true) {
-        return {status: _("Ready"), tone: "healthy", detail: _("Runtime controls are available")};
-    }
-    if (control.available === false) {
-        return {status: _("Unavailable"), tone: "unavailable", detail: _("Runtime controls are unavailable")};
-    }
-    return {status: _("Unknown"), tone: "watching", detail: _("Runtime control state is not known")};
-}
-
-function diagnosticsReport(state, tools, activity, setup, control, nowMs) {
-    const service = workloadServiceStatus(control);
-    const setupCount = tools.filter((tool) => !tool.available).length
-        + setup.sections.reduce((count, section) => count + section.profiles.length, 0);
-    return [
-        _("XPU Workload Manager diagnostics"),
-        `${_("Generated")}: ${new Date(nowMs).toISOString()}`,
-        `${_("Device")}: ${deviceStatusText(state)} — ${state.device.name || state.device.reason || _("Unknown")}`,
-        `${_("Runtime")}: ${runtimeStatusText(state)} — ${healthOf(state).detail || _("No additional detail")}`,
-        `${_("Workload service")}: ${service.status} — ${service.detail}`,
-        `${_("Ready tools")}: ${tools.filter((tool) => tool.available).length}/${tools.length}`,
-        `${_("Active jobs")}: ${activity.activeCount}`,
-        `${_("Needs setup")}: ${setupCount}`,
-        `${_("Recent issues")}: ${state.attentionCount}`,
-        `${_("Last update")}: ${formatRelativeTime(state.generatedAt, nowMs)}`,
-    ].join("\n");
-}
-
-function diagnosticsModel(state, tools, activity, setup, activeAlerts, control, nowMs) {
-    const service = workloadServiceStatus(control);
-    const toolSetup = tools.filter((tool) => !tool.available).map((tool) => ({
-        id: tool.id,
-        title: tool.title,
-        detail: tool.setupDetail || _("Required service or input is unavailable"),
-        status: _("Unavailable"),
-        tone: "unavailable",
-    }));
-    const profileSetupCount = setup.sections.reduce(
-        (count, section) => count + section.profiles.length,
-        0,
-    );
-    const setupCount = toolSetup.length + profileSetupCount;
-    return {
-        health: [
-            {
-                id: "device",
-                icon: "xpuwlm-device-symbolic",
-                title: _("Device"),
-                detail: state.device.name || state.device.reason || _("No device detail"),
-                status: deviceStatusText(state),
-                tone: state.device.available ? "healthy" : "unavailable",
-            },
-            {
-                id: "runtime",
-                icon: "drive-multidisk-symbolic",
-                title: _("Local runtime"),
-                detail: healthOf(state).detail || _("Snapshot contract is readable"),
-                status: runtimeStatusText(state),
-                tone: healthOf(state).runtime === "connected" ? "healthy" : "unavailable",
-            },
-            {
-                id: "service",
-                icon: "system-run-symbolic",
-                title: _("Workload service"),
-                detail: service.detail,
-                status: service.status,
-                tone: service.tone,
-            },
-        ],
-        toolSetup,
-        profileSetupCount,
-        setupCount,
-        setupStatus: setupCount === 0 ? _("Ready") : format(_("%d needs setup"), setupCount),
-        setupSummary: setupCount === 0
-            ? _("Tools and workload profiles are ready")
-            : format(
-                ngettext("%d tool or profile needs attention", "%d tools or profiles need attention", setupCount),
-                setupCount,
-            ),
-        current: [
-            {label: _("Ready tools"), value: `${tools.filter((tool) => tool.available).length}`},
-            {label: _("Active jobs"), value: `${activity.activeCount}`},
-            {label: _("Last update"), value: formatRelativeTime(state.generatedAt, nowMs)},
-        ],
-        issues: activeAlerts,
-        report: diagnosticsReport(state, tools, activity, setup, control, nowMs),
-    };
-}
-
-function systemDeviceStatus(state) {
-    if (state.device.available) {
-        return {
-            detail: _("Ready for workloads"),
-            status: _("Ready"),
-            tone: "healthy",
-        };
-    }
-    return {
-        detail: state.device.reason || format(_("%s accelerator"), backendLabel(state.device)),
-        status: deviceStatusText(state),
-        tone: "unavailable",
-    };
-}
-
-function systemRuntimeStatus(state) {
-    const health = healthOf(state);
-    if (health.runtime === "connected") {
-        return {
-            detail: _("Models and services available"),
-            status: _("Ready"),
-            tone: "healthy",
-        };
-    }
-    return {
-        detail: health.detail || _("Runtime snapshot monitoring"),
-        status: runtimeStatusText(state),
-        tone: "unavailable",
-    };
-}
-
-function systemModel(state) {
-    return {
-        statuses: [
-            {
-                id: "device",
-                icon: "xpuwlm-device-symbolic",
-                title: state.device.name || _("Accelerator"),
-                ...systemDeviceStatus(state),
-            },
-            {
-                id: "runtime",
-                icon: "drive-multidisk-symbolic",
-                title: _("Local runtime"),
-                ...systemRuntimeStatus(state),
-            },
-        ],
-    };
-}
-
 // Everything the runtime holds that this surface is not showing: what the
 // catalog left out, plus what this projection itself trims.
-
-function formatLoad(value) {
-    return typeof value === "number" && Number.isFinite(value)
-        ? `${Math.round(value)}%`
-        : "—";
-}
-
-function formatRelativeTime(timestamp, nowMs) {
-    if (!Number.isFinite(timestamp) || timestamp <= 0) {
-        return _("unknown");
-    }
-    const seconds = Math.max(0, Math.floor((nowMs - timestamp) / 1000));
-    if (seconds < 5) {
-        return _("just now");
-    }
-    if (seconds < 60) {
-        return format(_("%ds ago"), seconds);
-    }
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) {
-        return format(_("%dm ago"), minutes);
-    }
-    const hours = Math.floor(minutes / 60);
-    return format(_("%dh ago"), hours);
-}
 
 function formatFraction(value) {
     return typeof value === "number" && Number.isFinite(value)
@@ -708,68 +378,6 @@ function blockedGroupModel(blocked) {
             ),
             count,
         ),
-    };
-}
-
-function attentionReviewText(count) {
-    return format(ngettext("%d item needs review", "%d items need review", count), count);
-}
-
-function unavailablePanel(state) {
-    const unknown = healthOf(state).device === "unknown";
-    const reason = unknown
-        ? format(_("%s; device state unknown"), runtimeStatusText(state).toLowerCase())
-        : state.device.reason;
-    return {
-        accessibleName: unknown
-            ? format(_("XPU Workload Manager, unknown: %s"), reason)
-            : format(_("XPU Workload Manager, unavailable: %s"), reason),
-        label: unknown ? _("Accel Unknown") : _("Accel Offline"),
-        status: "unavailable",
-        severity: null,
-        tooltip: format(_("XPU Workload Manager — %s"), reason),
-    };
-}
-
-function panelModel(state) {
-    if (!state.device.available) {
-        return unavailablePanel(state);
-    }
-    if (state.paused) {
-        return {
-            accessibleName: _("XPU Workload Manager, paused: all workloads paused"),
-            label: _("Accel Paused"),
-            status: "paused",
-            severity: null,
-            tooltip: _("XPU Workload Manager — all workloads paused"),
-        };
-    }
-    if (state.source === "probe") {
-        return {
-            accessibleName: _("XPU Workload Manager, detected: hardware detected; runtime not connected"),
-            label: format(_("%s Detected"), backendLabel(state.device)),
-            status: "detected",
-            severity: null,
-            tooltip: _("XPU Workload Manager — hardware detected; runtime not connected"),
-        };
-    }
-    const load = formatLoad(state.device.load);
-    const attention = state.attentionCount > 0;
-    const reviewText = attentionReviewText(state.attentionCount);
-    const severity = highestActiveSeverity(state.alerts);
-    const attentionText = format(_("%s, highest severity %s"), reviewText, severityText(severity));
-    return {
-        accessibleName: attention
-            ? format(_("XPU Workload Manager, attention: %s"), attentionText)
-            : format(_("XPU Workload Manager, online: %s load"), load),
-        label: attention
-            ? `${backendLabel(state.device)} ${load} · ${severityText(severity)}`
-            : `${backendLabel(state.device)} ${load}`,
-        status: attention ? "attention" : "online",
-        severity,
-        tooltip: attention
-            ? format(_("XPU Workload Manager — %s"), attentionText)
-            : _("XPU Workload Manager — online"),
     };
 }
 

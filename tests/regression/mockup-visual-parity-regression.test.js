@@ -8,7 +8,12 @@ const test = require("node:test");
 const ROOT = path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto");
 const stylesheet = fs.readFileSync(path.join(ROOT, "stylesheet.css"), "utf8");
 const menuView = fs.readFileSync(path.join(ROOT, "lib/menu-view.js"), "utf8");
-const viewModel = fs.readFileSync(path.join(ROOT, "lib/view-model.js"), "utf8");
+const viewModel = [
+    "diagnostics-view-model.js",
+    "panel-view-model.js",
+    "setup-view-model.js",
+    "view-model.js",
+].map((file) => fs.readFileSync(path.join(ROOT, "lib", file), "utf8")).join("\n");
 
 function rule(selector) {
     const escaped = selector.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
