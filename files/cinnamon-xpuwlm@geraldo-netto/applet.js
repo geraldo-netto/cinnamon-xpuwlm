@@ -19,6 +19,7 @@ const Tooltips = imports.ui.tooltips;
 const Util = imports.misc.util;
 
 const AlertNotifier = require("./lib/alert-notifier.js");
+const CinnamonPlatform = require("./lib/cinnamon-platform-adapter.js");
 const CinnamonRuntime = require("./lib/cinnamon-runtime.js");
 const ClipboardSelectionPort = require("./lib/clipboard-selection-port.js");
 const Domain = require("./lib/domain.js");
@@ -30,6 +31,7 @@ const Layout = require("./lib/layout.js");
 const Manager = require("./lib/manager.js");
 const Menu = require("./lib/menu-view.js");
 const PluginInventory = require("./lib/plugin-inventory.js");
+const PlatformPorts = require("./lib/platform-ports.js");
 const ViewModel = require("./lib/view-model.js");
 const WorkloadRegistry = require("./lib/workload-registry.js");
 const WorkflowWiring = require("./lib/workflow-wiring.js");
@@ -202,18 +204,21 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             this._logger,
         );
         this._workloadCatalog = resolveWorkloadCatalog(this._workloadRegistry);
-        this._runtimeGatewayFactory = overrides.runtimeGatewayFactory
-            || ((path) => CinnamonRuntime.createRuntimeGateway({
-                path,
+        this._clock = overrides.clock || Date;
+        this._platform = PlatformPorts.requirePlatformComposition(
+            overrides.platform || CinnamonPlatform.createCinnamonPlatform({
                 environment: this._environment,
+                clock: this._clock,
                 logger: this._logger,
                 workloadCatalog: this._workloadCatalog,
-            }));
+            }),
+        );
+        this._runtimeGatewayFactory = overrides.runtimeGatewayFactory
+            || ((path) => this._platform.discovery.createRuntimeGateway(path));
         this._repository = overrides.repository
             || CinnamonRuntime.createStateRepository(this._environment, this.settings);
         this._runtimeGateway = overrides.runtimeGateway
             || this._runtimeGatewayFactory(this.runtimeStatePath);
-        this._clock = overrides.clock || Date;
         this._scheduler = overrides.scheduler || new CinnamonRuntime.CinnamonScheduler(Mainloop);
         this._createControlPorts(overrides);
         this._createEventPorts(overrides);
@@ -228,18 +233,19 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     // contract gateway asks what the owner speaks before either is used.
     _createControlPorts(overrides) {
         this._controlGateway = overrides.controlGateway
-            || CinnamonRuntime.createRuntimeControlGateway(this._environment);
+            || this._platform.transport.createControlGateway();
         this._jobSubmitter = overrides.jobSubmitter || new JobSubmission.JobSubmitter({
-            gateway: CinnamonRuntime.createRuntimeJobGateway(this._environment),
+            gateway: this._platform.transport.createJobGateway(),
             imagePort: CinnamonRuntime.createImagePort(this._environment),
             clock: overrides.clock || Date,
+            paths: this._platform.paths,
         });
         this._inputCatalog = overrides.inputCatalog
-            || CinnamonRuntime.createInputCatalog(this._environment, this._logger);
+            || this._platform.discovery.createInputCatalog();
         this._controlWatch = overrides.controlWatch
-            || CinnamonRuntime.createControlServiceWatch(this._environment);
+            || this._platform.transport.createControlWatch();
         this._contractGateway = overrides.contractGateway
-            || CinnamonRuntime.createRuntimeContractGateway(this._environment);
+            || this._platform.transport.createContractGateway();
     }
 
     _createEventPorts(overrides) {
@@ -252,12 +258,14 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             this._chooserLifecycle = null;
         }
         this._pluginInventoryGateway = overrides.pluginInventoryGateway
-            || CinnamonRuntime.createPluginInventoryGateway(this._environment);
+            || this._platform.transport.createPluginInventoryGateway();
         const controllers = WorkflowWiring.createWorkflowControllers({
             environment: this._environment,
             chooserLifecycle: this._chooserLifecycle,
             scheduler: this._scheduler,
             clock: this._clock,
+            paths: this._platform.paths,
+            jobGatewayFactory: () => this._platform.transport.createJobGateway(),
             overrides,
         });
         this._eventImport = controllers.eventImport;
@@ -501,7 +509,11 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             fileOrganizer: this._fileOrganizer.state(),
             mediaTranscription: this._mediaTranscription.state(),
         };
-        const model = ViewModel.toViewModel(this._latestState);
+        const model = ViewModel.toViewModel(
+            this._latestState,
+            Date.now(),
+            this._platform.guidance,
+        );
         if (this._view) {
             this._view.render(model);
         }
@@ -569,7 +581,11 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         if (this._destroyed || (!model && !this._latestState)) {
             return;
         }
-        const viewModel = model || ViewModel.toViewModel(this._latestState);
+        const viewModel = model || ViewModel.toViewModel(
+            this._latestState,
+            Date.now(),
+            this._platform.guidance,
+        );
         this.set_applet_label(this.showPanelLabel ? viewModel.panel.label : "");
         this.set_applet_tooltip(viewModel.panel.tooltip);
         this.actor.set_accessible_name(viewModel.panel.accessibleName);

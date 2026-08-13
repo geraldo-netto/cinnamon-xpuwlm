@@ -5,6 +5,7 @@
 
 const DocumentQuestion = require("./document-question.js");
 const Job = require("./runtime-job-contract.js");
+const Paths = require("./path-port.js");
 const Validation = require("./validation.js");
 const Workflow = require("./workflow-controller.js");
 
@@ -216,13 +217,14 @@ function organizationPlan(value, jobId, sources = null) {
     });
 }
 
-function submission(requestId, sources) {
+function submission(requestId, sources, pathPort = Paths.POSIX_PATHS) {
     const document = {
         version: Job.JOB_VERSION,
         requestId,
         workloadId: PROFILE_ID,
         payload: {
-            sources: DocumentQuestion.selectedSources(sources).map((source) => source.path),
+            sources: DocumentQuestion.selectedSources(sources, pathPort)
+                .map((source) => source.path),
         },
     };
     if (!Job.isJobSubmission(document)) {
@@ -263,7 +265,7 @@ function cloneState(state) {
 }
 
 class FileOrganizerController extends Workflow.RuntimeWorkflowController {
-    constructor({picker, gateway, scheduler, clock = Date}) {
+    constructor({picker, gateway, scheduler, clock = Date, paths = Paths.POSIX_PATHS}) {
         const pickerPort = Workflow.requirePort(picker, ["chooseFiles"], "File organizer picker");
         super({
             clock,
@@ -282,6 +284,7 @@ class FileOrganizerController extends Workflow.RuntimeWorkflowController {
             scheduler,
         });
         this._picker = pickerPort;
+        this._paths = Paths.requirePathPort(paths);
     }
 
     chooseFiles() {
@@ -314,7 +317,7 @@ class FileOrganizerController extends Workflow.RuntimeWorkflowController {
         try {
             this._replace({
                 phase: "selected",
-                sources: [...DocumentQuestion.selectedSources(candidates)],
+                sources: [...DocumentQuestion.selectedSources(candidates, this._paths)],
                 message: "Files selected for review-only planning",
             });
             return true;
@@ -334,6 +337,7 @@ class FileOrganizerController extends Workflow.RuntimeWorkflowController {
             request = submission(
                 `xpuwlm-file-organizer-${this._clock.now()}-${sequence}`,
                 this._state.sources,
+                this._paths,
             );
         } catch (error) {
             return this._fail(error.detail || String(error), "selected");

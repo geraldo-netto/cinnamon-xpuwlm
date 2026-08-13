@@ -5,6 +5,7 @@
 // citation-bound public result.
 
 const Job = require("./runtime-job-contract.js");
+const Paths = require("./path-port.js");
 const Validation = require("./validation.js");
 const Workflow = require("./workflow-controller.js");
 
@@ -45,15 +46,19 @@ function suffixOf(path) {
     return SOURCE_SUFFIXES.find((suffix) => lowered.endsWith(suffix)) || "";
 }
 
-function sourceIdentity(candidate) {
-    return isRecord(candidate)
-        && boundedText(candidate.path, 1, 4096)
-        && candidate.path.startsWith("/")
-        && !candidate.path.includes("\0")
-        && boundedText(candidate.name, 1, 255)
+function sourceNameIdentity(candidate, pathPort) {
+    return boundedText(candidate.name, 1, 255)
+        && pathPort.isSafeName(candidate.name)
         && !candidate.name.includes("/")
         && !candidate.name.includes("\\")
         && !candidate.name.startsWith(".");
+}
+
+function sourceIdentity(candidate, pathPort = Paths.POSIX_PATHS) {
+    return isRecord(candidate)
+        && boundedText(candidate.path, 1, 4096)
+        && Paths.requirePathPort(pathPort).isSafeAbsolute(candidate.path)
+        && sourceNameIdentity(candidate, pathPort);
 }
 
 function sourceKind(candidate) {
@@ -65,15 +70,15 @@ function sourceKind(candidate) {
         && suffixOf(candidate.path) !== "";
 }
 
-function supportedSource(candidate) {
-    return sourceIdentity(candidate) && sourceKind(candidate);
+function supportedSource(candidate, pathPort = Paths.POSIX_PATHS) {
+    return sourceIdentity(candidate, pathPort) && sourceKind(candidate);
 }
 
-function selectedSources(candidates) {
+function selectedSources(candidates, pathPort = Paths.POSIX_PATHS) {
     if (!Array.isArray(candidates) || candidates.length < 1 || candidates.length > MAX_SOURCES) {
         throw new DocumentQuestionError("sources-invalid", `choose 1-${MAX_SOURCES} document files`);
     }
-    if (!candidates.every(supportedSource)) {
+    if (!candidates.every((candidate) => supportedSource(candidate, pathPort))) {
         throw new DocumentQuestionError("source-invalid", "choose supported non-empty regular files");
     }
     if (new Set(candidates.map((source) => source.path)).size !== candidates.length) {
@@ -172,13 +177,13 @@ function groundedAnswer(value, jobId) {
     });
 }
 
-function submission(requestId, sources, question) {
+function submission(requestId, sources, question, pathPort = Paths.POSIX_PATHS) {
     const document = {
         version: Job.JOB_VERSION,
         requestId,
         workloadId: PROFILE_ID,
         payload: {
-            sources: selectedSources(sources).map((source) => source.path),
+            sources: selectedSources(sources, pathPort).map((source) => source.path),
             question: normalizedQuestion(question),
         },
     };
@@ -217,7 +222,7 @@ function cloneState(state) {
 }
 
 class DocumentQuestionController extends Workflow.RuntimeWorkflowController {
-    constructor({picker, gateway, scheduler, clock = Date}) {
+    constructor({picker, gateway, scheduler, clock = Date, paths = Paths.POSIX_PATHS}) {
         const pickerPort = Workflow.requirePort(picker, ["chooseFiles"], "Document picker");
         super({
             clock,
@@ -236,6 +241,7 @@ class DocumentQuestionController extends Workflow.RuntimeWorkflowController {
             scheduler,
         });
         this._picker = pickerPort;
+        this._paths = Paths.requirePathPort(paths);
     }
 
     chooseFiles() {
@@ -265,7 +271,11 @@ class DocumentQuestionController extends Workflow.RuntimeWorkflowController {
             return true;
         }
         try {
-            this._replace({phase: "selected", sources: [...selectedSources(candidates)], message: "Documents selected"});
+            this._replace({
+                phase: "selected",
+                sources: [...selectedSources(candidates, this._paths)],
+                message: "Documents selected",
+            });
             return true;
         } catch (selectionError) {
             return this._fail(selectionError.detail || String(selectionError));
@@ -284,6 +294,7 @@ class DocumentQuestionController extends Workflow.RuntimeWorkflowController {
                 `xpuwlm-question-${this._clock.now()}-${sequence}`,
                 this._state.sources,
                 question,
+                this._paths,
             );
         } catch (error) {
             return this._fail(error.detail || String(error), "selected");
@@ -438,6 +449,7 @@ module.exports = {
     selectedSources,
     submission,
     sourceIdentity,
+    sourceNameIdentity,
     sourceKind,
     supportedSource,
     validAnswerCitations,

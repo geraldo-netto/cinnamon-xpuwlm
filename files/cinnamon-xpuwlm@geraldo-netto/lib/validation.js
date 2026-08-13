@@ -1,5 +1,7 @@
 "use strict";
 
+const Paths = require("./path-port.js");
+
 // Syntax shared by the wire and workflow contracts. Domain-specific formats
 // and policy stay with their owning modules; only identical primitives live
 // here so their failure boundaries cannot drift independently.
@@ -40,14 +42,18 @@ function isRequestId(value) {
     return typeof value === "string" && REQUEST_ID.test(value);
 }
 
-function validExportDestination(value, format, formats, maximum) {
+function validExportDestination(
+    value,
+    format,
+    formats,
+    maximum,
+    pathPort = Paths.POSIX_PATHS,
+) {
     return boundedText(value, 1, maximum)
-        && !value.includes("\0")
         && typeof format === "string"
         && Array.isArray(formats)
         && formats.includes(format)
-        && value.startsWith("/")
-        && !value.split("/").includes("..")
+        && Paths.requirePathPort(pathPort).isSafeAbsolute(value)
         && value.toLowerCase().endsWith(`.${format.toLowerCase()}`);
 }
 

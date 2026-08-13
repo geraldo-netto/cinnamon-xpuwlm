@@ -51,6 +51,18 @@ Keep inference out of `applet.js`. Applet code participates in the desktop UI ev
 
 The service should normally be the only process that owns a given inference interpreter and its model schedule. Put requests into a bounded queue, serialize them initially, and add concurrency only after measuring the specific runtime, models, device count, and host. This also prevents multiple panel instances from independently loading models and competing for the same TPU.
 
+### Portable client composition
+
+The production applet composes four host boundaries before constructing its
+workflows: path syntax, recovery guidance, runtime transport, and discovery.
+The Cinnamon composition deliberately selects POSIX paths, Linux device
+discovery, and session D-Bus. Portable validators can instead receive the
+strict Windows path port, but that does not make Windows paths valid for the
+current Linux OmniTensor service or change its serialized snapshot paths. A
+sibling client must provide its own guidance, transport, and authoritative
+discovery implementations; Windows runtime evidence remains a separate
+release prerequisite.
+
 ### XPU workload management
 
 The userspace service can be a broker for many clients and workloads, but it must distinguish software concurrency from hardware parallelism. It can accept several requests at once, preprocess inputs on host threads, and hold multiple jobs in flight. For one physical Edge TPU, however, it should dispatch the actual Edge TPU inference stage one job at a time.

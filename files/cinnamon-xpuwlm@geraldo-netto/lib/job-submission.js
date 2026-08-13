@@ -18,6 +18,7 @@
 
 const Encoder = require("./tensor-encoder.js");
 const Job = require("./runtime-job-contract.js");
+const Paths = require("./path-port.js");
 
 // A subdirectory of the runtime's own input root: inside the boundary the user
 // opted into, so no new permission is involved, and out of the way of the
@@ -93,15 +94,20 @@ function stagedFilename(workloadId, requestId) {
     return name;
 }
 
-function stagedPath(root, workloadId, requestId) {
-    return `${root}/${STAGING_DIRECTORY}/${stagedFilename(workloadId, requestId)}`;
+function stagedPath(root, workloadId, requestId, pathPort = Paths.POSIX_PATHS) {
+    const paths = Paths.requirePathPort(pathPort);
+    return paths.join(
+        paths.join(root, STAGING_DIRECTORY),
+        stagedFilename(workloadId, requestId),
+    );
 }
 
 class JobSubmitter {
-    constructor({gateway, imagePort, clock = Date}) {
+    constructor({gateway, imagePort, clock = Date, paths = Paths.POSIX_PATHS}) {
         this._gateway = requireJobGateway(gateway);
         this._images = requireImagePort(imagePort);
         this._clock = clock;
+        this._paths = Paths.requirePathPort(paths);
         this._sequence = 0;
         this._pending = null;
     }
@@ -133,7 +139,12 @@ class JobSubmitter {
         if (refusal !== null) {
             throw new Encoder.TensorEncodingError(refusal, Encoder.REFUSAL_KINDS[refusal]);
         }
-        const path = stagedPath(request.stagingRoot, request.workloadId, request.requestId);
+        const path = stagedPath(
+            request.stagingRoot,
+            request.workloadId,
+            request.requestId,
+            this._paths,
+        );
         this._pending = {sequence: request.sequence, path};
         this._images.decode(
             request.sourcePath,
@@ -246,7 +257,10 @@ class JobSubmitter {
         let removed = 0;
         for (const root of roots) {
             try {
-                removed += this._images.sweep(`${root}/${STAGING_DIRECTORY}`, STAGED_SUFFIX);
+                removed += this._images.sweep(
+                    this._paths.join(root, STAGING_DIRECTORY),
+                    STAGED_SUFFIX,
+                );
             } catch {
                 // A directory that cannot be swept is litter, not a failure.
             }

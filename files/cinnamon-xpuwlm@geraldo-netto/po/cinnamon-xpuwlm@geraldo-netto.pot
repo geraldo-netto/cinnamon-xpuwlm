@@ -266,11 +266,11 @@ msgstr ""
 msgid "A hardware-qualified media transcription provider is not configured"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "A large clock change can also age a snapshot past its deadline."
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "A missing directory or a replaced path object also fails the read."
 msgstr ""
 
@@ -290,7 +290,7 @@ msgstr ""
 msgid "A trusted local service may atomically publish the versioned JSON contract documented by this applet."
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "A trusted local service must publish the snapshot document."
 msgstr ""
 
@@ -318,7 +318,7 @@ msgstr ""
 msgid "Accelerator"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Accelerator discovery failed"
 msgstr ""
 
@@ -438,35 +438,35 @@ msgstr ""
 msgid "Cancelled"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Check device access"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Check permissions"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Check the clock"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Check the connection"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Check the path"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Check the runtime path"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Check the runtime service"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Check the runtime version"
 msgstr ""
 
@@ -578,27 +578,27 @@ msgstr ""
 msgid "Confirm clearing recent activity history"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Confirm the configured runtime state path matches the service."
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Confirm the current user can access the accelerator runtime."
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Confirm the current user can read the USB, PCIe, accel, and render device nodes."
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Confirm the current user can read the runtime state path."
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Confirm the service is running and still writing its snapshot."
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Connect a supported TPU, NPU, or GPU accelerator."
 msgstr ""
 
@@ -606,7 +606,7 @@ msgstr ""
 msgid "Connect supported hardware"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Connection required"
 msgstr ""
 
@@ -674,7 +674,7 @@ msgstr ""
 msgid "Decrease %s weight"
 msgstr ""
 
-#: lib/panel-view-model.js lib/view-model.js
+#: lib/panel-view-model.js lib/platform-guidance.js
 msgid "Detection failed"
 msgstr ""
 
@@ -686,7 +686,7 @@ msgstr ""
 msgid "Device detected"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Device detection still works. Queue, load, and profile telemetry stay unknown until a runtime publishes a snapshot."
 msgstr ""
 
@@ -706,7 +706,7 @@ msgstr ""
 msgid "Disable %s"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Discovery runs again on request."
 msgstr ""
 
@@ -854,7 +854,7 @@ msgstr ""
 msgid "Increase %s weight"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Inspect the document"
 msgstr ""
 
@@ -898,7 +898,7 @@ msgstr ""
 msgid "Live runtime and device information"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Local discovery could not complete, so device presence is unknown rather than reported as absent."
 msgstr ""
 
@@ -938,11 +938,11 @@ msgstr ""
 msgid "Monitoring"
 msgstr ""
 
-#: lib/manager.js lib/view-model.js
+#: lib/manager.js lib/platform-guidance.js
 msgid "Monitoring has not started"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Monitoring starts with the applet and repeats on the refresh interval."
 msgstr ""
 
@@ -982,7 +982,7 @@ msgstr ""
 msgid "New question"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "No accelerator available"
 msgstr ""
 
@@ -1062,11 +1062,11 @@ msgstr ""
 msgid "No runtime service is publishing a snapshot"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "No runtime service is publishing state"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "No runtime state has been read yet. Local profile intent is unchanged."
 msgstr ""
 
@@ -1134,7 +1134,7 @@ msgstr ""
 msgid "Open setup details, %s"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Open the settings and confirm the runtime state path."
 msgstr ""
 
@@ -1178,7 +1178,7 @@ msgstr ""
 msgid "Preparing the picture…"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Profiles remain saved locally. No data, authorization, or backup policy is changed."
 msgstr ""
 
@@ -1202,7 +1202,7 @@ msgstr ""
 msgid "Rank %d · %s"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Reading the snapshot failed, so device and workload telemetry are unknown rather than assumed."
 msgstr ""
 
@@ -1302,7 +1302,7 @@ msgstr ""
 msgid "Retry accelerator detection"
 msgstr ""
 
-#: lib/menu-view.js lib/view-model.js
+#: lib/menu-view.js lib/platform-guidance.js
 msgid "Retry detection"
 msgstr ""
 
@@ -1390,7 +1390,7 @@ msgstr ""
 msgid "Runtime"
 msgstr ""
 
-#: lib/panel-view-model.js lib/view-model.js
+#: lib/panel-view-model.js lib/platform-guidance.js
 msgid "Runtime absent"
 msgstr ""
 
@@ -1422,7 +1422,7 @@ msgstr ""
 msgid "Runtime job service is unavailable; start it and retry"
 msgstr ""
 
-#: lib/panel-view-model.js lib/view-model.js
+#: lib/panel-view-model.js lib/platform-guidance.js
 msgid "Runtime malformed"
 msgstr ""
 
@@ -1450,7 +1450,7 @@ msgstr ""
 msgid "Runtime snapshot timestamp is invalid"
 msgstr ""
 
-#: lib/panel-view-model.js lib/view-model.js
+#: lib/panel-view-model.js lib/platform-guidance.js
 msgid "Runtime stale"
 msgstr ""
 
@@ -1462,7 +1462,7 @@ msgstr ""
 msgid "Runtime state is unknown"
 msgstr ""
 
-#: lib/panel-view-model.js lib/view-model.js
+#: lib/panel-view-model.js lib/platform-guidance.js
 msgid "Runtime unreadable"
 msgstr ""
 
@@ -1556,11 +1556,11 @@ msgstr ""
 msgid "Start a tool when you are ready"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Start the workload runtime"
 msgstr ""
 
-#: lib/panel-view-model.js lib/view-model.js
+#: lib/panel-view-model.js lib/platform-guidance.js
 msgid "Starting"
 msgstr ""
 
@@ -1632,7 +1632,7 @@ msgstr ""
 msgid "The applet reads this file but never executes content from it. If it is absent, hardware discovery provides a safe device-only status."
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "The document was read but rejected by the version 1 contract, so none of its values are displayed."
 msgstr ""
 
@@ -1644,7 +1644,7 @@ msgstr ""
 msgid "The input buffer could not be written where the runtime reads"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "The last snapshot is older than its freshness deadline, so its values are no longer shown as current."
 msgstr ""
 
@@ -1728,19 +1728,19 @@ msgstr ""
 msgid "The runtime service stopped; changes are not being applied"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "The runtime snapshot could not be read"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "The runtime snapshot failed validation"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "The runtime snapshot stopped updating"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "The service must publish the version 1 snapshot contract."
 msgstr ""
 
@@ -1876,7 +1876,7 @@ msgstr ""
 msgid "Upgraded"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Validate it against runtime-snapshot.schema.json."
 msgstr ""
 
@@ -1884,7 +1884,7 @@ msgstr ""
 msgid "Visible text: %s"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/platform-guidance.js
 msgid "Wait for the first read"
 msgstr ""
 

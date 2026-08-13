@@ -4,6 +4,7 @@
 // behind an injected port: this module owns format routing, lossless
 // intermediate policy, limits, result validation, cancellation, and cleanup.
 
+const Paths = require("./path-port.js");
 const Validation = require("./validation.js");
 
 const VERSION = 1;
@@ -98,11 +99,12 @@ function mediaFamily(path) {
     return formatDefinition(path)?.family || "";
 }
 
-function validSourceIdentity(value) {
+function validSourceIdentity(value, pathPort = Paths.POSIX_PATHS) {
     return typeof value.path === "string"
-        && value.path.startsWith("/")
+        && Paths.requirePathPort(pathPort).isSafeAbsolute(value.path)
         && value.path.length <= 4096
         && typeof value.name === "string"
+        && pathPort.isSafeName(value.name)
         && FILE_NAME.test(value.name);
 }
 
@@ -115,14 +117,14 @@ function validSourceKind(value) {
         && formatDefinition(value.path) !== null;
 }
 
-function validSource(value) {
+function validSource(value, pathPort = Paths.POSIX_PATHS) {
     return exactKeys(value, ["path", "name", "size", "regular", "symlink"])
-        && validSourceIdentity(value)
+        && validSourceIdentity(value, pathPort)
         && validSourceKind(value);
 }
 
-function ownedSource(value) {
-    if (!validSource(value)) {
+function ownedSource(value, pathPort = Paths.POSIX_PATHS) {
+    if (!validSource(value, pathPort)) {
         throw new MediaPreprocessingError("source-invalid", "media source is invalid");
     }
     return Object.freeze({
@@ -276,8 +278,8 @@ function frozenAudioPolicy() {
     });
 }
 
-function preprocessingPlan(source, probe) {
-    const selected = ownedSource(source);
+function preprocessingPlan(source, probe, pathPort = Paths.POSIX_PATHS) {
+    const selected = ownedSource(source, pathPort);
     if (!validProbe(selected, probe)) {
         throw new MediaPreprocessingError("probe-invalid", "media probe is invalid");
     }
@@ -415,8 +417,15 @@ function requirePort(candidate, methods, label) {
     return candidate;
 }
 
-async function preprocessMedia({source, adapter, temporary, signal, consume}) {
-    const selected = ownedSource(source);
+async function preprocessMedia({
+    source,
+    adapter,
+    temporary,
+    signal,
+    consume,
+    paths = Paths.POSIX_PATHS,
+}) {
+    const selected = ownedSource(source, paths);
     const decoder = requirePort(adapter, ["inspect", "decode"], "media adapter");
     const temporaryFiles = requirePort(temporary, ["open", "cleanup"], "temporary file");
     const cancellation = requirePort(signal, ["throwIfCancelled"], "cancellation");
@@ -426,7 +435,7 @@ async function preprocessMedia({source, adapter, temporary, signal, consume}) {
     cancellation.throwIfCancelled();
     const probe = await decoder.inspect(selected, cancellation);
     cancellation.throwIfCancelled();
-    const plan = preprocessingPlan(selected, probe);
+    const plan = preprocessingPlan(selected, probe, paths);
     const scope = await temporaryFiles.open(plan);
     try {
         cancellation.throwIfCancelled();

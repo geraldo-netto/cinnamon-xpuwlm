@@ -8,6 +8,7 @@
 const {EventImportError} = require("./event-import-error.js");
 const IcsExport = require("./ics-export.js");
 const Job = require("./runtime-job-contract.js");
+const Paths = require("./path-port.js");
 const Validation = require("./validation.js");
 
 const {
@@ -54,16 +55,16 @@ function suffixOf(path) {
     return SOURCE_SUFFIXES.find((suffix) => lowered.endsWith(suffix)) || "";
 }
 
-function isSupportedSourceName(path) {
-    return suffixOf(path) !== "" && !String(path).split("/").pop().startsWith(".");
+function isSupportedSourceName(path, pathPort = Paths.POSIX_PATHS) {
+    return suffixOf(path) !== ""
+        && !Paths.requirePathPort(pathPort).basename(path).startsWith(".");
 }
 
-function hasSourceIdentity(candidate) {
+function hasSourceIdentity(candidate, pathPort = Paths.POSIX_PATHS) {
     return isRecord(candidate)
-        && typeof candidate.path === "string"
-        && candidate.path.startsWith("/")
-        && !candidate.path.includes("\0")
-        && boundedText(candidate.name, 1, 255);
+        && Paths.requirePathPort(pathPort).isSafeAbsolute(candidate.path)
+        && boundedText(candidate.name, 1, 255)
+        && pathPort.isSafeName(candidate.name);
 }
 
 function hasSourceKind(candidate) {
@@ -74,10 +75,10 @@ function hasSourceKind(candidate) {
         && candidate.size <= MAX_SOURCE_BYTES;
 }
 
-function sourceItem(candidate) {
-    if (!hasSourceIdentity(candidate)
+function sourceItem(candidate, pathPort = Paths.POSIX_PATHS) {
+    if (!hasSourceIdentity(candidate, pathPort)
         || !hasSourceKind(candidate)
-        || !isSupportedSourceName(candidate.path)) {
+        || !isSupportedSourceName(candidate.path, pathPort)) {
         throw new EventImportError("source-invalid", "choose supported non-empty regular files");
     }
     return Object.freeze({
@@ -89,11 +90,11 @@ function sourceItem(candidate) {
     });
 }
 
-function selectedSources(candidates) {
+function selectedSources(candidates, pathPort = Paths.POSIX_PATHS) {
     if (!Array.isArray(candidates) || candidates.length < 1 || candidates.length > MAX_SOURCES) {
         throw new EventImportError("sources-invalid", `choose 1-${MAX_SOURCES} source files`);
     }
-    const sources = candidates.map(sourceItem);
+    const sources = candidates.map((candidate) => sourceItem(candidate, pathPort));
     if (new Set(sources.map((source) => source.path)).size !== sources.length) {
         throw new EventImportError("source-duplicate", "the same source was selected twice");
     }
@@ -250,12 +251,12 @@ function sourceLabel(evidence, sources) {
     return index >= 0 && index < sources.length ? sources[index].name : "Selected source";
 }
 
-function eventSubmission(requestId, sources) {
+function eventSubmission(requestId, sources, pathPort = Paths.POSIX_PATHS) {
     const submission = {
         version: Job.JOB_VERSION,
         requestId,
         workloadId: EVENT_PROFILE_ID,
-        payload: {sources: selectedSources(sources).map((source) => source.path)},
+        payload: {sources: selectedSources(sources, pathPort).map((source) => source.path)},
     };
     if (!Job.isJobSubmission(submission)) {
         throw new EventImportError("request-invalid", "event submission is invalid");
@@ -315,7 +316,7 @@ function cloneState(state) {
 }
 
 class EventImportController {
-    constructor({picker, gateway, exporter, scheduler, clock = Date}) {
+    constructor({picker, gateway, exporter, scheduler, clock = Date, paths = Paths.POSIX_PATHS}) {
         this._picker = requirePort(picker, ["chooseFiles", "chooseFolder"], "Event source picker");
         this._gateway = requirePort(
             gateway,
@@ -328,6 +329,7 @@ class EventImportController {
             throw new TypeError("Event clock is required");
         }
         this._clock = clock;
+        this._paths = Paths.requirePathPort(paths);
         this._sequence = 0;
         this._polls = 0;
         this._pollHandle = null;
@@ -393,7 +395,7 @@ class EventImportController {
             return true;
         }
         try {
-            const sources = selectedSources(candidates);
+            const sources = selectedSources(candidates, this._paths);
             this._replace({phase: "selected", sources: [...sources], message: "Sources selected"});
             return true;
         } catch (selectionError) {
@@ -408,7 +410,7 @@ class EventImportController {
         }
         const sequence = this._nextSequence();
         const requestId = `xpuwlm-event-${this._clock.now()}-${sequence}`;
-        const submission = eventSubmission(requestId, this._state.sources);
+        const submission = eventSubmission(requestId, this._state.sources, this._paths);
         this._replace({phase: "submitting", message: "Submitting selected files…", progress: null});
         try {
             this._gateway.submit(submission, (error, reply) => this._accepted(sequence, error, reply));

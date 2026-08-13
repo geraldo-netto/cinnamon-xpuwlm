@@ -7,6 +7,7 @@ const test = require("node:test");
 
 const Wiring = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workflow-wiring.js");
 const WiringFacade = require("../../files/cinnamon-xpuwlm@geraldo-netto/workflow-wiring.js");
+const Paths = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/path-port.js");
 
 const APPLET_PATH = path.join(
     __dirname,
@@ -48,4 +49,18 @@ test("workflow controller overrides preserve their exact identities", () => {
     assert.strictEqual(controllers.selectedText, overrides.selectedTextController);
     assert.strictEqual(controllers.fileOrganizer, overrides.fileOrganizerController);
     assert.strictEqual(controllers.mediaTranscription, overrides.mediaTranscriptionController);
+});
+
+test("workflow wiring requires an injected job transport and defaults paths to POSIX", () => {
+    const missing = Wiring.controllerPorts({});
+    assert.strictEqual(missing.paths, Paths.POSIX_PATHS);
+    assert.throws(() => missing.gateway(), /job transport/u);
+
+    const gateway = {id: "transport"};
+    const windows = Wiring.controllerPorts({
+        jobGatewayFactory: () => gateway,
+        paths: Paths.WINDOWS_PATHS,
+    });
+    assert.strictEqual(windows.paths, Paths.WINDOWS_PATHS);
+    assert.strictEqual(windows.gateway(), gateway);
 });

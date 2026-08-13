@@ -4,6 +4,7 @@
 // out. Only a qualified accelerator worker can make this workflow available.
 
 const Job = require("./runtime-job-contract.js");
+const Paths = require("./path-port.js");
 const Preprocessing = require("./media-preprocessing.js");
 const Validation = require("./validation.js");
 const Workflow = require("./workflow-controller.js");
@@ -56,14 +57,19 @@ function modalityOf(path) {
     return Preprocessing.mediaFamily(path);
 }
 
-function validSourceIdentity(candidate) {
-    return isRecord(candidate)
-        && boundedText(candidate.path, 1, 4096)
-        && candidate.path.startsWith("/")
-        && boundedText(candidate.name, 1, 255)
+function validSourceName(candidate, pathPort) {
+    return boundedText(candidate.name, 1, 255)
+        && pathPort.isSafeName(candidate.name)
         && !candidate.name.includes("/")
         && !candidate.name.includes("\\")
         && !candidate.name.startsWith(".");
+}
+
+function validSourceIdentity(candidate, pathPort = Paths.POSIX_PATHS) {
+    return isRecord(candidate)
+        && boundedText(candidate.path, 1, 4096)
+        && Paths.requirePathPort(pathPort).isSafeAbsolute(candidate.path)
+        && validSourceName(candidate, pathPort);
 }
 
 function validSourceKind(candidate) {
@@ -76,15 +82,15 @@ function validSourceKind(candidate) {
         && modalityOf(candidate.path) !== "";
 }
 
-function supportedSource(candidate) {
-    return validSourceIdentity(candidate) && validSourceKind(candidate);
+function supportedSource(candidate, pathPort = Paths.POSIX_PATHS) {
+    return validSourceIdentity(candidate, pathPort) && validSourceKind(candidate);
 }
 
-function selectedSource(candidates) {
+function selectedSource(candidates, pathPort = Paths.POSIX_PATHS) {
     if (!Array.isArray(candidates) || candidates.length !== 1) {
         throw new MediaTranscriptionError("source-invalid", "choose exactly one media file");
     }
-    if (!supportedSource(candidates[0])) {
+    if (!supportedSource(candidates[0], pathPort)) {
         throw new MediaTranscriptionError(
             "source-invalid", "choose one supported non-empty regular media file",
         );
@@ -261,12 +267,12 @@ function transcriptionResult(value, jobId, selected) {
     });
 }
 
-function submission(requestId, source) {
+function submission(requestId, source, pathPort = Paths.POSIX_PATHS) {
     const document = {
         version: Job.JOB_VERSION,
         requestId,
         workloadId: PROFILE_ID,
-        payload: {sources: [selectedSource([source]).path]},
+        payload: {sources: [selectedSource([source], pathPort).path]},
     };
     if (!Job.isJobSubmission(document)) {
         throw new MediaTranscriptionError(
@@ -356,7 +362,7 @@ function cloneState(state) {
 }
 
 class MediaTranscriptionController extends Workflow.RuntimeWorkflowController {
-    constructor({picker, gateway, scheduler, clock = Date}) {
+    constructor({picker, gateway, scheduler, clock = Date, paths = Paths.POSIX_PATHS}) {
         const pickerPort = Workflow.requirePort(picker, ["chooseFiles"], "Media picker");
         super({
             clock,
@@ -375,6 +381,7 @@ class MediaTranscriptionController extends Workflow.RuntimeWorkflowController {
             scheduler,
         });
         this._picker = pickerPort;
+        this._paths = Paths.requirePathPort(paths);
     }
 
     chooseFiles() {
@@ -405,7 +412,7 @@ class MediaTranscriptionController extends Workflow.RuntimeWorkflowController {
             return true;
         }
         try {
-            const source = selectedSource(candidates);
+            const source = selectedSource(candidates, this._paths);
             this._replace({
                 phase: "selected",
                 sources: [source],
@@ -428,6 +435,7 @@ class MediaTranscriptionController extends Workflow.RuntimeWorkflowController {
             request = submission(
                 `xpuwlm-media-${this._clock.now()}-${sequence}`,
                 this._state.sources[0],
+                this._paths,
             );
         } catch (error) {
             return this._fail(error.detail || String(error), "selected");
@@ -598,6 +606,7 @@ module.exports = {
     validDuration,
     validSegment,
     validSourceResult,
+    validSourceName,
     validSpeech,
     validSpeechIdentity,
     validSpeechSegments,

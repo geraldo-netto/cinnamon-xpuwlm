@@ -1,6 +1,5 @@
 "use strict";
 
-const CinnamonRuntime = require("./cinnamon-runtime.js");
 const ClipboardSelectionPort = require("./clipboard-selection-port.js");
 const DocumentQuestion = require("./document-question.js");
 const DocumentSourcePort = require("./document-source-port.js");
@@ -10,6 +9,7 @@ const FileOrganizer = require("./file-organizer.js");
 const I18n = require("./i18n.js");
 const MediaSourcePort = require("./media-source-port.js");
 const MediaTranscription = require("./media-transcription.js");
+const Paths = require("./path-port.js");
 const SelectedText = require("./selected-text.js");
 
 const {_} = I18n;
@@ -33,13 +33,23 @@ function unavailableClipboardReader() {
     };
 }
 
-function controllerPorts({environment, chooserLifecycle, scheduler, clock}) {
+function controllerPorts({
+    environment,
+    chooserLifecycle,
+    scheduler,
+    clock,
+    jobGatewayFactory,
+    paths = Paths.POSIX_PATHS,
+}) {
     return {
         environment,
         chooserLifecycle,
         scheduler,
         clock,
-        gateway: () => CinnamonRuntime.createRuntimeJobGateway(environment),
+        paths: Paths.requirePathPort(paths),
+        gateway: typeof jobGatewayFactory === "function"
+            ? jobGatewayFactory
+            : () => { throw new TypeError("Workflow job transport is required"); },
     };
 }
 
@@ -58,6 +68,7 @@ function createMediaTranscriptionController(shared) {
         gateway: shared.gateway(),
         scheduler: shared.scheduler,
         clock: shared.clock,
+        paths: shared.paths,
     });
 }
 
@@ -77,6 +88,7 @@ function createFileOrganizerController(shared) {
         gateway: shared.gateway(),
         scheduler: shared.scheduler,
         clock: shared.clock,
+        paths: shared.paths,
     });
 }
 
@@ -110,6 +122,7 @@ function createDocumentQuestionController(shared) {
         gateway: shared.gateway(),
         scheduler: shared.scheduler,
         clock: shared.clock,
+        paths: shared.paths,
     });
 }
 
@@ -134,11 +147,27 @@ function createEventImportController(shared) {
         gateway: shared.gateway(),
         scheduler: shared.scheduler,
         clock: shared.clock,
+        paths: shared.paths,
     });
 }
 
-function createWorkflowControllers({environment, chooserLifecycle, scheduler, clock, overrides}) {
-    const shared = controllerPorts({environment, chooserLifecycle, scheduler, clock});
+function createWorkflowControllers({
+    environment,
+    chooserLifecycle,
+    scheduler,
+    clock,
+    jobGatewayFactory,
+    paths,
+    overrides,
+}) {
+    const shared = controllerPorts({
+        environment,
+        chooserLifecycle,
+        scheduler,
+        clock,
+        jobGatewayFactory,
+        paths,
+    });
     return {
         eventImport: overrides.eventImportController || createEventImportController(shared),
         documentQuestion: overrides.documentQuestionController

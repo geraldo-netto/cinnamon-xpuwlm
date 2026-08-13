@@ -9,6 +9,7 @@ const Layout = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/layout.js"
 const Manifest = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-manifest.js");
 const Registry = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-registry.js");
 const ManifestFixtures = require("../helpers/workload-manifest-fixtures.js");
+const Paths = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/path-port.js");
 const {
     FakeActor,
     FakeMenu,
@@ -303,6 +304,70 @@ test("constructor binds settings, registers icon, renders, and starts polling", 
     assert.equal(views[0].models.length, 1);
     assert.equal(settings.getValue("identity-migration-version"), 0,
         "an injected settings factory owns its own migration policy");
+});
+
+test("injected platform composition owns app guidance, transport, and discovery", () => {
+    const calls = [];
+    const gateway = {
+        submit() {}, requestResult() {}, cancelJob() {}, cancel: () => false,
+    };
+    const platform = {
+        paths: Paths.POSIX_PATHS,
+        guidance: {
+            recoveryFor(runtime) {
+                calls.push(["guidance", runtime]);
+                return {
+                    kicker: "Platform",
+                    title: "Platform recovery",
+                    description: "Platform-specific recovery",
+                    steps: [["1", "Repair", "Use the platform service manager"]],
+                };
+            },
+        },
+        transport: {
+            createControlGateway() {
+                calls.push(["control"]);
+                return {send() {}, cancel: () => false};
+            },
+            createJobGateway() {
+                calls.push(["job"]);
+                return gateway;
+            },
+            createControlWatch() {
+                calls.push(["watch"]);
+                return {watch: () => null};
+            },
+            createContractGateway() {
+                calls.push(["contract"]);
+                return {describe() {}, cancel: () => false};
+            },
+            createPluginInventoryGateway() {
+                calls.push(["inventory"]);
+                return {
+                    describe: (callback) => callback(new Error("offline"), null),
+                    cancel: () => false,
+                };
+            },
+        },
+        discovery: {
+            createRuntimeGateway() {
+                calls.push(["runtime"]);
+                throw new Error("runtime override should win");
+            },
+            createInputCatalog() {
+                calls.push(["inputs"]);
+                return {pictures: () => ({pictures: [], omitted: 0})};
+            },
+        },
+    };
+    const {applet, views} = appletHarness({platform});
+    assert.equal(calls.filter(([name]) => name === "job").length, 6);
+    for (const name of ["control", "watch", "contract", "inventory", "inputs", "guidance"]) {
+        assert.equal(calls.some(([called]) => called === name), true, name);
+    }
+    assert.equal(calls.some(([name]) => name === "runtime"), false);
+    assert.equal(views[0].models[0].recovery.title, "Platform recovery");
+    applet.on_applet_removed_from_panel();
 });
 
 test("menu actions delegate without mixing responsibilities", () => {
