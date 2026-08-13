@@ -66,6 +66,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "runtime-acknowledgement.schema.json",
     "runtime-refusal-contract.js",
     "runtime-refusal.schema.json",
+    "routine-recognition.js",
     "runtime-snapshot-contract.js",
     "runtime-snapshot-schema-validator.js",
     "runtime-snapshot.schema.json",

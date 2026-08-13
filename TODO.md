@@ -12,7 +12,7 @@ domain grouping without weakening the required status schema.
 - **Hardware and storage:** XTPU-0104–XTPU-0110
 - **Scheduling, network, and security:** XTPU-0111–XTPU-0114
 - **Developer tools:** XTPU-0115–XTPU-0120
-- **Local files and routines:** XTPU-0124–XTPU-0125
+- **Local files and routines:** XTPU-0125
 - **Vision and image processing:** XTPU-0049, XTPU-0126–XTPU-0129
 - **Camera, equipment, and audio:** XTPU-0130–XTPU-0133
 - **Presentations, media, and screenshots:** XTPU-0134–XTPU-0138
@@ -30,7 +30,6 @@ domain grouping without weakening the required status schema.
 | XTPU-0118 | open | medium | l | XTPU-0095, XTPU-0099 | Evaluate fuzz-crash deduplication across normalized signatures, host clustering, GPU embeddings, and hybrid cascades by precision/recall, performance, memory, and operator review cost. |
 | XTPU-0119 | open | medium | l | XTPU-0095, XTPU-0097, XTPU-0103 | Evaluate compiler-option suggestion using only validated allowlisted profiles; compare search, host, GPU, and hybrid recommenders on correctness, build cost, size, runtime, and memory. |
 | XTPU-0120 | open | medium | l | XTPU-0095, XTPU-0096, XTPU-0099, OMNI-0094, OMNI-0095, OMNI-0096 | Implement versioned resource-regression experiments comparing statistical, host-model, GPU-model, and hybrid detection on repeated CPU, memory, I/O, GPU, and startup measurements. |
-| XTPU-0124 | open | high | l | XTPU-0095, XTPU-0096, XTPU-0098, XTPU-0100, XTPU-0103, OMNI-0112, OMNI-0113, OMNI-0114, OMNI-0115 | Implement opt-in, content-free local routine recognition experiments across statistical, host-model, GPU-model, and hybrid suggestions; require confirmation for every proposed automation. |
 | XTPU-0127 | open | medium | l | XTPU-0095, XTPU-0097, XTPU-0099, XTPU-0102 | Select, export, and benchmark a license-compatible foreground/person segmentation model, returning validated masks with original geometry on named Vulkan hardware. |
 | XTPU-0128 | open | medium | m | XTPU-0100, XTPU-0102, XTPU-0103, XTPU-0127 | Build background removal on the shared segmentation result, benchmark composition placement, and publish a new PNG/WebP without overwriting the source. |
 | XTPU-0133 | open | medium | l | XTPU-0095, XTPU-0097, XTPU-0099, XTPU-0102 | Evaluate music genre, instrument, and mood tagging with separate bounded label sets and host/GPU candidates, returning timestamped confidence evidence for selected audio. |
