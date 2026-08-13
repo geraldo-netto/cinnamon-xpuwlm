@@ -52,6 +52,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "plugin-inventory.js",
     "presentation-planning.js",
     "presentation-review.js",
+    "rehearsal-briefing.js",
     "readiness-acceptance.js",
     "profile-blockers.js",
     "gio-file-adapter.js",
