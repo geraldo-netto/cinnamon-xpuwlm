@@ -151,4 +151,28 @@ Audio capture, resampling, spectrogram creation, beamforming, decoding, and play
 | Voice activity detection | Speech/non-speech class | Usually better with conventional CPU methods unless part of a larger model |
 | Direction-of-arrival classification | Direction class | Experimental; multichannel signal processing remains on the host |
 | Speech enhancement or noise suppression | Enhanced samples or mask | Experimental; streaming and model compatibility are demanding |
-| General speech-to-text | Token sequence | Usually a poor Coral fit; full ASR models often exceed practical compatibility constraints |
+| General speech-to-text | Token sequence | Usually a poor Coral fit; a separately qualified GPU speech provider can support bounded transcription while capture, decoding, timestamps, and delivery remain host work |
+
+## Presentation and media studio
+
+This proposed GPU composition is the canonical home for presentation review,
+meeting and rehearsal analysis, multimedia transcription, captioning, archive
+retrieval, and reviewable edit planning. It combines capabilities rather than
+claiming that any single model decodes media, edits an office archive, or
+controls the filesystem.
+
+| Workflow | Accelerator stages | Deterministic host and user boundary |
+| --- | --- | --- |
+| Presentation review | Vision and language workers summarize slides, describe charts and images, find repeated or contradictory claims, propose speaker notes, and generate likely audience questions | Parse PPTX, ODP, and PDF structure; preserve slide order; bind observations to slides and source documents; keep every proposed revision editable |
+| Presentation planning | A language worker turns selected grounded sources into an outline, slide plan, notes, and accessibility descriptions | A validated intermediate document owns titles, citations, and asset references; a deterministic writer may create PPTX or ODP only after explicit confirmation |
+| Rehearsal or meeting briefing | Speech, vision, and language workers combine a recording with slide changes to produce a transcript, summary, decisions, tasks, questions, timing feedback, and event candidates | Preserve timestamps and slide references; distinguish suggestions from confirmed assignments; never create tasks or calendar entries silently |
+| Media transcription and captions | Speech and vision workers produce timestamped speech, visible text, scene descriptions, topic boundaries, and subtitle candidates | Decode, resample, sample frames, validate timing, and render SRT or WebVTT deterministically; do not transcode through an avoidable lossy intermediate |
+| Searchable media archive | Embed transcripts, selected frames, slide text, and bounded descriptions for cross-modal retrieval | The local content vault owns the persistent index and returns file, page, slide, and timestamp evidence; exact duplicates use cryptographic hashes |
+| Reviewable edit planning | Language and vision workers suggest chapters, highlights, slate or take boundaries, thumbnails, and a timestamped cut list | The model never edits source media; a deterministic FFmpeg or media-engine plan is shown for review and writes a new output without overwriting the original |
+| Screenshot assistant | Vision and language workers extract visible text, describe the scene, explain an error or chart, and transform or translate explicitly selected text | Capture is explicit, output is reviewable, and no UI control is activated from model output |
+
+A daily multimedia briefing is a view over these same stages: select documents,
+slides, audio, video, or images; receive one cited summary plus decisions, tasks,
+and event candidates; then copy or export only the parts the user confirms.
+GPU stages must share the accelerator lease, unload incompatible models between
+stages, yield to interactive work, expose progress, and remain cancellable.

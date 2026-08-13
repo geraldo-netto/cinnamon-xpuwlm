@@ -76,6 +76,11 @@ Every entry below is speculative, not a capability or performance claim.
 
 ## Storage, databases, search, and data engineering
 
+Personal archives, lost-file retrieval, screenshot search, semantic document
+search, and review-only organization are consolidated in the canonical
+[local content vault and organization](systems-and-data.md#local-content-vault-and-organization)
+workflow. The table below retains distinct database and data-engineering roles.
+
 | Idea | Possible inference role |
 | --- | --- |
 | Query-intent classification | Route interactive, analytical, maintenance, and batch requests |
@@ -97,7 +102,6 @@ Every entry below is speculative, not a capability or performance claim.
 | Retention-policy suggestion | Classify records into allowlisted lifecycle categories |
 | Document-ingestion routing | Select OCR, parser, language, or review pipelines |
 | Table and field localization | Detect layout regions before conventional extraction |
-| Semantic record search | Produce embeddings while the host maintains the index |
 | Cold-data rehydration prediction | Forecast archived objects likely to be requested soon |
 | Backup-delta forecasting | Estimate the size or duration class of the next backup |
 | Restore-risk triage | Rank backups by anomalous history or incomplete validation |
@@ -106,6 +110,11 @@ Every entry below is speculative, not a capability or performance claim.
 | Stream-partition routing | Classify events into valid queues or processing branches |
 
 ## Developer tools, software delivery, and operations
+
+Repository retrieval, failure analysis, diff review, documentation and release
+drafting, and architecture exploration are consolidated in the canonical
+[developer GPU workbench](systems-and-data.md#developer-gpu-workbench).
+The table below retains narrower prediction and delivery-policy ideas.
 
 | Idea | Possible inference role |
 | --- | --- |
@@ -116,10 +125,6 @@ Every entry below is speculative, not a capability or performance claim.
 | CI runner selection | Match a job with an allowlisted runner profile |
 | Change-risk scoring | Rank commits for deeper review without skipping required checks |
 | Code-owner suggestion | Classify changed paths and semantics into ownership groups |
-| Duplicate-bug detection | Embed reports, logs, and traces for similarity search |
-| Crash and stack-trace clustering | Group likely instances of one underlying failure |
-| Static-warning triage | Rank warnings likely to be actionable or security-sensitive |
-| Code-review focus hints | Identify files or patterns deserving extra human attention |
 | API-misuse classification | Detect bounded call patterns associated with common mistakes |
 | Dependency-update risk | Score an update from API, test, and historical compatibility features |
 | Release-regression warning | Detect metric changes resembling previous bad releases |
@@ -129,11 +134,8 @@ Every entry below is speculative, not a capability or performance claim.
 | Fuzz-crash deduplication | Embed traces or coverage summaries for clustering |
 | Compiler-option suggestion | Classify a build into previously validated optimization profiles |
 | Resource-regression detection | Recognize memory, CPU, I/O, or startup regressions |
-| Semantic code search | Produce code embeddings for a host-side index |
 | Commit-intent classification | Label fixes, features, refactors, tests, and documentation |
 | Issue routing | Classify incoming issues by component and expertise |
-| Documentation-gap detection | Rank code or API changes likely to need documentation |
-| Example-code relevance ranking | Match a developer question with local sample embeddings |
 | IDE command prediction | Predict a small set of likely next actions |
 | Local completion candidate ranking | Re-rank pre-generated suggestions with a compact model |
 | Terminal-command risk warning | Classify proposed commands before execution, never auto-authorize them |
@@ -141,6 +143,10 @@ Every entry below is speculative, not a capability or performance claim.
 | Postmortem event alignment | Classify and group timeline events from several systems |
 
 ## Desktop, workstation, accessibility, and personal computing
+
+Semantic screenshot and lost-file retrieval belong to the shared
+[local content vault](systems-and-data.md#local-content-vault-and-organization),
+so they are not repeated as independent products here.
 
 | Idea | Possible inference role |
 | --- | --- |
@@ -153,7 +159,6 @@ Every entry below is speculative, not a capability or performance claim.
 | Adaptive power profile | Select among tested profiles from workload and battery context |
 | Fan-profile anticipation | Predict thermal demand before a burst begins |
 | Local file auto-tagging | Classify downloads, screenshots, scans, and attachments |
-| Screenshot semantic search | Generate embeddings for a private local index |
 | Clipboard sensitivity warning | Classify copied material before it is pasted or synchronized |
 | Download-risk triage | Classify file metadata or previews for a review prompt |
 | Typing-error correction signal | Classify likely mistypes in a bounded vocabulary |
@@ -169,7 +174,6 @@ Every entry below is speculative, not a capability or performance claim.
 | Fatigue-break suggestion | Classify interaction patterns into optional break prompts |
 | Ambient-interface adaptation | Select contrast, brightness, or notification profiles from context |
 | Presence-aware privacy mode | Hide previews when an additional viewer may be present |
-| Lost-file retrieval | Embed previews and metadata for similarity-based recall |
 | Personal photo curation | Rank duplicates, blur, expressions, and representative shots |
 | Local routine recognition | Classify repeated device-use patterns for opt-in automation |
 | Peripheral-failure warning | Classify mouse, keyboard, disk, battery, or dock telemetry |
@@ -177,27 +181,26 @@ Every entry below is speculative, not a capability or performance claim.
 
 ## Communication, collaboration, and personal knowledge
 
+Meeting action and decision extraction, topic segmentation, voice-note
+processing, and cross-modal archive retrieval are consolidated in the
+[presentation and media studio](vision-and-audio.md#presentation-and-media-studio)
+and [local content vault](systems-and-data.md#local-content-vault-and-organization).
+The table below retains distinct communication-policy ideas.
+
 | Idea | Possible inference role |
 | --- | --- |
 | Email-priority ranking | Score messages for user-configurable queues |
 | Thread-intent classification | Label requests, decisions, status, social, and reference messages |
 | Reply-urgency estimation | Predict whether a message may need prompt attention |
 | Local spam and scam triage | Classify content and metadata as an additional signal |
-| Meeting action-item detection | Mark likely assignments in local transcript segments |
-| Decision and question extraction | Classify transcript or note spans for review |
-| Topic-boundary detection | Segment meetings, lectures, or podcasts into sections |
 | Speaker-change detection | Classify audio windows without claiming speaker identity |
 | Language identification | Select an offline transcription or translation path |
 | Tone and sentiment cue | Offer an editable communication-quality warning |
 | Conversation moderation cue | Flag likely abuse, escalation, or policy categories for review |
 | Contact prediction | Rank likely recipients from local context |
 | Attachment-mismatch warning | Detect when message intent suggests a missing attachment |
-| Note auto-linking | Embed notes and rank likely conceptual connections |
-| Personal knowledge retrieval | Generate embeddings for a private host-side search index |
-| Duplicate-document detection | Compare semantic and visual embeddings |
 | Calendar-overrun prediction | Forecast whether a meeting is likely to exceed its slot |
 | Scheduling-friction estimation | Score proposed times from local historical patterns |
 | Inbox batching | Classify messages that can be reviewed together |
-| Voice-note routing | Classify short recordings by project, topic, or urgency |
 | Offline keyword alerts | Detect a bounded phrase set in local audio streams |
 | Shared-screen privacy filter | Detect sensitive regions before transmission |

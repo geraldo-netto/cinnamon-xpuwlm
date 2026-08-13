@@ -64,6 +64,30 @@ For small tabular, signal, or time-series models, a CPU baseline is especially i
 | Simple threshold rules or tiny classifiers | CPU execution usually has less overhead |
 | Dynamic or unsupported neural architectures | Only compatible, fixed-shape, fully quantized TensorFlow Lite graphs are accelerated |
 
+## Composed GPU workstation workflows
+
+OmniTensor's GPU lane also makes larger, manually invoked workflows practical.
+The entries below are proposed compositions, not claims that an end-to-end
+application is delivered. They consolidate related atomic ideas from the
+catalog so storage, retrieval, generation, and user actions are not described
+as separate competing products.
+
+| Workflow | Canonical detail | Composition and boundary |
+| --- | --- | --- |
+| Local content vault and organization | [Systems and data](use-cases/systems-and-data.md#local-content-vault-and-organization) | Incrementally catalog explicitly configured roots, extract bounded content, generate GPU embeddings, and return grounded search or review-only organization plans; hashing, indexing, filesystem access, and every mutation remain deterministic host work |
+| Developer workbench | [Systems and data](use-cases/systems-and-data.md#developer-gpu-workbench) | Combine repository retrieval, logs, test reports, diffs, and local generation for cited investigation, review, and release-drafting assistance; commands, patches, and required quality gates remain under explicit user control |
+| Presentation and media studio | [Vision and audio](use-cases/vision-and-audio.md#presentation-and-media-studio) | Reuse document, slide, vision, speech, and generation stages for deck review, rehearsal analysis, transcripts, subtitles, chapters, search, and reviewable edit plans |
+| Daily multimedia briefing | [Vision and audio](use-cases/vision-and-audio.md#presentation-and-media-studio) | Compose selected documents, presentations, audio, video, and images into a cited summary, decisions, tasks, and event candidates without silently creating tasks, calendar entries, or edited media |
+
+These workflows share one staged shape: explicit input, bounded deterministic
+preprocessing, serialized accelerator work, schema and evidence validation,
+then a reviewable result. A large archive must use a resumable tiered scan:
+metadata first, full hashes only when required for an exact claim, embeddings
+for new or changed bounded content, and expensive generative descriptions only
+on demand. Interactive jobs take priority over background indexing, and every
+stage remains cancellable so accelerator pressure cannot make the desktop
+unresponsive.
+
 ## Evidence-labeled catalogs
 
 | Catalog | Contents |

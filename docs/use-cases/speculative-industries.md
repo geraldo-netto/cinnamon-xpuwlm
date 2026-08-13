@@ -47,6 +47,11 @@ Every entry below is speculative, not a capability or performance claim.
 
 ## Creative media, design, and entertainment
 
+End-to-end transcription, captioning, chaptering, archive retrieval, thumbnail
+selection, and edit-plan generation are consolidated in the canonical
+[presentation and media studio](vision-and-audio.md#presentation-and-media-studio).
+The table below retains distinct production-analysis and creative-model roles.
+
 | Idea | Possible inference role |
 | --- | --- |
 | Photo-library curation | Rank representative, sharp, well-exposed, or emotionally salient shots |
@@ -56,7 +61,6 @@ Every entry below is speculative, not a capability or performance claim.
 | Shot-type classification | Label wide, medium, close-up, insert, and camera movement |
 | Storyboard retrieval | Embed sketches and frames to find similar shots |
 | Continuity-error detection | Compare props, wardrobe, position, or lighting across takes |
-| Slate and take detection | Classify production frames or audio cues |
 | Lip-sync drift warning | Classify local audio/video alignment windows |
 | Dance and performance pose analysis | Estimate keypoints for rehearsal feedback |
 | Animation reference indexing | Embed poses, motion snippets, and expressions |
@@ -65,11 +69,9 @@ Every entry below is speculative, not a capability or performance claim.
 | Beat, onset, and section cues | Classify audio windows for host-side timing logic |
 | Sound-effect retrieval | Generate audio embeddings for a local library |
 | Voice-activity detection | Separate likely speech and nonspeech windows |
-| Podcast chapter suggestion | Detect topic or acoustic boundaries |
 | Ad, jingle, and intro detection | Recognize known acoustic patterns |
 | Profanity review cue | Flag bounded audio segments for editorial review |
 | Broadcast highlight detection | Recognize applause, crowd peaks, graphics, or action patterns |
-| Thumbnail candidate ranking | Score authored frames for clarity and relevance |
 | Layout salience scoring | Predict visual hierarchy for a designer's review |
 | Font or style classification | Tag assets by visual style for search |
 | Palette and color-style classification | Group images or designs by learned appearance |
@@ -77,8 +79,6 @@ Every entry below is speculative, not a capability or performance claim.
 | 3D asset auto-tagging | Classify rendered previews of meshes and materials |
 | Texture-seam or defect detection | Flag tiling, compression, UV, or rendering artifacts |
 | Costume and wardrobe indexing | Embed garment images for production search |
-| Archive-footage search | Generate visual and audio embeddings locally |
-| Content-version comparison | Detect meaningful visual changes among edits or exports |
 
 ## Retail, commerce, hospitality, finance, and insurance
 
