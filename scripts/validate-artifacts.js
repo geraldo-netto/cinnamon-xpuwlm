@@ -50,6 +50,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "metadata.json",
     "po",
     "plugin-inventory.js",
+    "presentation-review.js",
     "readiness-acceptance.js",
     "profile-blockers.js",
     "gio-file-adapter.js",
