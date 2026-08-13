@@ -13,6 +13,8 @@ const {
 } = require("../helpers/fakes.js");
 const {definition, state, validResult} = require("../helpers/generic-workflow-fixture.js");
 
+Surface.registerGenericWorkflowSurface(Menu.MenuView.prototype);
+
 function harness(wrapText = false) {
     const calls = [];
     const actions = {};

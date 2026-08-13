@@ -25,6 +25,9 @@ const WorkflowViewModel = require(
 const GenericWorkflowMenu = require(
     "../../files/cinnamon-xpuwlm@geraldo-netto/lib/generic-workflow-menu-view.js",
 );
+const GenericWorkflowSurface = require(
+    "../../files/cinnamon-xpuwlm@geraldo-netto/lib/generic-workflow-surface.js",
+);
 const DocumentQuestionMenu = require(
     "../../files/cinnamon-xpuwlm@geraldo-netto/lib/workflow-document-question-menu-view.js",
 );
@@ -218,7 +221,7 @@ test("workflow renderer aggregate preserves per-workflow implementation ownershi
     assert.equal(SharedMenu.jobDetail, WorkflowMenu.jobDetail);
 });
 
-test("generic workflow renderer contract installs exact reusable surfaces", () => {
+test("generic workflow surface registration installs exact reusable renderers", () => {
     assert.deepEqual(GenericWorkflowMenu.GENERIC_RENDERER_NAMES, [
         "_renderGenericWorkflowSurface",
         "_renderGenericUnavailable",
@@ -229,13 +232,43 @@ test("generic workflow renderer contract installs exact reusable surfaces", () =
         "_renderGenericRetention",
         "_renderGenericActions",
     ]);
+    const prototype = {};
+    assert.equal(GenericWorkflowSurface.registerGenericWorkflowSurface(prototype), prototype);
+    assert.equal(GenericWorkflowSurface.registerGenericWorkflowSurface(prototype), prototype);
     for (const name of GenericWorkflowMenu.GENERIC_RENDERER_NAMES) {
         assert.equal(
-            Menu.MenuView.prototype[name],
+            prototype[name],
             GenericWorkflowMenu.GenericWorkflowMenuView.prototype[name],
             name,
         );
+        assert.equal(Object.prototype.hasOwnProperty.call(Menu.MenuView.prototype, name), false);
     }
+});
+
+test("generic workflow registration refuses conflicts without partial installation", () => {
+    for (const conflict of GenericWorkflowMenu.GENERIC_RENDERER_NAMES) {
+        const prototype = {[conflict]: () => false};
+        assert.throws(
+            () => GenericWorkflowSurface.registerGenericWorkflowSurface(prototype),
+            new RegExp(conflict, "u"),
+        );
+        assert.deepEqual(Object.keys(prototype), [conflict]);
+    }
+    for (const invalid of [null, 7, "prototype"]) {
+        assert.throws(
+            () => GenericWorkflowSurface.registerGenericWorkflowSurface(invalid),
+            /prototype/u,
+        );
+    }
+    const descriptorConflict = {};
+    Object.defineProperty(descriptorConflict, GenericWorkflowMenu.GENERIC_RENDERER_NAMES[0], {
+        configurable: false,
+        value: GenericWorkflowMenu.GenericWorkflowMenuView.prototype._renderGenericWorkflowSurface,
+    });
+    assert.throws(
+        () => GenericWorkflowSurface.registerGenericWorkflowSurface(descriptorConflict),
+        /_renderGenericWorkflowSurface/u,
+    );
 });
 
 test("job details retain only non-empty strings without coercing runtime values", () => {
@@ -257,10 +290,15 @@ test("job details retain only non-empty strings without coercing runtime values"
 
 test("facades contain no extracted workflow implementation bodies", () => {
     const menuSource = fs.readFileSync(path.join(ROOT, "menu-view.js"), "utf8");
+    const genericSurfaceSource = fs.readFileSync(
+        path.join(ROOT, "generic-workflow-surface.js"), "utf8",
+    );
     const workflowSource = fs.readFileSync(path.join(ROOT, "workflow-menu-view.js"), "utf8");
     const modelSource = fs.readFileSync(path.join(ROOT, "view-model.js"), "utf8");
     assert.doesNotMatch(menuSource, /^\s+_renderEventImport\(model\) \{/mu);
     assert.doesNotMatch(menuSource, /^\s+_renderMediaTranscription\(model\) \{/mu);
+    assert.doesNotMatch(menuSource, /generic-workflow-menu-view/u);
+    assert.match(genericSurfaceSource, /require\("\.\/generic-workflow-menu-view\.js"\)/u);
     for (const name of WorkflowMenu.WORKFLOW_RENDERER_NAMES) {
         assert.doesNotMatch(workflowSource, new RegExp(`^\\s+${name}\\([^)]*\\) \\{`, "mu"), name);
     }

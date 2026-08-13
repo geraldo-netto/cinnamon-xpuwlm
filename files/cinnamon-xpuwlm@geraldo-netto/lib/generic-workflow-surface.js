@@ -1,6 +1,7 @@
 "use strict";
 
 const I18n = require("./i18n.js");
+const GenericWorkflowMenu = require("./generic-workflow-menu-view.js");
 const Result = require("./workload-result.js");
 const Validation = require("./validation.js");
 
@@ -268,6 +269,14 @@ function createSurfaceModel(definition, state) {
     });
 }
 
+// The model producer is the registration gate: importing MenuView alone never
+// installs a renderer for a model that production cannot create. Optional
+// consumers opt into both halves through this explicit, repeat-safe boundary.
+function registerGenericWorkflowSurface(prototype) {
+    GenericWorkflowMenu.installGenericWorkflowRenderers(prototype);
+    return prototype;
+}
+
 module.exports = {
     ACTIVE_PHASES,
     CONSENT_STATES,
@@ -282,4 +291,5 @@ module.exports = {
     isDefinition,
     isState,
     resultModel,
+    registerGenericWorkflowSurface,
 };

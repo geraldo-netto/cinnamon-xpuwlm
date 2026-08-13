@@ -1,7 +1,6 @@
 "use strict";
 
 const I18n = require("./i18n.js");
-const GenericWorkflowMenu = require("./generic-workflow-menu-view.js");
 const Layout = require("./layout.js");
 const ActorUtils = require("./menu-actor-utils.js");
 const MenuFocus = require("./menu-focus.js");
@@ -1412,7 +1411,6 @@ class MenuView {
 }
 
 WorkflowMenu.installWorkflowRenderers(MenuView.prototype);
-GenericWorkflowMenu.installGenericWorkflowRenderers(MenuView.prototype);
 
 module.exports = {
     IMMEDIATE_ACTION_SCHEDULER,

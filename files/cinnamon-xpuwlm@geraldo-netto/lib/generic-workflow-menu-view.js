@@ -136,8 +136,40 @@ const GENERIC_RENDERER_NAMES = Object.freeze(
         .filter((name) => name !== "constructor"),
 );
 
-function installGenericWorkflowRenderers(prototype) {
+function sameDescriptor(left, right) {
+    return left.value === right.value
+        && left.get === right.get
+        && left.set === right.set
+        && left.enumerable === right.enumerable
+        && left.configurable === right.configurable
+        && left.writable === right.writable;
+}
+
+function requirePrototype(prototype) {
+    if ((typeof prototype !== "object" || prototype === null)
+            && typeof prototype !== "function") {
+        throw new TypeError("Generic workflow renderer prototype is required");
+    }
+    return prototype;
+}
+
+function assertInstallable(prototype) {
     for (const name of GENERIC_RENDERER_NAMES) {
+        const installed = Object.getOwnPropertyDescriptor(prototype, name);
+        const renderer = Object.getOwnPropertyDescriptor(GenericWorkflowMenuView.prototype, name);
+        if (installed !== undefined && !sameDescriptor(installed, renderer)) {
+            throw new TypeError(`Generic workflow renderer ${name} conflicts with the host`);
+        }
+    }
+}
+
+function installGenericWorkflowRenderers(candidate) {
+    const prototype = requirePrototype(candidate);
+    assertInstallable(prototype);
+    for (const name of GENERIC_RENDERER_NAMES) {
+        if (Object.prototype.hasOwnProperty.call(prototype, name)) {
+            continue;
+        }
         Object.defineProperty(
             prototype,
             name,
