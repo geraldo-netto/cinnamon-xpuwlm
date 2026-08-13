@@ -58,6 +58,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "stylesheet.css",
     "tensor-encoder.js",
     "view-model.js",
+    "workflow-controller.js",
     "workload-manifest.js",
     "workload-manifest.schema.json",
     "workload-registry.js",

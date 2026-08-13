@@ -5,6 +5,7 @@
 
 const DocumentQuestion = require("./document-question.js");
 const Job = require("./runtime-job-contract.js");
+const Workflow = require("./workflow-controller.js");
 
 const PROFILE_ID = "file-organizer";
 const MAX_PLAN_ITEMS = 16;
@@ -271,52 +272,26 @@ function cloneState(state) {
     };
 }
 
-function requirePort(candidate, methods, label) {
-    if (!candidate || methods.some((name) => typeof candidate[name] !== "function")) {
-        throw new TypeError(`${label} is required`);
-    }
-    return candidate;
-}
-
-class FileOrganizerController {
+class FileOrganizerController extends Workflow.RuntimeWorkflowController {
     constructor({picker, gateway, scheduler, clock = Date}) {
-        this._picker = requirePort(picker, ["chooseFiles"], "File organizer picker");
-        this._gateway = requirePort(
-            gateway, ["submit", "requestResult", "cancelJob", "cancel"], "File organizer gateway",
-        );
-        this._scheduler = requirePort(scheduler, ["schedule", "cancel"], "File organizer scheduler");
-        if (!clock || typeof clock.now !== "function") {
-            throw new TypeError("File organizer clock is required");
-        }
-        this._clock = clock;
-        this._state = initialState();
-        this._listeners = new Set();
-        this._sequence = 0;
-        this._polls = 0;
-        this._pollHandle = null;
-        this._disposed = false;
-    }
-
-    state() {
-        return cloneState(this._state);
-    }
-
-    subscribe(listener) {
-        if (typeof listener !== "function") {
-            throw new TypeError("File organizer listener is required");
-        }
-        this._listeners.add(listener);
-        return () => this._listeners.delete(listener);
-    }
-
-    setAvailability(available, detail = "") {
-        const next = available === true;
-        const text = boundedText(detail, 0, 240) ? detail : "";
-        if (next === this._state.available && text === this._state.availabilityDetail) {
-            return false;
-        }
-        this._replace({available: next, availabilityDetail: text});
-        return true;
+        const pickerPort = Workflow.requirePort(picker, ["chooseFiles"], "File organizer picker");
+        super({
+            clock,
+            cloneState,
+            gateway,
+            initialState,
+            labels: {
+                clock: "File organizer clock",
+                disposed: "File organizer controller",
+                failure: "File organization failed",
+                gateway: "File organizer gateway",
+                listener: "File organizer listener",
+                scheduler: "File organizer scheduler",
+            },
+            pollIntervalMs: POLL_INTERVAL_MS,
+            scheduler,
+        });
+        this._picker = pickerPort;
     }
 
     chooseFiles() {
@@ -401,13 +376,6 @@ class FileOrganizerController {
         });
         this._schedulePoll(sequence);
         return true;
-    }
-
-    _schedulePoll(sequence) {
-        this._pollHandle = this._scheduler.schedule(POLL_INTERVAL_MS, () => {
-            this._pollHandle = null;
-            this._poll(sequence);
-        });
     }
 
     _poll(sequence) {
@@ -507,72 +475,11 @@ class FileOrganizerController {
     }
 
     reset() {
-        this._ensureActive();
-        if (["submitting", "running", "cancelling"].includes(this._state.phase)) {
-            return false;
-        }
-        const availability = {
-            available: this._state.available,
-            availabilityDetail: this._state.availabilityDetail,
-        };
-        this._state = {...initialState(), ...availability};
-        this._publish();
-        return true;
+        return this._reset(["submitting", "running", "cancelling"]);
     }
 
     dispose() {
-        if (this._disposed) {
-            return false;
-        }
-        this._disposed = true;
-        this._nextSequence();
-        this._clearPoll();
-        this._gateway.cancel();
-        this._listeners.clear();
-        this._state = initialState();
-        return true;
-    }
-
-    _replace(patch) {
-        this._state = {...this._state, ...patch};
-        this._publish();
-    }
-
-    _fail(message, phase = "error") {
-        this._clearPoll();
-        this._replace({phase, message: boundedText(message, 1, 500) ? message : "File organization failed"});
-        return false;
-    }
-
-    _publish() {
-        const state = this.state();
-        for (const listener of this._listeners) {
-            listener(state);
-        }
-    }
-
-    _nextSequence() {
-        this._sequence += 1;
-        return this._sequence;
-    }
-
-    _current(sequence) {
-        return !this._disposed && sequence === this._sequence;
-    }
-
-    _clearPoll() {
-        if (this._pollHandle === null) {
-            return false;
-        }
-        this._scheduler.cancel(this._pollHandle);
-        this._pollHandle = null;
-        return true;
-    }
-
-    _ensureActive() {
-        if (this._disposed) {
-            throw new Error("File organizer controller is disposed");
-        }
+        return this._dispose();
     }
 }
 

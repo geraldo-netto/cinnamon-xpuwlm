@@ -1,6 +1,7 @@
 "use strict";
 
 const Job = require("./runtime-job-contract.js");
+const Workflow = require("./workflow-controller.js");
 
 const PROFILE_ID = "selected-text-tools";
 const OPERATIONS = Object.freeze(["explain", "summarize", "rewrite", "translate", "extract-tasks"]);
@@ -181,52 +182,28 @@ function cloneState(state) {
     };
 }
 
-function requirePort(candidate, methods, label) {
-    if (!candidate || methods.some((name) => typeof candidate[name] !== "function")) {
-        throw new TypeError(`${label} is required`);
-    }
-    return candidate;
-}
-
-class SelectedTextController {
+class SelectedTextController extends Workflow.RuntimeWorkflowController {
     constructor({clipboard, gateway, scheduler, clock = Date}) {
-        this._clipboard = requirePort(clipboard, ["readText", "cancel"], "Clipboard reader");
-        this._gateway = requirePort(
-            gateway, ["submit", "requestResult", "cancelJob", "cancel"], "Selected-text gateway",
+        const clipboardPort = Workflow.requirePort(
+            clipboard, ["readText", "cancel"], "Clipboard reader",
         );
-        this._scheduler = requirePort(scheduler, ["schedule", "cancel"], "Selected-text scheduler");
-        if (!clock || typeof clock.now !== "function") {
-            throw new TypeError("Selected-text clock is required");
-        }
-        this._clock = clock;
-        this._state = initialState();
-        this._listeners = new Set();
-        this._sequence = 0;
-        this._polls = 0;
-        this._pollHandle = null;
-        this._disposed = false;
-    }
-
-    state() {
-        return cloneState(this._state);
-    }
-
-    subscribe(listener) {
-        if (typeof listener !== "function") {
-            throw new TypeError("Selected-text listener is required");
-        }
-        this._listeners.add(listener);
-        return () => this._listeners.delete(listener);
-    }
-
-    setAvailability(available, detail = "") {
-        const next = available === true;
-        const text = boundedText(detail, 0, 240) ? detail : "";
-        if (next === this._state.available && text === this._state.availabilityDetail) {
-            return false;
-        }
-        this._replace({available: next, availabilityDetail: text});
-        return true;
+        super({
+            clock,
+            cloneState,
+            gateway,
+            initialState,
+            labels: {
+                clock: "Selected-text clock",
+                disposed: "Selected-text controller",
+                failure: "Selected-text request failed",
+                gateway: "Selected-text gateway",
+                listener: "Selected-text listener",
+                scheduler: "Selected-text scheduler",
+            },
+            pollIntervalMs: POLL_INTERVAL_MS,
+            scheduler,
+        });
+        this._clipboard = clipboardPort;
     }
 
     start(operation, language = null) {
@@ -305,13 +282,6 @@ class SelectedTextController {
         });
         this._schedulePoll(sequence);
         return true;
-    }
-
-    _schedulePoll(sequence) {
-        this._pollHandle = this._scheduler.schedule(POLL_INTERVAL_MS, () => {
-            this._pollHandle = null;
-            this._poll(sequence);
-        });
     }
 
     _poll(sequence) {
@@ -417,73 +387,11 @@ class SelectedTextController {
     }
 
     reset() {
-        this._ensureActive();
-        if (["selecting", "submitting", "running", "cancelling"].includes(this._state.phase)) {
-            return false;
-        }
-        const availability = {
-            available: this._state.available,
-            availabilityDetail: this._state.availabilityDetail,
-        };
-        this._state = {...initialState(), ...availability};
-        this._publish();
-        return true;
+        return this._reset(["selecting", "submitting", "running", "cancelling"]);
     }
 
     dispose() {
-        if (this._disposed) {
-            return false;
-        }
-        this._disposed = true;
-        this._nextSequence();
-        this._clearPoll();
-        this._clipboard.cancel();
-        this._gateway.cancel();
-        this._listeners.clear();
-        this._state = initialState();
-        return true;
-    }
-
-    _replace(patch) {
-        this._state = {...this._state, ...patch};
-        this._publish();
-    }
-
-    _fail(message) {
-        this._clearPoll();
-        this._replace({phase: "error", message: boundedText(message, 1, 500) ? message : "Selected-text request failed"});
-        return false;
-    }
-
-    _publish() {
-        const state = this.state();
-        for (const listener of this._listeners) {
-            listener(state);
-        }
-    }
-
-    _nextSequence() {
-        this._sequence += 1;
-        return this._sequence;
-    }
-
-    _current(sequence) {
-        return !this._disposed && sequence === this._sequence;
-    }
-
-    _clearPoll() {
-        if (this._pollHandle === null) {
-            return false;
-        }
-        this._scheduler.cancel(this._pollHandle);
-        this._pollHandle = null;
-        return true;
-    }
-
-    _ensureActive() {
-        if (this._disposed) {
-            throw new Error("Selected-text controller is disposed");
-        }
+        return this._dispose(this._clipboard);
     }
 }
 
