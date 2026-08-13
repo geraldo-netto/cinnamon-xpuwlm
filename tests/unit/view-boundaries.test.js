@@ -116,6 +116,23 @@ test("workflow renderer installation preserves host members and behavior helpers
     assert.equal(Menu.jobDetail, WorkflowMenu.jobDetail);
 });
 
+test("job details retain only non-empty strings without coercing runtime values", () => {
+    const coerced = {toString: () => "must not appear"};
+
+    assert.equal(WorkflowMenu.jobDetail({
+        message: 0,
+        stateText: false,
+        progressText: null,
+        jobId: coerced,
+    }), "");
+    assert.equal(WorkflowMenu.jobDetail({
+        message: "accepted",
+        stateText: 7,
+        progressText: "50%",
+        jobId: undefined,
+    }), "accepted · 50%");
+});
+
 test("facades contain no extracted workflow implementation bodies", () => {
     const menuSource = fs.readFileSync(path.join(ROOT, "menu-view.js"), "utf8");
     const modelSource = fs.readFileSync(path.join(ROOT, "view-model.js"), "utf8");

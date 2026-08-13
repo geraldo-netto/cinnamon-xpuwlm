@@ -6,6 +6,7 @@ const path = require("node:path");
 const test = require("node:test");
 
 const Ajv2020 = require("ajv/dist/2020").default;
+const Checker = require("../../scripts/check-workload-manifests.js");
 const Contract = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-manifest.js");
 const Fixtures = require("../helpers/workload-manifest-fixtures.js");
 
@@ -50,6 +51,32 @@ test("fuzz: manifest predicate stays equivalent to authoritative schema", () => 
             Contract.isWorkloadManifest(candidate),
             Boolean(oracle(candidate)),
             `iteration ${iteration}`,
+        );
+    }
+});
+
+test("property: checker schema verdict stays equivalent for hostile manifest fields", () => {
+    const next = random(0x0093cafe);
+    const paths = [
+        ["manifestVersion"], ["id"], ["capabilities"],
+        ["requirements", "accelerator"], ["requirements", "minimumDevices"],
+        ["ui", "title"], ["ui", "order"], ["defaults", "weight"],
+    ];
+    const hostile = [null, undefined, true, false, -1, 0, 99, "", "Bad Value", [], {}];
+
+    for (let iteration = 0; iteration < 1000; iteration += 1) {
+        const candidate = Fixtures.validWorkloadManifest();
+        const pathParts = paths[Math.floor(next() * paths.length)];
+        let owner = candidate;
+        for (const part of pathParts.slice(0, -1)) {
+            owner = owner[part];
+        }
+        owner[pathParts.at(-1)] = hostile[Math.floor(next() * hostile.length)];
+
+        assert.equal(
+            Checker.schemaErrors(candidate) === "",
+            Boolean(oracle(candidate)),
+            `iteration ${iteration}: ${pathParts.join(".")}`,
         );
     }
 });
