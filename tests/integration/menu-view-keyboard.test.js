@@ -125,6 +125,23 @@ test("arrow selection wraps around the tab strip", () => {
     assert.deepEqual(calls.at(-1), ["selectTab", "overview"]);
 });
 
+test("arrow selection skips a disabled tab and still wraps", () => {
+    const {calls, view, root} = harness();
+    view.render(ViewModel.toViewModel(baseState(), NOW));
+    const [overview, activity, system, setup] = tabs(root);
+    activity.reactive = false;
+    system.reactive = false;
+
+    overview.pressKey(CLUTTER.KEY_Right);
+    assert.deepEqual(calls.at(-1), ["selectTab", "setup"]);
+    assert.equal(setup.focused, true);
+
+    view.render(ViewModel.toViewModel(baseState({selectedTab: "setup"}), NOW));
+    setup.pressKey(CLUTTER.KEY_Right);
+    assert.deepEqual(calls.at(-1), ["selectTab", "overview"]);
+    assert.equal(overview.focused, true);
+});
+
 test("Home and End reach the first and last tab directly", () => {
     const {calls, view, root} = harness();
     view.render(ViewModel.toViewModel(baseState({selectedTab: "profiles"}), NOW));

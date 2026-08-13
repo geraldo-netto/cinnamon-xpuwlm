@@ -3,11 +3,15 @@
 const I18n = require("./i18n.js");
 const GenericWorkflowMenu = require("./generic-workflow-menu-view.js");
 const Layout = require("./layout.js");
+const ActorUtils = require("./menu-actor-utils.js");
+const MenuFocus = require("./menu-focus.js");
 const ViewModel = require("./view-model.js");
 const WorkflowMenu = require("./workflow-menu-view.js");
 
 const {_, N_, format, ngettext} = I18n;
 const {jobDetail} = WorkflowMenu;
+const {destroyChildren, setStyleClass} = ActorUtils;
+const {focusableControls, movedFocusableIndex, movedTabIndex, tabKeyMove} = MenuFocus;
 
 // Persisted identifiers stay compatible with earlier releases; labels and
 // ordering now describe user goals instead of implementation structure.
@@ -18,49 +22,6 @@ const TAB_LABELS = Object.freeze({
     profiles: N_("System"),
     setup: N_("Diagnostics"),
 });
-
-// Tab-strip key handling, kept pure so the expected arrow, Home, and End
-// behaviour can be verified without a Clutter stage.
-const TAB_KEY_MOVES = Object.freeze({
-    KEY_Left: "previous",
-    KEY_Up: "previous",
-    KEY_Right: "next",
-    KEY_Down: "next",
-    KEY_Home: "first",
-    KEY_End: "last",
-});
-
-function tabKeyMove(Clutter, keySymbol) {
-    if (!Clutter) {
-        return null;
-    }
-    for (const [name, move] of Object.entries(TAB_KEY_MOVES)) {
-        if (Clutter[name] !== undefined && Clutter[name] === keySymbol) {
-            return move;
-        }
-    }
-    return null;
-}
-
-function movedTabIndex(move, currentIndex, count) {
-    if (count <= 0) {
-        return -1;
-    }
-    const current = currentIndex >= 0 && currentIndex < count ? currentIndex : 0;
-    if (move === "first") {
-        return 0;
-    }
-    if (move === "last") {
-        return count - 1;
-    }
-    if (move === "previous") {
-        return (current - 1 + count) % count;
-    }
-    if (move === "next") {
-        return (current + 1) % count;
-    }
-    return current;
-}
 
 function requireAction(actions, name) {
     if (!actions || typeof actions[name] !== "function") {
@@ -89,32 +50,6 @@ function requireActionScheduler(candidate) {
         throw new TypeError("A menu action scheduler with schedule/cancel is required");
     }
     return candidate;
-}
-
-function setStyleClass(actor, className, enabled) {
-    if (enabled) {
-        actor.add_style_class_name(className);
-    } else {
-        actor.remove_style_class_name(className);
-    }
-}
-
-function destroyChildren(actor) {
-    for (const child of actor.get_children()) {
-        child.destroy();
-    }
-}
-
-// Body controls carry a semantic identity that survives a rebuild, so keyboard
-// focus can return to the same control rather than to whatever landed first.
-function focusableControls(actor, found = []) {
-    for (const child of actor.get_children()) {
-        if (child.xpuwlmIdentity !== undefined && child.can_focus !== false) {
-            found.push(child);
-        }
-        focusableControls(child, found);
-    }
-    return found;
 }
 
 class MenuView {
@@ -366,7 +301,12 @@ class MenuView {
             return propagate;
         }
         const current = TAB_NAMES.indexOf(this._selectedTab);
-        const target = TAB_NAMES[movedTabIndex(move, current, TAB_NAMES.length)];
+        const buttons = TAB_NAMES.map((name) => this._tabButtons.get(name));
+        const targetIndex = movedFocusableIndex(move, current, buttons);
+        if (targetIndex < 0) {
+            return stop;
+        }
+        const target = TAB_NAMES[targetIndex];
         if (target !== this._selectedTab) {
             this._actions.selectTab(target);
         }
@@ -377,20 +317,7 @@ class MenuView {
     // Roving focus: only the selected tab is reachable with Tab, and arrow,
     // Home, and End keys move both the selection and the keyboard focus.
     _focusTab(tab) {
-        const button = this._tabButtons.get(tab);
-        if (!button) {
-            return false;
-        }
-        button.can_focus = true;
-        if (typeof button.grab_key_focus === "function") {
-            button.grab_key_focus();
-        }
-        for (const [name, candidate] of this._tabButtons) {
-            if (name !== tab) {
-                candidate.can_focus = false;
-            }
-        }
-        return true;
+        return MenuFocus.focusRoving(this._tabButtons, tab);
     }
 
     _buildBody() {
@@ -1350,39 +1277,21 @@ class MenuView {
     }
 
     _box(styleClass, vertical = false, expand = false) {
-        return new this._St.BoxLayout({vertical, style_class: styleClass, x_expand: expand});
+        return ActorUtils.box(this._St, styleClass, vertical, expand);
     }
 
     _label(text, styleClass, wrap = false) {
-        const label = new this._St.Label({
-            text: String(text || ""),
-            style_class: styleClass,
-            y_align: this._Clutter.ActorAlign.CENTER,
-        });
-        this._setWrap(label, wrap);
-        return label;
+        return ActorUtils.label(this._St, this._Clutter, this._layout, text, styleClass, wrap);
     }
 
     _entry(text, accessibleName, identity) {
-        const entry = new this._St.Entry({
-            text: String(text || ""),
-            style_class: "xpuwlm-event-entry",
-            can_focus: true,
-        });
-        entry.set_accessible_name(accessibleName);
-        return this._identify(entry, identity);
+        return ActorUtils.entry(this._St, text, accessibleName, identity);
     }
 
     // Narrow, high-scale, and large-text popups wrap descriptive text instead of
     // clipping it; the wide layout keeps one-line ellipsized rows.
     _setWrap(label, wrap) {
-        if (!label || !label.clutter_text) {
-            return false;
-        }
-        const wrapping = wrap === true && this._layout.wrapText;
-        label.clutter_text.line_wrap = wrapping;
-        label.clutter_text.ellipsize = wrapping ? 0 : 3;
-        return wrapping;
+        return ActorUtils.setWrap(label, wrap, this._layout);
     }
 
     _button(styleClass, accessibleName, callback, role = "PUSH_BUTTON") {
@@ -1449,48 +1358,27 @@ class MenuView {
     }
 
     _identify(actor, identity) {
-        actor.xpuwlmIdentity = identity;
-        return actor;
+        return ActorUtils.identify(actor, identity);
     }
 
     // Cinnamon tooltips destroy themselves with the actor they describe, so a
     // rebuilt body leaves none behind.
     _tooltip(actor, text) {
-        if (this._tooltips === null || !text) {
-            return null;
-        }
-        return this._tooltips(actor, text);
+        return ActorUtils.tooltip(this._tooltips, actor, text);
     }
 
     // Assistive technology needs the semantic role and state, not only the
     // accessible name; both are set here so the two never disagree.
     _setAccessibleRole(actor, role) {
-        const value = this._Atk && this._Atk.Role ? this._Atk.Role[role] : undefined;
-        if (value === undefined || typeof actor.set_accessible_role !== "function") {
-            return false;
-        }
-        actor.set_accessible_role(value);
-        return true;
+        return ActorUtils.setAccessibleRole(this._Atk, actor, role);
     }
 
     _setAccessibleState(actor, state, enabled) {
-        const value = this._Atk && this._Atk.StateType ? this._Atk.StateType[state] : undefined;
-        if (value === undefined) {
-            return false;
-        }
-        const method = enabled ? "add_accessible_state" : "remove_accessible_state";
-        if (typeof actor[method] !== "function") {
-            return false;
-        }
-        actor[method](value);
-        return true;
+        return ActorUtils.setAccessibleState(this._Atk, actor, state, enabled);
     }
 
     _setButtonEnabled(button, enabled) {
-        button.reactive = enabled;
-        button.can_focus = enabled;
-        setStyleClass(button, "xpuwlm-button-disabled", !enabled);
-        this._setAccessibleState(button, "SENSITIVE", enabled);
+        ActorUtils.setButtonEnabled(this._Atk, button, enabled);
     }
 
     _policyControlEnabled(enabled = true) {
@@ -1508,6 +1396,7 @@ module.exports = {
     TAB_NAMES,
     destroyChildren,
     focusableControls,
+    movedFocusableIndex,
     movedTabIndex,
     optionalAction,
     requireActionScheduler,
