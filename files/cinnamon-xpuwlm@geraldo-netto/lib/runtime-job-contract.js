@@ -15,14 +15,12 @@
 // builds wrongly is refused by the service with a code, several seconds and one
 // bus round trip later; refusing it here costs nothing and says which field.
 
-const Contract = require("./runtime-control-contract.js");
+const Validation = require("./validation.js");
 
 const JOB_VERSION = 1;
-const REQUEST_ID = /^[A-Za-z0-9._-]+$/u;
 const WORKLOAD_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const JOB_CODE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
-const DIGEST = /^[a-f0-9]{64}$/u;
-const MAX_IDENTIFIER_LENGTH = 120;
+const {DIGEST} = Validation;
 const MAX_WORKLOAD_ID_LENGTH = 80;
 const MAX_MESSAGE_LENGTH = 240;
 const MAX_PAYLOAD_PROPERTIES = 64;
@@ -72,11 +70,8 @@ const RESULT_CODE = /^[a-z0-9-]{1,64}$/u;
 const MAX_RESULT_MESSAGE_LENGTH = 500;
 const MAX_PROGRESS_DETAIL_LENGTH = 200;
 
-const exactRecord = Contract.exactRecord;
-
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
+const exactRecord = Validation.exactKeys;
+const isRecord = Validation.isRecord;
 
 function boundedProperties(value, required, allowed) {
     return isRecord(value)
@@ -84,17 +79,8 @@ function boundedProperties(value, required, allowed) {
         && Object.keys(value).every((name) => allowed.has(name));
 }
 
-function boundedText(value, minimum, maximum) {
-    if (typeof value !== "string") {
-        return false;
-    }
-    const length = [...value].length;
-    return length >= minimum && length <= maximum;
-}
-
-function isRequestId(value) {
-    return boundedText(value, 1, MAX_IDENTIFIER_LENGTH) && REQUEST_ID.test(value);
-}
+const boundedText = Validation.boundedText;
+const isRequestId = Validation.isRequestId;
 
 function isWorkloadId(value) {
     return boundedText(value, 1, MAX_WORKLOAD_ID_LENGTH) && WORKLOAD_ID.test(value);

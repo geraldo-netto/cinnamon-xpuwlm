@@ -5,6 +5,7 @@
 
 const DocumentQuestion = require("./document-question.js");
 const Job = require("./runtime-job-contract.js");
+const Validation = require("./validation.js");
 const Workflow = require("./workflow-controller.js");
 
 const PROFILE_ID = "file-organizer";
@@ -13,9 +14,8 @@ const MAX_TAGS = 16;
 const MAX_EVIDENCE = 8;
 const MAX_POLLS = 600;
 const POLL_INTERVAL_MS = 500;
-const REQUEST_ID = /^[A-Za-z0-9._-]{1,120}$/u;
+const {DIGEST, REQUEST_ID} = Validation;
 const IDENTIFIER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
-const DIGEST = /^[a-f0-9]{64}$/u;
 const FILE_ID = /^selected-file-[1-9][0-9]*$/u;
 const DUPLICATE_GROUP = /^duplicate-group-[1-9][0-9]*$/u;
 const TAG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
@@ -37,19 +37,9 @@ class FileOrganizerError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactRecord(value, fields) {
-    return isRecord(value)
-        && Object.keys(value).length === fields.size
-        && Object.keys(value).every((name) => fields.has(name));
-}
-
-function boundedText(value, minimum, maximum) {
-    return typeof value === "string" && [...value].length >= minimum && [...value].length <= maximum;
-}
+const isRecord = Validation.isRecord;
+const exactRecord = Validation.exactKeys;
+const boundedText = Validation.boundedText;
 
 function hasControl(value) {
     return [...value].some((character) => {

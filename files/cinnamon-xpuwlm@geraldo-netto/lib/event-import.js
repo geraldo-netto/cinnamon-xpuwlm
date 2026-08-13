@@ -6,6 +6,7 @@
 // decisions. Nothing here is part of the public runtime snapshot.
 
 const Job = require("./runtime-job-contract.js");
+const Validation = require("./validation.js");
 
 const EVENT_PROFILE_ID = "event-extraction";
 const MAX_SOURCES = 32;
@@ -17,9 +18,8 @@ const POLL_INTERVAL_MS = 500;
 const SOURCE_SUFFIXES = Object.freeze([
     ".ics", ".jpeg", ".jpg", ".md", ".pdf", ".png", ".txt", ".webp",
 ]);
-const REQUEST_ID = /^[A-Za-z0-9._-]{1,120}$/u;
+const {DIGEST, REQUEST_ID} = Validation;
 const PRIVATE_REFERENCE = /^private:[A-Za-z0-9._:-]{1,200}$/u;
-const DIGEST = /^[a-f0-9]{64}$/u;
 const CODE = /^[a-z0-9-]{1,64}$/u;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:Z|[+-]\d{2}:\d{2})?$/u;
 const LOCAL_DATE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,6})?)?$/u;
@@ -45,19 +45,9 @@ class EventImportError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactRecord(value, fields) {
-    return isRecord(value)
-        && Object.keys(value).length === fields.size
-        && Object.keys(value).every((name) => fields.has(name));
-}
-
-function boundedText(value, minimum, maximum) {
-    return typeof value === "string" && [...value].length >= minimum && [...value].length <= maximum;
-}
+const isRecord = Validation.isRecord;
+const exactRecord = Validation.exactKeys;
+const boundedText = Validation.boundedText;
 
 function suffixOf(path) {
     const lowered = String(path).toLowerCase();

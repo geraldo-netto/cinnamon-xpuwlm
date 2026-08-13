@@ -1,6 +1,7 @@
 "use strict";
 
 const Job = require("./runtime-job-contract.js");
+const Validation = require("./validation.js");
 const Workflow = require("./workflow-controller.js");
 
 const PROFILE_ID = "selected-text-tools";
@@ -12,9 +13,8 @@ const MAX_TASKS = 64;
 const MAX_POLLS = 600;
 const POLL_INTERVAL_MS = 500;
 const LANGUAGE = /^[A-Za-z][A-Za-z -]*$/u;
-const REQUEST_ID = /^[A-Za-z0-9._-]{1,120}$/u;
+const {DIGEST, REQUEST_ID} = Validation;
 const IDENTIFIER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
-const DIGEST = /^[a-f0-9]{64}$/u;
 const RESULT_FIELDS = new Set([
     "version", "requestId", "operation", "result", "tasks", "providerId", "accelerator", "evidence",
 ]);
@@ -29,19 +29,8 @@ class SelectedTextError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactRecord(value, fields) {
-    return isRecord(value)
-        && Object.keys(value).length === fields.size
-        && Object.keys(value).every((name) => fields.has(name));
-}
-
-function boundedText(value, minimum, maximum) {
-    return typeof value === "string" && [...value].length >= minimum && [...value].length <= maximum;
-}
+const exactRecord = Validation.exactKeys;
+const boundedText = Validation.boundedText;
 
 function normalizedOperation(value) {
     if (!OPERATIONS.includes(value)) {

@@ -4,6 +4,7 @@ const Contract = require("./runtime-snapshot-contract.js");
 const Domain = require("./domain.js");
 const ProfileBlockers = require("./profile-blockers.js");
 const SnapshotValidator = require("./snapshot-validator.js");
+const Validation = require("./validation.js");
 const WorkloadRegistry = require("./workload-registry.js");
 
 // Every name, value, and bound below is derived from the shipped schema by
@@ -96,9 +97,7 @@ const MAX_TELEMETRY_TIMESTAMP = Number.MAX_SAFE_INTEGER;
 // for plug-in ids and error codes.
 const TELEMETRY_IDENTIFIER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
+const isRecord = Validation.isRecord;
 
 function hasContractProperties(value, required, allowed) {
     return required.every((name) => Object.hasOwn(value, name))

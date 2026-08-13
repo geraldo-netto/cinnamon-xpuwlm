@@ -4,6 +4,8 @@
 // the version means, so a version 1 manifest may not carry one and a version 2
 // manifest must. The runtime rewrites manifests to version 2, so an applet
 // that only knows version 1 rejects catalogs the runtime considers valid.
+const Validation = require("./validation.js");
+
 const MANIFEST_VERSION = 1;
 const PLUGIN_MANIFEST_VERSION = 2;
 const MANIFEST_VERSIONS = new Set([MANIFEST_VERSION, PLUGIN_MANIFEST_VERSION]);
@@ -70,7 +72,7 @@ const OUTPUT_CONTRACT_PROPERTIES = new Set([...OUTPUT_CONTRACT_REQUIRED, "topK",
 const OUTPUT_KINDS = new Set(["classification", "embedding", "raw"]);
 const LABELS_FILENAME = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
 const MAX_TOP_K = 100;
-const MODEL_DIGEST = /^[a-f0-9]{64}$/u;
+const MODEL_DIGEST = Validation.DIGEST;
 const TENSOR_CONTRACT_PROPERTIES = new Set(["inputs"]);
 const TENSOR_INPUT_REQUIRED = Object.freeze(["shape", "dtype"]);
 const TENSOR_INPUT_PROPERTIES = new Set([...TENSOR_INPUT_REQUIRED, "layout", "preprocess"]);
@@ -117,15 +119,8 @@ const ACCEPTANCE_PROPERTIES = new Set([
     "metric", "comparator", "target", "unit", "description",
 ]);
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactProperties(value, expected) {
-    return isRecord(value)
-        && expected.size === Object.keys(value).length
-        && Object.keys(value).every((name) => expected.has(name));
-}
+const isRecord = Validation.isRecord;
+const exactProperties = Validation.exactKeys;
 
 // An exact key count is wrong wherever the contract has optional properties:
 // every required name must be present, and no name outside the allowed set.
@@ -140,8 +135,7 @@ function codePointLength(value) {
 }
 
 function boundedText(value, minimum, maximum) {
-    const length = codePointLength(value);
-    return length >= minimum && length <= maximum;
+    return Validation.boundedText(value, minimum, maximum);
 }
 
 function identifier(value, maximum = 80) {

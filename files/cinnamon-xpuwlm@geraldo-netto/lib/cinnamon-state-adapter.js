@@ -1,6 +1,7 @@
 "use strict";
 
 const FileSystem = require("./gio-file-adapter.js");
+const Validation = require("./validation.js");
 
 const {
     expandHome,
@@ -34,9 +35,7 @@ const EMPTY_APPLET_STATE = Object.freeze({
     activityClearedAt: null,
 });
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
+const isRecord = Validation.isRecord;
 
 function storedSettingValue(document, key) {
     const setting = document[key];

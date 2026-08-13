@@ -5,6 +5,8 @@
 // measurement, and retains the stage and resource observations needed to
 // explain where a crossover occurred.
 
+const Validation = require("./validation.js");
+
 const VERSION = 1;
 const MAX_CANDIDATES = 8;
 const MAX_INPUTS = 64;
@@ -30,15 +32,7 @@ class BenchmarkError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, expected) {
-    return isRecord(value)
-        && Object.keys(value).length === expected.length
-        && expected.every((name) => Object.hasOwn(value, name));
-}
+const exactKeys = Validation.exactKeys;
 
 function identifier(value) {
     return typeof value === "string"

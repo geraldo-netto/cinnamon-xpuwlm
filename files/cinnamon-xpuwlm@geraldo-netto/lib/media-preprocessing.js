@@ -4,6 +4,8 @@
 // behind an injected port: this module owns format routing, lossless
 // intermediate policy, limits, result validation, cancellation, and cleanup.
 
+const Validation = require("./validation.js");
+
 const VERSION = 1;
 const MAX_SOURCE_BYTES = 128 * 1024 * 1024;
 const MAX_DURATION_MS = 600_000;
@@ -69,15 +71,8 @@ class MediaPreprocessingError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, expected) {
-    return isRecord(value)
-        && Object.keys(value).length === expected.length
-        && expected.every((name) => Object.hasOwn(value, name));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function suffixesFor(family) {
     return Object.freeze(FORMAT_DEFINITIONS

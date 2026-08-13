@@ -1,12 +1,14 @@
 "use strict";
 
+const Validation = require("./validation.js");
+
 const VERSION = 1;
 const MAX_ITEMS = 512;
 const MAX_VECTOR = 4096;
 const MAX_TEXT = 1000;
 const MAX_IDENTIFIER_LENGTH = 120;
 const IDENTIFIER = /^[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*$/u;
-const DIGEST = /^[a-f0-9]{64}$/u;
+const {DIGEST} = Validation;
 const RESULT_KINDS = Object.freeze([
     "risk-score", "forecast", "ranking", "detection",
     "mask", "embedding", "labels", "media-evidence",
@@ -23,15 +25,8 @@ class ResultError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, expected) {
-    return isRecord(value)
-        && Object.keys(value).length === expected.length
-        && expected.every((name) => Object.hasOwn(value, name));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function identifier(value) {
     return typeof value === "string"
@@ -41,7 +36,7 @@ function identifier(value) {
 }
 
 function boundedText(value, maximum = MAX_TEXT) {
-    return typeof value === "string" && [...value].length >= 1 && [...value].length <= maximum;
+    return Validation.boundedText(value, 1, maximum);
 }
 
 function finite(value) {

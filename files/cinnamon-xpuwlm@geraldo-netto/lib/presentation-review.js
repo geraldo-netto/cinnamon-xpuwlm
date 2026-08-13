@@ -4,6 +4,7 @@
 // bound to a slide/page and bounded source span; all proposed prose stays editable.
 
 const Media = require("./media-transcription.js");
+const Validation = require("./validation.js");
 
 const VERSION = 1;
 const MAX_ITEMS = Media.MAX_PRESENTATION_SLIDES;
@@ -16,7 +17,7 @@ const REVIEW_FIELDS = Object.freeze([
     "number", "observations", "speakerNotes", "accessibilityText", "questions", "evidence",
 ]);
 const RESULT_FIELDS = Object.freeze(["version", "sourceSha256", "slides"]);
-const DIGEST = /^[a-f0-9]{64}$/u;
+const {DIGEST} = Validation;
 
 class PresentationReviewError extends Error {
     constructor(code, detail) {
@@ -26,21 +27,13 @@ class PresentationReviewError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, fields) {
-    return isRecord(value)
-        && Object.keys(value).length === fields.length
-        && fields.every((name) => Object.hasOwn(value, name));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function boundedText(value, minimum = 0) {
     return typeof value === "string"
         && !value.includes("\0")
-        && [...value].length >= minimum
-        && [...value].length <= MAX_TEXT;
+        && Validation.boundedText(value, minimum, MAX_TEXT);
 }
 
 function suffixOf(name) {

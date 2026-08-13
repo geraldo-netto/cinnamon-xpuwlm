@@ -5,6 +5,7 @@
 
 const Review = require("./presentation-review.js");
 const Actions = require("./deterministic-action-port.js");
+const Validation = require("./validation.js");
 
 const VERSION = 1;
 const MAX_ASSETS = 64;
@@ -18,8 +19,7 @@ const SLIDE_FIELDS = Object.freeze([
 const PLAN_FIELDS = Object.freeze(["version", "sourceSha256", "title", "slides"]);
 const EXPORT_FIELDS = Object.freeze(["requestId", "format", "destination"]);
 const IDENTIFIER = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
-const REQUEST_ID = /^[A-Za-z0-9._-]{1,120}$/u;
-const DIGEST = /^[a-f0-9]{64}$/u;
+const {DIGEST, REQUEST_ID} = Validation;
 
 class PresentationPlanningError extends Error {
     constructor(code, detail) {
@@ -29,21 +29,13 @@ class PresentationPlanningError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, fields) {
-    return isRecord(value)
-        && Object.keys(value).length === fields.length
-        && fields.every((name) => Object.hasOwn(value, name));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function boundedText(value, minimum = 0) {
     return typeof value === "string"
         && !value.includes("\0")
-        && [...value].length >= minimum
-        && [...value].length <= MAX_TEXT;
+        && Validation.boundedText(value, minimum, MAX_TEXT);
 }
 
 function validAsset(value) {

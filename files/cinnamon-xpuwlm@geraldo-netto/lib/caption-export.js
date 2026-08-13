@@ -5,6 +5,7 @@
 
 const Actions = require("./deterministic-action-port.js");
 const Media = require("./media-transcription.js");
+const Validation = require("./validation.js");
 
 const VERSION = 1;
 const MAX_RENDERED_CHARACTERS = 24_000;
@@ -17,8 +18,7 @@ const MEASUREMENT_FIELDS = Object.freeze([
 const EXPORT_FIELDS = Object.freeze([
     "requestId", "format", "track", "destination", "measurements",
 ]);
-const REQUEST_ID = /^[A-Za-z0-9._-]{1,120}$/u;
-const DIGEST = /^[a-f0-9]{64}$/u;
+const {DIGEST, REQUEST_ID} = Validation;
 
 class CaptionExportError extends Error {
     constructor(code, detail) {
@@ -28,18 +28,12 @@ class CaptionExportError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, fields) {
-    return isRecord(value) && Object.keys(value).length === fields.length
-        && fields.every((name) => Object.hasOwn(value, name));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function boundedText(value, minimum = 1, maximum = Media.MAX_SPEECH_TEXT_CHARACTERS) {
     return typeof value === "string" && !value.includes("\0")
-        && [...value].length >= minimum && [...value].length <= maximum;
+        && Validation.boundedText(value, minimum, maximum);
 }
 
 function validCaptionSource(value) {

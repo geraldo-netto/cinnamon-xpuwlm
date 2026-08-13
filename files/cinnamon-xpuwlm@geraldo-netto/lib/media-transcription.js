@@ -5,6 +5,7 @@
 
 const Job = require("./runtime-job-contract.js");
 const Preprocessing = require("./media-preprocessing.js");
+const Validation = require("./validation.js");
 const Workflow = require("./workflow-controller.js");
 
 const PROFILE_ID = "media-transcription";
@@ -20,9 +21,8 @@ const {
     AUDIO_SUFFIXES, DOCUMENT_SUFFIXES, IMAGE_SUFFIXES, PRESENTATION_SUFFIXES,
     SOURCE_SUFFIXES, VIDEO_SUFFIXES,
 } = Preprocessing;
-const REQUEST_ID = /^[A-Za-z0-9._-]{1,120}$/u;
+const {DIGEST, REQUEST_ID} = Validation;
 const IDENTIFIER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
-const DIGEST = /^[a-f0-9]{64}$/u;
 const LANGUAGE = /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u;
 const RESULT_FIELDS = new Set([
     "version", "requestId", "providerId", "accelerator", "source", "speech", "visuals",
@@ -43,21 +43,13 @@ class MediaTranscriptionError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactRecord(value, fields) {
-    return isRecord(value)
-        && Object.keys(value).length === fields.size
-        && Object.keys(value).every((name) => fields.has(name));
-}
+const isRecord = Validation.isRecord;
+const exactRecord = Validation.exactKeys;
 
 function boundedText(value, minimum, maximum) {
     return typeof value === "string"
         && !value.includes("\0")
-        && [...value].length >= minimum
-        && [...value].length <= maximum;
+        && Validation.boundedText(value, minimum, maximum);
 }
 
 function modalityOf(path) {

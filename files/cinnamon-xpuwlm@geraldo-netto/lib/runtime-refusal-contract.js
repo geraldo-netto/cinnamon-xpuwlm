@@ -1,6 +1,7 @@
 "use strict";
 
 const Domain = require("./domain.js");
+const Validation = require("./validation.js");
 
 // The transport refusal envelope, shared by every guarded bus method. The
 // service answers with this document *instead of* the method's own
@@ -21,11 +22,7 @@ const REFUSAL_CODES = new Set([
 ]);
 const METHOD_NAME = /^[A-Za-z][A-Za-z0-9]*$|^$/u;
 
-function boundedText(value, minimum, maximum) {
-    return typeof value === "string"
-        && [...value].length >= minimum
-        && [...value].length <= maximum;
-}
+const boundedText = Validation.boundedText;
 
 function isRuntimeRefusal(value) {
     return Domain.exactRecord(value, REFUSAL_PROPERTIES)

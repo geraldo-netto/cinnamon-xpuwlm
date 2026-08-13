@@ -2,11 +2,11 @@
 
 const Manifest = require("./workload-manifest.js");
 const Benchmark = require("./workload-benchmark.js");
+const Validation = require("./validation.js");
 
 const VERSION = 1;
 const MAX_TEXT = 160;
 const MAX_URL = 512;
-const DIGEST = /^[a-f0-9]{64}$/u;
 const IDENTIFIER = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
 const SEMANTIC_VERSION = /^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/u;
 const SPDX_ID = /^[A-Za-z0-9][A-Za-z0-9.+-]{0,79}$/u;
@@ -36,27 +36,18 @@ class QualificationError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, expected) {
-    return isRecord(value)
-        && Object.keys(value).length === expected.length
-        && expected.every((name) => Object.hasOwn(value, name));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function boundedText(value, maximum = MAX_TEXT) {
-    return typeof value === "string" && [...value].length >= 1 && [...value].length <= maximum;
+    return Validation.boundedText(value, 1, maximum);
 }
 
 function identifier(value) {
     return boundedText(value, 80) && IDENTIFIER.test(value);
 }
 
-function digest(value) {
-    return typeof value === "string" && DIGEST.test(value);
-}
+const digest = Validation.isDigest;
 
 function version(value) {
     return typeof value === "string" && value.length <= 32 && SEMANTIC_VERSION.test(value);

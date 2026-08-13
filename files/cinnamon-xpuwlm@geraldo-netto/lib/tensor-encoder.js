@@ -21,6 +21,8 @@
 // fed a plausible default: RGB where the model wanted BGR is a wrong answer
 // that looks exactly like a right one.
 
+const Validation = require("./validation.js");
+
 // The runtime's own per-job element budget (`MAX_TENSOR_ELEMENTS`). Restated
 // here so an oversized tensor is refused before a megabyte of floats is built
 // and written, rather than after the service reads the file back.
@@ -80,9 +82,7 @@ function isRefusal(error) {
         && error.tensorEncodingRefusal === true;
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
+const isRecord = Validation.isRecord;
 
 function isPositiveIntegerList(value, maximumLength) {
     return Array.isArray(value)

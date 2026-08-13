@@ -6,6 +6,8 @@
 // lifecycle in a short-lived helper process while this port retains strict,
 // callback-based selection semantics for the application controllers.
 
+const Validation = require("./validation.js");
+
 const CHOOSER_PROGRAM = "zenity";
 const PATH_SEPARATOR = "\u001e";
 const MAX_OUTPUT_BYTES = 128 * 1024;
@@ -29,9 +31,7 @@ function requireEnvironment(environment) {
     return environment;
 }
 
-function boundedText(value, minimum, maximum) {
-    return typeof value === "string" && [...value].length >= minimum && [...value].length <= maximum;
-}
+const boundedText = Validation.boundedText;
 
 function chooserExecutable(environment, override = null) {
     if (override !== null) {

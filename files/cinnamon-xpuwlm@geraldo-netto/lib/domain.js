@@ -1,6 +1,7 @@
 "use strict";
 
 const I18n = require("./i18n.js");
+const Validation = require("./validation.js");
 
 const {_, format} = I18n;
 
@@ -52,18 +53,12 @@ const SOURCE_RUNTIME_STATES = Object.freeze({
     runtime: "stale",
 });
 
-function isPlainObject(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
+const isPlainObject = Validation.isRecord;
 
 // Closed-record check shared by every wire contract the applet mirrors: a
 // document carrying an unexpected key is a different document, not a tolerated
 // superset of the one that was agreed.
-function exactRecord(value, properties) {
-    return isPlainObject(value)
-        && Object.keys(value).length === properties.size
-        && Object.keys(value).every((name) => properties.has(name));
-}
+const exactRecord = Validation.exactKeys;
 
 function finiteNumber(value, fallback) {
     return typeof value === "number" && Number.isFinite(value) ? value : fallback;

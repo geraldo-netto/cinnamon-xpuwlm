@@ -4,6 +4,8 @@
 // yields to Cinnamon, queue growth is bounded/coalesced, and interactive work
 // cancels then waits for the active background lease to be released.
 
+const Validation = require("./validation.js");
+
 const MAX_DEFINITIONS = 64;
 const MAX_QUEUED = 64;
 const MIN_INTERVAL_MS = 1000;
@@ -21,15 +23,8 @@ class ExecutionError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, expected) {
-    return isRecord(value)
-        && Object.keys(value).length === expected.length
-        && expected.every((name) => Object.hasOwn(value, name));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function identifier(value) {
     return typeof value === "string"

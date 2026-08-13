@@ -2,6 +2,7 @@
 
 const I18n = require("./i18n.js");
 const Result = require("./workload-result.js");
+const Validation = require("./validation.js");
 
 const {_, format, ngettext} = I18n;
 const VERSION = 1;
@@ -27,20 +28,10 @@ class SurfaceError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, keys) {
-    return isRecord(value)
-        && Object.keys(value).length === keys.length
-        && keys.every((key) => Object.hasOwn(value, key));
-}
+const exactKeys = Validation.exactKeys;
 
 function boundedText(value, maximum, allowEmpty = false) {
-    return typeof value === "string"
-        && [...value].length <= maximum
-        && (allowEmpty || [...value].length > 0);
+    return Validation.boundedText(value, allowEmpty ? 0 : 1, maximum);
 }
 
 function validProgress(value) {

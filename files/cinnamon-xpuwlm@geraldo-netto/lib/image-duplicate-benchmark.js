@@ -5,11 +5,12 @@
 
 const Benchmark = require("./workload-benchmark.js");
 const Tagging = require("./file-auto-tagging.js");
+const Validation = require("./validation.js");
 
 const WORKLOAD_ID = "image-duplicate-detection";
 const MAX_IMAGES = 16;
 const MAX_PAIRS = (MAX_IMAGES * (MAX_IMAGES - 1)) / 2;
-const DIGEST = /^[a-f0-9]{64}$/u;
+const {DIGEST} = Validation;
 const STRATEGIES = Object.freeze([
     "phash-scalar", "phash-simd", "phash-gpu-batch",
     "embedding-gpu-batch", "hybrid-cascade",
@@ -43,15 +44,8 @@ class DuplicateBenchmarkError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, fields) {
-    return isRecord(value)
-        && Object.keys(value).length === fields.length
-        && fields.every((name) => Object.hasOwn(value, name));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function taggingImage(image) {
     return {

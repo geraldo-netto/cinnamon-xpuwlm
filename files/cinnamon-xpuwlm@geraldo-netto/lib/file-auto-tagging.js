@@ -5,6 +5,7 @@
 // matrix-local and only among candidates meeting the requested accuracy.
 
 const Benchmark = require("./workload-benchmark.js");
+const Validation = require("./validation.js");
 
 const WORKLOAD_ID = "file-auto-tagging";
 const MAX_FILES_PER_BATCH = 16;
@@ -40,21 +41,13 @@ class AutoTaggingError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, expected) {
-    return isRecord(value)
-        && Object.keys(value).length === expected.length
-        && expected.every((name) => Object.hasOwn(value, name));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function boundedText(value, minimum, maximum) {
     return typeof value === "string"
         && !value.includes("\0")
-        && [...value].length >= minimum
-        && [...value].length <= maximum;
+        && Validation.boundedText(value, minimum, maximum);
 }
 
 function validTag(value) {

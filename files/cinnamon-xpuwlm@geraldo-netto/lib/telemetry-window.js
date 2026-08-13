@@ -4,6 +4,8 @@
 // Monotonic time and sequence cursors make replay safe across polling races;
 // explicit missing/recovered entries preserve source-loss evidence.
 
+const Validation = require("./validation.js");
+
 const VERSION = 1;
 const MAX_FEATURE_VERSION = 255;
 const MAX_FEATURES = 64;
@@ -22,15 +24,8 @@ class TelemetryError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, expected) {
-    return isRecord(value)
-        && Object.keys(value).length === expected.length
-        && expected.every((name) => Object.hasOwn(value, name));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function identifier(value) {
     return typeof value === "string"

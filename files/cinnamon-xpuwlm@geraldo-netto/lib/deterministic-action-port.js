@@ -4,6 +4,8 @@
 // conflict detection, and adapters can mutate state. Every apply is preceded by
 // durable audit evidence and a one-use UI confirmation token.
 
+const Validation = require("./validation.js");
+
 const VERSION = 1;
 const MAX_ACTIONS = 32;
 const MAX_TARGETS = 32;
@@ -18,8 +20,7 @@ const MAX_JSON_COLLECTION = 64;
 const MAX_REFERENCE_LENGTH = 4096;
 const MAX_DETAIL_LENGTH = 512;
 const IDENTIFIER = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
-const REQUEST_ID = /^[A-Za-z0-9._-]{1,120}$/u;
-const DIGEST = /^[a-f0-9]{64}$/u;
+const {DIGEST, REQUEST_ID} = Validation;
 const DEFINITION_FIELDS = Object.freeze([
     "id", "maxTargets", "maxEffects", "allowedEffects", "rollbackSupported", "validate", "port",
 ]);
@@ -44,21 +45,13 @@ class DeterministicActionError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, expected) {
-    return isRecord(value)
-        && Object.keys(value).length === expected.length
-        && expected.every((name) => Object.hasOwn(value, name));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function boundedText(value, minimum, maximum) {
     return typeof value === "string"
         && !value.includes("\0")
-        && [...value].length >= minimum
-        && [...value].length <= maximum;
+        && Validation.boundedText(value, minimum, maximum);
 }
 
 function identifier(value) {

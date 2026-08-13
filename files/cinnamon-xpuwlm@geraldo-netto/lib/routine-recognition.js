@@ -5,6 +5,7 @@
 
 const Benchmark = require("./workload-benchmark.js");
 const Tagging = require("./file-auto-tagging.js");
+const Validation = require("./validation.js");
 
 const WORKLOAD_ID = "local-routine-recognition";
 const MAX_SAMPLES = 512;
@@ -41,15 +42,8 @@ class RoutineRecognitionError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, fields) {
-    return isRecord(value)
-        && Object.keys(value).length === fields.length
-        && fields.every((name) => Object.hasOwn(value, name));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function identifier(value) {
     return typeof value === "string" && value.length <= 80 && IDENTIFIER.test(value);

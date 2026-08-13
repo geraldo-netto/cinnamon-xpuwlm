@@ -8,6 +8,7 @@
 
 const Contract = require("./runtime-control-contract.js");
 const Refusal = require("./runtime-refusal-contract.js");
+const Validation = require("./validation.js");
 
 const INVENTORY_VERSION = 1;
 const MAX_PLUGINS = 128;
@@ -26,19 +27,9 @@ const PERMISSION = /^[a-z][a-z0-9-]*:[a-zA-Z0-9*._/-]+$/u;
 const SEMANTIC_VERSION = /^(0|[1-9]\d{0,5})\.(0|[1-9]\d{0,5})\.(0|[1-9]\d{0,5})$/u;
 const contractViolation = Contract.contractViolation;
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactRecord(value, fields) {
-    return isRecord(value)
-        && Object.keys(value).length === fields.size
-        && Object.keys(value).every((name) => fields.has(name));
-}
-
-function boundedText(value, minimum, maximum) {
-    return typeof value === "string" && [...value].length >= minimum && [...value].length <= maximum;
-}
+const isRecord = Validation.isRecord;
+const exactRecord = Validation.exactKeys;
+const boundedText = Validation.boundedText;
 
 function uniqueStrings(value, maximumItems, maximumLength, allowed = null) {
     return Array.isArray(value)

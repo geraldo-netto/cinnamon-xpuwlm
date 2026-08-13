@@ -6,6 +6,7 @@
 
 const Benchmark = require("./workload-benchmark.js");
 const Tagging = require("./file-auto-tagging.js");
+const Validation = require("./validation.js");
 
 const WORKLOAD_ID = "file-categorization";
 const TAXONOMY_VERSION = 1;
@@ -38,15 +39,8 @@ class CategorizationError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, expected) {
-    return isRecord(value)
-        && Object.keys(value).length === expected.length
-        && expected.every((name) => Object.hasOwn(value, name));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function taggingFile(file) {
     return {

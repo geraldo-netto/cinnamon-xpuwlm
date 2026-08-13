@@ -3,11 +3,9 @@
 // Shared lifecycle mechanics for runtime-backed, one-shot workflows. Workload
 // controllers retain selection, submission, result, and cancellation policy.
 
-function boundedText(value, minimum, maximum) {
-    return typeof value === "string"
-        && [...value].length >= minimum
-        && [...value].length <= maximum;
-}
+const Validation = require("./validation.js");
+
+const boundedText = Validation.boundedText;
 
 function requirePort(candidate, methods, label) {
     if (!candidate || methods.some((name) => typeof candidate[name] !== "function")) {

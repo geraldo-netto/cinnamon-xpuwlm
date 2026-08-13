@@ -4,6 +4,7 @@
 // deck. Model prose may cite bounded evidence, but cannot create tasks/events.
 
 const Media = require("./media-transcription.js");
+const Validation = require("./validation.js");
 
 const VERSION = 1;
 const MAX_TEXT = 16_384;
@@ -18,7 +19,7 @@ const CANDIDATE_FIELDS = Object.freeze([
     "version", "sourceSha256", "summary", "decisions", "proposedTasks", "questions",
     "proposedEvents",
 ]);
-const DIGEST = /^[a-f0-9]{64}$/u;
+const {DIGEST} = Validation;
 
 class RehearsalBriefingError extends Error {
     constructor(code, detail) {
@@ -28,19 +29,12 @@ class RehearsalBriefingError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, fields) {
-    return isRecord(value)
-        && Object.keys(value).length === fields.length
-        && fields.every((name) => Object.hasOwn(value, name));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function boundedText(value, minimum = 1) {
     return typeof value === "string" && !value.includes("\0")
-        && [...value].length >= minimum && [...value].length <= MAX_TEXT;
+        && Validation.boundedText(value, minimum, MAX_TEXT);
 }
 
 function validRecordingSource(value) {

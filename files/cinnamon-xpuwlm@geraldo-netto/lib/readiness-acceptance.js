@@ -1,10 +1,11 @@
 "use strict";
 
+const Validation = require("./validation.js");
+
 const VERSION = 1;
 const MAX_TEXT = 500;
 const MAX_ISSUES = 64;
 const IDENTIFIER = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
-const DIGEST = /^[a-f0-9]{64}$/u;
 const BACKENDS = Object.freeze(["tpu", "npu", "gpu"]);
 const SCENARIOS = Object.freeze([
     "click-to-result", "cancellation", "pressure", "restart",
@@ -42,18 +43,11 @@ class ReadinessError extends Error {
     }
 }
 
-function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function exactKeys(value, keys) {
-    return isRecord(value)
-        && Object.keys(value).length === keys.length
-        && keys.every((key) => Object.hasOwn(value, key));
-}
+const isRecord = Validation.isRecord;
+const exactKeys = Validation.exactKeys;
 
 function boundedText(value, maximum = MAX_TEXT) {
-    return typeof value === "string" && [...value].length >= 1 && [...value].length <= maximum;
+    return Validation.boundedText(value, 1, maximum);
 }
 
 function identifier(value) {
@@ -64,9 +58,7 @@ function timestamp(value) {
     return Number.isSafeInteger(value) && value >= 0;
 }
 
-function digest(value) {
-    return typeof value === "string" && DIGEST.test(value);
-}
+const digest = Validation.isDigest;
 
 function validHardware(value) {
     return exactKeys(value, HARDWARE_KEYS)
