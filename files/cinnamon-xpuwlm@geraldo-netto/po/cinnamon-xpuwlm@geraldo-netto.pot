@@ -26,9 +26,21 @@ msgstr[1] ""
 msgid "%d active · %d paused · weight 1–5"
 msgstr ""
 
+#: lib/generic-workflow-menu-view.js
+msgid "%d additional evidence row omitted"
+msgid_plural "%d additional evidence rows omitted"
+msgstr[0] ""
+msgstr[1] ""
+
 #: lib/workflow-menu-view.js
 msgid "%d duplicate removed"
 msgid_plural "%d duplicates removed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/generic-workflow-surface.js
+msgid "%d embedding value"
+msgid_plural "%d embedding values"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -102,6 +114,12 @@ msgstr[1] ""
 msgid "%d queued"
 msgstr ""
 
+#: lib/generic-workflow-menu-view.js
+msgid "%d retained result"
+msgid_plural "%d retained results"
+msgstr[0] ""
+msgstr[1] ""
+
 #: lib/view-model.js
 msgid "%d runtime item names a workload that is not installed here"
 msgid_plural "%d runtime items name workloads that are not installed here"
@@ -143,6 +161,10 @@ msgid "%d workload reported by the runtime"
 msgid_plural "%d workloads reported by the runtime"
 msgstr[0] ""
 msgstr[1] ""
+
+#: lib/generic-workflow-surface.js
+msgid "%d × %d mask"
+msgstr ""
 
 #: lib/view-model.js
 msgid "%dh ago"
@@ -206,6 +228,10 @@ msgstr ""
 
 #: lib/workflow-menu-view.js
 msgid "%s title"
+msgstr ""
+
+#: lib/generic-workflow-surface.js
+msgid "%s vector hidden from the interface"
 msgstr ""
 
 #: lib/workflow-view-model.js
@@ -380,7 +406,7 @@ msgstr ""
 msgid "Calendar files"
 msgstr ""
 
-#: lib/event-source-port.js lib/menu-view.js lib/workflow-menu-view.js
+#: lib/event-source-port.js lib/generic-workflow-surface.js lib/menu-view.js lib/workflow-menu-view.js
 msgid "Cancel"
 msgstr ""
 
@@ -516,6 +542,10 @@ msgstr ""
 msgid "Clear recent activity?"
 msgstr ""
 
+#: lib/generic-workflow-surface.js
+msgid "Clear retained results"
+msgstr ""
+
 #: lib/workflow-menu-view.js
 msgid "Clear selected-text result"
 msgstr ""
@@ -580,8 +610,28 @@ msgstr ""
 msgid "Connection required"
 msgstr ""
 
+#: lib/generic-workflow-menu-view.js
+msgid "Consent"
+msgstr ""
+
+#: lib/generic-workflow-menu-view.js
+msgid "Consent denied"
+msgstr ""
+
+#: lib/generic-workflow-menu-view.js
+msgid "Consent granted"
+msgstr ""
+
 #: lib/view-model.js
 msgid "Consent is granted from a terminal rather than from this popup: every peer on the session bus runs as the same user, so the runtime could not tell a request made here from one made by anything else able to talk to it. Withdraw it again with omnitensor-grant revoke."
+msgstr ""
+
+#: lib/generic-workflow-menu-view.js
+msgid "Consent not required"
+msgstr ""
+
+#: lib/generic-workflow-menu-view.js
+msgid "Consent required"
 msgstr ""
 
 #: lib/menu-view.js
@@ -772,6 +822,10 @@ msgstr ""
 msgid "Generated"
 msgstr ""
 
+#: lib/generic-workflow-surface.js
+msgid "Grant consent"
+msgstr ""
+
 #: lib/view-model.js
 msgid "Grant the permission these profiles ask for"
 msgstr ""
@@ -896,6 +950,10 @@ msgstr ""
 msgid "NPU"
 msgstr ""
 
+#: lib/generic-workflow-surface.js
+msgid "Needs attention"
+msgstr ""
+
 #: lib/view-model.js
 msgid "Needs setup"
 msgstr ""
@@ -954,6 +1012,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "No device detail"
+msgstr ""
+
+#: lib/generic-workflow-surface.js
+msgid "No evidence references"
 msgstr ""
 
 #: lib/workflow-view-model.js
@@ -1040,6 +1102,10 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
+#: lib/generic-workflow-surface.js
+msgid "Offset %d %s"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "On"
 msgstr ""
@@ -1116,6 +1182,10 @@ msgstr ""
 msgid "Profiles remain saved locally. No data, authorization, or backup policy is changed."
 msgstr ""
 
+#: lib/generic-workflow-menu-view.js
+msgid "Progress"
+msgstr ""
+
 #: lib/workflow-view-model.js
 msgid "Put a picture in %s and it will be listed here"
 msgstr ""
@@ -1128,6 +1198,10 @@ msgstr ""
 msgid "Queue"
 msgstr ""
 
+#: lib/generic-workflow-surface.js
+msgid "Rank %d · %s"
+msgstr ""
+
 #: lib/view-model.js
 msgid "Reading the snapshot failed, so device and workload telemetry are unknown rather than assumed."
 msgstr ""
@@ -1136,7 +1210,7 @@ msgstr ""
 msgid "Reads the clipboard once only after an operation is chosen"
 msgstr ""
 
-#: lib/menu-view.js lib/view-model.js lib/workflow-view-model.js
+#: lib/generic-workflow-surface.js lib/menu-view.js lib/view-model.js lib/workflow-view-model.js
 msgid "Ready"
 msgstr ""
 
@@ -1200,6 +1274,10 @@ msgstr ""
 msgid "Required service or input is unavailable"
 msgstr ""
 
+#: lib/generic-workflow-menu-view.js
+msgid "Required service, source, or hardware is unavailable"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Resolved"
 msgstr ""
@@ -1208,8 +1286,16 @@ msgstr ""
 msgid "Resource Scheduler has no bundled weights, but OmniTensor supports one opt-in self-supervised forecast recipe for it. Record representative real queue history first; never substitute synthetic samples."
 msgstr ""
 
+#: lib/generic-workflow-menu-view.js
+msgid "Result"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Resume all workloads"
+msgstr ""
+
+#: lib/generic-workflow-menu-view.js
+msgid "Retention"
 msgstr ""
 
 #: lib/menu-view.js
@@ -1244,6 +1330,10 @@ msgstr ""
 msgid "Review export"
 msgstr ""
 
+#: lib/generic-workflow-menu-view.js
+msgid "Review only: no system action is performed from this result"
+msgstr ""
+
 #: lib/workflow-menu-view.js
 msgid "Review organization plan"
 msgstr ""
@@ -1252,12 +1342,16 @@ msgstr ""
 msgid "Review required before continuing"
 msgstr ""
 
-#: lib/workflow-menu-view.js
+#: lib/generic-workflow-menu-view.js lib/workflow-menu-view.js
 msgid "Review result"
 msgstr ""
 
 #: lib/workflow-view-model.js
 msgid "Review suggestions; files are never changed"
+msgstr ""
+
+#: lib/generic-workflow-surface.js
+msgid "Revoke consent"
 msgstr ""
 
 #: lib/workflow-menu-view.js
@@ -1270,6 +1364,14 @@ msgstr ""
 
 #: lib/workflow-menu-view.js
 msgid "Run %s on %s"
+msgstr ""
+
+#: lib/generic-workflow-surface.js
+msgid "Run in background"
+msgstr ""
+
+#: lib/generic-workflow-surface.js
+msgid "Run now"
 msgstr ""
 
 #: lib/view-model.js lib/workflow-view-model.js
@@ -1388,6 +1490,10 @@ msgstr ""
 
 #: lib/event-source-port.js
 msgid "Save new file"
+msgstr ""
+
+#: lib/generic-workflow-surface.js
+msgid "Score %s · threshold %s · %s"
 msgstr ""
 
 #: lib/workflow-menu-view.js
@@ -1746,7 +1852,7 @@ msgstr ""
 msgid "Translation target language"
 msgstr ""
 
-#: lib/view-model.js lib/workflow-view-model.js
+#: lib/generic-workflow-menu-view.js lib/generic-workflow-surface.js lib/view-model.js lib/workflow-view-model.js
 msgid "Unavailable"
 msgstr ""
 
@@ -1810,7 +1916,7 @@ msgstr ""
 msgid "Work with selected text"
 msgstr ""
 
-#: lib/workflow-view-model.js
+#: lib/generic-workflow-surface.js lib/workflow-view-model.js
 msgid "Working"
 msgstr ""
 

@@ -13,6 +13,9 @@ const WorkflowMenu = require(
 const WorkflowViewModel = require(
     "../../files/cinnamon-xpuwlm@geraldo-netto/lib/workflow-view-model.js",
 );
+const GenericWorkflowMenu = require(
+    "../../files/cinnamon-xpuwlm@geraldo-netto/lib/generic-workflow-menu-view.js",
+);
 
 const ROOT = path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto/lib");
 const PROJECTION_EXPORTS = Object.freeze([
@@ -114,6 +117,26 @@ test("workflow renderer installation preserves host members and behavior helpers
         "accepted · Finished · job-7",
     );
     assert.equal(Menu.jobDetail, WorkflowMenu.jobDetail);
+});
+
+test("generic workflow renderer contract installs exact reusable surfaces", () => {
+    assert.deepEqual(GenericWorkflowMenu.GENERIC_RENDERER_NAMES, [
+        "_renderGenericWorkflowSurface",
+        "_renderGenericUnavailable",
+        "_renderGenericConsent",
+        "_renderGenericProgress",
+        "_renderGenericWarning",
+        "_renderGenericResult",
+        "_renderGenericRetention",
+        "_renderGenericActions",
+    ]);
+    for (const name of GenericWorkflowMenu.GENERIC_RENDERER_NAMES) {
+        assert.equal(
+            Menu.MenuView.prototype[name],
+            GenericWorkflowMenu.GenericWorkflowMenuView.prototype[name],
+            name,
+        );
+    }
 });
 
 test("job details retain only non-empty strings without coercing runtime values", () => {

@@ -1,6 +1,7 @@
 "use strict";
 
 const I18n = require("./i18n.js");
+const GenericWorkflowMenu = require("./generic-workflow-menu-view.js");
 const Layout = require("./layout.js");
 const ViewModel = require("./view-model.js");
 const WorkflowMenu = require("./workflow-menu-view.js");
@@ -171,6 +172,7 @@ class MenuView {
             startMediaTranscription: optionalAction(actions, "startMediaTranscription"),
             cancelMediaTranscription: optionalAction(actions, "cancelMediaTranscription"),
             resetMediaTranscription: optionalAction(actions, "resetMediaTranscription"),
+            dispatchGenericWorkflow: optionalAction(actions, "dispatchGenericWorkflow"),
         };
         this._policyPaused = false;
         this._controlPending = false;
@@ -1497,6 +1499,7 @@ class MenuView {
 }
 
 WorkflowMenu.installWorkflowRenderers(MenuView.prototype);
+GenericWorkflowMenu.installGenericWorkflowRenderers(MenuView.prototype);
 
 module.exports = {
     IMMEDIATE_ACTION_SCHEDULER,

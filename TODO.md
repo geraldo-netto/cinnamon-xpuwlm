@@ -1,6 +1,6 @@
 # TODO
 
-The GPU use-case implementation backlog is tracked directly in XTPU-0100
+The GPU use-case implementation backlog is tracked directly in XTPU-0101
 through XTPU-0138; `related ids` encode its dependency order.
 
 ## Work groups
@@ -9,7 +9,7 @@ Items remain in the canonical lifecycle tables below; these ranges provide the
 domain grouping without weakening the required status schema.
 
 - **Platform and portability:** XTPU-0087–XTPU-0089
-- **Shared GPU foundations:** XTPU-0100–XTPU-0103
+- **Shared GPU foundations:** XTPU-0101–XTPU-0103
 - **Hardware and storage:** XTPU-0104–XTPU-0110
 - **Scheduling, network, and security:** XTPU-0111–XTPU-0114
 - **Developer tools:** XTPU-0115–XTPU-0120
@@ -24,7 +24,6 @@ domain grouping without weakening the required status schema.
 | --- | --- | --- | --- | --- | --- |
 | XTPU-0087 | open | high | l | XTPU-0088, XTPU-0089 | A Windows client is feasible as a sibling tray application, with roughly 69% of library code a candidate for reuse, but the GJS/Cinnamon shell, St/Clutter view, GIO/GTK adapters, settings, notifications, and packaging require Windows implementations. Prove an Electron/Node tray and named-pipe handshake spike before committing to parity. |
 | XTPU-0089 | open | medium | m | XTPU-0087 | Portable core code still constructs POSIX paths and publishes Linux-only setup guidance, while the mixed Cinnamon runtime adapter combines shared factories with GIO and Linux discovery. Extract path, platform-guidance, transport, and discovery ports before a Windows client release. |
-| XTPU-0100 | open | high | l | XTPU-0098, XTPU-0099 | Build generic Cinnamon consent, run-now, background, progress/cancel, evidence, warning, retention, unavailable, and review-only result surfaces before adding bespoke buttons. |
 | XTPU-0101 | open | high | l | XTPU-0095, XTPU-0100 | Require recorded replay plus real Cinnamon click-to-result runs on named hardware, expected validated output, error/warning monitoring, cancellation, pressure, restart, source/device loss, and recovery before any new workload reports ready. |
 | XTPU-0102 | open | medium | m | XTPU-0095 | Consolidate bounded media decode, orientation/color normalization, image sizing, audio resampling, frame/timestamp sampling, archive limits, and temporary-file cleanup across complex PDF, PNG, JPEG, SVG, TIFF, PPTX, ODP, audio, and video formats without avoidable lossy intermediates. |
 | XTPU-0103 | open | high | l | XTPU-0099 | Define deterministic action ports with allowlists, preview, confirmation, conflict checks, audit evidence, rollback where possible, and model-independent safety limits. |
