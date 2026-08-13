@@ -15,13 +15,14 @@ function production(relativePath) {
 
 test("file-based tools never construct GTK chooser windows in Cinnamon", () => {
     const applet = production("applet.js");
+    const wiring = production("lib/workflow-wiring.js");
     assert.match(applet, /new ExternalChooser\.ExternalChooserLifecycle/u);
-    assert.match(applet, /createExternalDocumentPicker/u);
-    assert.match(applet, /createExternalEventSourcePicker/u);
-    assert.match(applet, /createExternalEventExporter/u);
-    assert.doesNotMatch(applet, /createGtkDocumentPicker/u);
-    assert.doesNotMatch(applet, /createGtkEventSourcePicker/u);
-    assert.doesNotMatch(applet, /createGtkEventExporter/u);
+    assert.match(wiring, /createExternalDocumentPicker/u);
+    assert.match(wiring, /createExternalEventSourcePicker/u);
+    assert.match(wiring, /createExternalEventExporter/u);
+    assert.doesNotMatch(wiring, /createGtkDocumentPicker/u);
+    assert.doesNotMatch(wiring, /createGtkEventSourcePicker/u);
+    assert.doesNotMatch(wiring, /createGtkEventExporter/u);
 
     const external = production("lib/external-chooser-port.js");
     assert.match(external, /Gio\.Subprocess\.new/u);

@@ -51,15 +51,18 @@ test("staged sources remain testable while unreachable module and shim pairs sta
     }
 });
 
-test("direct applet libraries ship without unnecessary root shims", () => {
+test("workflow wiring ships root shims for its former direct-only ports", () => {
     const graph = Package.productionRequireGraph(Package.payloadRoot);
     const payload = Package.appletPayloadFiles(Package.payloadRoot);
     for (const basename of [
-        "clipboard-selection-port.js", "document-source-port.js", "media-source-port.js",
+        "cinnamon-runtime.js", "clipboard-selection-port.js", "document-source-port.js",
+        "media-source-port.js",
     ]) {
         assert.equal(graph.modules.includes(`lib/${basename}`), true, basename);
-        assert.equal(graph.rootShims.includes(basename), false, basename);
+        assert.equal(graph.rootShims.includes(basename), true, basename);
         assert.equal(payload.includes(`lib/${basename}`), true, basename);
-        assert.equal(payload.includes(basename), false, basename);
+        assert.equal(payload.includes(basename), true, basename);
     }
+    assert.equal(graph.modules.includes("lib/workflow-wiring.js"), true);
+    assert.equal(graph.rootShims.includes("workflow-wiring.js"), false);
 });

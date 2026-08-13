@@ -22,24 +22,17 @@ const AlertNotifier = require("./lib/alert-notifier.js");
 const CinnamonRuntime = require("./lib/cinnamon-runtime.js");
 const ClipboardSelectionPort = require("./lib/clipboard-selection-port.js");
 const Domain = require("./lib/domain.js");
-const DocumentQuestion = require("./lib/document-question.js");
-const DocumentSourcePort = require("./lib/document-source-port.js");
-const EventImport = require("./lib/event-import.js");
-const EventSourcePort = require("./lib/event-source-port.js");
 const ExternalChooser = require("./lib/external-chooser-port.js");
-const FileOrganizer = require("./lib/file-organizer.js");
 const FailureBackoff = require("./lib/failure-log-backoff.js");
 const I18n = require("./lib/i18n.js");
 const JobSubmission = require("./lib/job-submission.js");
 const Layout = require("./lib/layout.js");
 const Manager = require("./lib/manager.js");
-const MediaSourcePort = require("./lib/media-source-port.js");
-const MediaTranscription = require("./lib/media-transcription.js");
 const Menu = require("./lib/menu-view.js");
 const PluginInventory = require("./lib/plugin-inventory.js");
-const SelectedText = require("./lib/selected-text.js");
 const ViewModel = require("./lib/view-model.js");
 const WorkloadRegistry = require("./lib/workload-registry.js");
+const WorkflowWiring = require("./lib/workflow-wiring.js");
 
 const {_} = I18n;
 
@@ -81,25 +74,6 @@ function panelIconSize(requestedSize) {
 
 function defaultEnvironment() {
     return {ByteArray, Gdk, GdkPixbuf, Gio, GLib, Gtk};
-}
-
-function unavailableEventFilePorts() {
-    const unavailable = (callback) => callback(new Error("GTK event file access is unavailable"), null);
-    return {
-        picker: {chooseFiles: unavailable, chooseFolder: unavailable},
-        exporter: {saveIcs: (_calendar, _paths, callback) => unavailable(callback)},
-    };
-}
-
-function unavailableDocumentPicker() {
-    return {chooseFiles: (callback) => callback(new Error("GTK document access is unavailable"), null)};
-}
-
-function unavailableClipboardReader() {
-    return {
-        readText: (callback) => callback(new Error("GTK clipboard text access is unavailable"), null),
-        cancel: () => true,
-    };
 }
 
 function defaultLogger() {
@@ -279,113 +253,18 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         }
         this._pluginInventoryGateway = overrides.pluginInventoryGateway
             || CinnamonRuntime.createPluginInventoryGateway(this._environment);
-        this._eventImport = overrides.eventImportController
-            || this._createEventImportController();
-        this._documentQuestion = overrides.documentQuestionController
-            || this._createDocumentQuestionController();
-        this._selectedText = overrides.selectedTextController
-            || this._createSelectedTextController();
-        this._fileOrganizer = overrides.fileOrganizerController
-            || this._createFileOrganizerController();
-        this._mediaTranscription = this._resolveMediaTranscriptionController(overrides);
-    }
-
-    _resolveMediaTranscriptionController(overrides) {
-        return overrides.mediaTranscriptionController || this._createMediaTranscriptionController();
-    }
-
-    _createMediaTranscriptionController() {
-        let picker;
-        try {
-            picker = MediaSourcePort.createExternalMediaPicker(
-                this._environment,
-                this._chooserLifecycle,
-            );
-        } catch {
-            picker = unavailableDocumentPicker();
-        }
-        return new MediaTranscription.MediaTranscriptionController({
-            picker,
-            gateway: CinnamonRuntime.createRuntimeJobGateway(this._environment),
+        const controllers = WorkflowWiring.createWorkflowControllers({
+            environment: this._environment,
+            chooserLifecycle: this._chooserLifecycle,
             scheduler: this._scheduler,
             clock: this._clock,
+            overrides,
         });
-    }
-
-    _createFileOrganizerController() {
-        let picker;
-        try {
-            picker = DocumentSourcePort.createExternalDocumentPicker(
-                this._environment,
-                this._chooserLifecycle,
-                _("Choose files to organize"),
-            );
-        } catch {
-            picker = unavailableDocumentPicker();
-        }
-        return new FileOrganizer.FileOrganizerController({
-            picker,
-            gateway: CinnamonRuntime.createRuntimeJobGateway(this._environment),
-            scheduler: this._scheduler,
-            clock: this._clock,
-        });
-    }
-
-    _createSelectedTextController() {
-        let clipboard;
-        try {
-            clipboard = ClipboardSelectionPort.createGtkClipboardSelectionReader(this._environment);
-        } catch {
-            clipboard = unavailableClipboardReader();
-        }
-        return new SelectedText.SelectedTextController({
-            clipboard,
-            gateway: CinnamonRuntime.createRuntimeJobGateway(this._environment),
-            scheduler: this._scheduler,
-            clock: this._clock,
-        });
-    }
-
-    _createDocumentQuestionController() {
-        let picker;
-        try {
-            picker = DocumentSourcePort.createExternalDocumentPicker(
-                this._environment,
-                this._chooserLifecycle,
-            );
-        } catch {
-            picker = unavailableDocumentPicker();
-        }
-        return new DocumentQuestion.DocumentQuestionController({
-            picker,
-            gateway: CinnamonRuntime.createRuntimeJobGateway(this._environment),
-            scheduler: this._scheduler,
-            clock: this._clock,
-        });
-    }
-
-    _createEventImportController() {
-        let ports;
-        try {
-            ports = {
-                picker: EventSourcePort.createExternalEventSourcePicker(
-                    this._environment,
-                    this._chooserLifecycle,
-                ),
-                exporter: EventSourcePort.createExternalEventExporter(
-                    this._environment,
-                    this._chooserLifecycle,
-                ),
-            };
-        } catch {
-            ports = unavailableEventFilePorts();
-        }
-        return new EventImport.EventImportController({
-            ...ports,
-            gateway: CinnamonRuntime.createRuntimeJobGateway(this._environment),
-            scheduler: this._scheduler,
-            clock: this._clock,
-        });
+        this._eventImport = controllers.eventImport;
+        this._documentQuestion = controllers.documentQuestion;
+        this._selectedText = controllers.selectedText;
+        this._fileOrganizer = controllers.fileOrganizer;
+        this._mediaTranscription = controllers.mediaTranscription;
     }
 
     _createManager(overrides) {
@@ -913,8 +792,8 @@ if (typeof module !== "undefined") {
         panelIconSize,
         resolveWorkloadCatalog,
         resolveWorkloadRegistry,
-        unavailableEventFilePorts,
-        unavailableDocumentPicker,
-        unavailableClipboardReader,
+        unavailableEventFilePorts: WorkflowWiring.unavailableEventFilePorts,
+        unavailableDocumentPicker: WorkflowWiring.unavailableDocumentPicker,
+        unavailableClipboardReader: WorkflowWiring.unavailableClipboardReader,
     };
 }

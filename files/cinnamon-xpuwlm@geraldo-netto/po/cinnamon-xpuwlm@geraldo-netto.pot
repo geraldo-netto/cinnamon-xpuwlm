@@ -498,7 +498,7 @@ msgstr ""
 msgid "Choose files for a review-only organization plan"
 msgstr ""
 
-#: applet.js
+#: lib/workflow-wiring.js
 msgid "Choose files to organize"
 msgstr ""
 
