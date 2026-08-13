@@ -4,28 +4,22 @@
 // out. Only a qualified accelerator worker can make this workflow available.
 
 const Job = require("./runtime-job-contract.js");
+const Preprocessing = require("./media-preprocessing.js");
 const Workflow = require("./workflow-controller.js");
 
 const PROFILE_ID = "media-transcription";
-const MAX_SOURCE_BYTES = 128 * 1024 * 1024;
-const MAX_DURATION_MS = 600_000;
-const MAX_VIDEO_DURATION_MS = 300_000;
+const {MAX_SOURCE_BYTES, MAX_DURATION_MS, MAX_VIDEO_DURATION_MS} = Preprocessing;
 const MAX_SEGMENTS = 2048;
-const MAX_VISUALS = 12;
-const MAX_PRESENTATION_SLIDES = 64;
+const MAX_VISUALS = Preprocessing.MAX_VISUALS;
+const MAX_PRESENTATION_SLIDES = Preprocessing.MAX_PAGES;
 const MAX_TEXT_CHARACTERS = 16_384;
 const MAX_SPEECH_TEXT_CHARACTERS = 4096;
 const MAX_POLLS = 600;
 const POLL_INTERVAL_MS = 500;
-const AUDIO_SUFFIXES = Object.freeze([".flac", ".m4a", ".mp3", ".ogg", ".opus", ".wav"]);
-const IMAGE_SUFFIXES = Object.freeze([".jpeg", ".jpg", ".png", ".svg", ".webp"]);
-const VIDEO_SUFFIXES = Object.freeze([".avi", ".m4v", ".mkv", ".mov", ".mp4", ".webm"]);
-const PRESENTATION_SUFFIXES = Object.freeze([".odp", ".pptx"]);
-const DOCUMENT_SUFFIXES = Object.freeze([".pdf", ".tif", ".tiff"]);
-const SOURCE_SUFFIXES = Object.freeze([
-    ...AUDIO_SUFFIXES, ...DOCUMENT_SUFFIXES, ...IMAGE_SUFFIXES,
-    ...VIDEO_SUFFIXES, ...PRESENTATION_SUFFIXES,
-]);
+const {
+    AUDIO_SUFFIXES, DOCUMENT_SUFFIXES, IMAGE_SUFFIXES, PRESENTATION_SUFFIXES,
+    SOURCE_SUFFIXES, VIDEO_SUFFIXES,
+} = Preprocessing;
 const REQUEST_ID = /^[A-Za-z0-9._-]{1,120}$/u;
 const IDENTIFIER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const DIGEST = /^[a-f0-9]{64}$/u;
@@ -66,26 +60,8 @@ function boundedText(value, minimum, maximum) {
         && [...value].length <= maximum;
 }
 
-function suffixOf(path) {
-    const lowered = String(path).toLowerCase();
-    return SOURCE_SUFFIXES.find((suffix) => lowered.endsWith(suffix)) || "";
-}
-
 function modalityOf(path) {
-    const suffix = suffixOf(path);
-    if (AUDIO_SUFFIXES.includes(suffix)) {
-        return "audio";
-    }
-    if (IMAGE_SUFFIXES.includes(suffix)) {
-        return "image";
-    }
-    if (DOCUMENT_SUFFIXES.includes(suffix)) {
-        return "document";
-    }
-    if (VIDEO_SUFFIXES.includes(suffix)) {
-        return "video";
-    }
-    return PRESENTATION_SUFFIXES.includes(suffix) ? "presentation" : "";
+    return Preprocessing.mediaFamily(path);
 }
 
 function validSourceIdentity(candidate) {

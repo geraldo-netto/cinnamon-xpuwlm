@@ -41,6 +41,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "layout.js",
     "manager.js",
     "media-source-port.js",
+    "media-preprocessing.js",
     "media-transcription.js",
     "metadata.json",
     "po",
