@@ -76,6 +76,8 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "workload-benchmark.js",
     "workload-registry.js",
     "workload-reconciliation.js",
+    "workload-result.js",
+    "workload-result.schema.json",
     "workloads",
     "linux-device-adapter.js",
 ]);
@@ -160,6 +162,7 @@ function productionJavaScriptFiles() {
 function validateJsonArtifacts() {
     const metadata = readJson(appletRoot, "metadata.json");
     const qualificationSchema = readJson(appletRoot, "artifact-qualification.schema.json");
+    const resultSchema = readJson(appletRoot, "workload-result.schema.json");
     const settings = readJson(appletRoot, "settings-schema.json");
     const schema = readJson(appletRoot, "runtime-snapshot.schema.json");
     const workloadSchema = readJson(appletRoot, "workload-manifest.schema.json");
@@ -182,6 +185,7 @@ function validateJsonArtifacts() {
     assert.equal(schema.properties.generatedAt.minimum, Domain.MIN_GENERATED_AT);
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(schema));
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(qualificationSchema));
+    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(resultSchema));
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(workloadSchema));
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(commandSchema));
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(acknowledgementSchema));

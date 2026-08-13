@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/cinnamon-xpuwlm/workload-result.schema.json",
+  "title": "Versioned XPU workload result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "kind", "workloadId", "operationId", "createdAt", "payload"],
+  "properties": {
+    "version": {"const": 1},
+    "kind": {
+      "enum": ["risk-score", "forecast", "ranking", "detection", "mask", "embedding", "labels", "media-evidence"]
+    },
+    "workloadId": {"$ref": "#/$defs/identifier"},
+    "operationId": {"$ref": "#/$defs/identifier"},
+    "createdAt": {"type": "integer", "minimum": 0},
+    "payload": true
+  },
+  "allOf": [
+    {"if": {"properties": {"kind": {"const": "risk-score"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/riskScore"}}}},
+    {"if": {"properties": {"kind": {"const": "forecast"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/forecast"}}}},
+    {"if": {"properties": {"kind": {"const": "ranking"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/ranking"}}}},
+    {"if": {"properties": {"kind": {"const": "detection"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/detection"}}}},
+    {"if": {"properties": {"kind": {"const": "mask"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/mask"}}}},
+    {"if": {"properties": {"kind": {"const": "embedding"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/embedding"}}}},
+    {"if": {"properties": {"kind": {"const": "labels"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/labels"}}}},
+    {"if": {"properties": {"kind": {"const": "media-evidence"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/mediaEvidence"}}}}
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*$",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "text": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "shortText": {"type": "string", "minLength": 1, "maxLength": 160},
+    "probability": {"type": "number", "minimum": 0, "maximum": 1},
+    "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "riskScore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score", "threshold", "label", "evidenceIds"],
+      "properties": {
+        "score": {"$ref": "#/$defs/probability"},
+        "threshold": {"$ref": "#/$defs/probability"},
+        "label": {"$ref": "#/$defs/shortText"},
+        "evidenceIds": {
+          "type": "array", "maxItems": 64, "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier"}
+        }
+      }
+    },
+    "forecastPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offset", "value", "lower", "upper"],
+      "properties": {
+        "offset": {"type": "integer", "minimum": 0},
+        "value": {"type": "number"},
+        "lower": {"type": "number"},
+        "upper": {"type": "number"}
+      }
+    },
+    "forecast": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["horizon", "unit", "points"],
+      "properties": {
+        "horizon": {"type": "integer", "minimum": 1},
+        "unit": {"type": "string", "minLength": 1, "maxLength": 40},
+        "points": {
+          "type": "array", "minItems": 1, "maxItems": 512,
+          "items": {"$ref": "#/$defs/forecastPoint"}
+        }
+      }
+    },
+    "rankedItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "rank", "score"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "rank": {"type": "integer", "minimum": 1},
+        "score": {"type": "number"}
+      }
+    },
+    "ranking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array", "minItems": 1, "maxItems": 512,
+          "items": {"$ref": "#/$defs/rankedItem"}
+        }
+      }
+    },
+    "box": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": {"$ref": "#/$defs/probability"},
+        "y": {"$ref": "#/$defs/probability"},
+        "width": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "height": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}
+      }
+    },
+    "detectionItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "score", "box"],
+      "properties": {
+        "label": {"$ref": "#/$defs/shortText"},
+        "score": {"$ref": "#/$defs/probability"},
+        "box": {"$ref": "#/$defs/box"}
+      }
+    },
+    "detection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array", "maxItems": 512,
+          "items": {"$ref": "#/$defs/detectionItem"}
+        }
+      }
+    },
+    "dimension": {"type": "integer", "minimum": 1, "maximum": 65536},
+    "mask": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "sourceWidth", "sourceHeight", "encoding", "dataSha256"],
+      "properties": {
+        "width": {"$ref": "#/$defs/dimension"},
+        "height": {"$ref": "#/$defs/dimension"},
+        "sourceWidth": {"$ref": "#/$defs/dimension"},
+        "sourceHeight": {"$ref": "#/$defs/dimension"},
+        "encoding": {"enum": ["rle", "png"]},
+        "dataSha256": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "embedding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimensions", "dtype", "vector"],
+      "properties": {
+        "dimensions": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "dtype": {"const": "float32"},
+        "vector": {
+          "type": "array", "minItems": 1, "maxItems": 4096,
+          "items": {"type": "number"}
+        }
+      }
+    },
+    "labelItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "score"],
+      "properties": {
+        "label": {"$ref": "#/$defs/shortText"},
+        "score": {"$ref": "#/$defs/probability"}
+      }
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array", "minItems": 1, "maxItems": 512,
+          "items": {"$ref": "#/$defs/labelItem"}
+        }
+      }
+    },
+    "mediaSegment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startMs", "endMs", "kind", "text", "confidence", "sourceRef"],
+      "properties": {
+        "startMs": {"type": "integer", "minimum": 0},
+        "endMs": {"type": "integer", "minimum": 1},
+        "kind": {"enum": ["speech", "visible-text", "scene"]},
+        "text": {"$ref": "#/$defs/text"},
+        "confidence": {"$ref": "#/$defs/probability"},
+        "sourceRef": {"$ref": "#/$defs/identifier"}
+      }
+    },
+    "mediaEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["durationMs", "segments"],
+      "properties": {
+        "durationMs": {"type": "integer", "minimum": 1},
+        "segments": {
+          "type": "array", "minItems": 1, "maxItems": 512,
+          "items": {"$ref": "#/$defs/mediaSegment"}
+        }
+      }
+    }
+  }
+}
