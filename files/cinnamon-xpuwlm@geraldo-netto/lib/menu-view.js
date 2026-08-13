@@ -5,6 +5,7 @@ const GenericWorkflowMenu = require("./generic-workflow-menu-view.js");
 const Layout = require("./layout.js");
 const ActorUtils = require("./menu-actor-utils.js");
 const MenuFocus = require("./menu-focus.js");
+const RenderHost = require("./menu-render-host.js");
 const ViewModel = require("./view-model.js");
 const WorkflowMenu = require("./workflow-menu-view.js");
 
@@ -130,6 +131,7 @@ class MenuView {
         this._buildTabs();
         this._buildBody();
         this._buildFooter();
+        this._registerRenderHost();
         this._applyLayoutStyles();
         menu.addActor(this._root);
     }
@@ -187,6 +189,7 @@ class MenuView {
             return false;
         }
         this._cancelDeferredActions();
+        RenderHost.unregisterRenderHost(this);
         this._root.destroy();
         this._root = null;
         this._bodyKey = null;
@@ -352,6 +355,28 @@ class MenuView {
         footer.add_child(settings);
         this._footer = footer;
         this._scrollContent.add_child(footer);
+    }
+
+    _registerRenderHost() {
+        return RenderHost.registerRenderHost(this, {
+            body: {addChild: (actor) => this._body.add_child(actor)},
+            label: (...args) => this._label(...args),
+            headings: {
+                group: (...args) => this._addGroupHeading(...args),
+                section: (...args) => this._addSectionHeading(...args),
+            },
+            events: {
+                action: (...args) => this._eventAction(...args),
+                box: (...args) => this._box(...args),
+                button: (...args) => this._button(...args),
+                entry: (...args) => this._entry(...args),
+                identify: (...args) => this._identify(...args),
+                setAccessibleRole: (...args) => this._setAccessibleRole(...args),
+                setAccessibleState: (...args) => this._setAccessibleState(...args),
+                setButtonEnabled: (...args) => this._setButtonEnabled(...args),
+            },
+            actions: this._actions,
+        });
     }
 
     _renderBody(model) {

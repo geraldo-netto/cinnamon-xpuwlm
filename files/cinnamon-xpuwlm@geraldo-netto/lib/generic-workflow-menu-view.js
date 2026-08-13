@@ -1,15 +1,17 @@
 "use strict";
 
 const I18n = require("./i18n.js");
+const RenderHost = require("./menu-render-host.js");
 
 const {_, format, ngettext} = I18n;
+const hostOf = RenderHost.renderHostOf;
 
 class GenericWorkflowMenuView {
     _renderGenericWorkflowSurface(model) {
         if (model === null || model === undefined) {
             return false;
         }
-        this._addSectionHeading(model.title, model.description);
+        hostOf(this).headings.section(model.title, model.description);
         this._renderGenericUnavailable(model.unavailable);
         this._renderGenericConsent(model.consent);
         this._renderGenericProgress(model.progress);
@@ -24,8 +26,8 @@ class GenericWorkflowMenuView {
         if (!unavailable.visible) {
             return false;
         }
-        this._addGroupHeading(_("Unavailable"), "");
-        this._body.add_child(this._label(
+        hostOf(this).headings.group(_("Unavailable"), "");
+        hostOf(this).body.addChild(hostOf(this).label(
             unavailable.detail || _("Required service, source, or hardware is unavailable"),
             "xpuwlm-run-note",
             true,
@@ -43,8 +45,8 @@ class GenericWorkflowMenuView {
             denied: _("Consent denied"),
             "not-required": _("Consent not required"),
         };
-        this._addGroupHeading(_("Consent"), labels[consent.state]);
-        this._body.add_child(this._label(
+        hostOf(this).headings.group(_("Consent"), labels[consent.state]);
+        hostOf(this).body.addChild(hostOf(this).label(
             consent.purpose, "xpuwlm-event-evidence", true,
         ));
         return true;
@@ -54,7 +56,7 @@ class GenericWorkflowMenuView {
         if (!progress.visible) {
             return false;
         }
-        this._addGroupHeading(_("Progress"), progress.text);
+        hostOf(this).headings.group(_("Progress"), progress.text);
         return true;
     }
 
@@ -62,7 +64,7 @@ class GenericWorkflowMenuView {
         if (warning === "") {
             return false;
         }
-        this._body.add_child(this._label(
+        hostOf(this).body.addChild(hostOf(this).label(
             warning, "xpuwlm-control-feedback xpuwlm-control-error", true,
         ));
         return true;
@@ -72,22 +74,22 @@ class GenericWorkflowMenuView {
         if (result === null) {
             return false;
         }
-        this._addGroupHeading(
+        hostOf(this).headings.group(
             reviewOnly ? _("Review result") : _("Result"),
             `${result.kind} · ${result.operationId}`,
         );
         if (reviewOnly) {
-            this._body.add_child(this._label(
+            hostOf(this).body.addChild(hostOf(this).label(
                 _("Review only: no system action is performed from this result"),
                 "xpuwlm-run-note",
                 true,
             ));
         }
         for (const row of result.rows) {
-            this._addGroupHeading(row.title, row.detail);
+            hostOf(this).headings.group(row.title, row.detail);
         }
         if (result.omitted > 0) {
-            this._body.add_child(this._label(format(
+            hostOf(this).body.addChild(hostOf(this).label(format(
                 ngettext("%d additional evidence row omitted", "%d additional evidence rows omitted", result.omitted),
                 result.omitted,
             ), "xpuwlm-run-note", true));
@@ -100,31 +102,31 @@ class GenericWorkflowMenuView {
             ngettext("%d retained result", "%d retained results", retention.count),
             retention.count,
         );
-        this._addGroupHeading(_("Retention"), count);
-        this._body.add_child(this._label(
+        hostOf(this).headings.group(_("Retention"), count);
+        hostOf(this).body.addChild(hostOf(this).label(
             retention.text, "xpuwlm-event-evidence", true,
         ));
         return true;
     }
 
     _renderGenericActions(model) {
-        const controls = this._box("xpuwlm-event-controls");
+        const controls = hostOf(this).events.box("xpuwlm-event-controls");
         for (const action of model.actions) {
-            const button = this._eventAction(
+            const button = hostOf(this).events.action(
                 action.label,
                 action.label,
                 `generic-${model.id}-${action.id}`,
-                () => this._actions.dispatchGenericWorkflow(model.id, action.id, !action.pressed),
+                () => hostOf(this).actions.dispatchGenericWorkflow(model.id, action.id, !action.pressed),
                 action.enabled,
                 action.id === "run-now" || action.id === "cancel",
             );
             if (action.id === "toggle-background") {
-                this._setAccessibleRole(button, "TOGGLE_BUTTON");
-                this._setAccessibleState(button, "CHECKED", action.pressed);
+                hostOf(this).events.setAccessibleRole(button, "TOGGLE_BUTTON");
+                hostOf(this).events.setAccessibleState(button, "CHECKED", action.pressed);
             }
             controls.add_child(button);
         }
-        this._body.add_child(controls);
+        hostOf(this).body.addChild(controls);
         return true;
     }
 }

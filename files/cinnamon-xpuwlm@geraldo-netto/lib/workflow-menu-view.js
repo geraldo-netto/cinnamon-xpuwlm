@@ -1,8 +1,10 @@
 "use strict";
 
 const I18n = require("./i18n.js");
+const RenderHost = require("./menu-render-host.js");
 
 const {_, format, ngettext} = I18n;
+const hostOf = RenderHost.renderHostOf;
 
 // Everything known about one job, in the order it becomes known: what the
 // runtime said, then what became of it, then how far along it is. Each part is
@@ -21,7 +23,7 @@ class WorkflowMenuView {
         if (model === null || model === undefined) {
             return false;
         }
-        this._addSectionHeading(
+        hostOf(this).headings.section(
             model.title,
             _("Suggestions only: this applet never moves, renames, overwrites, or deletes files"),
         );
@@ -36,13 +38,13 @@ class WorkflowMenuView {
         if (model === null || model === undefined) {
             return false;
         }
-        this._addSectionHeading(
+        hostOf(this).headings.section(
             model.title,
             _("Audio becomes timestamped speech; document pages, images, video, and slides add visible text and scenes"),
         );
         this._renderMediaStatus(model);
         if (model.sources.length > 0) {
-            this._addGroupHeading(_("Selected media"), model.sources[0].name);
+            hostOf(this).headings.group(_("Selected media"), model.sources[0].name);
         }
         this._renderMediaResult(model);
         this._renderMediaActions(model);
@@ -55,11 +57,11 @@ class WorkflowMenuView {
             [model.progressText, "xpuwlm-event-progress"],
         ]) {
             if (text !== "") {
-                this._body.add_child(this._label(text, style, true));
+                hostOf(this).body.addChild(hostOf(this).label(text, style, true));
             }
         }
         if (!model.available && model.phase === "idle") {
-            this._body.add_child(this._label(
+            hostOf(this).body.addChild(hostOf(this).label(
                 model.availabilityDetail
                     || _("A hardware-qualified media transcription provider is not configured"),
                 "xpuwlm-run-note",
@@ -73,17 +75,17 @@ class WorkflowMenuView {
         if (!model.complete) {
             return false;
         }
-        this._addGroupHeading(
+        hostOf(this).headings.group(
             _("Transcription"),
             `${model.providerId} · ${model.accelerator.toUpperCase()}`,
         );
         if (model.speech.length > 0) {
-            this._addGroupHeading(
+            hostOf(this).headings.group(
                 _("Speech"),
                 model.language === "" ? _("Language unknown") : model.language,
             );
             for (const segment of model.speech) {
-                this._body.add_child(this._label(
+                hostOf(this).body.addChild(hostOf(this).label(
                     `${segment.timeText} · ${segment.text}`,
                     "xpuwlm-event-evidence",
                     true,
@@ -91,15 +93,15 @@ class WorkflowMenuView {
             }
         }
         for (const visual of model.visuals) {
-            this._addGroupHeading(visual.timeText, visual.visibleText);
+            hostOf(this).headings.group(visual.timeText, visual.visibleText);
             if (visual.visibleText !== "") {
-                this._body.add_child(this._label(
+                hostOf(this).body.addChild(hostOf(this).label(
                     format(_("Visible text: %s"), visual.visibleText),
                     "xpuwlm-event-confirmation",
                     true,
                 ));
             }
-            this._body.add_child(this._label(
+            hostOf(this).body.addChild(hostOf(this).label(
                 visual.description,
                 "xpuwlm-event-evidence",
                 true,
@@ -109,40 +111,40 @@ class WorkflowMenuView {
     }
 
     _renderMediaActions(model) {
-        const controls = this._box("xpuwlm-event-controls");
+        const controls = hostOf(this).events.box("xpuwlm-event-controls");
         if (["idle", "selected", "complete", "error"].includes(model.phase)) {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Choose media"),
                 _("Choose one audio, document, image, video, or presentation file"),
-                "media-choose", this._actions.chooseMediaFile, model.chooserEnabled,
+                "media-choose", hostOf(this).actions.chooseMediaFile, model.chooserEnabled,
             ));
         }
         if (model.phase === "selected") {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Transcribe"), _("Transcribe the explicitly selected media locally"),
-                "media-start", this._actions.startMediaTranscription,
+                "media-start", hostOf(this).actions.startMediaTranscription,
                 model.startEnabled, true,
             ));
         }
         if (model.cancelEnabled) {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Cancel"), _("Cancel media transcription"), "media-cancel",
-                this._actions.cancelMediaTranscription, true,
+                hostOf(this).actions.cancelMediaTranscription, true,
             ));
         }
         if (model.complete) {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Copy transcript"), _("Copy this media transcription"), "media-copy",
-                () => this._actions.copyReport(model.copyText), true,
+                () => hostOf(this).actions.copyReport(model.copyText), true,
             ));
         }
         if (model.complete || model.phase === "error") {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Clear"), _("Clear media transcription"), "media-reset",
-                this._actions.resetMediaTranscription, true,
+                hostOf(this).actions.resetMediaTranscription, true,
             ));
         }
-        this._body.add_child(controls);
+        hostOf(this).body.addChild(controls);
         return true;
     }
 
@@ -152,11 +154,11 @@ class WorkflowMenuView {
             [model.progressText, "xpuwlm-event-progress"],
         ]) {
             if (text !== "") {
-                this._body.add_child(this._label(text, style, true));
+                hostOf(this).body.addChild(hostOf(this).label(text, style, true));
             }
         }
         if (!model.available && model.phase === "idle") {
-            this._body.add_child(this._label(
+            hostOf(this).body.addChild(hostOf(this).label(
                 model.availabilityDetail || _("A qualified file-organizer provider is not configured"),
                 "xpuwlm-run-note",
                 true,
@@ -169,12 +171,12 @@ class WorkflowMenuView {
         if (model.sources.length === 0) {
             return false;
         }
-        this._addGroupHeading(_("Selected files for organization"), format(
+        hostOf(this).headings.group(_("Selected files for organization"), format(
             ngettext("%d file", "%d files", model.sources.length),
             model.sources.length,
         ));
         for (const source of model.sources) {
-            this._body.add_child(this._label(source.name, "xpuwlm-event-source", true));
+            hostOf(this).body.addChild(hostOf(this).label(source.name, "xpuwlm-event-source", true));
         }
         return true;
     }
@@ -183,50 +185,50 @@ class WorkflowMenuView {
         if (!model.complete) {
             return false;
         }
-        this._addGroupHeading(
+        hostOf(this).headings.group(
             _("Review organization plan"),
             `${model.providerId} · ${model.accelerator.toUpperCase()}`,
         );
         for (const item of model.plan) {
-            this._addGroupHeading(item.fileName, item.tagsText);
+            hostOf(this).headings.group(item.fileName, item.tagsText);
             for (const text of [item.nameText, item.folderText, item.duplicateText, item.reason]) {
-                this._body.add_child(this._label(text, "xpuwlm-event-evidence", true));
+                hostOf(this).body.addChild(hostOf(this).label(text, "xpuwlm-event-evidence", true));
             }
             for (const evidence of item.evidence) {
-                this._body.add_child(this._label(evidence.text, "xpuwlm-event-evidence", true));
+                hostOf(this).body.addChild(hostOf(this).label(evidence.text, "xpuwlm-event-evidence", true));
             }
         }
         return true;
     }
 
     _renderFileOrganizerActions(model) {
-        const controls = this._box("xpuwlm-event-controls");
+        const controls = hostOf(this).events.box("xpuwlm-event-controls");
         if (["idle", "selected", "complete", "error"].includes(model.phase)) {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Choose files"), _("Choose files for a review-only organization plan"),
-                "organizer-choose-files", this._actions.chooseOrganizerFiles,
+                "organizer-choose-files", hostOf(this).actions.chooseOrganizerFiles,
                 model.chooserEnabled,
             ));
         }
         if (model.phase === "selected") {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Create plan"), _("Suggest organization without changing files"),
-                "organizer-start", this._actions.startFileOrganizer, model.startEnabled, true,
+                "organizer-start", hostOf(this).actions.startFileOrganizer, model.startEnabled, true,
             ));
         }
         if (model.cancelEnabled) {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Cancel"), _("Cancel file organization"), "organizer-cancel",
-                this._actions.cancelFileOrganizer, true,
+                hostOf(this).actions.cancelFileOrganizer, true,
             ));
         }
         if (model.complete || model.phase === "error") {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Clear"), _("Clear the review-only organization plan"), "organizer-reset",
-                this._actions.resetFileOrganizer, true,
+                hostOf(this).actions.resetFileOrganizer, true,
             ));
         }
-        this._body.add_child(controls);
+        hostOf(this).body.addChild(controls);
         return true;
     }
 
@@ -234,7 +236,7 @@ class WorkflowMenuView {
         if (model === null || model === undefined) {
             return false;
         }
-        this._addSectionHeading(
+        hostOf(this).headings.section(
             model.title,
             _("Reads the clipboard once only after an operation is chosen"),
         );
@@ -255,11 +257,11 @@ class WorkflowMenuView {
             [model.progressText, "xpuwlm-event-progress"],
         ]) {
             if (text !== "") {
-                this._body.add_child(this._label(text, style, true));
+                hostOf(this).body.addChild(hostOf(this).label(text, style, true));
             }
         }
         if (!model.available && model.phase === "idle") {
-            this._body.add_child(this._label(
+            hostOf(this).body.addChild(hostOf(this).label(
                 model.availabilityDetail || _("A qualified selected-text provider is not configured"),
                 "xpuwlm-run-note",
                 true,
@@ -269,68 +271,68 @@ class WorkflowMenuView {
     }
 
     _renderSelectedTextActions(model) {
-        const controls = this._box("xpuwlm-event-controls");
+        const controls = hostOf(this).events.box("xpuwlm-event-controls");
         if (model.cancelEnabled) {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Cancel"), _("Cancel selected-text request"), "selected-text-cancel",
-                this._actions.cancelSelectedText, true,
+                hostOf(this).actions.cancelSelectedText, true,
             ));
         }
         if (model.complete || model.phase === "error") {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Clear"), _("Clear selected-text result"), "selected-text-reset",
-                this._actions.resetSelectedText, true,
+                hostOf(this).actions.resetSelectedText, true,
             ));
         }
-        this._body.add_child(controls);
+        hostOf(this).body.addChild(controls);
         return true;
     }
 
     _renderSelectedTextOperations(model) {
-        const controls = this._box("xpuwlm-event-controls");
+        const controls = hostOf(this).events.box("xpuwlm-event-controls");
         for (const [operation, label] of [
             ["explain", _("Explain")],
             ["summarize", _("Summarize")],
             ["rewrite", _("Rewrite")],
             ["extract-tasks", _("Extract tasks")],
         ]) {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 label,
                 format(_("%s the explicit clipboard selection"), label),
                 `selected-text-${operation}`,
-                () => this._actions.startSelectedText(operation, null),
+                () => hostOf(this).actions.startSelectedText(operation, null),
                 model.operationEnabled,
             ));
         }
-        this._body.add_child(controls);
-        const translation = this._box("xpuwlm-event-controls");
-        const language = this._entry("", _("Translation target language"), "selected-text-language");
+        hostOf(this).body.addChild(controls);
+        const translation = hostOf(this).events.box("xpuwlm-event-controls");
+        const language = hostOf(this).events.entry("", _("Translation target language"), "selected-text-language");
         translation.add_child(language);
-        translation.add_child(this._eventAction(
+        translation.add_child(hostOf(this).events.action(
             _("Translate"), _("Translate the explicit clipboard selection"), "selected-text-translate",
-            () => this._actions.startSelectedText("translate", language.get_text()),
+            () => hostOf(this).actions.startSelectedText("translate", language.get_text()),
             model.operationEnabled,
         ));
-        this._body.add_child(translation);
+        hostOf(this).body.addChild(translation);
         return true;
     }
 
     _renderSelectedTextResult(model) {
-        this._addGroupHeading(
+        hostOf(this).headings.group(
             _("Review result"),
             `${model.providerId} · ${model.accelerator.toUpperCase()}`,
         );
-        this._body.add_child(this._label(model.result, "xpuwlm-event-confirmation", true));
+        hostOf(this).body.addChild(hostOf(this).label(model.result, "xpuwlm-event-confirmation", true));
         if (model.tasks.length > 0) {
-            this._addGroupHeading(_("Extracted tasks"), format(
+            hostOf(this).headings.group(_("Extracted tasks"), format(
                 ngettext("%d suggestion", "%d suggestions", model.tasks.length),
                 model.tasks.length,
             ));
             for (const task of model.tasks) {
-                this._body.add_child(this._label(task, "xpuwlm-event-evidence", true));
+                hostOf(this).body.addChild(hostOf(this).label(task, "xpuwlm-event-evidence", true));
             }
         }
-        this._body.add_child(this._label(model.evidenceText, "xpuwlm-event-evidence", true));
+        hostOf(this).body.addChild(hostOf(this).label(model.evidenceText, "xpuwlm-event-evidence", true));
         return true;
     }
 
@@ -338,7 +340,7 @@ class WorkflowMenuView {
         if (model === null || model === undefined) {
             return false;
         }
-        this._addSectionHeading(
+        hostOf(this).headings.section(
             model.title,
             _("Only chosen files and this one question reach the isolated workers"),
         );
@@ -356,7 +358,7 @@ class WorkflowMenuView {
             [model.progressText, "xpuwlm-event-progress"],
         ]) {
             if (text !== "") {
-                this._body.add_child(this._label(text, style, true));
+                hostOf(this).body.addChild(hostOf(this).label(text, style, true));
             }
         }
     }
@@ -365,12 +367,12 @@ class WorkflowMenuView {
         if (model.sources.length === 0) {
             return false;
         }
-        this._addGroupHeading(_("Selected documents"), format(
+        hostOf(this).headings.group(_("Selected documents"), format(
             ngettext("%d file", "%d files", model.sources.length),
             model.sources.length,
         ));
         for (const source of model.sources) {
-            this._body.add_child(this._label(source.name, "xpuwlm-event-source", true));
+            hostOf(this).body.addChild(hostOf(this).label(source.name, "xpuwlm-event-source", true));
         }
         return true;
     }
@@ -379,8 +381,8 @@ class WorkflowMenuView {
         if (model.phase !== "selected") {
             return null;
         }
-        const entry = this._entry("", _("Question for selected documents"), "document-question-input");
-        this._body.add_child(entry);
+        const entry = hostOf(this).events.entry("", _("Question for selected documents"), "document-question-input");
+        hostOf(this).body.addChild(entry);
         return entry;
     }
 
@@ -388,41 +390,41 @@ class WorkflowMenuView {
         if (!model.complete) {
             return false;
         }
-        this._addGroupHeading(_("Grounded answer"), `${model.providerId} · ${model.accelerator.toUpperCase()}`);
-        this._body.add_child(this._label(model.answer, "xpuwlm-event-confirmation", true));
+        hostOf(this).headings.group(_("Grounded answer"), `${model.providerId} · ${model.accelerator.toUpperCase()}`);
+        hostOf(this).body.addChild(hostOf(this).label(model.answer, "xpuwlm-event-confirmation", true));
         for (const citation of model.citations) {
-            this._body.add_child(this._label(citation.text, "xpuwlm-event-evidence", true));
+            hostOf(this).body.addChild(hostOf(this).label(citation.text, "xpuwlm-event-evidence", true));
         }
         return true;
     }
 
     _renderDocumentQuestionActions(model, question) {
-        const controls = this._box("xpuwlm-event-controls");
+        const controls = hostOf(this).events.box("xpuwlm-event-controls");
         if (["idle", "selected", "complete", "error"].includes(model.phase)) {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Choose files"), _("Choose documents for one question"), "question-choose-files",
-                this._actions.chooseQuestionFiles, model.chooserEnabled,
+                hostOf(this).actions.chooseQuestionFiles, model.chooserEnabled,
             ));
         }
         if (question !== null) {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Ask"), _("Ask the explicit question over selected documents"), "question-start",
-                () => this._actions.startDocumentQuestion(question.get_text()), model.askEnabled, true,
+                () => hostOf(this).actions.startDocumentQuestion(question.get_text()), model.askEnabled, true,
             ));
         }
         if (model.cancelEnabled) {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Cancel"), _("Cancel document question"), "question-cancel",
-                this._actions.cancelDocumentQuestion, true,
+                hostOf(this).actions.cancelDocumentQuestion, true,
             ));
         }
         if (model.complete) {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("New question"), _("Clear this answer and start again"), "question-reset",
-                this._actions.resetDocumentQuestion, true,
+                hostOf(this).actions.resetDocumentQuestion, true,
             ));
         }
-        this._body.add_child(controls);
+        hostOf(this).body.addChild(controls);
         return true;
     }
 
@@ -430,12 +432,12 @@ class WorkflowMenuView {
         if (model === null || model === undefined) {
             return false;
         }
-        this._addSectionHeading(model.title, _("Selected files stay private to the isolated workload worker"));
+        hostOf(this).headings.section(model.title, _("Selected files stay private to the isolated workload worker"));
         if (model.message !== "") {
-            this._body.add_child(this._label(model.message, "xpuwlm-event-message", true));
+            hostOf(this).body.addChild(hostOf(this).label(model.message, "xpuwlm-event-message", true));
         }
         if (model.progressText !== "") {
-            this._body.add_child(this._label(model.progressText, "xpuwlm-event-progress", true));
+            hostOf(this).body.addChild(hostOf(this).label(model.progressText, "xpuwlm-event-progress", true));
         }
         this._renderEventSources(model);
         if (model.preview) {
@@ -450,7 +452,7 @@ class WorkflowMenuView {
     _renderEventSources(model) {
         if (model.sources.length === 0) {
             if (!model.available) {
-                this._body.add_child(this._label(
+                hostOf(this).body.addChild(hostOf(this).label(
                     model.availabilityDetail || _("A qualified event model is not configured"),
                     "xpuwlm-run-note",
                     true,
@@ -458,46 +460,46 @@ class WorkflowMenuView {
             }
             return false;
         }
-        this._addGroupHeading(_("Selected sources"), format(
+        hostOf(this).headings.group(_("Selected sources"), format(
             ngettext("%d file", "%d files", model.sources.length),
             model.sources.length,
         ));
         for (const source of model.sources) {
-            this._body.add_child(this._label(source.name, "xpuwlm-event-source", true));
+            hostOf(this).body.addChild(hostOf(this).label(source.name, "xpuwlm-event-source", true));
         }
         return true;
     }
 
     _renderEventPreview(model) {
-        this._addGroupHeading(_("Evidence-backed preview"), format(
+        hostOf(this).headings.group(_("Evidence-backed preview"), format(
             _("%d kept · %d rejected · %d undecided"),
             model.confirmed,
             model.rejected,
             model.pending,
         ));
         if (model.duplicatesDropped > 0) {
-            this._body.add_child(this._label(format(
+            hostOf(this).body.addChild(hostOf(this).label(format(
                 ngettext("%d duplicate removed", "%d duplicates removed", model.duplicatesDropped),
                 model.duplicatesDropped,
             ), "xpuwlm-event-dedup", true));
         }
         for (const candidate of model.candidates) {
-            this._body.add_child(this._eventCandidate(candidate));
+            hostOf(this).body.addChild(this._eventCandidate(candidate));
         }
         if (model.exportRefusal !== "") {
-            this._body.add_child(this._label(model.exportRefusal, "xpuwlm-run-note", true));
+            hostOf(this).body.addChild(hostOf(this).label(model.exportRefusal, "xpuwlm-run-note", true));
         }
         return true;
     }
 
     _eventCandidate(candidate) {
-        const card = this._box("xpuwlm-event-card", true);
+        const card = hostOf(this).events.box("xpuwlm-event-card", true);
         const fields = {
-            title: this._entry(candidate.title, format(_("%s title"), candidate.title), `event-title:${candidate.candidateId}`),
-            start: this._entry(candidate.start, format(_("%s start"), candidate.title), `event-start:${candidate.candidateId}`),
-            end: this._entry(candidate.endText, format(_("%s end"), candidate.title), `event-end:${candidate.candidateId}`),
-            timezone: this._entry(candidate.timezone, format(_("%s timezone"), candidate.title), `event-timezone:${candidate.candidateId}`),
-            location: this._entry(candidate.locationText, format(_("%s location"), candidate.title), `event-location:${candidate.candidateId}`),
+            title: hostOf(this).events.entry(candidate.title, format(_("%s title"), candidate.title), `event-title:${candidate.candidateId}`),
+            start: hostOf(this).events.entry(candidate.start, format(_("%s start"), candidate.title), `event-start:${candidate.candidateId}`),
+            end: hostOf(this).events.entry(candidate.endText, format(_("%s end"), candidate.title), `event-end:${candidate.candidateId}`),
+            timezone: hostOf(this).events.entry(candidate.timezone, format(_("%s timezone"), candidate.title), `event-timezone:${candidate.candidateId}`),
+            location: hostOf(this).events.entry(candidate.locationText, format(_("%s location"), candidate.title), `event-location:${candidate.candidateId}`),
         };
         const labels = {
             title: _("Title"),
@@ -507,15 +509,15 @@ class WorkflowMenuView {
             location: _("Location"),
         };
         for (const [name, entry] of Object.entries(fields)) {
-            const field = this._box("xpuwlm-event-field", true);
-            field.add_child(this._label(labels[name], "xpuwlm-event-field-label"));
+            const field = hostOf(this).events.box("xpuwlm-event-field", true);
+            field.add_child(hostOf(this).label(labels[name], "xpuwlm-event-field-label"));
             field.add_child(entry);
             card.add_child(field);
         }
         for (const evidence of candidate.evidenceText) {
-            card.add_child(this._label(evidence, "xpuwlm-event-evidence", true));
+            card.add_child(hostOf(this).label(evidence, "xpuwlm-event-evidence", true));
         }
-        const controls = this._box("xpuwlm-event-controls");
+        const controls = hostOf(this).events.box("xpuwlm-event-controls");
         controls.add_child(this._eventEditButton(candidate, fields));
         controls.add_child(this._eventDecisionButton(candidate, "confirmed", _("Keep")));
         controls.add_child(this._eventDecisionButton(candidate, "rejected", _("Reject")));
@@ -524,10 +526,10 @@ class WorkflowMenuView {
     }
 
     _eventEditButton(candidate, fields) {
-        const button = this._identify(this._button(
+        const button = hostOf(this).events.identify(hostOf(this).events.button(
             "xpuwlm-secondary-button",
             format(_("Apply edits to %s"), candidate.title),
-            () => this._actions.editEventCandidate(candidate.candidateId, {
+            () => hostOf(this).actions.editEventCandidate(candidate.candidateId, {
                 title: fields.title.get_text(),
                 start: fields.start.get_text(),
                 end: fields.end.get_text() === "" ? null : fields.end.get_text(),
@@ -535,36 +537,36 @@ class WorkflowMenuView {
                 location: fields.location.get_text() === "" ? null : fields.location.get_text(),
             }),
         ), `event-edit:${candidate.candidateId}`);
-        button.set_child(this._label(_("Apply edits"), "xpuwlm-button-label"));
+        button.set_child(hostOf(this).label(_("Apply edits"), "xpuwlm-button-label"));
         return button;
     }
 
     _eventDecisionButton(candidate, decision, label) {
         const selected = candidate.confirmation === decision;
-        const button = this._identify(this._button(
+        const button = hostOf(this).events.identify(hostOf(this).events.button(
             `xpuwlm-event-decision${selected ? " xpuwlm-event-decision-selected" : ""}`,
             format(_("%s %s"), label, candidate.title),
-            () => this._actions.decideEventCandidate(candidate.candidateId, decision),
+            () => hostOf(this).actions.decideEventCandidate(candidate.candidateId, decision),
             "TOGGLE_BUTTON",
         ), `event-${decision}:${candidate.candidateId}`);
-        this._setAccessibleState(button, "CHECKED", selected);
-        button.set_child(this._label(label, "xpuwlm-button-label"));
+        hostOf(this).events.setAccessibleState(button, "CHECKED", selected);
+        button.set_child(hostOf(this).label(label, "xpuwlm-button-label"));
         return button;
     }
 
     _renderEventConfirmation(model) {
         const confirmed = model.candidates.filter((candidate) => candidate.kept);
-        this._addGroupHeading(_("Confirm calendar export"), format(
+        hostOf(this).headings.group(_("Confirm calendar export"), format(
             ngettext("%d event will be written", "%d events will be written", confirmed.length),
             confirmed.length,
         ));
-        this._body.add_child(this._label(
+        hostOf(this).body.addChild(hostOf(this).label(
             _("No source file is changed or removed. The chosen output must be a new file."),
             "xpuwlm-event-confirmation",
             true,
         ));
         for (const candidate of confirmed) {
-            this._body.add_child(this._label(
+            hostOf(this).body.addChild(hostOf(this).label(
                 `${candidate.title} · ${candidate.start}`,
                 "xpuwlm-event-confirmed",
                 true,
@@ -574,66 +576,66 @@ class WorkflowMenuView {
     }
 
     _renderEventActions(model) {
-        const controls = this._box("xpuwlm-event-controls");
+        const controls = hostOf(this).events.box("xpuwlm-event-controls");
         if (["idle", "selected", "preview", "complete", "error"].includes(model.phase)) {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Choose files"), _("Choose event source files"), "event-choose-files",
-                this._actions.chooseEventFiles, model.chooserEnabled,
+                hostOf(this).actions.chooseEventFiles, model.chooserEnabled,
             ));
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Choose folder"), _("Choose one event source folder"), "event-choose-folder",
-                this._actions.chooseEventFolder, model.chooserEnabled,
+                hostOf(this).actions.chooseEventFolder, model.chooserEnabled,
             ));
         }
         if (model.phase === "selected") {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Extract events"), _("Extract events from selected files"), "event-start",
-                this._actions.startEventImport, model.startEnabled, true,
+                hostOf(this).actions.startEventImport, model.startEnabled, true,
             ));
         }
         if (model.cancelEnabled) {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Cancel"), _("Cancel event extraction"), "event-cancel",
-                this._actions.cancelEventImport, true,
+                hostOf(this).actions.cancelEventImport, true,
             ));
         }
         if (model.phase === "preview") {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Review export"), _("Review confirmed events before export"), "event-review-export",
-                this._actions.beginEventExport, model.exportRefusal === "", true,
+                hostOf(this).actions.beginEventExport, model.exportRefusal === "", true,
             ));
         }
         if (model.phase === "confirm-export") {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Write calendar file"), _("Confirm and write a new calendar file"), "event-confirm-export",
-                this._actions.confirmEventExport, true, true,
+                hostOf(this).actions.confirmEventExport, true, true,
             ));
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("Back"), _("Return to event preview"), "event-back-preview",
-                this._actions.backEventPreview, true,
+                hostOf(this).actions.backEventPreview, true,
             ));
         }
         if (model.complete) {
-            controls.add_child(this._eventAction(
+            controls.add_child(hostOf(this).events.action(
                 _("New import"), _("Start a new event import"), "event-reset",
-                this._actions.resetEventImport, true,
+                hostOf(this).actions.resetEventImport, true,
             ));
         }
-        this._body.add_child(controls);
+        hostOf(this).body.addChild(controls);
         return true;
     }
 
     _eventAction(label, accessibleName, identity, action, enabled, primary = false) {
-        const button = this._identify(
-            this._button(
+        const button = hostOf(this).events.identify(
+            hostOf(this).events.button(
                 primary ? "xpuwlm-primary-button" : "xpuwlm-secondary-button",
                 accessibleName,
                 action,
             ),
             identity,
         );
-        button.set_child(this._label(label, "xpuwlm-button-label"));
-        this._setButtonEnabled(button, enabled);
+        button.set_child(hostOf(this).label(label, "xpuwlm-button-label"));
+        hostOf(this).events.setButtonEnabled(button, enabled);
         return button;
     }
 
@@ -645,14 +647,14 @@ class WorkflowMenuView {
         if (!run) {
             return false;
         }
-        this._addSectionHeading(run.title, this._runSubtitle(run));
+        hostOf(this).headings.section(run.title, this._runSubtitle(run));
         this._renderJobOutcome(run.job);
         if (run.reason !== "") {
-            this._body.add_child(this._label(run.reason, "xpuwlm-run-note", true));
+            hostOf(this).body.addChild(hostOf(this).label(run.reason, "xpuwlm-run-note", true));
             return false;
         }
         if (run.omitted > 0) {
-            this._body.add_child(this._label(
+            hostOf(this).body.addChild(hostOf(this).label(
                 format(ngettext(
                     "%d more picture is not shown",
                     "%d more pictures are not shown",
@@ -663,12 +665,12 @@ class WorkflowMenuView {
             ));
         }
         for (const profile of run.profiles) {
-            this._addGroupHeading(profile.title, format(
+            hostOf(this).headings.group(profile.title, format(
                 ngettext("%d picture", "%d pictures", run.pictures.length),
                 run.pictures.length,
             ));
             for (const picture of run.pictures) {
-                this._body.add_child(this._pictureRow(profile, picture));
+                hostOf(this).body.addChild(this._pictureRow(profile, picture));
             }
         }
         return true;
@@ -681,15 +683,15 @@ class WorkflowMenuView {
     }
 
     _pictureRow(profile, picture) {
-        const button = this._identify(
-            this._button(
+        const button = hostOf(this).events.identify(
+            hostOf(this).events.button(
                 "xpuwlm-run-row",
                 format(_("Run %s on %s"), profile.title, picture.name),
-                () => this._actions.submitJob(profile.id, picture),
+                () => hostOf(this).actions.submitJob(profile.id, picture),
             ),
             `run:${profile.id}:${picture.name}`,
         );
-        button.set_child(this._label(picture.name, "xpuwlm-button-label", true));
+        button.set_child(hostOf(this).label(picture.name, "xpuwlm-button-label", true));
         return button;
     }
 
@@ -701,7 +703,7 @@ class WorkflowMenuView {
         if (job === null || job === undefined) {
             return false;
         }
-        this._body.add_child(this._label(
+        hostOf(this).body.addChild(hostOf(this).label(
             `${job.title} · ${job.sourceName} — ${jobDetail(job)}`,
             `xpuwlm-job-outcome xpuwlm-job-${job.tone}`,
             true,
@@ -718,7 +720,7 @@ class WorkflowMenuView {
             return false;
         }
         for (const entry of reading.entries) {
-            this._body.add_child(this._label(entry, "xpuwlm-job-reading", true));
+            hostOf(this).body.addChild(hostOf(this).label(entry, "xpuwlm-job-reading", true));
         }
         return true;
     }
