@@ -75,6 +75,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "runtime-snapshot-schema-validator.js",
     "runtime-snapshot.schema.json",
     "selected-text.js",
+    "screenshot-assistant.js",
     "settings-schema.json",
     "snapshot-validator.js",
     "stylesheet.css",
