@@ -1,6 +1,6 @@
 # TODO
 
-The GPU use-case implementation backlog is tracked directly in XTPU-0097
+The GPU use-case implementation backlog is tracked directly in XTPU-0098
 through XTPU-0138; `related ids` encode its dependency order.
 
 ## Work groups
@@ -24,7 +24,6 @@ domain grouping without weakening the required status schema.
 | --- | --- | --- | --- | --- | --- |
 | XTPU-0087 | open | high | l | XTPU-0088, XTPU-0089 | A Windows client is feasible as a sibling tray application, with roughly 69% of library code a candidate for reuse, but the GJS/Cinnamon shell, St/Clutter view, GIO/GTK adapters, settings, notifications, and packaging require Windows implementations. Prove an Electron/Node tray and named-pipe handshake spike before committing to parity. |
 | XTPU-0089 | open | medium | m | XTPU-0087 | Portable core code still constructs POSIX paths and publishes Linux-only setup guidance, while the mixed Cinnamon runtime adapter combines shared factories with GIO and Linux discovery. Extract path, platform-guidance, transport, and discovery ports before a Windows client release. |
-| XTPU-0097 | open | high | l | XTPU-0095 | Standardize reviewed model recipes, portable export, ncnn/Vulkan binding, tensor contracts, licenses, digests, signatures, and named-hardware evidence for new artifacts. |
 | XTPU-0098 | open | high | l | XTPU-0096 | Add explicit periodic/event triggers, background priority, backpressure, cancellation, lease release, and interactive-job preemption; stress-test that background work cannot make Cinnamon unresponsive. |
 | XTPU-0099 | open | high | l | XTPU-0095 | Version reusable closed result schemas for risk scores, forecasts, rankings, detections, masks, embeddings, labels, and timestamped media evidence. |
 | XTPU-0100 | open | high | l | XTPU-0098, XTPU-0099 | Build generic Cinnamon consent, run-now, background, progress/cancel, evidence, warning, retention, unavailable, and review-only result surfaces before adding bespoke buttons. |

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/cinnamon-xpuwlm/artifact-qualification.schema.json",
+  "title": "XPU workload artifact qualification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version", "artifactId", "artifactVersion", "recipe", "portableExport",
+    "nativeBinding", "tensorContractSha256", "license", "signature", "hardwareEvidence"
+  ],
+  "properties": {
+    "version": {"const": 1},
+    "artifactId": {"$ref": "#/$defs/identifier"},
+    "artifactVersion": {"$ref": "#/$defs/semanticVersion"},
+    "recipe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision", "sha256", "reviewedBy", "reviewedAt"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "revision": {"$ref": "#/$defs/semanticVersion"},
+        "sha256": {"$ref": "#/$defs/digest"},
+        "reviewedBy": {"$ref": "#/$defs/identifier"},
+        "reviewedAt": {"$ref": "#/$defs/timestamp"}
+      }
+    },
+    "portableExport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "sha256"],
+      "properties": {
+        "format": {"const": "onnx"},
+        "sha256": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "nativeBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "paramSha256", "weightsSha256", "minimumNcnnVersion", "vulkanRequired"],
+      "properties": {
+        "backend": {"const": "ncnn-vulkan"},
+        "paramSha256": {"$ref": "#/$defs/digest"},
+        "weightsSha256": {"$ref": "#/$defs/digest"},
+        "minimumNcnnVersion": {"$ref": "#/$defs/versionText"},
+        "vulkanRequired": {"const": true}
+      }
+    },
+    "tensorContractSha256": {"$ref": "#/$defs/digest"},
+    "license": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spdxId", "sourceUrl", "noticeSha256"],
+      "properties": {
+        "spdxId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9.+-]{0,79}$"},
+        "sourceUrl": {"type": "string", "pattern": "^https://", "minLength": 1, "maxLength": 512},
+        "noticeSha256": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "keyId", "value"],
+      "properties": {
+        "algorithm": {"const": "ed25519"},
+        "keyId": {"$ref": "#/$defs/identifier"},
+        "value": {"type": "string", "pattern": "^[A-Za-z0-9+/]{86}==$"}
+      }
+    },
+    "hardwareEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deviceName", "driverVersion", "runtimeVersion", "benchmarkVersion",
+        "benchmarkRecordSha256", "measuredAt", "decision"
+      ],
+      "properties": {
+        "deviceName": {"$ref": "#/$defs/text"},
+        "driverVersion": {"$ref": "#/$defs/versionText"},
+        "runtimeVersion": {"$ref": "#/$defs/versionText"},
+        "benchmarkVersion": {"const": 1},
+        "benchmarkRecordSha256": {"$ref": "#/$defs/digest"},
+        "measuredAt": {"$ref": "#/$defs/timestamp"},
+        "decision": {"enum": ["accepted", "rejected"]}
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$", "minLength": 1, "maxLength": 80},
+    "semanticVersion": {"type": "string", "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)$", "maxLength": 32},
+    "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "timestamp": {"type": "integer", "minimum": 0},
+    "text": {"type": "string", "minLength": 1, "maxLength": 160},
+    "versionText": {"type": "string", "minLength": 1, "maxLength": 80}
+  }
+}

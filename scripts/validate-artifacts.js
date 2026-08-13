@@ -12,6 +12,8 @@ const filesRoot = path.join(repositoryRoot, "files");
 const appletRoot = path.join(filesRoot, UUID);
 const PAYLOAD_TOP_LEVEL = Object.freeze([
     "applet.js",
+    "artifact-qualification.js",
+    "artifact-qualification.schema.json",
     "cinnamon-dbus-adapter.js",
     "cinnamon-host-adapter.js",
     "cinnamon-image-adapter.js",
@@ -156,6 +158,7 @@ function productionJavaScriptFiles() {
 
 function validateJsonArtifacts() {
     const metadata = readJson(appletRoot, "metadata.json");
+    const qualificationSchema = readJson(appletRoot, "artifact-qualification.schema.json");
     const settings = readJson(appletRoot, "settings-schema.json");
     const schema = readJson(appletRoot, "runtime-snapshot.schema.json");
     const workloadSchema = readJson(appletRoot, "workload-manifest.schema.json");
@@ -177,6 +180,7 @@ function validateJsonArtifacts() {
     assert.equal(schema.properties.version.const, Domain.SNAPSHOT_VERSION);
     assert.equal(schema.properties.generatedAt.minimum, Domain.MIN_GENERATED_AT);
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(schema));
+    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(qualificationSchema));
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(workloadSchema));
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(commandSchema));
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(acknowledgementSchema));
