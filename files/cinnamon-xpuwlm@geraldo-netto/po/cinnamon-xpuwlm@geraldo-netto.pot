@@ -12,7 +12,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid " · page %d"
 msgstr ""
 
@@ -26,19 +26,19 @@ msgstr[1] ""
 msgid "%d active · %d paused · weight 1–5"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "%d duplicate removed"
 msgid_plural "%d duplicates removed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "%d event will be written"
 msgid_plural "%d events will be written"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "%d file"
 msgid_plural "%d files"
 msgstr[0] ""
@@ -50,11 +50,11 @@ msgid_plural "%d items need review"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "%d kept · %d rejected · %d undecided"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "%d more picture is not shown"
 msgid_plural "%d more pictures are not shown"
 msgstr[0] ""
@@ -64,7 +64,7 @@ msgstr[1] ""
 msgid "%d needs setup"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "%d observation ahead"
 msgid_plural "%d observations ahead"
 msgstr[0] ""
@@ -80,7 +80,7 @@ msgid_plural "%d of %d workload profiles can run on this machine"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "%d picture"
 msgid_plural "%d pictures"
 msgstr[0] ""
@@ -108,7 +108,7 @@ msgid_plural "%d runtime items name workloads that are not installed here"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "%d suggestion"
 msgid_plural "%d suggestions"
 msgstr[0] ""
@@ -138,7 +138,7 @@ msgid_plural "%d workload plug-ins changed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "%d workload reported by the runtime"
 msgid_plural "%d workloads reported by the runtime"
 msgstr[0] ""
@@ -156,7 +156,7 @@ msgstr ""
 msgid "%ds ago"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "%s %s"
 msgstr ""
 
@@ -172,7 +172,7 @@ msgstr ""
 msgid "%s accelerator"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "%s end"
 msgstr ""
 
@@ -180,11 +180,11 @@ msgstr ""
 msgid "%s load"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "%s location"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "%s start"
 msgstr ""
 
@@ -196,19 +196,19 @@ msgstr ""
 msgid "%s tab, selected"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "%s the explicit clipboard selection"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "%s timezone"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "%s title"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "%s · page %d · span %d–%d"
 msgstr ""
 
@@ -236,7 +236,7 @@ msgstr ""
 msgid "A connected runtime must apply this policy before accepting new jobs. The applet does not modify queued jobs."
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "A hardware-qualified media transcription provider is not configured"
 msgstr ""
 
@@ -248,15 +248,15 @@ msgstr ""
 msgid "A missing directory or a replaced path object also fails the read."
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "A qualified event model is not configured"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "A qualified file-organizer provider is not configured"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "A qualified selected-text provider is not configured"
 msgstr ""
 
@@ -324,15 +324,15 @@ msgstr ""
 msgid "All local profiles are paused"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Analyze a picture"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Apply edits"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Apply edits to %s"
 msgstr ""
 
@@ -340,15 +340,15 @@ msgstr ""
 msgid "Applying change in runtime…"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Ask"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Ask documents"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Ask the explicit question over selected documents"
 msgstr ""
 
@@ -356,7 +356,7 @@ msgstr ""
 msgid "Attention"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Audio becomes timestamped speech; document pages, images, video, and slides add visible text and scenes"
 msgstr ""
 
@@ -368,7 +368,7 @@ msgstr ""
 msgid "Available"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Back"
 msgstr ""
 
@@ -380,7 +380,7 @@ msgstr ""
 msgid "Calendar files"
 msgstr ""
 
-#: lib/event-source-port.js lib/menu-view.js
+#: lib/event-source-port.js lib/menu-view.js lib/workflow-menu-view.js
 msgid "Cancel"
 msgstr ""
 
@@ -388,27 +388,27 @@ msgstr ""
 msgid "Cancel clearing activity history"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Cancel document question"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Cancel event extraction"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Cancel file organization"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Cancel media transcription"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Cancel selected-text request"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Cancelled"
 msgstr ""
 
@@ -448,7 +448,7 @@ msgstr ""
 msgid "Choose documents"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Choose documents for one question"
 msgstr ""
 
@@ -456,19 +456,19 @@ msgstr ""
 msgid "Choose documents to ask"
 msgstr ""
 
-#: lib/event-source-port.js lib/menu-view.js
+#: lib/event-source-port.js lib/workflow-menu-view.js
 msgid "Choose event source files"
 msgstr ""
 
-#: lib/event-source-port.js lib/menu-view.js
+#: lib/event-source-port.js lib/workflow-menu-view.js
 msgid "Choose files"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Choose files and ask a grounded question"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Choose files for a review-only organization plan"
 msgstr ""
 
@@ -476,11 +476,11 @@ msgstr ""
 msgid "Choose files to organize"
 msgstr ""
 
-#: lib/event-source-port.js lib/menu-view.js
+#: lib/event-source-port.js lib/workflow-menu-view.js
 msgid "Choose folder"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Choose media"
 msgstr ""
 
@@ -488,15 +488,15 @@ msgstr ""
 msgid "Choose media to transcribe"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Choose one audio, document, image, video, or presentation file"
 msgstr ""
 
-#: lib/event-source-port.js lib/menu-view.js
+#: lib/event-source-port.js lib/workflow-menu-view.js
 msgid "Choose one event source folder"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Clear"
 msgstr ""
 
@@ -504,7 +504,7 @@ msgstr ""
 msgid "Clear History"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Clear media transcription"
 msgstr ""
 
@@ -516,15 +516,15 @@ msgstr ""
 msgid "Clear recent activity?"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Clear selected-text result"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Clear the review-only organization plan"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Clear this answer and start again"
 msgstr ""
 
@@ -536,11 +536,11 @@ msgstr ""
 msgid "Configuration"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Confirm and write a new calendar file"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Confirm calendar export"
 msgstr ""
 
@@ -592,11 +592,11 @@ msgstr ""
 msgid "Copy report"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Copy this media transcription"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Copy transcript"
 msgstr ""
 
@@ -604,7 +604,7 @@ msgstr ""
 msgid "Could not copy report"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Could not finish"
 msgstr ""
 
@@ -612,7 +612,7 @@ msgstr ""
 msgid "Could not open logs"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Create plan"
 msgstr ""
 
@@ -688,7 +688,7 @@ msgstr ""
 msgid "Enable, disable, and tune profile weights"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Ends"
 msgstr ""
 
@@ -700,47 +700,47 @@ msgstr ""
 msgid "Every workload profile can run"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Evidence-backed preview"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Evidence: %s%s · characters %d–%d"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Exact duplicate group: %s"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Explain"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Explain, summarize, rewrite, or translate"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Extract calendar events"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Extract events"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Extract events from selected files"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Extract tasks"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Extracted tasks"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Failed"
 msgstr ""
 
@@ -748,15 +748,15 @@ msgstr ""
 msgid "File organizer provider is not ready"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Finished"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Forecast · %s · %s · %s"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Frame %s"
 msgstr ""
 
@@ -776,7 +776,7 @@ msgstr ""
 msgid "Grant the permission these profiles ask for"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Grounded answer"
 msgstr ""
 
@@ -792,7 +792,7 @@ msgstr ""
 msgid "Idle"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Image"
 msgstr ""
 
@@ -816,19 +816,19 @@ msgstr ""
 msgid "Jobs, results, and alerts"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Keep"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Keep current folder"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Keep current name"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Language unknown"
 msgstr ""
 
@@ -856,7 +856,7 @@ msgstr ""
 msgid "Local runtime"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Location"
 msgstr ""
 
@@ -916,11 +916,11 @@ msgid_plural "Needs setup, %d profiles, expanded"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "New import"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "New question"
 msgstr ""
 
@@ -956,19 +956,19 @@ msgstr ""
 msgid "No device detail"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "No exact duplicate in this selection"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "No input directory"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "No installed profile states what input it needs, so no picture can be prepared"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "No longer known to the runtime"
 msgstr ""
 
@@ -984,7 +984,7 @@ msgstr ""
 msgid "No problems detected"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "No profile that accepts a picture can serve right now; Diagnostics says why"
 msgstr ""
 
@@ -1008,7 +1008,7 @@ msgstr ""
 msgid "No runtime state has been read yet. Local profile intent is unchanged."
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "No source file is changed or removed. The chosen output must be a new file."
 msgstr ""
 
@@ -1016,7 +1016,7 @@ msgstr ""
 msgid "No supported accelerator present"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "No tags suggested"
 msgstr ""
 
@@ -1048,7 +1048,7 @@ msgstr ""
 msgid "Online"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Only chosen files and this one question reach the isolated workers"
 msgstr ""
 
@@ -1076,11 +1076,11 @@ msgstr ""
 msgid "Open workload service logs"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Organize files"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Page %d"
 msgstr ""
 
@@ -1116,11 +1116,11 @@ msgstr ""
 msgid "Profiles remain saved locally. No data, authorization, or backup policy is changed."
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Put a picture in %s and it will be listed here"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Question for selected documents"
 msgstr ""
 
@@ -1132,11 +1132,11 @@ msgstr ""
 msgid "Reading the snapshot failed, so device and workload telemetry are unknown rather than assumed."
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Reads the clipboard once only after an operation is chosen"
 msgstr ""
 
-#: lib/menu-view.js lib/view-model.js
+#: lib/menu-view.js lib/view-model.js lib/workflow-view-model.js
 msgid "Ready"
 msgstr ""
 
@@ -1176,7 +1176,7 @@ msgstr ""
 msgid "Refresh interval"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Reject"
 msgstr ""
 
@@ -1224,43 +1224,43 @@ msgstr ""
 msgid "Retry now"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Return to event preview"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Review"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Review confirmed events before export"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Review events before exporting"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Review export"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Review organization plan"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Review required before continuing"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Review result"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Review suggestions; files are never changed"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Rewrite"
 msgstr ""
 
@@ -1268,11 +1268,11 @@ msgstr ""
 msgid "Risk"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Run %s on %s"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/view-model.js lib/workflow-view-model.js
 msgid "Running"
 msgstr ""
 
@@ -1364,7 +1364,7 @@ msgstr ""
 msgid "Runtime unreadable"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Runtime workload"
 msgid_plural "Runtime workloads"
 msgstr[0] ""
@@ -1390,23 +1390,23 @@ msgstr ""
 msgid "Save new file"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Selected documents"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Selected files for organization"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Selected files stay private to the isolated workload worker"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Selected media"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Selected sources"
 msgstr ""
 
@@ -1414,7 +1414,7 @@ msgstr ""
 msgid "Selected-text provider is not ready"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Selection digest %s · span %d–%d"
 msgstr ""
 
@@ -1426,7 +1426,7 @@ msgstr ""
 msgid "Show XPU status beside the panel icon"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Slide %d"
 msgstr ""
 
@@ -1434,15 +1434,15 @@ msgstr ""
 msgid "Snapshot contract is readable"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Speech"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Speech, document pages, visible text, scenes, and slides"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Start a new event import"
 msgstr ""
 
@@ -1462,7 +1462,7 @@ msgstr ""
 msgid "Starting monitoring…"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Starts"
 msgstr ""
 
@@ -1474,27 +1474,27 @@ msgstr ""
 msgid "Status"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Submitted"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Suggest organization without changing files"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Suggested folder: %s"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Suggested name: %s"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Suggestions only: this applet never moves, renames, overwrites, or deletes files"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Summarize"
 msgstr ""
 
@@ -1582,7 +1582,7 @@ msgstr ""
 msgid "The runtime service is busy with other requests; retry shortly"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "The runtime service is not configured to read input files, so no picture can be submitted"
 msgstr ""
 
@@ -1694,11 +1694,11 @@ msgstr ""
 msgid "This runtime cannot report job outcomes; the job was accepted"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Timezone"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Title"
 msgstr ""
 
@@ -1718,35 +1718,35 @@ msgstr ""
 msgid "Train a local Resource Scheduler forecast"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Transcribe"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Transcribe media"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Transcribe the explicitly selected media locally"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Transcription"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Translate"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Translate the explicit clipboard selection"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Translation target language"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/view-model.js lib/workflow-view-model.js
 msgid "Unavailable"
 msgstr ""
 
@@ -1774,7 +1774,7 @@ msgstr ""
 msgid "Validate it against runtime-snapshot.schema.json."
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Visible text: %s"
 msgstr ""
 
@@ -1802,15 +1802,15 @@ msgstr ""
 msgid "Which extra depends on the accelerator: see the Dependencies table in the OmniTensor installation guide."
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Work in progress"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Work with selected text"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "Working"
 msgstr ""
 
@@ -1834,7 +1834,7 @@ msgstr ""
 msgid "Workload service"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/workflow-menu-view.js
 msgid "Write calendar file"
 msgstr ""
 
@@ -1902,7 +1902,7 @@ msgstr ""
 msgid "advisory"
 msgstr ""
 
-#: lib/view-model.js
+#: lib/workflow-view-model.js
 msgid "class %d · %s"
 msgstr ""
 
