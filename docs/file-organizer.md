@@ -35,6 +35,17 @@ arbitrary-command action. Choosing **Clear** only clears the displayed plan; it
 does not touch a selected file. Cancellation and every refusal likewise leave
 all files unchanged.
 
+## Performance-backed tagger selection
+
+The shared auto-tagging evaluation runs metadata-only host, GPU, and hybrid
+candidates over the same labeled file batches. It records accuracy, warm-up,
+stage latency, throughput, memory, VRAM, energy when observable, and contention
+through the common benchmark contract. Recommendations are scoped to each file
+family, total input size, and batch size, require an explicit accuracy floor,
+and select the measured lowest p95 candidate. GPU is never preferred merely
+because it is available. The evaluation returns review-only tags and exposes no
+folder watcher or filesystem mutation capability.
+
 Choosing files first closes the applet popup, then presents a familiar external
 `zenity` GTK chooser with visible focus and keyboard navigation. Cancelling reports
 **Selection cancelled**; acceptance lists the selected files; validation and

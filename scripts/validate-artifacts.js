@@ -28,6 +28,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "event-import.js",
     "event-source-port.js",
     "external-chooser-port.js",
+    "file-auto-tagging.js",
     "file-organizer.js",
     "generic-workflow-menu-view.js",
     "generic-workflow-surface.js",

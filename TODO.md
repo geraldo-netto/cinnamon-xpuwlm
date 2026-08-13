@@ -12,7 +12,7 @@ domain grouping without weakening the required status schema.
 - **Hardware and storage:** XTPU-0104–XTPU-0110
 - **Scheduling, network, and security:** XTPU-0111–XTPU-0114
 - **Developer tools:** XTPU-0115–XTPU-0120
-- **Local files and routines:** XTPU-0121–XTPU-0125
+- **Local files and routines:** XTPU-0122–XTPU-0125
 - **Vision and image processing:** XTPU-0049, XTPU-0126–XTPU-0129
 - **Camera, equipment, and audio:** XTPU-0130–XTPU-0133
 - **Presentations, media, and screenshots:** XTPU-0134–XTPU-0138
@@ -30,7 +30,6 @@ domain grouping without weakening the required status schema.
 | XTPU-0118 | open | medium | l | XTPU-0095, XTPU-0099 | Evaluate fuzz-crash deduplication across normalized signatures, host clustering, GPU embeddings, and hybrid cascades by precision/recall, performance, memory, and operator review cost. |
 | XTPU-0119 | open | medium | l | XTPU-0095, XTPU-0097, XTPU-0103 | Evaluate compiler-option suggestion using only validated allowlisted profiles; compare search, host, GPU, and hybrid recommenders on correctness, build cost, size, runtime, and memory. |
 | XTPU-0120 | open | medium | l | XTPU-0095, XTPU-0096, XTPU-0099, OMNI-0094, OMNI-0095, OMNI-0096 | Implement versioned resource-regression experiments comparing statistical, host-model, GPU-model, and hybrid detection on repeated CPU, memory, I/O, GPU, and startup measurements. |
-| XTPU-0121 | open | medium | l | XTPU-0095, XTPU-0099, XTPU-0100, XTPU-0102 | Extend the ready selected-file organizer with review-only local file auto-tagging and benchmark metadata, GPU, and hybrid paths by file family and batch size; do not add a background crawler. |
 | XTPU-0122 | open | medium | l | XTPU-0095, XTPU-0102, XTPU-0121 | Merge document and download categorization with auto-tagging under one bounded taxonomy and compare MIME/metadata, extracted text/layout GPU inference, and hybrid candidates. |
 | XTPU-0123 | open | medium | m | XTPU-0095, XTPU-0101 | Benchmark scalar/SIMD perceptual hashes, batched GPU candidates, embeddings, and hybrid cascades for resized or edited duplicates; require complete cryptographic digests for byte-identity claims. |
 | XTPU-0124 | open | high | l | XTPU-0095, XTPU-0096, XTPU-0098, XTPU-0100, XTPU-0103, OMNI-0112, OMNI-0113, OMNI-0114, OMNI-0115 | Implement opt-in, content-free local routine recognition experiments across statistical, host-model, GPU-model, and hybrid suggestions; require confirmation for every proposed automation. |
