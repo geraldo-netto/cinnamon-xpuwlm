@@ -82,9 +82,12 @@ test("deck intermediate is editable, bounded, and source-bound", () => {
 test("export destinations are absolute, traversal-free, and format-matched", () => {
     assert.equal(Planning.validDestination("/home/user/deck.pptx", "pptx"), true);
     assert.equal(Planning.validDestination("/home/user/deck.ODP", "odp"), true);
+    const exact = `/${"a".repeat(16_378)}.pptx`;
+    assert.equal(Planning.validDestination(exact, "pptx"), true);
     for (const [path, format] of [
         ["deck.pptx", "pptx"], ["/tmp/deck.odp", "pptx"],
-        ["/tmp/../deck.pptx", "pptx"], ["/tmp/..", "pptx"], [null, "pptx"],
+        [`${exact}x`, "pptx"], ["/tmp/../deck.pptx", "pptx"], ["/tmp/..", "pptx"],
+        ["/tmp/deck.txt", "txt"], ["/tmp/deck\0.pptx", "pptx"], [null, "pptx"],
     ]) {
         assert.equal(Planning.validDestination(path, format), false);
     }

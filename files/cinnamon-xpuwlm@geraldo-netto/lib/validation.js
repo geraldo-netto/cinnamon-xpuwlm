@@ -40,6 +40,17 @@ function isRequestId(value) {
     return typeof value === "string" && REQUEST_ID.test(value);
 }
 
+function validExportDestination(value, format, formats, maximum) {
+    return boundedText(value, 1, maximum)
+        && !value.includes("\0")
+        && typeof format === "string"
+        && Array.isArray(formats)
+        && formats.includes(format)
+        && value.startsWith("/")
+        && !value.split("/").includes("..")
+        && value.toLowerCase().endsWith(`.${format.toLowerCase()}`);
+}
+
 module.exports = {
     DIGEST,
     REQUEST_ID,
@@ -48,4 +59,5 @@ module.exports = {
     isDigest,
     isRecord,
     isRequestId,
+    validExportDestination,
 };

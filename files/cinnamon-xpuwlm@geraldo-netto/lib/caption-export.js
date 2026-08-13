@@ -9,6 +9,7 @@ const Validation = require("./validation.js");
 
 const VERSION = 1;
 const MAX_RENDERED_CHARACTERS = 24_000;
+const EXPORT_FORMATS = Object.freeze(["srt", "vtt"]);
 const SOURCE_FIELDS = Object.freeze(["fileName", "sourceSha256", "modality", "durationMs"]);
 const CUE_FIELDS = Object.freeze(["startMs", "endMs", "text"]);
 const MEASUREMENT_FIELDS = Object.freeze([
@@ -172,14 +173,11 @@ function fullStageMeasurements(value) {
 }
 
 function validDestination(value, format) {
-    return boundedText(value, 1, 4096) && value.startsWith("/")
-        && !value.includes("/../") && !value.endsWith("/..")
-        && value.toLowerCase().endsWith(`.${format}`);
+    return Validation.validExportDestination(value, format, EXPORT_FORMATS, 4096);
 }
 
 function validExport(value) {
     return exactKeys(value, EXPORT_FIELDS) && REQUEST_ID.test(value.requestId)
-        && ["srt", "vtt"].includes(value.format)
         && ["speech", "visual"].includes(value.track)
         && validDestination(value.destination, value.format)
         && validMeasurements(value.measurements);

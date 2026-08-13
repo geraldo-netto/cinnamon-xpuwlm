@@ -53,3 +53,20 @@ test("request IDs accept the exact alphabet and one-to-120 code-point bounds", (
     assert.equal(Validation.isRequestId("contains space"), false);
     assert.equal(Validation.isRequestId(null), false);
 });
+
+test("export destinations are absolute, traversal-free, format-bound, and size-bound", () => {
+    const formats = ["srt", "vtt"];
+    const exact = `/${"a".repeat(4091)}.srt`;
+    assert.equal(Validation.validExportDestination(exact, "srt", formats, 4096), true);
+    assert.equal(Validation.validExportDestination(`${exact}x`, "srt", formats, 4096), false);
+    assert.equal(Validation.validExportDestination("/tmp/captions.SRT", "srt", formats, 4096), true);
+    assert.equal(Validation.validExportDestination("captions.srt", "srt", formats, 4096), false);
+    assert.equal(Validation.validExportDestination("/tmp/../captions.srt", "srt", formats, 4096), false);
+    assert.equal(Validation.validExportDestination("/tmp/..", "srt", formats, 4096), false);
+    assert.equal(Validation.validExportDestination("/tmp/captions.vtt", "srt", formats, 4096), false);
+    assert.equal(Validation.validExportDestination("/tmp/captions.txt", "txt", formats, 4096), false);
+    assert.equal(Validation.validExportDestination("/tmp/captions\0.srt", "srt", formats, 4096), false);
+    assert.equal(Validation.validExportDestination(null, "srt", formats, 4096), false);
+    assert.equal(Validation.validExportDestination("/tmp/captions.srt", null, formats, 4096), false);
+    assert.equal(Validation.validExportDestination("/tmp/captions.srt", "srt", null, 4096), false);
+});

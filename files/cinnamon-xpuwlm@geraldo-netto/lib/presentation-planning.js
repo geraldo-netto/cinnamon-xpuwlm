@@ -11,6 +11,7 @@ const VERSION = 1;
 const MAX_ASSETS = 64;
 const MAX_CITATIONS = 16;
 const MAX_TEXT = Review.MAX_TEXT;
+const EXPORT_FORMATS = Object.freeze(["odp", "pptx"]);
 const ASSET_FIELDS = Object.freeze(["id", "sourceSha256"]);
 const CITATION_FIELDS = Object.freeze(["sourceSlide", "evidenceIndex"]);
 const SLIDE_FIELDS = Object.freeze([
@@ -130,17 +131,12 @@ function plannedDeck(value, review, assetValues = []) {
 }
 
 function validDestination(value, format) {
-    return boundedText(value, 1)
-        && value.startsWith("/")
-        && !value.includes("/../")
-        && !value.endsWith("/..")
-        && value.toLowerCase().endsWith(`.${format}`);
+    return Validation.validExportDestination(value, format, EXPORT_FORMATS, MAX_TEXT);
 }
 
 function validExport(value) {
     return exactKeys(value, EXPORT_FIELDS)
         && REQUEST_ID.test(value.requestId)
-        && ["odp", "pptx"].includes(value.format)
         && validDestination(value.destination, value.format);
 }
 

@@ -108,9 +108,14 @@ test("full-stage measurements require every finite nonnegative stage", () => {
 
 test("destination and export input reject traversal or mismatched formats", () => {
     assert.equal(Captions.validDestination("/tmp/a.srt", "srt"), true);
-    for (const path of ["a.srt", "/tmp/../a.srt", "/tmp/..", "/tmp/a.vtt", ""]) {
+    const exact = `/${"a".repeat(4091)}.srt`;
+    assert.equal(Captions.validDestination(exact, "srt"), true);
+    for (const path of [
+        `${exact}x`, "a.srt", "/tmp/../a.srt", "/tmp/..", "/tmp/a.vtt", "/tmp/a\0.srt", "",
+    ]) {
         assert.equal(Captions.validDestination(path, "srt"), false);
     }
+    assert.equal(Captions.validDestination("/tmp/a.txt", "txt"), false);
     assert.equal(Captions.validExport(Fixture.exportRequest()), true);
     assert.equal(Captions.validExport({...Fixture.exportRequest(), requestId: "bad id"}), false);
 });
