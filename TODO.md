@@ -15,6 +15,10 @@ domain grouping without weakening the required status schema.
 - **Local files and routines:** XTPU-0125
 - **Vision and image processing:** XTPU-0049, XTPU-0126–XTPU-0129
 - **Camera, equipment, and audio:** XTPU-0130–XTPU-0133
+- **Audit validation and packaging:** XTPU-0139–XTPU-0141
+- **Audit responsibility splits and wiring:** XTPU-0142–XTPU-0151
+- **Audit regression and mutation gates:** XTPU-0152–XTPU-0159
+- **Audit housekeeping:** XTPU-0160–XTPU-0161
 
 ## Findings
 
@@ -30,6 +34,29 @@ domain grouping without weakening the required status schema.
 | XTPU-0119 | open | medium | l | XTPU-0095, XTPU-0097, XTPU-0103 | Evaluate compiler-option suggestion using only validated allowlisted profiles; compare search, host, GPU, and hybrid recommenders on correctness, build cost, size, runtime, and memory. |
 | XTPU-0120 | open | medium | l | XTPU-0095, XTPU-0096, XTPU-0099, OMNI-0094, OMNI-0095, OMNI-0096 | Implement versioned resource-regression experiments comparing statistical, host-model, GPU-model, and hybrid detection on repeated CPU, memory, I/O, GPU, and startup measurements. |
 | XTPU-0133 | open | medium | l | XTPU-0095, XTPU-0097, XTPU-0099, XTPU-0102 | Evaluate music genre, instrument, and mood tagging with separate bounded label sets and host/GPU candidates, returning timestamped confidence evidence for selected audio. |
+| XTPU-0139 | open | high | l | — | Replace semantically identical validator copies with canonical `lib/validation.js` exports for records, exact keys, bounded text, digests, and request IDs; retain differing domain validation, add the required root shim, and pin all exact boundaries in direct tests. |
+| XTPU-0140 | open | medium | s | XTPU-0139 | Add one parameterized absolute export-destination guard to `lib/validation.js`, delegate presentation and caption exports without changing their format lists or size limits, and test traversal, format, and maximum-length refusal. |
+| XTPU-0141 | open | high | m | XTPU-0146 | Recompute the production require graph from `applet.js`, exclude still-unreachable staged modules and matching root shims from packaged payloads without deleting source, and add a contract that prevents payload/graph drift. |
+| XTPU-0142 | open | high | l | — | Extract picture listing/sweeping and job dispatch/polling from `WorkloadManager` into a workflow-controller-style collaborator while preserving the manager public API and behavior. |
+| XTPU-0143 | open | high | m | XTPU-0142 | Extract persisted selected-tab and activity-clear state into a UI-preferences repository while retaining the exact existing file, keys, and migration-free on-disk format; reduce `manager.js` toward the audit's approximately 700-line target. |
+| XTPU-0144 | open | high | m | — | Extract menu keyboard/focus handling and actor helpers into `menu-focus.js` and `menu-actor-utils.js`; keep `MenuView` as orchestrator and directly test wrapping and disabled-item navigation. |
+| XTPU-0145 | open | medium | m | XTPU-0144 | Replace renderer access to private `MenuView` fields with an explicit render-host contract carrying body, label, headings, events, and actions while preserving installer signatures and rendered behavior. |
+| XTPU-0146 | open | medium | s | XTPU-0145 | Gate generic-workflow renderer installation on registration of its model surface so the currently unreachable producer and dead render path remain paired and absent from production payloads. |
+| XTPU-0147 | open | medium | m | XTPU-0139 | Split panel, diagnostics, and setup projections from oversized `view-model.js`; retain `toViewModel` as the stable composition facade and preserve all output. |
+| XTPU-0148 | open | medium | m | XTPU-0145 | Split `workflow-menu-view.js` into per-workflow renderers for file organization, media, document QA, event import, and selected text, aggregated behind the existing installer. |
+| XTPU-0149 | open | medium | m | XTPU-0139 | Extract tensor-contract and provenance responsibilities from `workload-manifest.js`, reusing shared validators only where semantics are identical and preserving its public facade. |
+| XTPU-0150 | open | medium | s | XTPU-0139 | Extract deterministic ICS date/property/text and UTF-8 folding logic from `event-import.js` into `ics-export.js` with the current export facade and bytes preserved. |
+| XTPU-0151 | open | low | s | XTPU-0142 | Extract controller factories from `applet.js` into `lib/workflow-wiring.js` as a behavior-preserving wiring cleanup. |
+| XTPU-0152 | open | high | m | — | Add direct tests for JSON artifact validation, control-character line reporting, PNG/static-asset rejection, and valid input; include `scripts/validate-artifacts.js` in the c8 coverage scope. |
+| XTPU-0153 | open | medium | s | — | Directly test `RuntimeWorkflowController` with fake gateway/scheduler collaborators for poll caps, disposal during polling, listener removal, and error notification. |
+| XTPU-0154 | open | medium | s | XTPU-0139 | Pin exact duration, cue-count, screenshot-size, and capture-start boundaries in deterministic regression fixtures, placing shared cases in the validation suite after consolidation. |
+| XTPU-0155 | open | low | s | — | Test `generate-snapshot-contract --check` failure and require malformed per-function coverage thresholds to fail closed. |
+| XTPU-0156 | open | high | s | XTPU-0139, XTPU-0154 | Make the targeted mutation command exercise deterministic boundary coverage for the four audited workflow validators, adding fuzz suites only when their runtime and determinism are acceptable. |
+| XTPU-0157 | open | medium | s | XTPU-0152, XTPU-0155 | Add artifact-validation and snapshot-contract scripts to Stryker mutation targets only after their direct regression suites land. |
+| XTPU-0158 | open | high | l | XTPU-0139, XTPU-0140, XTPU-0141, XTPU-0142, XTPU-0143, XTPU-0144, XTPU-0145, XTPU-0146, XTPU-0147, XTPU-0148, XTPU-0149, XTPU-0150, XTPU-0151, XTPU-0152, XTPU-0153, XTPU-0154, XTPU-0155, XTPU-0156, XTPU-0157 | After all audit edits settle and no other mutation job is active, run a full non-incremental Stryker rebaseline across every configured target and retain the 80% break threshold. |
+| XTPU-0159 | open | low | s | XTPU-0158 | Evaluate narrowing the global `StringLiteral` mutation exclusion with inline directives so contract field-name mutations are measured without creating broad equivalent-mutant noise. |
+| XTPU-0160 | open | low | xs | — | Remove the audited pasted-chat `temp.txt` and stale Stryker sandbox after re-verifying their identities, and ignore `.stryker-tmp/` if it is not already ignored. |
+| XTPU-0161 | open | low | s | XTPU-0139 | Add an optional contract asserting that maintained root shims exactly match library modules that require root-relative loading. |
 
 ## Blocked
 
