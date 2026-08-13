@@ -15,6 +15,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "artifact-qualification.js",
     "artifact-qualification.schema.json",
     "background-execution.js",
+    "caption-export.js",
     "cinnamon-dbus-adapter.js",
     "cinnamon-host-adapter.js",
     "cinnamon-image-adapter.js",

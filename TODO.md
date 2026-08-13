@@ -15,7 +15,7 @@ domain grouping without weakening the required status schema.
 - **Local files and routines:** XTPU-0125
 - **Vision and image processing:** XTPU-0049, XTPU-0126–XTPU-0129
 - **Camera, equipment, and audio:** XTPU-0130–XTPU-0133
-- **Presentations, media, and screenshots:** XTPU-0137–XTPU-0138
+- **Presentations, media, and screenshots:** XTPU-0138
 
 ## Findings
 
@@ -31,7 +31,6 @@ domain grouping without weakening the required status schema.
 | XTPU-0119 | open | medium | l | XTPU-0095, XTPU-0097, XTPU-0103 | Evaluate compiler-option suggestion using only validated allowlisted profiles; compare search, host, GPU, and hybrid recommenders on correctness, build cost, size, runtime, and memory. |
 | XTPU-0120 | open | medium | l | XTPU-0095, XTPU-0096, XTPU-0099, OMNI-0094, OMNI-0095, OMNI-0096 | Implement versioned resource-regression experiments comparing statistical, host-model, GPU-model, and hybrid detection on repeated CPU, memory, I/O, GPU, and startup measurements. |
 | XTPU-0133 | open | medium | l | XTPU-0095, XTPU-0097, XTPU-0099, XTPU-0102 | Evaluate music genre, instrument, and mood tagging with separate bounded label sets and host/GPU candidates, returning timestamped confidence evidence for selected audio. |
-| XTPU-0137 | open | medium | m | XTPU-0099, XTPU-0100, XTPU-0102 | Extend ready media transcription with deterministic SRT/WebVTT rendering, timing/overlap validation, frame descriptions, cancellation-safe export, and full-stage measurements. |
 | XTPU-0138 | open | medium | m | XTPU-0099, XTPU-0100, XTPU-0102 | Add an explicit screenshot/file action to the ready vision worker and return visible text, scene/error/chart explanation, and reviewable text transformations with capture-to-result measurements. |
 
 ## Blocked
