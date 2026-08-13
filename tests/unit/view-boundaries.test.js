@@ -25,6 +25,24 @@ const WorkflowViewModel = require(
 const GenericWorkflowMenu = require(
     "../../files/cinnamon-xpuwlm@geraldo-netto/lib/generic-workflow-menu-view.js",
 );
+const DocumentQuestionMenu = require(
+    "../../files/cinnamon-xpuwlm@geraldo-netto/lib/workflow-document-question-menu-view.js",
+);
+const EventImportMenu = require(
+    "../../files/cinnamon-xpuwlm@geraldo-netto/lib/workflow-event-import-menu-view.js",
+);
+const FileOrganizerMenu = require(
+    "../../files/cinnamon-xpuwlm@geraldo-netto/lib/workflow-file-organizer-menu-view.js",
+);
+const MediaMenu = require(
+    "../../files/cinnamon-xpuwlm@geraldo-netto/lib/workflow-media-menu-view.js",
+);
+const SelectedTextMenu = require(
+    "../../files/cinnamon-xpuwlm@geraldo-netto/lib/workflow-selected-text-menu-view.js",
+);
+const SharedMenu = require(
+    "../../files/cinnamon-xpuwlm@geraldo-netto/lib/workflow-shared-menu-view.js",
+);
 
 const ROOT = path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto/lib");
 const PROJECTION_EXPORTS = Object.freeze([
@@ -153,6 +171,53 @@ test("workflow renderer installation preserves host members and behavior helpers
     assert.equal(Menu.jobDetail, WorkflowMenu.jobDetail);
 });
 
+test("workflow renderer aggregate preserves per-workflow implementation ownership", () => {
+    const ownership = [
+        [FileOrganizerMenu.FileOrganizerMenuView, [
+            "_renderFileOrganizer", "_renderFileOrganizerStatus", "_renderFileOrganizerSources",
+            "_renderFileOrganizerPlan", "_renderFileOrganizerActions",
+        ]],
+        [MediaMenu.MediaMenuView, [
+            "_renderMediaTranscription", "_renderMediaStatus", "_renderMediaResult",
+            "_renderMediaActions",
+        ]],
+        [SelectedTextMenu.SelectedTextMenuView, [
+            "_renderSelectedText", "_renderSelectedTextStatus", "_renderSelectedTextActions",
+            "_renderSelectedTextOperations", "_renderSelectedTextResult",
+        ]],
+        [DocumentQuestionMenu.DocumentQuestionMenuView, [
+            "_renderDocumentQuestion", "_renderDocumentQuestionStatus",
+            "_renderDocumentQuestionSources", "_documentQuestionEntry",
+            "_renderDocumentQuestionResult", "_renderDocumentQuestionActions",
+        ]],
+        [EventImportMenu.EventImportMenuView, [
+            "_renderEventImport", "_renderEventSources", "_renderEventPreview",
+            "_eventCandidate", "_eventEditButton", "_eventDecisionButton",
+            "_renderEventConfirmation", "_renderEventActions",
+        ]],
+        [SharedMenu.SharedMenuView, [
+            "_eventAction", "_renderRun", "_runSubtitle", "_pictureRow",
+            "_renderJobOutcome", "_renderReading",
+        ]],
+    ];
+    const owned = [];
+    for (const [owner, names] of ownership) {
+        assert.deepEqual(
+            Object.getOwnPropertyNames(owner.prototype).filter((name) => name !== "constructor"),
+            names,
+        );
+        for (const name of names) {
+            assert.equal(WorkflowMenu.WorkflowMenuView.prototype[name], owner.prototype[name], name);
+            owned.push(name);
+        }
+    }
+    assert.deepEqual(
+        [...owned].sort(),
+        [...WorkflowMenu.WORKFLOW_RENDERER_NAMES].sort(),
+    );
+    assert.equal(SharedMenu.jobDetail, WorkflowMenu.jobDetail);
+});
+
 test("generic workflow renderer contract installs exact reusable surfaces", () => {
     assert.deepEqual(GenericWorkflowMenu.GENERIC_RENDERER_NAMES, [
         "_renderGenericWorkflowSurface",
@@ -192,9 +257,13 @@ test("job details retain only non-empty strings without coercing runtime values"
 
 test("facades contain no extracted workflow implementation bodies", () => {
     const menuSource = fs.readFileSync(path.join(ROOT, "menu-view.js"), "utf8");
+    const workflowSource = fs.readFileSync(path.join(ROOT, "workflow-menu-view.js"), "utf8");
     const modelSource = fs.readFileSync(path.join(ROOT, "view-model.js"), "utf8");
     assert.doesNotMatch(menuSource, /^\s+_renderEventImport\(model\) \{/mu);
     assert.doesNotMatch(menuSource, /^\s+_renderMediaTranscription\(model\) \{/mu);
+    for (const name of WorkflowMenu.WORKFLOW_RENDERER_NAMES) {
+        assert.doesNotMatch(workflowSource, new RegExp(`^\\s+${name}\\([^)]*\\) \\{`, "mu"), name);
+    }
     assert.doesNotMatch(modelSource, /^function eventImportModel\(state\) \{/mu);
     assert.doesNotMatch(modelSource, /^function mediaTranscriptionModel\(state\) \{/mu);
     assert.doesNotMatch(modelSource, /^function panelModel\(state\) \{/mu);

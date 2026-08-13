@@ -76,9 +76,19 @@ test("render host rejects incomplete owners and surfaces", () => {
 
 test("renderer modules do not reach into MenuView private host fields", () => {
     const forbidden = /this\._(?:actions|addGroupHeading|addSectionHeading|body|box|button|entry|eventAction|identify|label|setAccessibleRole|setAccessibleState|setButtonEnabled)\b/u;
-    for (const name of ["generic-workflow-menu-view.js", "workflow-menu-view.js"]) {
+    for (const name of [
+        "generic-workflow-menu-view.js",
+        "workflow-document-question-menu-view.js",
+        "workflow-event-import-menu-view.js",
+        "workflow-file-organizer-menu-view.js",
+        "workflow-media-menu-view.js",
+        "workflow-selected-text-menu-view.js",
+        "workflow-shared-menu-view.js",
+    ]) {
         const source = fs.readFileSync(path.join(ROOT, name), "utf8");
         assert.doesNotMatch(source, forbidden, name);
         assert.match(source, /hostOf\(this\)/u, name);
     }
+    const aggregate = fs.readFileSync(path.join(ROOT, "workflow-menu-view.js"), "utf8");
+    assert.doesNotMatch(aggregate, forbidden, "workflow-menu-view.js");
 });
