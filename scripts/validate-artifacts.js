@@ -35,6 +35,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "generic-workflow-surface.js",
     "failure-log-backoff.js",
     "failure-reporter.js",
+    "image-duplicate-benchmark.js",
     "i18n.js",
     "icon.png",
     "icons",

@@ -52,6 +52,12 @@ must declare exactly one evidence path: MIME/metadata on the host, extracted
 text/layout on the GPU, or their hybrid. Category and tags must both match the
 labeled corpus for a run to count as correct; output remains a review-only plan.
 
+Image duplicate evaluation compares scalar and SIMD perceptual hashes, batched
+GPU perceptual hashes, batched embeddings, and a hybrid cascade on the same
+labeled pairs. Similarity and byte identity are separate: a byte-identity result
+is accepted only when both complete SHA-256 digests are present and exactly
+equal. Resized or edited relations remain reviewable similarity suggestions.
+
 Choosing files first closes the applet popup, then presents a familiar external
 `zenity` GTK chooser with visible focus and keyboard navigation. Cancelling reports
 **Selection cancelled**; acceptance lists the selected files; validation and
