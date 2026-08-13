@@ -46,6 +46,12 @@ and select the measured lowest p95 candidate. GPU is never preferred merely
 because it is available. The evaluation returns review-only tags and exposes no
 folder watcher or filesystem mutation capability.
 
+Document and download categorization uses the same selected-file boundary and
+tag vocabulary. Its versioned taxonomy is closed, and each measured candidate
+must declare exactly one evidence path: MIME/metadata on the host, extracted
+text/layout on the GPU, or their hybrid. Category and tags must both match the
+labeled corpus for a run to count as correct; output remains a review-only plan.
+
 Choosing files first closes the applet popup, then presents a familiar external
 `zenity` GTK chooser with visible focus and keyboard navigation. Cancelling reports
 **Selection cancelled**; acceptance lists the selected files; validation and
