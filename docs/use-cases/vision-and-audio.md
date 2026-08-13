@@ -96,7 +96,7 @@ The tables below separate the neural-network task from the surrounding applicati
 | Background removal | Foreground mask | Derived candidate based on the documented segmentation family; compositing runs on the host |
 | Privacy redaction | Face, person, screen, or plate mask/box | Derived candidate; blurring and policy logic run on the host |
 | Depth or surface estimation | Depth map or surface class | Experimental; verify architecture and output cost |
-| Low-light image enhancement | Enhanced image or pixel-wise tonal-curve map | Dedicated `low-light-enhancement` catalog workload, disabled by default until its manifest acceptance criteria are measured on named hardware; use a fixed-shape, fully quantized lightweight CNN; keep decoding, resizing, capture/ISP, re-encoding, display, and downstream decisions on the host; verify full Edge TPU compilation, quantized fidelity, noise, color, artifacts, and end-to-end benefit over CPU/GPU tone mapping |
+| Low-light image enhancement | Enhanced RGB image | Dedicated `low-light-enhancement` 0.2.0 workload, disabled by default until its manifest criteria are measured on the named RX 6600 XT; the pinned Retinexformer contract uses Vulkan/ncnn with float32 `[1,3,256,256]` RGB input and enhanced RGB output; keep decoding, orientation, color management, original-geometry reconstruction, encoding, display, and publication on the host; verify zero CPU fallback, portable/native and paired-image fidelity, noise, color, artifacts, latency, and end-to-end benefit over the CPU enhancement baseline |
 | Denoising, super-resolution, or colorization | Reconstructed image | Experimental; large outputs and unsupported operations can erase the benefit |
 
 ### Video and camera streams
