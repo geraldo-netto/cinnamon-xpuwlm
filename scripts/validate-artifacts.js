@@ -24,6 +24,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "domain.js",
     "document-question.js",
     "document-source-port.js",
+    "deterministic-action-port.js",
     "event-import.js",
     "event-source-port.js",
     "external-chooser-port.js",

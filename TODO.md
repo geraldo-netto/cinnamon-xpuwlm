@@ -1,6 +1,6 @@
 # TODO
 
-The GPU use-case implementation backlog is tracked directly in XTPU-0103
+The GPU use-case implementation backlog is tracked directly in XTPU-0104
 through XTPU-0138; `related ids` encode its dependency order.
 
 ## Work groups
@@ -9,7 +9,6 @@ Items remain in the canonical lifecycle tables below; these ranges provide the
 domain grouping without weakening the required status schema.
 
 - **Platform and portability:** XTPU-0087–XTPU-0089
-- **Shared GPU foundations:** XTPU-0103
 - **Hardware and storage:** XTPU-0104–XTPU-0110
 - **Scheduling, network, and security:** XTPU-0111–XTPU-0114
 - **Developer tools:** XTPU-0115–XTPU-0120
@@ -24,7 +23,6 @@ domain grouping without weakening the required status schema.
 | --- | --- | --- | --- | --- | --- |
 | XTPU-0087 | open | high | l | XTPU-0088, XTPU-0089 | A Windows client is feasible as a sibling tray application, with roughly 69% of library code a candidate for reuse, but the GJS/Cinnamon shell, St/Clutter view, GIO/GTK adapters, settings, notifications, and packaging require Windows implementations. Prove an Electron/Node tray and named-pipe handshake spike before committing to parity. |
 | XTPU-0089 | open | medium | m | XTPU-0087 | Portable core code still constructs POSIX paths and publishes Linux-only setup guidance, while the mixed Cinnamon runtime adapter combines shared factories with GIO and Linux discovery. Extract path, platform-guidance, transport, and discovery ports before a Windows client release. |
-| XTPU-0103 | open | high | l | XTPU-0099 | Define deterministic action ports with allowlists, preview, confirmation, conflict checks, audit evidence, rollback where possible, and model-independent safety limits. |
 | XTPU-0111 | open | medium | l | XTPU-0095, XTPU-0099, XTPU-0100, OMNI-0091, OMNI-0092, OMNI-0093 | Promote the existing local forecast foundation into queue-delay forecasting, benchmark host/GPU/hybrid paths, publish a typed advisory, and expose it through the generic Cinnamon surface. |
 | XTPU-0115 | open | medium | l | XTPU-0095, XTPU-0097, XTPU-0099, OMNI-0094, OMNI-0095, OMNI-0096 | Implement test prioritization experiments from change, failure, duration, ownership, and coverage history; benchmark host/GPU/hybrid rankers while always retaining mandatory tests. |
 | XTPU-0116 | open | medium | l | XTPU-0095, XTPU-0099, XTPU-0101 | Evaluate API-misuse classification on one labeled corpus by comparing AST/rules, GPU classification, and hybrid pipelines for precision, recall, performance, memory, and explanation quality. |
