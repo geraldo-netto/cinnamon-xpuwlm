@@ -20,12 +20,17 @@ test("staging, checksums, install and uninstall verification round-trip", () => 
     assert.equal(Package.runCommand(["stage"], (line) => lines.push(line), dist), 0);
     const stagedRoot = path.join(dist, Package.UUID);
     const checksums = fs.readFileSync(path.join(dist, `${Package.UUID}.SHA256SUMS`), "utf8");
-    assert.equal(checksums, Package.buildChecksums(Package.payloadRoot));
+    assert.equal(checksums, Package.buildChecksums(
+        Package.payloadRoot,
+        Package.appletPayloadFiles(Package.payloadRoot),
+    ));
     assert.match(lines[0], /^staged \d+ payload files/u);
 
     // The staged tree is the payload: byte-identical files, nothing extra.
     const installReport = Package.verifyInstall(stagedRoot, checksums);
     assert.deepEqual(installReport, {ok: true, missing: [], mismatched: [], unexpected: []});
+    assert.equal(fs.existsSync(path.join(stagedRoot, "generic-workflow-surface.js")), false);
+    assert.equal(fs.existsSync(path.join(stagedRoot, "lib/generic-workflow-surface.js")), false);
     assert.equal(Package.runCommand(["verify", stagedRoot], () => {}), 0);
 
     // A tampered install fails verification with the offending path named.

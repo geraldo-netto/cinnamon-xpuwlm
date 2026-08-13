@@ -21,6 +21,8 @@ const MIN_SCREENSHOT_DIMENSION = 400;
 // tool-compatibility problems of a zero mtime.
 const ARCHIVE_MTIME = 946684800;
 const BLOCK_SIZE = 512;
+const REQUIRE_START = /\brequire\s*\(/gu;
+const STATIC_REQUIRE = /\brequire\s*\(\s*("(?:[^"\\]|\\.)*")\s*\)/gu;
 
 function compareText(left, right) {
     if (left === right) {
@@ -47,14 +49,118 @@ function payloadFiles(root, prefix = "") {
     return names.sort(compareText);
 }
 
+// Production dependencies are deliberately static CommonJS edges. Dynamic,
+// non-relative, escaping, missing, and irregular targets all fail closed so a
+// release can never silently omit code that only resolves at runtime.
+function sourceRequires(source, owner = "source") {
+    const starts = [...String(source).matchAll(REQUIRE_START)];
+    const matches = [...String(source).matchAll(STATIC_REQUIRE)];
+    if (starts.length !== matches.length) {
+        throw new Error(`Production require must be one static string in ${owner}`);
+    }
+    return matches.map((match) => JSON.parse(match[1]));
+}
+
+function regularModule(root, relativePath) {
+    const filename = path.join(root, relativePath);
+    let entry;
+    try {
+        entry = fs.lstatSync(filename);
+    } catch (error) {
+        throw new Error(`Production module is missing: ${relativePath}`, {cause: error});
+    }
+    if (entry.isSymbolicLink() || !entry.isFile()) {
+        throw new Error(`Production module must be a regular file: ${relativePath}`);
+    }
+    return filename;
+}
+
+function isAppletModule(relativePath) {
+    return relativePath !== ""
+        && relativePath !== ".."
+        && !relativePath.startsWith("../")
+        && !path.isAbsolute(relativePath)
+        && relativePath.endsWith(".js");
+}
+
+function resolveRequire(root, owner, request) {
+    if (!request.startsWith("./") && !request.startsWith("../")) {
+        throw new Error(`Production require must be relative in ${owner}: ${request}`);
+    }
+    const requested = request.endsWith(".js") ? request : `${request}.js`;
+    const filename = path.resolve(root, path.dirname(owner), requested);
+    const relativePath = path.relative(root, filename).split(path.sep).join("/");
+    if (!isAppletModule(relativePath)) {
+        throw new Error(`Production require escapes the applet in ${owner}: ${request}`);
+    }
+    regularModule(root, relativePath);
+    return relativePath;
+}
+
+function requireEdges(root, owner) {
+    const source = fs.readFileSync(regularModule(root, owner), "utf8");
+    return sourceRequires(source, owner).map((request) => resolveRequire(root, owner, request));
+}
+
+function requireRootShim(root, owner, target) {
+    if (!owner.startsWith("lib/") || !target.startsWith("lib/")) {
+        return null;
+    }
+    if (path.posix.dirname(target) !== "lib") {
+        throw new Error(`Nested production module needs an unsupported root shim: ${target}`);
+    }
+    const shim = path.posix.basename(target);
+    const dependencies = requireEdges(root, shim);
+    if (dependencies.length !== 1 || dependencies[0] !== target) {
+        throw new Error(`Cinnamon root shim ${shim} must resolve only ${target}`);
+    }
+    return shim;
+}
+
+function productionRequireGraph(root, entry = "applet.js") {
+    if (!isAppletModule(entry)) {
+        throw new Error(`Production entry escapes the applet: ${entry}`);
+    }
+    const modules = new Set();
+    const rootShims = new Set();
+    const pending = [entry];
+    while (pending.length > 0) {
+        const owner = pending.pop();
+        if (modules.has(owner)) {
+            continue;
+        }
+        modules.add(owner);
+        for (const target of requireEdges(root, owner)) {
+            const shim = requireRootShim(root, owner, target);
+            if (shim !== null) {
+                rootShims.add(shim);
+            }
+            pending.push(target);
+        }
+    }
+    return Object.freeze({
+        entry,
+        modules: Object.freeze([...modules].sort(compareText)),
+        rootShims: Object.freeze([...rootShims].sort(compareText)),
+    });
+}
+
+function appletPayloadFiles(root = payloadRoot) {
+    const graph = productionRequireGraph(root);
+    const productionJavaScript = new Set([...graph.modules, ...graph.rootShims]);
+    return payloadFiles(root).filter((relativePath) => (
+        !relativePath.endsWith(".js") || productionJavaScript.has(relativePath)
+    ));
+}
+
 function sha256Hex(buffer) {
     return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
 // GNU coreutils sha256sum format so `sha256sum --check` can verify a staged
 // tree without this script.
-function buildChecksums(root) {
-    return payloadFiles(root)
+function buildChecksums(root, files = payloadFiles(root)) {
+    return [...files].sort(compareText)
         .map((relativePath) => `${sha256Hex(fs.readFileSync(path.join(root, relativePath)))}  ${relativePath}\n`)
         .join("");
 }
@@ -74,9 +180,9 @@ function parseChecksums(text) {
     return entries;
 }
 
-function stagePayload(sourceRoot, targetRoot) {
+function stagePayload(sourceRoot, targetRoot, files = payloadFiles(sourceRoot)) {
     fs.rmSync(targetRoot, {recursive: true, force: true});
-    const staged = payloadFiles(sourceRoot);
+    const staged = [...files].sort(compareText);
     for (const relativePath of staged) {
         const target = path.join(targetRoot, relativePath);
         fs.mkdirSync(path.dirname(target), {recursive: true});
@@ -138,7 +244,11 @@ function stageSpiceRelease(projectRoot, appletRoot, targetRoot) {
             path.join(targetRoot, relativePath),
         );
     }
-    stagePayload(appletRoot, path.join(targetRoot, "files", UUID));
+    stagePayload(
+        appletRoot,
+        path.join(targetRoot, "files", UUID),
+        appletPayloadFiles(appletRoot),
+    );
     return payloadFiles(targetRoot);
 }
 
@@ -220,13 +330,13 @@ function memberDirectories(files) {
 
 // Deterministic ustar archive: sorted directory members first, fixed mtime,
 // zero ownership, no environment-dependent metadata.
-function buildArchive(root, memberPrefix) {
-    const files = payloadFiles(root);
+function buildArchive(root, memberPrefix, files = payloadFiles(root)) {
+    const sortedFiles = [...files].sort(compareText);
     const blocks = [];
-    for (const directory of memberDirectories(files.map((name) => `${memberPrefix}/${name}`))) {
+    for (const directory of memberDirectories(sortedFiles.map((name) => `${memberPrefix}/${name}`))) {
         blocks.push(tarHeader(`${directory}/`, 0, "5"));
     }
-    for (const relativePath of files) {
+    for (const relativePath of sortedFiles) {
         const contents = fs.readFileSync(path.join(root, relativePath));
         blocks.push(tarHeader(`${memberPrefix}/${relativePath}`, contents.length, "0"));
         blocks.push(contents, tarPadding(contents.length));
@@ -236,15 +346,16 @@ function buildArchive(root, memberPrefix) {
 }
 
 function commandStage(log, dist = distRoot) {
-    const staged = stagePayload(payloadRoot, path.join(dist, UUID));
-    fs.writeFileSync(path.join(dist, `${UUID}.SHA256SUMS`), buildChecksums(payloadRoot));
+    const files = appletPayloadFiles(payloadRoot);
+    const staged = stagePayload(payloadRoot, path.join(dist, UUID), files);
+    fs.writeFileSync(path.join(dist, `${UUID}.SHA256SUMS`), buildChecksums(payloadRoot, files));
     log(`staged ${staged.length} payload files -> ${path.join(dist, UUID)}`);
     return 0;
 }
 
 function commandPack(log, dist = distRoot) {
     commandStage(log, dist);
-    const archive = buildArchive(payloadRoot, UUID);
+    const archive = buildArchive(payloadRoot, UUID, appletPayloadFiles(payloadRoot));
     fs.writeFileSync(path.join(dist, `${UUID}.tar`), archive);
     fs.writeFileSync(path.join(dist, `${UUID}.tar.sha256`), `${sha256Hex(archive)}  ${UUID}.tar\n`);
     log(`packed ${UUID}.tar (${archive.length} bytes, sha256 ${sha256Hex(archive)})`);
@@ -260,7 +371,10 @@ function commandSpice(log, dist = distRoot) {
 }
 
 function commandVerify(root, log) {
-    const report = verifyInstall(root, buildChecksums(payloadRoot));
+    const report = verifyInstall(
+        root,
+        buildChecksums(payloadRoot, appletPayloadFiles(payloadRoot)),
+    );
     if (report.ok) {
         log(`install verified: ${root} matches the payload checksums`);
         return 0;
@@ -309,6 +423,7 @@ module.exports = {
     MIN_SCREENSHOT_DIMENSION,
     SPICE_METADATA_FILES,
     UUID,
+    appletPayloadFiles,
     buildArchive,
     buildChecksums,
     commandPack,
@@ -324,10 +439,12 @@ module.exports = {
     payloadFiles,
     payloadRoot,
     pngDimensions,
+    productionRequireGraph,
     inspectSpiceSources,
     regularFile,
     runCommand,
     sha256Hex,
+    sourceRequires,
     stagePayload,
     stageSpiceRelease,
     tarHeader,

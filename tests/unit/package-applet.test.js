@@ -52,11 +52,78 @@ test("payload enumeration is sorted, recursive, and rejects irregular entries", 
     fs.rmSync(root, {recursive: true, force: true});
 });
 
+test("production require graph is static, closed, and carries only required root shims", () => {
+    const root = temporaryDirectory();
+    writeTree(root, {
+        "applet.js": "const Entry = require(\"./lib/entry.js\");\n",
+        "dep.js": "module.exports = require(\"./lib/dep.js\");\n",
+        "lib/dep.js": "module.exports = {value: true};\n",
+        "lib/entry.js": "const Dep = require(\"./dep.js\");\nmodule.exports = Dep;\n",
+        "lib/unreachable.js": "module.exports = false;\n",
+        "metadata.json": "{}",
+        "unreachable.js": "module.exports = require(\"./lib/unreachable.js\");\n",
+    });
+
+    assert.deepEqual(Package.productionRequireGraph(root), {
+        entry: "applet.js",
+        modules: ["applet.js", "lib/dep.js", "lib/entry.js"],
+        rootShims: ["dep.js"],
+    });
+    assert.deepEqual(Package.appletPayloadFiles(root), [
+        "applet.js", "dep.js", "lib/dep.js", "lib/entry.js", "metadata.json",
+    ]);
+    assert.deepEqual(Package.payloadFiles(root), [
+        "applet.js", "dep.js", "lib/dep.js", "lib/entry.js", "lib/unreachable.js",
+        "metadata.json", "unreachable.js",
+    ]);
+    assert.throws(
+        () => Package.productionRequireGraph(root, "../outside.js"),
+        /entry escapes/u,
+    );
+
+    fs.rmSync(path.join(root, "dep.js"));
+    assert.throws(() => Package.productionRequireGraph(root), /missing: dep\.js/u);
+    writeTree(root, {"dep.js": "module.exports = require(\"./lib/entry.js\");\n"});
+    assert.throws(() => Package.productionRequireGraph(root), /must resolve only lib\/dep\.js/u);
+    writeTree(root, {
+        "lib/entry.js": "require(\"./nested/dep.js\");\n",
+        "lib/nested/dep.js": "module.exports = true;\n",
+    });
+    assert.throws(() => Package.productionRequireGraph(root), /unsupported root shim/u);
+    fs.rmSync(root, {recursive: true, force: true});
+});
+
+test("production require scanning rejects dynamic, external, escaping, and missing edges", () => {
+    assert.deepEqual(Package.sourceRequires([
+        "const One = require(\"./one.js\");",
+        "const Two = require(\"../two.js\");",
+    ].join("\n"), "fixture.js"), ["./one.js", "../two.js"]);
+    for (const source of [
+        "const Dynamic = require(name);",
+        "const Single = require('./single.js');",
+        "const Open = require(\"./open.js\";",
+    ]) {
+        assert.throws(() => Package.sourceRequires(source, "fixture.js"), /static string/u);
+    }
+
+    const root = temporaryDirectory();
+    for (const [source, pattern] of [
+        ["require(\"node:fs\");", /must be relative/u],
+        ["require(\"../outside.js\");", /escapes the applet/u],
+        ["require(\"./missing.js\");", /missing: missing\.js/u],
+    ]) {
+        writeTree(root, {"applet.js": source});
+        assert.throws(() => Package.productionRequireGraph(root), pattern);
+    }
+    fs.rmSync(root, {recursive: true, force: true});
+});
+
 test("checksum manifests are deterministic and round-trip through the parser", () => {
     const root = temporaryDirectory();
     writeTree(root, {"b.txt": "beta", "a.txt": "alpha"});
     const first = Package.buildChecksums(root);
     assert.equal(first, Package.buildChecksums(root));
+    assert.equal(first, Package.buildChecksums(root, ["b.txt", "a.txt"]));
     const entries = Package.parseChecksums(first);
     assert.deepEqual([...entries.keys()], ["a.txt", "b.txt"]);
     assert.equal(entries.get("a.txt"), Package.sha256Hex(Buffer.from("alpha")));
@@ -192,6 +259,10 @@ test("archives are byte-deterministic valid ustar with fixed metadata", () => {
     const first = Package.buildArchive(root, "member");
     const second = Package.buildArchive(root, "member");
     assert.deepEqual(first, second);
+    assert.deepEqual(
+        first,
+        Package.buildArchive(root, "member", ["lib/module.js", "applet.js"]),
+    );
     assert.equal(first.length % Package.BLOCK_SIZE, 0);
 
     const members = [];
