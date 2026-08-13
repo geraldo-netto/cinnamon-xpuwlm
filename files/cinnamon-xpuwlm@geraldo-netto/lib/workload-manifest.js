@@ -5,6 +5,11 @@
 // manifest must. The runtime rewrites manifests to version 2, so an applet
 // that only knows version 1 rejects catalogs the runtime considers valid.
 const Validation = require("./validation.js");
+const Provenance = require("./workload-provenance.js");
+const TensorContract = require("./workload-tensor-contract.js");
+
+const {isModelDigest, isNativeEvidence, isTrainingContract} = Provenance;
+const {isFeatureContract} = TensorContract;
 
 const MANIFEST_VERSION = 1;
 const PLUGIN_MANIFEST_VERSION = 2;
@@ -67,51 +72,7 @@ const MODEL_PROPERTIES = new Set([
 // companion has vouched for half its model without them.
 const COMPANION_FILENAME = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
 const MAX_COMPANIONS = 8;
-const OUTPUT_CONTRACT_REQUIRED = Object.freeze(["kind"]);
-const OUTPUT_CONTRACT_PROPERTIES = new Set([...OUTPUT_CONTRACT_REQUIRED, "topK", "labels"]);
-const OUTPUT_KINDS = new Set(["classification", "embedding", "raw"]);
-const LABELS_FILENAME = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
-const MAX_TOP_K = 100;
 const MODEL_DIGEST = Validation.DIGEST;
-const TENSOR_CONTRACT_PROPERTIES = new Set(["inputs"]);
-const TENSOR_INPUT_REQUIRED = Object.freeze(["shape", "dtype"]);
-const TENSOR_INPUT_PROPERTIES = new Set([...TENSOR_INPUT_REQUIRED, "layout", "preprocess"]);
-const TENSOR_DTYPES = new Set(["float32", "float64", "int32", "int64", "uint8"]);
-const TENSOR_LAYOUTS = new Set(["NCHW", "NHWC", "NC", "N"]);
-const PREPROCESS_REQUIRED = Object.freeze(["channelOrder", "mean", "scale"]);
-// `resize` is optional: a manifest written before the field still loads, and
-// absent means the consumer decides — which is exactly the convention-by-
-// accident the field exists to replace where a publisher cares.
-const PREPROCESS_PROPERTIES = new Set([...PREPROCESS_REQUIRED, "resize"]);
-const RESIZE_REQUIRED = Object.freeze(["filter", "fit"]);
-const RESIZE_PROPERTIES = new Set(RESIZE_REQUIRED);
-const RESIZE_FILTERS = new Set(["nearest", "bilinear", "bicubic"]);
-const RESIZE_FITS = new Set(["exact", "cover"]);
-const CHANNEL_ORDERS = new Set(["RGB", "BGR", "GRAY"]);
-const MAX_TENSOR_INPUTS = 8;
-const MAX_TENSOR_RANK = 6;
-const MAX_TENSOR_DIMENSION = 65536;
-const MAX_CHANNELS = 4;
-const FEATURE_CONTRACT_REQUIRED = Object.freeze([
-    "version", "recipe", "featureNames", "targetFeature", "window", "horizon",
-    "observationOrder", "flattenOrder",
-]);
-const FEATURE_CONTRACT_PROPERTIES = new Set(FEATURE_CONTRACT_REQUIRED);
-const TRAINING_CONTRACT_REQUIRED = Object.freeze([
-    "version", "profileId", "recipe", "reportSha256", "taskSemanticsSha256",
-]);
-const TRAINING_CONTRACT_PROPERTIES = new Set(TRAINING_CONTRACT_REQUIRED);
-const NATIVE_EVIDENCE_REQUIRED = Object.freeze([
-    "portableSha256", "nativeSha256", "reportSha256", "samples",
-    "maximumAbsoluteError", "tolerance", "compilerReportSha256", "namedDeviceAccepted",
-]);
-const NATIVE_EVIDENCE_PROPERTIES = new Set(NATIVE_EVIDENCE_REQUIRED);
-const FORECAST_INPUT_PROPERTIES = new Set(["shape", "dtype", "layout"]);
-const RAW_OUTPUT_PROPERTIES = new Set(["kind"]);
-const MAX_FORECAST_FEATURES = 128;
-const MAX_FORECAST_FEATURE_NAME = 64;
-const MAX_FORECAST_WINDOW = 128;
-const MAX_FORECAST_INPUT_WIDTH = 512;
 const UI_PROPERTIES = new Set(["title", "group", "description", "icon", "order"]);
 const DEFAULT_PROPERTIES = new Set(["enabled", "weight"]);
 const PIPELINE_PROPERTIES = new Set(["hostResponsibilities"]);
@@ -181,179 +142,10 @@ function isModelArtifact(value) {
         && (!declared(value, "companions") || isCompanions(value.companions));
 }
 
-function isFiniteNumberArray(value, minimum, maximum, positive) {
-    return Array.isArray(value)
-        && value.length >= minimum
-        && value.length <= maximum
-        && value.every((item) => typeof item === "number"
-            && Number.isFinite(item)
-            && (!positive || item > 0));
-}
-
-function isResize(value) {
-    return boundedProperties(value, RESIZE_REQUIRED, RESIZE_PROPERTIES)
-        && RESIZE_FILTERS.has(value.filter)
-        && RESIZE_FITS.has(value.fit);
-}
-
-function isPreprocess(value) {
-    return boundedProperties(value, PREPROCESS_REQUIRED, PREPROCESS_PROPERTIES)
-        && CHANNEL_ORDERS.has(value.channelOrder)
-        && isFiniteNumberArray(value.mean, 1, MAX_CHANNELS, false)
-        && isFiniteNumberArray(value.scale, 1, MAX_CHANNELS, true)
-        && (!declared(value, "resize") || isResize(value.resize));
-}
-
-function isTensorShape(value) {
-    return Array.isArray(value)
-        && value.length >= 1
-        && value.length <= MAX_TENSOR_RANK
-        && value.every((item) => Number.isInteger(item)
-            && item >= 1
-            && item <= MAX_TENSOR_DIMENSION);
-}
-
-function isTensorInput(value) {
-    return isRecord(value)
-        && boundedProperties(value, TENSOR_INPUT_REQUIRED, TENSOR_INPUT_PROPERTIES)
-        && isTensorShape(value.shape)
-        && TENSOR_DTYPES.has(value.dtype)
-        && (!declared(value, "layout") || TENSOR_LAYOUTS.has(value.layout))
-        && (!declared(value, "preprocess") || isPreprocess(value.preprocess));
-}
-
-function isTensorContract(value) {
-    return isRecord(value)
-        && boundedProperties(value, ["inputs"], TENSOR_CONTRACT_PROPERTIES)
-        && Array.isArray(value.inputs)
-        && value.inputs.length >= 1
-        && value.inputs.length <= MAX_TENSOR_INPUTS
-        && value.inputs.every(isTensorInput);
-}
-
-function isTopK(value) {
-    return !declared(value, "topK")
-        || (Number.isInteger(value.topK) && value.topK >= 1 && value.topK <= MAX_TOP_K);
-}
-
-function isLabelsFilename(value) {
-    return !declared(value, "labels")
-        || (typeof value.labels === "string" && LABELS_FILENAME.test(value.labels));
-}
-
-function isOutputContract(value) {
-    return isRecord(value)
-        && boundedProperties(value, OUTPUT_CONTRACT_REQUIRED, OUTPUT_CONTRACT_PROPERTIES)
-        && OUTPUT_KINDS.has(value.kind)
-        && isTopK(value)
-        && isLabelsFilename(value);
-}
-
-function hasForecastTensor(model, width) {
-    const tensor = model.tensorContract;
-    return isRecord(tensor)
-        && Array.isArray(tensor.inputs)
-        && tensor.inputs.length === 1
-        && isForecastInput(tensor.inputs[0], width)
-        && exactProperties(model.outputContract, RAW_OUTPUT_PROPERTIES)
-        && model.outputContract.kind === "raw";
-}
-
-function isForecastInput(value, width) {
-    return exactProperties(value, FORECAST_INPUT_PROPERTIES)
-        && canonicalJson(value) === canonicalJson({
-            shape: [1, width], dtype: "float32", layout: "NC",
-        });
-}
-
-function hasFeatureIdentity(value) {
-    return boundedProperties(value, FEATURE_CONTRACT_REQUIRED, FEATURE_CONTRACT_PROPERTIES)
-        && value.version === 1
-        && value.recipe === "forecast-v1"
-        && uniqueBoundedTextList(
-            value.featureNames,
-            MAX_FORECAST_FEATURES,
-            MAX_FORECAST_FEATURE_NAME,
-        )
-        && value.featureNames.length >= 1
-        && value.targetFeature === value.featureNames[0];
-}
-
-function boundedForecastCount(value) {
-    return Number.isInteger(value) && value >= 1 && value <= MAX_FORECAST_WINDOW;
-}
-
-function isFeatureContract(value, model) {
-    if (!hasFeatureIdentity(value)) {
-        return false;
-    }
-    const width = value.featureNames.length * value.window;
-    return boundedForecastCount(value.window)
-        && boundedForecastCount(value.horizon)
-        && value.observationOrder === "oldest-first"
-        && value.flattenOrder === "observations-then-features"
-        && width <= MAX_FORECAST_INPUT_WIDTH
-        && hasForecastTensor(model, width);
-}
-
-function isModelDigest(value) {
-    return boundedText(value, 64, 64) && MODEL_DIGEST.test(value);
-}
-
-function isTrainingContract(value) {
-    return boundedProperties(value, TRAINING_CONTRACT_REQUIRED, TRAINING_CONTRACT_PROPERTIES)
-        && value.version === 1
-        && identifier(value.profileId)
-        && identifier(value.recipe)
-        && isModelDigest(value.reportSha256)
-        && isModelDigest(value.taskSemanticsSha256);
-}
-
-function hasNativeDigests(value) {
-    return isModelDigest(value.portableSha256)
-        && isModelDigest(value.nativeSha256)
-        && isModelDigest(value.reportSha256);
-}
-
-function hasParityMeasurements(value) {
-    return Number.isInteger(value.samples)
-        && value.samples >= 1
-        && Number.isFinite(value.maximumAbsoluteError)
-        && value.maximumAbsoluteError >= 0
-        && Number.isFinite(value.tolerance)
-        && value.tolerance > 0;
-}
-
-function hasCompilerEvidence(value) {
-    return value.compilerReportSha256 === null
-        || isModelDigest(value.compilerReportSha256);
-}
-
-function isNativeEvidence(value) {
-    return boundedProperties(value, NATIVE_EVIDENCE_REQUIRED, NATIVE_EVIDENCE_PROPERTIES)
-        && hasNativeDigests(value)
-        && hasParityMeasurements(value)
-        && hasCompilerEvidence(value)
-        && value.namedDeviceAccepted === false;
-}
-
-function hasInferenceContracts(value) {
-    return (!declared(value, "tensorContract") || isTensorContract(value.tensorContract))
-        && (!declared(value, "outputContract") || isOutputContract(value.outputContract))
-        && (!declared(value, "featureContract")
-            || isFeatureContract(value.featureContract, value));
-}
-
-function hasProvenanceContracts(value) {
-    return (!declared(value, "trainingContract")
-        || isTrainingContract(value.trainingContract))
-        && (!declared(value, "nativeEvidence")
-        || isNativeEvidence(value.nativeEvidence));
-}
-
 // Optional model contracts stay together so `isModel` has one validation path.
 function hasModelContracts(value) {
-    return hasInferenceContracts(value) && hasProvenanceContracts(value);
+    return TensorContract.hasInferenceContracts(value)
+        && Provenance.hasProvenanceContracts(value);
 }
 
 function isModel(value, accelerator) {
@@ -804,15 +596,15 @@ function declaredModels(requirements) {
 }
 
 const MANIFEST_ALLOWLISTS = Object.freeze({
-    featureContract: FEATURE_CONTRACT_PROPERTIES,
+    featureContract: TensorContract.FEATURE_CONTRACT_PROPERTIES,
     model: MODEL_PROPERTIES,
-    nativeEvidence: NATIVE_EVIDENCE_PROPERTIES,
-    outputContract: OUTPUT_CONTRACT_PROPERTIES,
-    trainingContract: TRAINING_CONTRACT_PROPERTIES,
-    tensorContract: TENSOR_CONTRACT_PROPERTIES,
-    tensorInput: TENSOR_INPUT_PROPERTIES,
-    preprocess: PREPROCESS_PROPERTIES,
-    resize: RESIZE_PROPERTIES,
+    nativeEvidence: Provenance.NATIVE_EVIDENCE_PROPERTIES,
+    outputContract: TensorContract.OUTPUT_CONTRACT_PROPERTIES,
+    trainingContract: Provenance.TRAINING_CONTRACT_PROPERTIES,
+    tensorContract: TensorContract.TENSOR_CONTRACT_PROPERTIES,
+    tensorInput: TensorContract.TENSOR_INPUT_PROPERTIES,
+    preprocess: TensorContract.PREPROCESS_PROPERTIES,
+    resize: TensorContract.RESIZE_PROPERTIES,
     requirements: REQUIREMENT_PROPERTIES,
     ui: UI_PROPERTIES,
     defaults: DEFAULT_PROPERTIES,
