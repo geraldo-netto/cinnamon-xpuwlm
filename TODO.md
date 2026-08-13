@@ -6,7 +6,6 @@
 | --- | --- | --- | --- | --- | --- |
 | XTPU-0087 | open | high | l | XTPU-0088, XTPU-0089 | A Windows client is feasible as a sibling tray application, with roughly 69% of library code a candidate for reuse, but the GJS/Cinnamon shell, St/Clutter view, GIO/GTK adapters, settings, notifications, and packaging require Windows implementations. Prove an Electron/Node tray and named-pipe handshake spike before committing to parity. |
 | XTPU-0089 | open | medium | m | XTPU-0087 | Portable core code still constructs POSIX paths and publishes Linux-only setup guidance, while the mixed Cinnamon runtime adapter combines shared factories with GIO and Linux discovery. Extract path, platform-guidance, transport, and discovery ports before a Windows client release. |
-| XTPU-0091 | open | medium | l | XTPU-0087, XTPU-0089 | `cinnamon-runtime.js` is a 1,920-line adapter hub mixing bounded file I/O, Linux device discovery, settings migration, persistence, scheduling, image staging, and D-Bus transport. Split platform adapters behind narrow factories before adding another host platform. |
 | XTPU-0092 | open | medium | l | — | `menu-view.js` and `view-model.js` centralize every tab and workflow renderer/projection in 2,224 and 1,611 lines. Extract bounded-context renderers and projections behind stable view contracts without reintroducing workflow knowledge into the applet shell. |
 
 ## Blocked

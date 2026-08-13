@@ -48,7 +48,9 @@ test("the method the applet calls is the method the service exports", (t) => {
         t.skip("the OmniTensor checkout is not available");
         return;
     }
-    const source = fs.readFileSync(path.join(root, "src/omnitensor/service.py"), "utf8");
+    const source = fs.readFileSync(
+        path.join(root, "src/omnitensor/dbus_transport.py"), "utf8",
+    );
 
     assert.match(
         source,
@@ -68,7 +70,9 @@ test("every method this applet requires is one the service still exports", (t) =
         t.skip("the OmniTensor checkout is not available");
         return;
     }
-    const source = fs.readFileSync(path.join(root, "src/omnitensor/service.py"), "utf8");
+    const source = fs.readFileSync(
+        path.join(root, "src/omnitensor/dbus_transport.py"), "utf8",
+    );
 
     for (const method of Contract.REQUIRED_METHODS) {
         assert.match(

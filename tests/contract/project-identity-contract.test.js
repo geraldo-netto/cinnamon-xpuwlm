@@ -7,12 +7,12 @@ const test = require("node:test");
 
 const ROOT = path.resolve(__dirname, "../..");
 const APPLET_UUID = "cinnamon-xpuwlm@geraldo-netto";
-const LEGACY_RUNTIME = path.join(
+const LEGACY_IDENTITY_ADAPTER = path.join(
     ROOT,
     "files",
     APPLET_UUID,
     "lib",
-    "cinnamon-runtime.js",
+    "cinnamon-state-adapter.js",
 );
 const STALE_IDENTIFIERS = Object.freeze([
     "cinnamon-tpuwlm",
@@ -37,7 +37,7 @@ function filesUnder(root) {
 }
 
 function isExplicitLegacyConstant(filename, line) {
-    return filename === LEGACY_RUNTIME
+    return filename === LEGACY_IDENTITY_ADAPTER
         && /^const (?:LEGACY_|OLD_)/u.test(line.trim());
 }
 

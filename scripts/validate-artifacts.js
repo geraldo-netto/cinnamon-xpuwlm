@@ -12,6 +12,11 @@ const filesRoot = path.join(repositoryRoot, "files");
 const appletRoot = path.join(filesRoot, UUID);
 const PAYLOAD_TOP_LEVEL = Object.freeze([
     "applet.js",
+    "cinnamon-dbus-adapter.js",
+    "cinnamon-host-adapter.js",
+    "cinnamon-image-adapter.js",
+    "cinnamon-state-adapter.js",
+    "cinnamon-workload-adapter.js",
     "clipboard-selection-port.js",
     "domain.js",
     "document-question.js",
@@ -36,6 +41,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "po",
     "plugin-inventory.js",
     "profile-blockers.js",
+    "gio-file-adapter.js",
     "runtime-gateway.js",
     "runtime-job-contract.js",
     "runtime-job-gateway.js",
@@ -64,6 +70,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "workload-registry.js",
     "workload-reconciliation.js",
     "workloads",
+    "linux-device-adapter.js",
 ]);
 const FORBIDDEN_PAYLOAD_SEGMENTS = new Set([
     ".cache",

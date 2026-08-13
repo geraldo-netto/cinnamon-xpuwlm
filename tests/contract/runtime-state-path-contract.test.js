@@ -17,7 +17,7 @@ const SERVICE_DEFAULT = /^DEFAULT_STATE_PATH = "(?<path>[^"]+)"$/mu;
 // variable rather than a setting the applet can read.
 const SERVICE_OVERRIDE = "OMNITENSOR_STATE_PATH";
 const SERVICE_SNAPSHOT_SOURCE
-    = /snapshot_path=_env_path\("(?<variable>[A-Z_]+)", DEFAULT_STATE_PATH\)/u;
+    = /snapshot_path=_env_path\("(?<variable>[A-Z_]+)", DEFAULT_STATE_PATH(?:, environ)?\)/u;
 
 const repositoryRoot = path.resolve(__dirname, "../..");
 const appletRoot = path.join(repositoryRoot, "files/cinnamon-xpuwlm@geraldo-netto");
@@ -44,7 +44,7 @@ function serviceFile(relativePath) {
 }
 
 function serviceSourcePath() {
-    return serviceFile("src/omnitensor/service.py");
+    return serviceFile("src/omnitensor/composition.py");
 }
 
 test("the applet defaults to the agreed runtime snapshot path", () => {

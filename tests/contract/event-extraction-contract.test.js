@@ -98,7 +98,9 @@ test("OmniTensor exports every D-Bus method the event workflow calls", (t) => {
     if (root === null) {
         return;
     }
-    const source = fs.readFileSync(path.join(root, "src/omnitensor/service.py"), "utf8");
+    const source = fs.readFileSync(
+        path.join(root, "src/omnitensor/dbus_transport.py"), "utf8",
+    );
     for (const method of ["DescribePlugins", "SubmitJob", "GetJobResult", "CancelJob"]) {
         assert.match(source, new RegExp(`def ${method}\\(`, "u"), method);
     }

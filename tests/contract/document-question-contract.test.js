@@ -72,11 +72,13 @@ test("OmniTensor supplies the exact worker and D-Bus boundaries the applet calls
     const plugin = fs.readFileSync(
         path.join(root, "src/omnitensor/plugins/document_qa.py"), "utf8",
     );
-    const service = fs.readFileSync(path.join(root, "src/omnitensor/service.py"), "utf8");
+    const transport = fs.readFileSync(
+        path.join(root, "src/omnitensor/dbus_transport.py"), "utf8",
+    );
     assert.match(plugin, /class DocumentQuestionPlugin/u);
     assert.match(plugin, /question_fragment/u);
     assert.match(plugin, /citation source was not retrieved/u);
     for (const method of ["DescribePlugins", "SubmitJob", "GetJobResult", "CancelJob"]) {
-        assert.match(service, new RegExp(`def ${method}\\(`, "u"));
+        assert.match(transport, new RegExp(`def ${method}\\(`, "u"));
     }
 });

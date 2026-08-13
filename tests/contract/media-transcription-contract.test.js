@@ -90,21 +90,20 @@ test("OmniTensor composes speech plus sampled visuals and always discards frames
     const plugin = fs.readFileSync(
         path.join(root, "src/omnitensor/plugins/media_transcription.py"), "utf8",
     );
-    const provider = fs.readFileSync(
-        path.join(
-            root,
-            "providers/media-transcription/src/omnitensor_media_transcription/provider.py",
-        ),
-        "utf8",
+    const providerRoot = path.join(
+        root,
+        "providers/media-transcription/src/omnitensor_media_transcription",
     );
+    const provider = fs.readFileSync(path.join(providerRoot, "provider.py"), "utf8");
+    const models = fs.readFileSync(path.join(providerRoot, "models.py"), "utf8");
     assert.match(plugin, /class MediaTranscriptionPlugin/u);
     assert.match(plugin, /await self\._speech\.transcribe/u);
     assert.match(plugin, /await self\._vision\.transcribe/u);
     assert.match(plugin, /await self\._documents\.transcribe/u);
     assert.match(plugin, /await self\._frames\.discard\(frames\)/u);
-    assert.match(provider, /context_params=\{"use_gpu": true/iu);
-    assert.match(provider, /n_gpu_layers=-1/u);
+    assert.match(models, /context_params=\{"use_gpu": true/iu);
+    assert.match(models, /n_gpu_layers=-1/u);
     for (const forbidden of ["subprocess.", "os.system(", "Gtk.", "Gdk."]) {
-        assert.equal(provider.includes(forbidden), false, forbidden);
+        assert.equal(`${provider}\n${models}`.includes(forbidden), false, forbidden);
     }
 });
