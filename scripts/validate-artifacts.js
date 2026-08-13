@@ -147,7 +147,11 @@ function readJson(root, relativePath) {
     return JSON.parse(fs.readFileSync(path.join(root, relativePath), "utf8"));
 }
 
-function payloadPaths(directory = appletRoot, prefix = "") {
+function defaultRoots() {
+    return {appletRoot, filesRoot, repositoryRoot};
+}
+
+function payloadPaths(directory, prefix = "") {
     const paths = [];
     for (const entry of fs.readdirSync(directory, {withFileTypes: true})) {
         const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -165,13 +169,17 @@ function payloadPaths(directory = appletRoot, prefix = "") {
     return paths;
 }
 
-function validatePayloadStructure() {
-    const filesEntries = fs.readdirSync(filesRoot, {withFileTypes: true});
+function validatePayloadStructure({
+    appletRoot: targetAppletRoot,
+    expectedTopLevel = PAYLOAD_TOP_LEVEL,
+    filesRoot: targetFilesRoot,
+}) {
+    const filesEntries = fs.readdirSync(targetFilesRoot, {withFileTypes: true});
     assert.deepEqual(filesEntries.map((entry) => entry.name).sort(), [UUID]);
     assert.equal(filesEntries[0].isDirectory(), true);
-    assert.deepEqual(fs.readdirSync(appletRoot).sort(), [...PAYLOAD_TOP_LEVEL].sort());
+    assert.deepEqual(fs.readdirSync(targetAppletRoot).sort(), [...expectedTopLevel].sort());
 
-    for (const relativePath of payloadPaths()) {
+    for (const relativePath of payloadPaths(targetAppletRoot)) {
         const segments = relativePath.split("/");
         assert.equal(
             segments.some((segment) => FORBIDDEN_PAYLOAD_SEGMENTS.has(segment)),
@@ -187,36 +195,39 @@ function validatePayloadStructure() {
     }
 }
 
-function productionJavaScriptFiles() {
-    const rootModules = fs.readdirSync(appletRoot)
+function productionJavaScriptFiles(targetAppletRoot) {
+    const rootModules = fs.readdirSync(targetAppletRoot)
         .filter((name) => name.endsWith(".js"))
-        .map((name) => path.join(appletRoot, name));
-    const libraryDirectory = path.join(appletRoot, "lib");
+        .map((name) => path.join(targetAppletRoot, name));
+    const libraryDirectory = path.join(targetAppletRoot, "lib");
     const libraries = fs.readdirSync(libraryDirectory)
         .filter((name) => name.endsWith(".js"))
         .map((name) => path.join(libraryDirectory, name));
     return [...rootModules, ...libraries];
 }
 
-function validateJsonArtifacts() {
-    const metadata = readJson(appletRoot, "metadata.json");
-    const qualificationSchema = readJson(appletRoot, "artifact-qualification.schema.json");
-    const resultSchema = readJson(appletRoot, "workload-result.schema.json");
-    const settings = readJson(appletRoot, "settings-schema.json");
-    const schema = readJson(appletRoot, "runtime-snapshot.schema.json");
-    const workloadSchema = readJson(appletRoot, "workload-manifest.schema.json");
-    const commandSchema = readJson(appletRoot, "runtime-command.schema.json");
-    const acknowledgementSchema = readJson(appletRoot, "runtime-acknowledgement.schema.json");
-    const refusalSchema = readJson(appletRoot, "runtime-refusal.schema.json");
-    const contractSchema = readJson(appletRoot, "runtime-contract.schema.json");
-    const packageJson = readJson(repositoryRoot, "package.json");
-    const stryker = readJson(repositoryRoot, "stryker.config.json");
-    const Domain = require(path.join(appletRoot, "lib/domain.js"));
-    const Manifest = require(path.join(appletRoot, "lib/workload-manifest.js"));
-    const Registry = require(path.join(appletRoot, "lib/workload-registry.js"));
+function validateJsonArtifacts({
+    appletRoot: targetAppletRoot,
+    repositoryRoot: targetRepositoryRoot,
+}) {
+    const metadata = readJson(targetAppletRoot, "metadata.json");
+    const qualificationSchema = readJson(targetAppletRoot, "artifact-qualification.schema.json");
+    const resultSchema = readJson(targetAppletRoot, "workload-result.schema.json");
+    const settings = readJson(targetAppletRoot, "settings-schema.json");
+    const schema = readJson(targetAppletRoot, "runtime-snapshot.schema.json");
+    const workloadSchema = readJson(targetAppletRoot, "workload-manifest.schema.json");
+    const commandSchema = readJson(targetAppletRoot, "runtime-command.schema.json");
+    const acknowledgementSchema = readJson(targetAppletRoot, "runtime-acknowledgement.schema.json");
+    const refusalSchema = readJson(targetAppletRoot, "runtime-refusal.schema.json");
+    const contractSchema = readJson(targetAppletRoot, "runtime-contract.schema.json");
+    const packageJson = readJson(targetRepositoryRoot, "package.json");
+    const stryker = readJson(targetRepositoryRoot, "stryker.config.json");
+    const Domain = require(path.join(targetAppletRoot, "lib/domain.js"));
+    const Manifest = require(path.join(targetAppletRoot, "lib/workload-manifest.js"));
+    const Registry = require(path.join(targetAppletRoot, "lib/workload-registry.js"));
 
     assert.equal(metadata.uuid, UUID);
-    assert.equal(metadata.uuid, path.basename(appletRoot));
+    assert.equal(metadata.uuid, path.basename(targetAppletRoot));
     assert.equal(packageJson.version, metadata.version);
     assert.equal(metadata["max-instances"], 1);
     assert.ok(metadata["cinnamon-version"].includes("6.6"));
@@ -232,7 +243,7 @@ function validateJsonArtifacts() {
     assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(contractSchema));
     // The predicate and the mirrored schema must agree on the bounds, or a
     // document one accepts is a document the other rejects.
-    const Contract = require(path.join(appletRoot, "lib/runtime-contract.js"));
+    const Contract = require(path.join(targetAppletRoot, "lib/runtime-contract.js"));
     assert.equal(contractSchema.properties.version.const, Contract.CONTRACT_DOCUMENT_VERSION);
     assert.equal(contractSchema.properties.methods.maxItems, Contract.MAX_METHODS);
     assert.equal(contractSchema.properties.schemas.maxProperties, Contract.MAX_CONTRACTS);
@@ -242,19 +253,21 @@ function validateJsonArtifacts() {
     );
     assert.deepEqual(
         refusalSchema.properties.code.enum,
-        [...require(path.join(appletRoot, "lib/runtime-refusal-contract.js")).REFUSAL_CODES],
+        [...require(path.join(targetAppletRoot, "lib/runtime-refusal-contract.js")).REFUSAL_CODES],
     );
     assert.equal(settings["show-panel-label"].default, false);
     assert.deepEqual(settings["profile-state"].default.profiles, {});
     assert.equal(schema.properties.metrics.properties.runningProfiles.maximum, Registry.MAX_WORKLOADS);
-    const workloadDirectories = fs.readdirSync(path.join(appletRoot, "workloads"), {withFileTypes: true});
+    const workloadDirectories = fs.readdirSync(path.join(targetAppletRoot, "workloads"), {
+        withFileTypes: true,
+    });
     assert.equal(workloadDirectories.length > 0, true);
     for (const entry of workloadDirectories) {
         assert.equal(entry.isDirectory(), true, `Workload must be a directory: ${entry.name}`);
-        const manifest = readJson(appletRoot, `workloads/${entry.name}/manifest.json`);
+        const manifest = readJson(targetAppletRoot, `workloads/${entry.name}/manifest.json`);
         assert.equal(new Manifest.WorkloadDescriptor(manifest).id, entry.name);
     }
-    const potFile = fs.readFileSync(path.join(appletRoot, "po", `${UUID}.pot`), "utf8");
+    const potFile = fs.readFileSync(path.join(targetAppletRoot, "po", `${UUID}.pot`), "utf8");
     assert.match(potFile, /"Content-Type: text\/plain; charset=UTF-8\\n"/u);
     assert.equal(potFile.includes(`Project-Id-Version: ${UUID}`), true);
     assert.equal(packageJson.scripts.test.includes("test:mutation"), true);
@@ -280,13 +293,13 @@ function validateJsonArtifacts() {
     assert.equal(stryker.thresholds.break >= 80, true);
 }
 
-function readWorkflow(name) {
-    return fs.readFileSync(path.join(repositoryRoot, ".github/workflows", name), "utf8");
+function readWorkflow(root, name) {
+    return fs.readFileSync(path.join(root, ".github/workflows", name), "utf8");
 }
 
-function validateWorkflows() {
-    const quality = readWorkflow("applet-quality.yml");
-    const audit = readWorkflow("dependency-audit.yml");
+function validateWorkflows({repositoryRoot: targetRepositoryRoot}) {
+    const quality = readWorkflow(targetRepositoryRoot, "applet-quality.yml");
+    const audit = readWorkflow(targetRepositoryRoot, "dependency-audit.yml");
 
     assert.match(quality, /npm audit --omit=dev --audit-level=low/);
     assert.doesNotMatch(
@@ -327,21 +340,49 @@ function controlCharacterLine(source) {
     return 0;
 }
 
-function validateJavaScriptSyntax() {
-    for (const filename of productionJavaScriptFiles()) {
+function validateSourceControls(source, filename) {
+    const line = controlCharacterLine(source);
+    assert.equal(
+        line,
+        0,
+        `${filename}:${line} carries a control character Cinnamon's parser refuses`,
+    );
+    return true;
+}
+
+function validateJavaScriptSyntax({appletRoot: targetAppletRoot}) {
+    for (const filename of productionJavaScriptFiles(targetAppletRoot)) {
         childProcess.execFileSync(process.execPath, ["--check", filename], {stdio: "pipe"});
         const source = fs.readFileSync(filename, "utf8");
         assert.equal(/require\(["'](?:node:)?(?:fs|child_process|path)["']\)/.test(source), false);
         assert.equal(/\bBuffer\b/.test(source), false);
-        assert.equal(
-            controlCharacterLine(source),
-            0,
-            `${filename} carries a control character Cinnamon's parser refuses`,
-        );
+        validateSourceControls(source, filename);
     }
 }
 
-function validateStaticAssets() {
+function validatePngIcon(png) {
+    assert.deepEqual(png.subarray(0, 8), Buffer.from("89504e470d0a1a0a", "hex"));
+    assert.equal(png.subarray(12, 16).toString("ascii"), "IHDR");
+    assert.equal(png.readUInt32BE(16), png.readUInt32BE(20));
+    return true;
+}
+
+function validateSvgIcon(svg) {
+    assert.match(svg, /^<svg[^>]*viewBox="0 0 16 16"[^>]*>[\s\S]*<\/svg>\s*$/);
+    assert.doesNotMatch(svg, /<(?:script|style|text|image)\b/i);
+    return true;
+}
+
+function validateStylesheet(css) {
+    assert.equal((css.match(/{/g) || []).length, (css.match(/}/g) || []).length);
+    assert.equal(css.includes("outline: none"), false);
+    return true;
+}
+
+function validateStaticAssets({
+    appletRoot: targetAppletRoot,
+    repositoryRoot: targetRepositoryRoot,
+}) {
     const iconNames = [
         "xpuwlm-symbolic.svg",
         "xpuwlm-symbolic-v2.svg",
@@ -353,26 +394,57 @@ function validateStaticAssets() {
         "xpuwlm-status-paused-symbolic.svg",
         "xpuwlm-status-unavailable-symbolic.svg",
     ];
-    const css = fs.readFileSync(path.join(appletRoot, "stylesheet.css"), "utf8");
-    const png = fs.readFileSync(path.join(appletRoot, "icon.png"));
-    assert.deepEqual(png.subarray(0, 8), Buffer.from("89504e470d0a1a0a", "hex"));
-    assert.equal(png.subarray(12, 16).toString("ascii"), "IHDR");
-    assert.equal(png.readUInt32BE(16), png.readUInt32BE(20));
+    const css = fs.readFileSync(path.join(targetAppletRoot, "stylesheet.css"), "utf8");
+    const png = fs.readFileSync(path.join(targetAppletRoot, "icon.png"));
+    validatePngIcon(png);
     for (const iconName of iconNames) {
-        const svg = fs.readFileSync(path.join(appletRoot, "icons", iconName), "utf8");
-        assert.match(svg, /^<svg[^>]*viewBox="0 0 16 16"[^>]*>[\s\S]*<\/svg>\s*$/);
-        assert.doesNotMatch(svg, /<(?:script|style|text|image)\b/i);
+        const svg = fs.readFileSync(path.join(targetAppletRoot, "icons", iconName), "utf8");
+        validateSvgIcon(svg);
     }
-    assert.equal((css.match(/{/g) || []).length, (css.match(/}/g) || []).length);
-    assert.equal(css.includes("outline: none"), false);
-    const spice = require("./package-applet.js").inspectSpiceSources(repositoryRoot, appletRoot);
+    validateStylesheet(css);
+    const spice = require("./package-applet.js").inspectSpiceSources(
+        targetRepositoryRoot,
+        targetAppletRoot,
+    );
     assert.equal(spice.info.author, "geraldo-netto");
     assert.equal(spice.info.license, "MIT");
 }
 
-validatePayloadStructure();
-validateJsonArtifacts();
-validateWorkflows();
-validateJavaScriptSyntax();
-validateStaticAssets();
-console.log("artifact validation: pass");
+function validateArtifacts(roots) {
+    validatePayloadStructure(roots);
+    validateJsonArtifacts(roots);
+    validateWorkflows(roots);
+    validateJavaScriptSyntax(roots);
+    validateStaticAssets(roots);
+    return true;
+}
+
+function main(roots = defaultRoots(), logger = console) {
+    validateArtifacts(roots);
+    logger.log("artifact validation: pass");
+    return true;
+}
+
+if (require.main === module) {
+    main();
+}
+
+module.exports = {
+    controlCharacterLine,
+    defaultRoots,
+    main,
+    payloadPaths,
+    productionJavaScriptFiles,
+    readJson,
+    readWorkflow,
+    validateArtifacts,
+    validateJavaScriptSyntax,
+    validateJsonArtifacts,
+    validatePayloadStructure,
+    validatePngIcon,
+    validateSourceControls,
+    validateStaticAssets,
+    validateStylesheet,
+    validateSvgIcon,
+    validateWorkflows,
+};
