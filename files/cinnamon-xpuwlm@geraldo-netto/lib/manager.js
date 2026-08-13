@@ -6,6 +6,7 @@ const I18n = require("./i18n.js");
 const RuntimeContract = require("./runtime-contract.js");
 const RuntimeControl = require("./runtime-control-contract.js");
 const RuntimeRefusal = require("./runtime-refusal-contract.js");
+const UiPreferences = require("./ui-preferences-repository.js");
 const WorkloadReconciliation = require("./workload-reconciliation.js");
 const WorkloadRegistry = require("./workload-registry.js");
 const WorkloadRuntime = require("./workload-runtime-controller.js");
@@ -24,13 +25,12 @@ const {
     requireJobSubmitter,
     validPictureListing,
 } = WorkloadRuntime;
+const {TABS, sanitizeActivityClearedAt, sanitizeTab} = UiPreferences;
 
 const {_, N_} = I18n;
 
-const TABS = Object.freeze(["overview", "profiles", "alerts", "setup"]);
-const TAB_SET = new Set(TABS);
 const RUNTIME_READ_FAILURE = "runtime-read";
-const STATE_SAVE_FAILURE = "state-save";
+const STATE_SAVE_FAILURE = UiPreferences.STATE_SAVE_FAILURE;
 const RUNTIME_CONTROL_FAILURE = "runtime-control";
 const RUNTIME_CONTRACT_FAILURE = "runtime-contract";
 
@@ -113,14 +113,6 @@ function jobFailureText(error) {
     return WorkloadRuntime.jobFailureText(error, controlFailureText);
 }
 
-function sanitizeTab(value) {
-    return TAB_SET.has(value) ? value : "overview";
-}
-
-function sanitizeActivityClearedAt(value) {
-    return Number.isSafeInteger(value) && value >= 0 ? value : 0;
-}
-
 function createSilentLogger() {
     return {warn() {}, error() {}};
 }
@@ -132,10 +124,7 @@ function createInertScheduler() {
 }
 
 function requireRepository(candidate) {
-    if (!candidate || typeof candidate.load !== "function" || typeof candidate.save !== "function") {
-        throw new TypeError("A profile repository with load/save is required");
-    }
-    return candidate;
+    return UiPreferences.requireCompositeRepository(candidate);
 }
 
 function requireClock(candidate) {
@@ -201,7 +190,9 @@ class WorkloadManager {
         staleAfterMs = Domain.DEFAULT_STALE_AFTER_MS,
         workloadRegistry,
     }) {
-        this._repository = requireRepository(repository);
+        const repositories = UiPreferences.partitionStateRepository(requireRepository(repository));
+        this._repository = repositories.portfolio;
+        this._uiPreferences = repositories.uiPreferences;
         requireRuntimeGateway(runtimeGateway);
         requireClock(clock);
         this._runtimeGateway = runtimeGateway;
@@ -263,6 +254,7 @@ class WorkloadManager {
         }
         try {
             const saved = this._repository.load();
+            const preferences = this._uiPreferences.load();
             const reconciled = WorkloadReconciliation.reconcilePortfolioState(
                 saved?.portfolio,
                 this._workloadRegistry,
@@ -273,10 +265,10 @@ class WorkloadManager {
             // would bury the plug-in changes this notice exists to report.
             this._catalogChanges = reconciled.firstRun ? NO_CATALOG_CHANGES : reconciled.changes;
             this._portfolio = new Domain.WorkloadPortfolio(reconciled.state, this._catalog);
-            this._selectedTab = sanitizeTab(saved?.selectedTab);
-            this._activityClearedAt = sanitizeActivityClearedAt(saved?.activityClearedAt);
+            this._selectedTab = sanitizeTab(preferences.selectedTab);
+            this._activityClearedAt = sanitizeActivityClearedAt(preferences.activityClearedAt);
             if (reconciled.changed) {
-                this._persist();
+                this._persistPortfolio();
             }
         } catch (error) {
             this._logger.warn(`Could not load applet state: ${error}`);
@@ -520,7 +512,7 @@ class WorkloadManager {
             return false;
         }
         this._selectedTab = next;
-        this._persist();
+        this._persistPreferences();
         this._publish();
         return true;
     }
@@ -593,7 +585,7 @@ class WorkloadManager {
         this._ensureActive();
         const hadJob = this._workloadRuntime.clearActivity();
         this._activityClearedAt = this._clock.now();
-        this._persist();
+        this._persistPreferences();
         this._publish();
         return hadJob || this._snapshot.alerts.some(
             (alert) => alert.resolved && alert.timestamp <= this._activityClearedAt,
@@ -776,7 +768,7 @@ class WorkloadManager {
         } else {
             this._controlMessage = "";
             this._errors.recover(RUNTIME_CONTROL_FAILURE);
-            this._persist();
+            this._persistPortfolio();
         }
         this._publish();
         return acknowledgement.status === "applied";
@@ -803,36 +795,24 @@ class WorkloadManager {
         return this._contractGateway === null ? false : this._contractGateway.cancel();
     }
 
-    _persist() {
-        const state = {
+    _persistPortfolio() {
+        this._persist(this._repository, {
             portfolio: {
                 ...this._portfolio.serialize(),
                 pluginVersions: {...this._pluginVersions},
             },
+        });
+    }
+
+    _persistPreferences() {
+        this._persist(this._uiPreferences, {
             selectedTab: this._selectedTab,
             activityClearedAt: this._activityClearedAt,
-        };
-        let completed = false;
-        const completion = (error) => {
-            completed = true;
-            if (error) {
-                this._errors.report(
-                    STATE_SAVE_FAILURE,
-                    `Could not save applet state: ${error}`,
-                    this._clock.now(),
-                );
-            } else {
-                this._errors.recover(STATE_SAVE_FAILURE);
-            }
-        };
-        try {
-            const asynchronous = this._repository.save(state, completion);
-            if (asynchronous !== true && !completed) {
-                this._errors.recover(STATE_SAVE_FAILURE);
-            }
-        } catch (error) {
-            completion(error);
-        }
+        });
+    }
+
+    _persist(repository, state) {
+        UiPreferences.persistState(repository, state, this._errors, this._clock);
     }
 
     _publish() {
