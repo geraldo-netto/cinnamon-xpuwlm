@@ -126,15 +126,12 @@ function reasonCodeKind(profile) {
 // The live snapshot is preferred over the bundled manifest, because the
 // service owns the catalog that decides what actually runs: a manifest shipped
 // here can be older than the one the service loaded. The manifest flag is the
-// fallback for exactly the cases where the snapshot cannot answer — no runtime
-// has published anything for this profile, or the only thing it published is
-// the user's own policy decision.
-// The service answered, so the sentence is not consulted at all: letting stale
-// prose overrule a current code is the coupling this replaced. A profile the
-// user merely paused still falls back to the bundled manifest, because a policy
-// code says nothing about whether the profile could run if it were enabled.
+// fallback only when the runtime published no reason. Policy reasons are
+// explicitly non-blocking: falling back to a stale manifest after Disable can
+// move a dynamically bound profile into the inert setup group and make its
+// Enable button impossible to press.
 function codedBlocker(profile, code, detail) {
-    if (code === "serving") {
+    if (NON_BLOCKING_REASON_CODES.includes(code)) {
         return null;
     }
     const kind = reasonCodeKind(profile);
@@ -154,7 +151,7 @@ function classifyProfileBlocker(profile) {
     if (profile && profile.status === "unavailable") {
         return {kind: "unknown", detail};
     }
-    if (detail !== "" && !mentions(detail, POLICY_REASONS)) {
+    if (detail !== "") {
         return null;
     }
     return manifestBlocker(profile);

@@ -45,7 +45,7 @@ test("tool projection has fixed task order with readiness from live ports", () =
     }), NOW);
 
     assert.deepEqual(projected.tools.map((tool) => tool.id), [
-        "documents", "events", "text", "organizer", "picture",
+        "documents", "events", "text", "organizer", "media",
     ]);
     assert.deepEqual(projected.tools.map((tool) => tool.status), [
         "Ready", "Unavailable", "Working", "Ready", "Ready",

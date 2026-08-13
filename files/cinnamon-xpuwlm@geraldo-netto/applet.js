@@ -33,6 +33,8 @@ const I18n = require("./lib/i18n.js");
 const JobSubmission = require("./lib/job-submission.js");
 const Layout = require("./lib/layout.js");
 const Manager = require("./lib/manager.js");
+const MediaSourcePort = require("./lib/media-source-port.js");
+const MediaTranscription = require("./lib/media-transcription.js");
 const Menu = require("./lib/menu-view.js");
 const PluginInventory = require("./lib/plugin-inventory.js");
 const SelectedText = require("./lib/selected-text.js");
@@ -138,6 +140,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._documentUnsubscribe = null;
         this._selectedTextUnsubscribe = null;
         this._fileOrganizerUnsubscribe = null;
+        this._mediaTranscriptionUnsubscribe = null;
         this._chooserLifecycle = null;
         this._chooserLaunchHandle = null;
         this._chooserFeedback = null;
@@ -181,6 +184,15 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
                 this._render(this._latestState);
             }
             this._restoreChooserFeedback(this._fileOrganizer, this._fileOrganizer.state().phase);
+        });
+        this._mediaTranscriptionUnsubscribe = this._mediaTranscription.subscribe(() => {
+            if (this._latestState) {
+                this._render(this._latestState);
+            }
+            this._restoreChooserFeedback(
+                this._mediaTranscription,
+                this._mediaTranscription.state().phase,
+            );
         });
         this._manager.start();
         this._refreshEventAvailability();
@@ -275,6 +287,29 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             || this._createSelectedTextController();
         this._fileOrganizer = overrides.fileOrganizerController
             || this._createFileOrganizerController();
+        this._mediaTranscription = this._resolveMediaTranscriptionController(overrides);
+    }
+
+    _resolveMediaTranscriptionController(overrides) {
+        return overrides.mediaTranscriptionController || this._createMediaTranscriptionController();
+    }
+
+    _createMediaTranscriptionController() {
+        let picker;
+        try {
+            picker = MediaSourcePort.createExternalMediaPicker(
+                this._environment,
+                this._chooserLifecycle,
+            );
+        } catch {
+            picker = unavailableDocumentPicker();
+        }
+        return new MediaTranscription.MediaTranscriptionController({
+            picker,
+            gateway: CinnamonRuntime.createRuntimeJobGateway(this._environment),
+            scheduler: this._scheduler,
+            clock: this._clock,
+        });
     }
 
     _createFileOrganizerController() {
@@ -496,6 +531,14 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             startFileOrganizer: () => this._fileOrganizer.start(),
             cancelFileOrganizer: () => this._fileOrganizer.cancel(),
             resetFileOrganizer: () => this._fileOrganizer.reset(),
+            chooseMediaFile: () => this._launchChooser(
+                () => this._mediaTranscription.chooseFiles(),
+                this._mediaTranscription,
+                "selecting",
+            ),
+            startMediaTranscription: () => this._mediaTranscription.start(),
+            cancelMediaTranscription: () => this._mediaTranscription.cancel(),
+            resetMediaTranscription: () => this._mediaTranscription.reset(),
         };
     }
 
@@ -577,6 +620,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             documentQuestion: this._documentQuestion.state(),
             selectedText: this._selectedText.state(),
             fileOrganizer: this._fileOrganizer.state(),
+            mediaTranscription: this._mediaTranscription.state(),
         };
         const model = ViewModel.toViewModel(this._latestState);
         if (this._view) {
@@ -600,6 +644,10 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
                     this._documentQuestion.setAvailability(false, _("Document provider is not ready"));
                     this._selectedText.setAvailability(false, _("Selected-text provider is not ready"));
                     this._fileOrganizer.setAvailability(false, _("File organizer provider is not ready"));
+                    this._mediaTranscription.setAvailability(
+                        false,
+                        _("Media transcription provider is not ready"),
+                    );
                     return;
                 }
                 const readiness = PluginInventory.eventReadiness(inventory);
@@ -619,12 +667,21 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
                     fileOrganizerReadiness.available,
                     fileOrganizerReadiness.detail,
                 );
+                const mediaReadiness = PluginInventory.mediaTranscriptionReadiness(inventory);
+                this._mediaTranscription.setAvailability(
+                    mediaReadiness.available,
+                    mediaReadiness.detail,
+                );
             });
         } catch {
             this._eventImport.setAvailability(false, _("Event provider is not ready"));
             this._documentQuestion.setAvailability(false, _("Document provider is not ready"));
             this._selectedText.setAvailability(false, _("Selected-text provider is not ready"));
             this._fileOrganizer.setAvailability(false, _("File organizer provider is not ready"));
+            this._mediaTranscription.setAvailability(
+                false,
+                _("Media transcription provider is not ready"),
+            );
             return false;
         }
     }
@@ -697,6 +754,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             this._clearWorkflowHistory(this._documentQuestion),
             this._clearWorkflowHistory(this._selectedText),
             this._clearWorkflowHistory(this._fileOrganizer),
+            this._clearWorkflowHistory(this._mediaTranscription),
             this._manager.clearActivity(),
         ];
         return results.some(Boolean);
@@ -797,6 +855,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         const documentUnsubscribe = this._documentUnsubscribe;
         const selectedTextUnsubscribe = this._selectedTextUnsubscribe;
         const fileOrganizerUnsubscribe = this._fileOrganizerUnsubscribe;
+        const mediaTranscriptionUnsubscribe = this._mediaTranscriptionUnsubscribe;
         const manager = this._manager;
         const notifier = this._notifier;
         const settings = this.settings;
@@ -807,6 +866,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._documentUnsubscribe = null;
         this._selectedTextUnsubscribe = null;
         this._fileOrganizerUnsubscribe = null;
+        this._mediaTranscriptionUnsubscribe = null;
         this._chooserLifecycle = null;
         this._chooserFeedback = null;
         this._runIsolated([
@@ -818,6 +878,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             ["release the document subscription", () => documentUnsubscribe && documentUnsubscribe()],
             ["release the selected-text subscription", () => selectedTextUnsubscribe && selectedTextUnsubscribe()],
             ["release the file-organizer subscription", () => fileOrganizerUnsubscribe && fileOrganizerUnsubscribe()],
+            ["release the media-transcription subscription", () => mediaTranscriptionUnsubscribe && mediaTranscriptionUnsubscribe()],
             ["cancel plug-in inventory", () => this._pluginInventoryGateway && this._pluginInventoryGateway.cancel()],
             ["destroy the popup menu", () => this._destroyMenu()],
             ["dispose the workload manager", () => manager && manager.dispose()],
@@ -825,6 +886,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             ["dispose document question", () => this._documentQuestion && this._documentQuestion.dispose()],
             ["dispose selected-text tools", () => this._selectedText && this._selectedText.dispose()],
             ["dispose file organizer", () => this._fileOrganizer && this._fileOrganizer.dispose()],
+            ["dispose media transcription", () => this._mediaTranscription && this._mediaTranscription.dispose()],
             ["dispose the alert notifier", () => notifier && notifier.dispose()],
             ["finalize the applet settings", () => settings && settings.finalize()],
         ]);

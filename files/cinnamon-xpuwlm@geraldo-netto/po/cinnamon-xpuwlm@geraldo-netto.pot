@@ -236,6 +236,10 @@ msgstr ""
 msgid "A connected runtime must apply this policy before accepting new jobs. The applet does not modify queued jobs."
 msgstr ""
 
+#: lib/menu-view.js
+msgid "A hardware-qualified media transcription provider is not configured"
+msgstr ""
+
 #: lib/view-model.js
 msgid "A large clock change can also age a snapshot past its deadline."
 msgstr ""
@@ -352,6 +356,14 @@ msgstr ""
 msgid "Attention"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Audio becomes timestamped speech; document pages, images, video, and slides add visible text and scenes"
+msgstr ""
+
+#: lib/media-source-port.js
+msgid "Audio, documents, images, video, and presentations"
+msgstr ""
+
 #: lib/view-model.js
 msgid "Available"
 msgstr ""
@@ -386,6 +398,10 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Cancel file organization"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Cancel media transcription"
 msgstr ""
 
 #: lib/menu-view.js
@@ -464,6 +480,18 @@ msgstr ""
 msgid "Choose folder"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Choose media"
+msgstr ""
+
+#: lib/media-source-port.js
+msgid "Choose media to transcribe"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Choose one audio, document, image, video, or presentation file"
+msgstr ""
+
 #: lib/event-source-port.js lib/menu-view.js
 msgid "Choose one event source folder"
 msgstr ""
@@ -474,6 +502,10 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Clear History"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Clear media transcription"
 msgstr ""
 
 #: lib/menu-view.js
@@ -558,6 +590,14 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Copy report"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Copy this media transcription"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Copy transcript"
 msgstr ""
 
 #: lib/menu-view.js
@@ -717,6 +757,10 @@ msgid "Forecast · %s · %s · %s"
 msgstr ""
 
 #: lib/view-model.js
+msgid "Frame %s"
+msgstr ""
+
+#: lib/view-model.js
 msgid "GPU"
 msgstr ""
 
@@ -746,6 +790,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Idle"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Image"
 msgstr ""
 
 #: lib/menu-view.js
@@ -780,6 +828,10 @@ msgstr ""
 msgid "Keep current name"
 msgstr ""
 
+#: lib/menu-view.js
+msgid "Language unknown"
+msgstr ""
+
 #: lib/view-model.js
 msgid "Last update"
 msgstr ""
@@ -810,6 +862,10 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Logs opened"
+msgstr ""
+
+#: applet.js
+msgid "Media transcription provider is not ready"
 msgstr ""
 
 #: settings-schema.json
@@ -1024,6 +1080,10 @@ msgstr ""
 msgid "Organize files"
 msgstr ""
 
+#: lib/view-model.js
+msgid "Page %d"
+msgstr ""
+
 #: settings-schema.json
 msgid "Panel"
 msgstr ""
@@ -1213,10 +1273,6 @@ msgid "Run %s on %s"
 msgstr ""
 
 #: lib/view-model.js
-msgid "Run the available visual model"
-msgstr ""
-
-#: lib/view-model.js
 msgid "Running"
 msgstr ""
 
@@ -1347,6 +1403,10 @@ msgid "Selected files stay private to the isolated workload worker"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Selected media"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Selected sources"
 msgstr ""
 
@@ -1367,7 +1427,19 @@ msgid "Show XPU status beside the panel icon"
 msgstr ""
 
 #: lib/view-model.js
+msgid "Slide %d"
+msgstr ""
+
+#: lib/view-model.js
 msgid "Snapshot contract is readable"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Speech"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Speech, document pages, visible text, scenes, and slides"
 msgstr ""
 
 #: lib/menu-view.js
@@ -1647,6 +1719,22 @@ msgid "Train a local Resource Scheduler forecast"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Transcribe"
+msgstr ""
+
+#: lib/view-model.js
+msgid "Transcribe media"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Transcribe the explicitly selected media locally"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Transcription"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Translate"
 msgstr ""
 
@@ -1684,6 +1772,10 @@ msgstr ""
 
 #: lib/view-model.js
 msgid "Validate it against runtime-snapshot.schema.json."
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Visible text: %s"
 msgstr ""
 
 #: lib/view-model.js

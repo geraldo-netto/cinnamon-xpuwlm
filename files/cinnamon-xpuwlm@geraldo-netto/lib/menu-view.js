@@ -174,6 +174,10 @@ class MenuView {
             startFileOrganizer: optionalAction(actions, "startFileOrganizer"),
             cancelFileOrganizer: optionalAction(actions, "cancelFileOrganizer"),
             resetFileOrganizer: optionalAction(actions, "resetFileOrganizer"),
+            chooseMediaFile: optionalAction(actions, "chooseMediaFile"),
+            startMediaTranscription: optionalAction(actions, "startMediaTranscription"),
+            cancelMediaTranscription: optionalAction(actions, "cancelMediaTranscription"),
+            resetMediaTranscription: optionalAction(actions, "resetMediaTranscription"),
         };
         this._policyPaused = false;
         this._controlPending = false;
@@ -560,6 +564,13 @@ class MenuView {
         if (detail === "organizer") {
             return this._renderFileOrganizer(model.fileOrganizer);
         }
+        return this._renderSecondaryDetail(detail, model);
+    }
+
+    _renderSecondaryDetail(detail, model) {
+        if (detail === "media") {
+            return this._renderMediaTranscription(model.mediaTranscription);
+        }
         if (detail === "picture") {
             return this._renderRun(model.run);
         }
@@ -614,6 +625,120 @@ class MenuView {
         this._renderFileOrganizerSources(model);
         this._renderFileOrganizerPlan(model);
         this._renderFileOrganizerActions(model);
+        return true;
+    }
+
+    _renderMediaTranscription(model) {
+        if (model === null || model === undefined) {
+            return false;
+        }
+        this._addSectionHeading(
+            model.title,
+            _("Audio becomes timestamped speech; document pages, images, video, and slides add visible text and scenes"),
+        );
+        this._renderMediaStatus(model);
+        if (model.sources.length > 0) {
+            this._addGroupHeading(_("Selected media"), model.sources[0].name);
+        }
+        this._renderMediaResult(model);
+        this._renderMediaActions(model);
+        return true;
+    }
+
+    _renderMediaStatus(model) {
+        for (const [text, style] of [
+            [model.message, "xpuwlm-event-message"],
+            [model.progressText, "xpuwlm-event-progress"],
+        ]) {
+            if (text !== "") {
+                this._body.add_child(this._label(text, style, true));
+            }
+        }
+        if (!model.available && model.phase === "idle") {
+            this._body.add_child(this._label(
+                model.availabilityDetail
+                    || _("A hardware-qualified media transcription provider is not configured"),
+                "xpuwlm-run-note",
+                true,
+            ));
+        }
+        return true;
+    }
+
+    _renderMediaResult(model) {
+        if (!model.complete) {
+            return false;
+        }
+        this._addGroupHeading(
+            _("Transcription"),
+            `${model.providerId} · ${model.accelerator.toUpperCase()}`,
+        );
+        if (model.speech.length > 0) {
+            this._addGroupHeading(
+                _("Speech"),
+                model.language === "" ? _("Language unknown") : model.language,
+            );
+            for (const segment of model.speech) {
+                this._body.add_child(this._label(
+                    `${segment.timeText} · ${segment.text}`,
+                    "xpuwlm-event-evidence",
+                    true,
+                ));
+            }
+        }
+        for (const visual of model.visuals) {
+            this._addGroupHeading(visual.timeText, visual.visibleText);
+            if (visual.visibleText !== "") {
+                this._body.add_child(this._label(
+                    format(_("Visible text: %s"), visual.visibleText),
+                    "xpuwlm-event-confirmation",
+                    true,
+                ));
+            }
+            this._body.add_child(this._label(
+                visual.description,
+                "xpuwlm-event-evidence",
+                true,
+            ));
+        }
+        return true;
+    }
+
+    _renderMediaActions(model) {
+        const controls = this._box("xpuwlm-event-controls");
+        if (["idle", "selected", "complete", "error"].includes(model.phase)) {
+            controls.add_child(this._eventAction(
+                _("Choose media"),
+                _("Choose one audio, document, image, video, or presentation file"),
+                "media-choose", this._actions.chooseMediaFile, model.chooserEnabled,
+            ));
+        }
+        if (model.phase === "selected") {
+            controls.add_child(this._eventAction(
+                _("Transcribe"), _("Transcribe the explicitly selected media locally"),
+                "media-start", this._actions.startMediaTranscription,
+                model.startEnabled, true,
+            ));
+        }
+        if (model.cancelEnabled) {
+            controls.add_child(this._eventAction(
+                _("Cancel"), _("Cancel media transcription"), "media-cancel",
+                this._actions.cancelMediaTranscription, true,
+            ));
+        }
+        if (model.complete) {
+            controls.add_child(this._eventAction(
+                _("Copy transcript"), _("Copy this media transcription"), "media-copy",
+                () => this._actions.copyReport(model.copyText), true,
+            ));
+        }
+        if (model.complete || model.phase === "error") {
+            controls.add_child(this._eventAction(
+                _("Clear"), _("Clear media transcription"), "media-reset",
+                this._actions.resetMediaTranscription, true,
+            ));
+        }
+        this._body.add_child(controls);
         return true;
     }
 
@@ -1454,6 +1579,9 @@ class MenuView {
         if (identity.includes("picture")) {
             return "image-x-generic-symbolic";
         }
+        if (identity.includes("media")) {
+            return "audio-x-generic-symbolic";
+        }
         if (identity.includes("organizer")) {
             return "folder-symbolic";
         }
@@ -1787,7 +1915,6 @@ class MenuView {
         const copy = this._box("xpuwlm-profile-copy", true, true);
         const titleRow = this._box("xpuwlm-profile-title-row");
         titleRow.add_child(this._label(profile.title, "xpuwlm-profile-title", true));
-        titleRow.add_child(this._label(_(ViewModel.STATUS_LABELS[profile.status]), `xpuwlm-status xpuwlm-status-${profile.status}`));
         copy.add_child(titleRow);
         const detail = profile.detail || profile.description;
         copy.add_child(this._label(`${detail} · ${format(_("%d queued"), profile.queued)}`, "xpuwlm-profile-description", true));
@@ -1795,6 +1922,13 @@ class MenuView {
             copy.add_child(this._label(profile.executableText, "xpuwlm-profile-limitation", true));
         }
         row.add_child(copy);
+        // Status is a row-level column. Keeping it inside the title row made
+        // "Unavailable" drift with title length and appear between the name
+        // and its explanation instead of beside the row controls.
+        row.add_child(this._label(
+            _(ViewModel.STATUS_LABELS[profile.status]),
+            `xpuwlm-status xpuwlm-profile-status xpuwlm-status-${profile.status}`,
+        ));
         row.add_child(editableWeight
             ? this._weightControls(profile, inert)
             : this._label(format(_("Weight %d"), profile.weight), "xpuwlm-weight-summary"));

@@ -800,6 +800,63 @@ test("file organizer render helpers preserve hidden, unavailable, empty, and can
     }
 });
 
+test("media render helpers cover unavailable, empty, progress, and language fallbacks", () => {
+    const empty = {
+        title: "Transcribe media",
+        available: false,
+        availabilityDetail: "",
+        phase: "idle",
+        sources: [],
+        message: "",
+        progressText: "",
+        complete: false,
+        speech: [],
+        visuals: [],
+        chooserEnabled: false,
+        startEnabled: false,
+        cancelEnabled: false,
+        providerId: "",
+        accelerator: "",
+        language: "",
+        copyText: "",
+    };
+    const first = harness();
+    assert.equal(first.view._renderMediaTranscription(null), false);
+    assert.equal(first.view._renderMediaTranscription(undefined), false);
+    assert.equal(first.view._renderMediaTranscription(empty), true);
+    assert.ok(findActors(
+        first.root,
+        (actor) => /hardware-qualified media transcription provider/u.test(actor.text),
+    ).length > 0);
+
+    const second = harness();
+    assert.equal(second.view._renderMediaStatus({
+        ...empty,
+        availabilityDetail: "Install the qualified provider",
+        message: "Inspecting",
+        progressText: "50% · Slides",
+    }), true);
+    assert.ok(findActors(second.root, (actor) => actor.text === "Inspecting").length > 0);
+    assert.ok(findActors(second.root, (actor) => actor.text === "50% · Slides").length > 0);
+
+    const available = harness();
+    assert.equal(available.view._renderMediaStatus({...empty, available: true}), true);
+    assert.equal(available.view._renderMediaResult(empty), false);
+
+    const complete = harness();
+    assert.equal(complete.view._renderMediaResult({
+        ...empty,
+        complete: true,
+        providerId: "media-vulkan",
+        accelerator: "gpu",
+        language: "",
+        speech: [{timeText: "00:00:00.000–00:00:01.000", text: "שלום"}],
+        visuals: [{timeText: "Slide 1", visibleText: "", description: "Blank slide."}],
+    }), true);
+    assert.ok(findActors(complete.root, (actor) => actor.text === "Language unknown").length > 0);
+    assert.equal(findActors(complete.root, (actor) => /Visible text:/u.test(actor.text)).length, 0);
+});
+
 test("event preview exposes grounded evidence, labelled edits, decisions, and confirmation", () => {
     const {calls, view, root} = harness();
     const source = {path: "/private/notes.pdf", name: "notes.pdf", size: 12, regular: true, symlink: false};
@@ -1342,6 +1399,24 @@ test("profiles that cannot run collapse into one group under the ones that can",
         findActors(root, (actor) => actor.styleClasses
             && actor.styleClasses.has("xpuwlm-profile-limitation")).length,
         4,
+    );
+});
+
+test("profile status occupies a stable row column instead of drifting beside its title", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(blockedState("profiles"), NOW));
+    view._openDetail("profiles");
+    disclosure(root).click();
+
+    const unavailable = findActors(root, (actor) => actor.styleClasses
+        && actor.styleClasses.has("xpuwlm-profile-status")
+        && actor.text === "Unavailable")[0];
+    assert.ok(unavailable);
+    assert.equal(unavailable.parent.styleClasses.has("xpuwlm-profile-row"), true);
+    assert.equal(
+        unavailable.parent.children.indexOf(unavailable),
+        unavailable.parent.children.length - 3,
+        "status stays immediately before weight and toggle controls",
     );
 });
 

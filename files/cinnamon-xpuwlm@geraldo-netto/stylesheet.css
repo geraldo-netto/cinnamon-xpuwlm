@@ -175,6 +175,10 @@
     text-align: center;
 }
 
+.xpuwlm-profile-status {
+    min-width: 74px;
+}
+
 .xpuwlm-status-healthy {
     color: symbolic-success;
     border-color: symbolic-success;

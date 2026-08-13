@@ -275,6 +275,45 @@ function fileOrganizerReadiness(inventory) {
     return Object.freeze({available: detail === "", detail});
 }
 
+function mediaTranscriptionReadinessDetail(plugin) {
+    const provider = mediaTranscriptionProviderDetail(plugin);
+    if (provider !== "") {
+        return provider;
+    }
+    if (plugin.workerState !== "ready") {
+        return "Qualify Whisper and Qwen VL on the selected accelerator";
+    }
+    if (!plugin.protocol.capabilities.includes("execute")) {
+        return "Update the media provider to one that can execute workloads";
+    }
+    if (plugin.permissions.some((permission) => !permission.granted)) {
+        return "Grant GPU and explicitly selected media-file access";
+    }
+    const missing = plugin.artifacts.find((artifact) => !artifact.ready);
+    return missing ? missing.reason || `Install ${missing.id}` : "";
+}
+
+function mediaTranscriptionProviderDetail(plugin) {
+    if (plugin === null) {
+        return "Install and configure the media-transcription provider";
+    }
+    if (plugin.source !== "external" || plugin.version !== "1.0.0") {
+        return "Install the qualified external media-transcription provider";
+    }
+    return "";
+}
+
+function mediaTranscriptionReadiness(inventory) {
+    if (!validInventory(inventory)) {
+        throw new TypeError("Media readiness requires a valid plug-in inventory");
+    }
+    const plugin = inventory.plugins.find(
+        (candidate) => candidate.id === "media-transcription",
+    ) || null;
+    const detail = mediaTranscriptionReadinessDetail(plugin);
+    return Object.freeze({available: detail === "", detail});
+}
+
 class PluginInventoryGateway {
     constructor({sendText, cancellableFactory = () => null}) {
         if (typeof sendText !== "function") {
@@ -340,6 +379,9 @@ module.exports = {
     documentQuestionReadiness,
     fileOrganizerReadiness,
     fileOrganizerReadinessDetail,
+    mediaTranscriptionReadiness,
+    mediaTranscriptionReadinessDetail,
+    mediaTranscriptionProviderDetail,
     selectedTextReadiness,
     selectedTextVersionQualified,
     documentReadinessDetail,

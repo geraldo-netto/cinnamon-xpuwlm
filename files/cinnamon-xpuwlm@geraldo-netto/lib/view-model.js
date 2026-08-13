@@ -7,6 +7,7 @@ const FileOrganizer = require("./file-organizer.js");
 const I18n = require("./i18n.js");
 const Job = require("./runtime-job-contract.js");
 const Manager = require("./manager.js");
+const MediaTranscription = require("./media-transcription.js");
 const ProfileBlockers = require("./profile-blockers.js");
 const SelectedText = require("./selected-text.js");
 
@@ -569,12 +570,12 @@ const TOOL_SPECS = Object.freeze([
         workflow: "fileOrganizer",
     }),
     Object.freeze({
-        id: "picture",
-        detail: "picture",
-        icon: "image-x-generic-symbolic",
-        title: N_("Analyze a picture"),
-        description: N_("Run the available visual model"),
-        workflow: null,
+        id: "media",
+        detail: "media",
+        icon: "audio-x-generic-symbolic",
+        title: N_("Transcribe media"),
+        description: N_("Speech, document pages, visible text, scenes, and slides"),
+        workflow: "mediaTranscription",
     }),
 ]);
 
@@ -611,8 +612,15 @@ function workflowAvailabilityDetail(workflow) {
         : "";
 }
 
+function usesLegacyPictureReadiness(spec, state) {
+    // Older persisted/test state predates this workflow. Preserve its former
+    // picture readiness only until the live controller publishes a state.
+    return spec.workflow === null
+        || (spec.workflow === "mediaTranscription" && state[spec.workflow] === undefined);
+}
+
 function toolModel(spec, state, workflows, run) {
-    const picture = spec.workflow === null;
+    const picture = usesLegacyPictureReadiness(spec, state);
     const workflow = picture ? null : state[spec.workflow];
     const pictureReady = run.roots.length > 0 && run.profiles.length > 0;
     const available = picture ? pictureReady : workflowAvailable(workflow);
@@ -698,6 +706,7 @@ function activityModel(state, workflows, run) {
         workflowActivity("events", _("Extract calendar events"), workflows.eventImport),
         workflowActivity("text", _("Work with selected text"), workflows.selectedText),
         workflowActivity("organizer", _("Organize files"), workflows.fileOrganizer),
+        workflowActivity("media", _("Transcribe media"), workflows.mediaTranscription),
         jobActivity(run.job),
     ].filter(Boolean);
     const running = items.filter((item) => item.kind === "running");
@@ -1062,6 +1071,65 @@ function fileOrganizerModel(state) {
     };
 }
 
+function mediaSpeechModel(result) {
+    return result.speech.segments.map((segment) => ({
+        ...segment,
+        timeText: `${MediaTranscription.timestampText(segment.startMs)}–${MediaTranscription.timestampText(segment.endMs)}`,
+    }));
+}
+
+function mediaVisualModel(visual) {
+    return {
+        ...visual,
+        timeText: visual.pageNumber !== null
+            ? format(_("Page %d"), visual.pageNumber)
+            : visual.slideNumber !== null
+            ? format(_("Slide %d"), visual.slideNumber)
+            : visual.timestampMs === null
+            ? _("Image")
+            : format(_("Frame %s"), MediaTranscription.timestampText(visual.timestampMs)),
+    };
+}
+
+function mediaResultModel(result) {
+    if (result === null) {
+        return {copyText: "", speech: [], language: "", visuals: [], modality: ""};
+    }
+    return {
+        copyText: MediaTranscription.transcriptText(result),
+        speech: mediaSpeechModel(result),
+        language: result.speech.language || "",
+        visuals: result.visuals.map(mediaVisualModel),
+        modality: result.source.modality,
+    };
+}
+
+function mediaWorkflowVisible(workflow) {
+    return workflow.available === true || workflow.phase !== "idle" || workflow.message !== "";
+}
+
+function mediaTranscriptionModel(state) {
+    const workflow = state.mediaTranscription;
+    if (workflow === null || workflow === undefined) {
+        return null;
+    }
+    if (!mediaWorkflowVisible(workflow)) {
+        return null;
+    }
+    const result = workflow.result;
+    return {
+        ...workflow,
+        ...mediaResultModel(result),
+        title: _("Transcribe media"),
+        chooserEnabled: workflow.available === true
+            && !["selecting", "submitting", "running", "cancelling"].includes(workflow.phase),
+        startEnabled: workflow.available === true && workflow.phase === "selected",
+        cancelEnabled: ["submitting", "running"].includes(workflow.phase),
+        complete: workflow.phase === "complete" && result !== null,
+        progressText: progressText(workflow.progress),
+    };
+}
+
 function formatLoad(value) {
     return typeof value === "number" && Number.isFinite(value)
         ? `${Math.round(value)}%`
@@ -1366,6 +1434,7 @@ function toViewModel(state, nowMs = Date.now()) {
         documentQuestion: documentQuestionModel(state),
         selectedText: selectedTextModel(state),
         fileOrganizer: fileOrganizerModel(state),
+        mediaTranscription: mediaTranscriptionModel(state),
     };
     const run = runModel(state);
     const tools = toolModels(state, workflows, run);
@@ -1411,6 +1480,7 @@ function toViewModel(state, nowMs = Date.now()) {
         documentQuestion: workflows.documentQuestion,
         selectedText: workflows.selectedText,
         fileOrganizer: workflows.fileOrganizer,
+        mediaTranscription: workflows.mediaTranscription,
         tools,
         activity,
         system: systemModel(state),
@@ -1449,6 +1519,7 @@ function toViewModel(state, nowMs = Date.now()) {
             documentQuestion: state.documentQuestion,
             selectedText: state.selectedText,
             fileOrganizer: state.fileOrganizer,
+            mediaTranscription: state.mediaTranscription,
         }),
     };
 }
@@ -1497,6 +1568,11 @@ module.exports = {
     documentCitationText,
     documentQuestionModel,
     fileOrganizerModel,
+    mediaTranscriptionModel,
+    mediaResultModel,
+    mediaSpeechModel,
+    mediaVisualModel,
+    mediaWorkflowVisible,
     organizerEvidenceText,
     selectedTextModel,
     evidenceText,
@@ -1528,6 +1604,7 @@ module.exports = {
     toolModels,
     unavailablePanel,
     unknownContentNotice,
+    usesLegacyPictureReadiness,
     workloadServiceStatus,
     workflowActivity,
     jobActivity,

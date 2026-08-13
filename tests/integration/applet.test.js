@@ -793,6 +793,66 @@ test("file-organizer readiness, actions, subscription, and teardown stay review-
     assert.ok(calls.some((call) => call[0] === "dispose-organizer"));
 });
 
+test("media readiness, real actions, subscription, and teardown stay accelerator-gated", () => {
+    const calls = [];
+    const media = {
+        workflow: {
+            available: false, availabilityDetail: "", phase: "idle", sources: [], jobId: "",
+            message: "", progress: null, providerId: "", accelerator: "", result: null,
+        },
+        state() { return {...this.workflow}; },
+        subscribe(listener) { this.listener = listener; return () => calls.push(["media-unsubscribe"]); },
+        setAvailability(available, detail) {
+            this.workflow.available = available;
+            this.workflow.availabilityDetail = detail;
+            if (this.listener) { this.listener(); }
+        },
+        chooseFiles() { calls.push(["choose-media"]); },
+        start() { calls.push(["start-media"]); },
+        cancel() { calls.push(["cancel-media"]); },
+        reset() { calls.push(["reset-media"]); },
+        dispose() { calls.push(["dispose-media"]); },
+    };
+    const provider = {
+        id: "media-transcription", version: "1.0.0", source: "external",
+        distribution: "omnitensor-media-transcription", workerState: "ready",
+        protocol: {minimum: 1, maximum: 1, capabilities: ["execute"]},
+        triggers: ["manual"], artifacts: [],
+        permissions: [
+            {name: "accelerator:gpu", granted: true},
+            {name: "files:read-selected", granted: true},
+        ],
+        configurationSchema: {}, secretConfigurationKeys: [],
+    };
+    const inventoryGateway = {
+        describe(callback) {
+            callback(null, {version: 1, generatedAt: 1, plugins: [provider]});
+            return true;
+        },
+        cancel() { calls.push(["inventory-cancel"]); },
+    };
+    const {applet} = appletHarness({
+        mediaTranscriptionController: media,
+        pluginInventoryGateway: inventoryGateway,
+    });
+    assert.equal(applet._latestState.mediaTranscription.available, true);
+    const actions = applet._menuActions();
+    actions.chooseMediaFile();
+    actions.startMediaTranscription();
+    actions.cancelMediaTranscription();
+    actions.resetMediaTranscription();
+    assert.deepEqual(calls.slice(0, 4), [
+        ["choose-media"], ["start-media"], ["cancel-media"], ["reset-media"],
+    ]);
+    const latest = applet._latestState;
+    applet._latestState = null;
+    assert.doesNotThrow(() => media.listener());
+    applet._latestState = latest;
+    applet._teardown();
+    assert.ok(calls.some((call) => call[0] === "media-unsubscribe"));
+    assert.ok(calls.some((call) => call[0] === "dispose-media"));
+});
+
 test("polling refresh remains cacheable while manual refresh requests fresh detection", () => {
     const {applet, manager} = appletHarness();
     applet._refresh();

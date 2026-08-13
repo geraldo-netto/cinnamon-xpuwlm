@@ -182,6 +182,45 @@ test("file-organizer readiness requires a qualified external review-only worker"
     assert.throws(() => Inventory.fileOrganizerReadiness({}), /valid plug-in inventory/u);
 });
 
+test("media readiness requires the exact hardware-qualified external worker", () => {
+    const mediaPlugin = plugin({
+        id: "media-transcription",
+        distribution: "omnitensor-media-transcription",
+        artifacts: [],
+        permissions: [
+            {name: "accelerator:gpu", granted: true},
+            {name: "files:read-selected", granted: true},
+        ],
+    });
+    assert.deepEqual(Inventory.mediaTranscriptionReadiness(inventory({
+        plugins: [mediaPlugin],
+    })), {available: true, detail: ""});
+    const cases = [
+        [[], /install and configure/iu],
+        [[{...mediaPlugin, source: "bundled"}], /qualified external/iu],
+        [[{...mediaPlugin, version: "1.1.0"}], /qualified external/iu],
+        [[{...mediaPlugin, workerState: "starting"}], /Whisper and Qwen VL/u],
+        [[{...mediaPlugin,
+            protocol: {minimum: 1, maximum: 1, capabilities: ["health"]}}], /execute/iu],
+        [[{...mediaPlugin,
+            permissions: [{name: "accelerator:gpu", granted: false}]}], /Grant GPU/u],
+        [[{...mediaPlugin, artifacts: [{
+            id: "whisper-small", version: "1", format: "ggml-whisper",
+            ready: false, reason: "Whisper missing",
+        }]}], /Whisper missing/u],
+        [[{...mediaPlugin, artifacts: [{
+            id: "whisper-small", version: "1", format: "ggml-whisper",
+            ready: false, reason: "",
+        }]}], /Install whisper-small/u],
+    ];
+    for (const [plugins, pattern] of cases) {
+        const readiness = Inventory.mediaTranscriptionReadiness(inventory({plugins}));
+        assert.equal(readiness.available, false);
+        assert.match(readiness.detail, pattern);
+    }
+    assert.throws(() => Inventory.mediaTranscriptionReadiness({}), /valid plug-in inventory/u);
+});
+
 test("gateway validates replies and discards a superseded callback", () => {
     const callbacks = [];
     const cancellables = [];

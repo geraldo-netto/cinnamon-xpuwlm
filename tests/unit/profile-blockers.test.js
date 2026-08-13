@@ -96,16 +96,16 @@ test("a profile the runtime is serving is never blocked by a stale manifest", ()
     }
 });
 
-test("a policy statement says nothing about executability, so the manifest answers", () => {
+test("a policy statement never turns its own enable control inert", () => {
     for (const detail of Blockers.POLICY_REASONS) {
         assert.equal(
             Blockers.classifyProfileBlocker(profile({detail, status: "paused"})),
             null,
             detail,
         );
-        assert.deepEqual(
+        assert.equal(
             Blockers.classifyProfileBlocker(profile({detail, status: "paused", executable: false})),
-            {kind: "model", detail: ""},
+            null,
             detail,
         );
     }
@@ -195,18 +195,18 @@ test("a serving code clears the profile even where the manifest disagrees", () =
     );
 });
 
-test("a policy code still lets the bundled manifest answer", () => {
-    // Pausing a profile says nothing about whether it could run if enabled,
-    // so the one thing the manifest does know is still worth reporting.
+test("a policy code keeps enable available when a stale manifest disagrees", () => {
+    // A runtime binding can make a profile executable after the applet's
+    // bundled manifest was installed. Disable must remain reversible.
     for (const reason of ["paused-by-policy", "profile-disabled"]) {
         assert.equal(
             Blockers.classifyProfileBlocker(profile({reason, status: "paused"})),
             null,
             reason,
         );
-        assert.deepEqual(
+        assert.equal(
             Blockers.classifyProfileBlocker(profile({reason, status: "paused", executable: false})),
-            {kind: "model", detail: ""},
+            null,
             reason,
         );
     }

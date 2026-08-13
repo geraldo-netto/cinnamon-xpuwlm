@@ -43,6 +43,7 @@ function state(overrides = {}) {
         },
         eventImport: workflow(), documentQuestion: workflow(),
         selectedText: workflow(), fileOrganizer: workflow(),
+        mediaTranscription: workflow({result: null}),
         ...overrides,
     };
 }
@@ -59,6 +60,8 @@ function harness() {
         "startDocumentQuestion", "cancelDocumentQuestion", "resetDocumentQuestion",
         "startSelectedText", "cancelSelectedText", "resetSelectedText", "chooseOrganizerFiles",
         "startFileOrganizer", "cancelFileOrganizer", "resetFileOrganizer",
+        "chooseMediaFile", "startMediaTranscription", "cancelMediaTranscription",
+        "resetMediaTranscription",
     ]) {
         actions[name] = (...args) => {
             calls.push([name, ...args]);
@@ -105,7 +108,7 @@ test("Tools lists five live tasks and opens one focused workflow", () => {
     view.render(ViewModel.toViewModel(state(), NOW));
     const tools = findActors(root, (actor) => actor.xpuwlmIdentity?.startsWith("tool:"));
     assert.deepEqual(tools.map((actor) => actor.xpuwlmIdentity), [
-        "tool:documents", "tool:events", "tool:text", "tool:organizer", "tool:picture",
+        "tool:documents", "tool:events", "tool:text", "tool:organizer", "tool:media",
     ]);
     assert.equal(tools.every((actor) => actor.children[0].children[0].icon_size === 24), true);
     assert.equal(tools.every((actor) => actor.children[0].children[1].x_expand === true), true);
@@ -116,6 +119,45 @@ test("Tools lists five live tasks and opens one focused workflow", () => {
     assert.equal(findActors(root, (actor) => actor.xpuwlmIdentity?.startsWith("tool:")).length, 0);
     button(root, "Back to Tools").click();
     assert.equal(findActors(root, (actor) => actor.xpuwlmIdentity?.startsWith("tool:")).length, 5);
+});
+
+test("media tool clicks through selection, run, multilingual result, copy, and clear", () => {
+    const {calls, view, root} = harness();
+    view.render(ViewModel.toViewModel(state(), NOW));
+    view._openDetail("media");
+    button(root, "Choose one audio, document, image, video, or presentation file").click();
+    assert.deepEqual(calls.at(-1), ["chooseMediaFile"]);
+
+    const selected = workflow({
+        phase: "selected", result: null,
+        sources: [{name: "clip.mp4", path: "/private/clip.mp4", size: 42}],
+    });
+    view.render(ViewModel.toViewModel(state({mediaTranscription: selected}), NOW));
+    button(root, "Transcribe the explicitly selected media locally").click();
+    assert.deepEqual(calls.at(-1), ["startMediaTranscription"]);
+
+    const complete = workflow({
+        phase: "complete", providerId: "media-vulkan", accelerator: "gpu",
+        sources: selected.sources,
+        result: {
+            source: {fileName: "clip.mp4", modality: "video"},
+            speech: {
+                language: "he",
+                segments: [{startMs: 0, endMs: 1000, text: "שלום"}],
+            },
+            visuals: [{
+                timestampMs: 0, slideNumber: null, pageNumber: null,
+                visibleText: "Привет", description: "Blue title card.",
+            }],
+        },
+    });
+    view.render(ViewModel.toViewModel(state({mediaTranscription: complete}), NOW));
+    assert.ok(labels(root).includes("00:00:00.000–00:00:01.000 · שלום"));
+    assert.ok(labels(root).includes("Visible text: Привет"));
+    button(root, "Copy this media transcription").click();
+    assert.match(calls.at(-1)[1], /שלום/u);
+    button(root, "Clear media transcription").click();
+    assert.deepEqual(calls.at(-1), ["resetMediaTranscription"]);
 });
 
 test("Activity removes Open Tools and confirms Clear History with matching button style", () => {
@@ -138,12 +180,13 @@ test("Activity assigns a recognizable aligned icon to every workload kind", () =
     const {view} = harness();
 
     assert.deepEqual([
-        "event:1", "picture:1", "organizer:1", "text:1", "documents:1",
+        "event:1", "picture:1", "organizer:1", "text:1", "media:1", "documents:1",
     ].map((id) => view._activityIcon({id})), [
         "x-office-calendar-symbolic",
         "image-x-generic-symbolic",
         "folder-symbolic",
         "edit-select-all-symbolic",
+        "audio-x-generic-symbolic",
         "folder-documents-symbolic",
     ]);
 });
