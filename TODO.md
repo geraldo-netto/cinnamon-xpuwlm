@@ -1,8 +1,7 @@
 # TODO
 
-The dependency order, performance hypotheses, acceptance rules, and blocker
-evidence for XTPU-0095 through XTPU-0138 are specified in the
-[GPU implementation backlog](docs/use-cases/gpu-implementation-backlog.md).
+The GPU use-case implementation backlog is tracked directly in XTPU-0095
+through XTPU-0138; `related ids` encode its dependency order.
 
 ## Findings
 

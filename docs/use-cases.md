@@ -8,11 +8,6 @@ Start with the decision guide before choosing an application. The remaining mate
 
 Evidence labels such as **documented**, **derived candidate**, and **experimental** use the definitions in [How to read the evidence](fundamentals.md#how-to-read-the-evidence). Every workload still requires a compatible fully quantized model, a compiler report, and an end-to-end benchmark.
 
-The [GPU implementation backlog](use-cases/gpu-implementation-backlog.md)
-evaluates the selected daily-work candidates, orders shared foundations before
-product slices, and records the blockers that prevent an end-to-end readiness
-claim.
-
 This catalog is written against the Edge TPU, and its hardware constraints stand unchanged. The workload manager itself now also routes workloads to NPU and GPU backends through the OmniTensor service, so a use case that fails the Edge TPU suitability gate may still be viable on another backend — that is a separate evaluation against that backend's own runtime, model format, and baseline, not a relaxation of anything stated here.
 
 ## Decision guide
