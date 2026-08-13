@@ -47,8 +47,8 @@ After L2 normalization, this reduces to a dot product. A score is meaningful onl
 
 | Goal | Recommended method | Edge TPU role |
 | --- | --- | --- |
-| Detect byte-identical files | Cryptographic hash | None; use the CPU |
-| Detect resized or lightly edited duplicates | Perceptual hash | Usually none; CPU methods are simpler |
+| Detect byte-identical files | Cryptographic hash | A full digest defines identity; choose host or accelerated hashing from measured throughput, latency, energy, and contention |
+| Detect resized or lightly edited duplicates | Perceptual hash | Benchmark scalar/SIMD host, batched GPU, and hybrid candidates on the expected corpus and change distribution |
 | Find visually or semantically related images | General image embedding | Accelerate embedding generation |
 | Match the same product, artwork, place, animal, or object instance | Metric-learning embedding trained for that domain | Accelerate embedding generation |
 | Cluster a photo library | Embeddings followed by clustering | Generate embeddings; clustering remains on the CPU |
@@ -148,7 +148,7 @@ Audio capture, resampling, spectrogram creation, beamforming, decoding, and play
 | Speaker grouping or verification | Speaker embedding | Derived candidate; biometric consent and fallback required |
 | Audio similarity and sound search | Audio embedding | Derived candidate; vector indexing remains on the CPU |
 | Music genre, instrument, or mood tagging | Audio labels | Derived candidate classification workload |
-| Voice activity detection | Speech/non-speech class | Usually better with conventional CPU methods unless part of a larger model |
+| Voice activity detection | Speech/non-speech class | Compare conventional host, GPU, and composed-model paths at the required stream rate |
 | Direction-of-arrival classification | Direction class | Experimental; multichannel signal processing remains on the host |
 | Speech enhancement or noise suppression | Enhanced samples or mask | Experimental; streaming and model compatibility are demanding |
 | General speech-to-text | Token sequence | Usually a poor Coral fit; a separately qualified GPU speech provider can support bounded transcription while capture, decoding, timestamps, and delivery remain host work |

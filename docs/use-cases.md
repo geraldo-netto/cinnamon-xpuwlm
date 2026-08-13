@@ -8,6 +8,11 @@ Start with the decision guide before choosing an application. The remaining mate
 
 Evidence labels such as **documented**, **derived candidate**, and **experimental** use the definitions in [How to read the evidence](fundamentals.md#how-to-read-the-evidence). Every workload still requires a compatible fully quantized model, a compiler report, and an end-to-end benchmark.
 
+The [GPU implementation backlog](use-cases/gpu-implementation-backlog.md)
+evaluates the selected daily-work candidates, orders shared foundations before
+product slices, and records the blockers that prevent an end-to-end readiness
+claim.
+
 This catalog is written against the Edge TPU, and its hardware constraints stand unchanged. The workload manager itself now also routes workloads to NPU and GPU backends through the OmniTensor service, so a use case that fails the Edge TPU suitability gate may still be viable on another backend — that is a separate evaluation against that backend's own runtime, model format, and baseline, not a relaxation of anything stated here.
 
 ## Decision guide
@@ -24,11 +29,11 @@ This table is an engineering-screening guide derived from the documented executi
 | Pose, segmentation, or bounded audio classification | Documented task families | The exact model must compile for the Edge TPU |
 | Thermal, memory, or service-health forecasting | Derived candidate | Safety controls must remain deterministic |
 | Idle-window and background-job prediction | Derived candidate | Benefits must exceed collection and invocation overhead |
-| Process, storage, or job classification | Derived candidate | Many tabular models are already cheap on a CPU |
-| High-volume document or event classification | Derived candidate | Parsing and tokenization remain CPU-bound |
+| Process, storage, or job classification | Derived candidate | Measure the complete CPU, GPU, and hybrid pipelines; feature preparation may dominate |
+| High-volume document or event classification | Derived candidate | Measure parsing, tokenization, batching, transfer, and inference together |
 | Sensor telemetry classification | Derived candidate based on supported dense/LSTM operations | Sampling and feature costs determine value |
 | Predictive caching or application preloading | Experimental | Wrong predictions waste I/O and memory |
-| Network-flow classification | Derived candidate | Feature extraction remains CPU-bound |
+| Network-flow classification | Derived candidate | Measure host feature extraction and accelerator scoring as one pipeline |
 | Per-packet or per-query inference | Usually poor | Invocation and transfer overhead |
 | General system acceleration | Unsupported | Edge TPU is not a general compute device |
 
@@ -47,9 +52,11 @@ Evaluate a workload in this order:
 9. **Baseline:** Does the complete Edge TPU pipeline beat the CPU-only TensorFlow Lite implementation on the metric that matters?
 10. **Lifecycle:** Can the deployment tolerate the current archived state and version constraints of Coral's public software repositories?
 
-For small tabular, signal, or time-series models, a CPU baseline is especially important. The overhead of invoking an accelerator can exceed the execution time of a tiny model.
+For small tabular, signal, or time-series models, compare CPU, GPU, and hybrid
+implementations with identical inputs. Invocation and transfer overhead are
+part of the measurement; their impact must not be assumed.
 
-### Poor or unsupported fits
+### Unsupported or benchmark-required fits
 
 | Workload | Why Coral is unsuitable or unnecessary |
 | --- | --- |
@@ -60,8 +67,8 @@ For small tabular, signal, or time-series models, a CPU baseline is especially i
 | Video decoding and encoding | Use CPU/GPU/media-engine codecs |
 | Compression, encryption, compilation, and rendering | These are not neural-network inference tasks |
 | Database queries and filesystem operations themselves | The TPU may predict a policy but cannot execute the underlying work |
-| Exact duplicate detection | Hashing is simpler and faster |
-| Simple threshold rules or tiny classifiers | CPU execution usually has less overhead |
+| Exact duplicate detection | A full cryptographic digest is required for identity; benchmark host and accelerated hashing separately if throughput matters |
+| Simple threshold rules or tiny classifiers | Benchmark host, GPU, and hybrid paths; do not infer the crossover point from model size alone |
 | Dynamic or unsupported neural architectures | Only compatible, fixed-shape, fully quantized TensorFlow Lite graphs are accelerated |
 
 ## Composed GPU workstation workflows
