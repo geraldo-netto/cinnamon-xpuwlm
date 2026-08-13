@@ -157,17 +157,19 @@ Audio capture, resampling, spectrogram creation, beamforming, decoding, and play
 
 This proposed GPU composition is the canonical home for presentation review,
 meeting and rehearsal analysis, multimedia transcription, captioning, archive
-retrieval, and reviewable edit planning. It combines capabilities rather than
-claiming that any single model decodes media, edits an office archive, or
-controls the filesystem.
+retrieval, and reviewable edit planning. Codexa already indexes presentation
+text from PPT, PPTX, ODP, and other office formats and owns persistent semantic
+retrieval. OmniTensor already owns bounded manual multimedia transcription.
+The proposed part is their integration and the higher-level reviewed workflows,
+not another presentation parser, corpus index, or vector store.
 
 | Workflow | Accelerator stages | Deterministic host and user boundary |
 | --- | --- | --- |
-| Presentation review | Vision and language workers summarize slides, describe charts and images, find repeated or contradictory claims, propose speaker notes, and generate likely audience questions | Parse PPTX, ODP, and PDF structure; preserve slide order; bind observations to slides and source documents; keep every proposed revision editable |
-| Presentation planning | A language worker turns selected grounded sources into an outline, slide plan, notes, and accessibility descriptions | A validated intermediate document owns titles, citations, and asset references; a deterministic writer may create PPTX or ODP only after explicit confirmation |
+| Presentation review | Codexa retrieves indexed slide text and related sources; OmniTensor vision and language workers may describe charts and images, find repeated or contradictory claims, propose speaker notes, and generate likely questions | Reuse Codexa's office ingestion and citations plus OmniTensor's bounded visual evidence; preserve slide order and keep every proposed revision editable |
+| Presentation planning | A language worker turns Codexa-grounded sources into an outline, slide plan, notes, and accessibility descriptions | A validated intermediate document owns titles, citations, and asset references; a deterministic writer may create PPTX or ODP only after explicit confirmation |
 | Rehearsal or meeting briefing | Speech, vision, and language workers combine a recording with slide changes to produce a transcript, summary, decisions, tasks, questions, timing feedback, and event candidates | Preserve timestamps and slide references; distinguish suggestions from confirmed assignments; never create tasks or calendar entries silently |
 | Media transcription and captions | Speech and vision workers produce timestamped speech, visible text, scene descriptions, topic boundaries, and subtitle candidates | Decode, resample, sample frames, validate timing, and render SRT or WebVTT deterministically; do not transcode through an avoidable lossy intermediate |
-| Searchable media archive | Embed transcripts, selected frames, slide text, and bounded descriptions for cross-modal retrieval | The local content vault owns the persistent index and returns file, page, slide, and timestamp evidence; exact duplicates use cryptographic hashes |
+| Searchable media archive | OmniTensor produces bounded transcripts, selected-frame text, and descriptions; Codexa embeds and retrieves the derived records | Codexa owns the persistent index and must retain the original media identity plus timestamp evidence; exact duplicates use cryptographic hashes |
 | Reviewable edit planning | Language and vision workers suggest chapters, highlights, slate or take boundaries, thumbnails, and a timestamped cut list | The model never edits source media; a deterministic FFmpeg or media-engine plan is shown for review and writes a new output without overwriting the original |
 | Screenshot assistant | Vision and language workers extract visible text, describe the scene, explain an error or chart, and transform or translate explicitly selected text | Capture is explicit, output is reviewable, and no UI control is activated from model output |
 
@@ -176,3 +178,11 @@ slides, audio, video, or images; receive one cited summary plus decisions, tasks
 and event candidates; then copy or export only the parts the user confirms.
 GPU stages must share the accelerator lease, unload incompatible models between
 stages, yield to interactive work, expose progress, and remain cancellable.
+
+Codexa intentionally recognizes audio and video as binary formats without a
+prose extractor. Bridging that gap requires a separately installed,
+deny-by-default Codexa extractor or import adapter with a versioned derived-text
+contract. It must retain source digests and timestamps, remain incremental, and
+surface per-file failures without blocking the rest of an indexing run. The
+current OmniTensor media workflow's one-file manual permission cannot be reused
+as implicit authorization to transcribe every media file under a Codexa root.

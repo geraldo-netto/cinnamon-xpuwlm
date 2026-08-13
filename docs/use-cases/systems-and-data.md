@@ -65,29 +65,37 @@ Most transformer-based language models are not Edge TPU compatible. These ideas 
 
 ### Local content vault and organization
 
-This proposed GPU composition is the canonical home for local semantic search,
-lost-file retrieval, personal knowledge retrieval, screenshot search, and
-semantic or visual duplicate candidates. It is intended for explicitly
-configured archives that may contain terabytes of source trees, documents,
-presentations, images, audio, and video. It does not turn the file organizer
-into an unrestricted background crawler or grant a model filesystem authority.
+Codexa already implements the content-vault foundation: offline incremental
+indexing, source hashing and a SQLite manifest, multi-format extraction,
+code-chunker seams, GPU OCR and embeddings, dense and sparse retrieval,
+grounded RAG, citations, and persistent search sessions. It is the canonical
+owner of local semantic search, lost-file and personal-knowledge retrieval, and
+the corpus index. OmniTensor must not reproduce that pipeline.
 
-| Stage | Responsibility and safety boundary |
+The proposed work is a bounded integration for semantic or visual duplicate
+candidates, media enrichment, developer and presentation views, and review-only
+organization. Codexa documents a current product target of private
+50,000–200,000-file corpora; terabyte-scale operation on the operator's actual
+mix of small and very large files needs measured indexing, update, query,
+storage, recovery, and GPU-contention evidence before it is claimed.
+
+| Stage | Existing owner and safety boundary |
 | --- | --- |
-| Incremental inventory | The host walks only configured roots, respects mount and symlink boundaries, records stable metadata, checkpoints progress, and revisits only new or changed files |
-| Exact duplicates | Size and partial hashes may shortlist candidates, but a complete cryptographic digest is required before claiming byte identity or proposing a duplicate action |
-| Content extraction | Deterministic parsers produce bounded source-code spans, document pages, slide text, sampled media frames, and timestamped speech; malformed inputs fail independently |
-| Semantic representation | Qualified GPU workers batch text, code, image, and transcript embeddings; the host stores vectors and versioned provenance in a local index |
-| Grounded retrieval | Search returns paths plus exact file, page, slide, line, span, or timestamp evidence; generation receives only retrieved bounded fragments and cannot invent a source address |
-| Organization planning | A model may suggest tags, safe names, relative folders, version groups, or archive candidates; exact duplicates remain hash-derived and every apply operation is previewed and validated by deterministic code |
+| Incremental inventory | Codexa owns configured roots, scan/change detection, stable source snapshots, hashing, manifests, checkpoints, generation publication, and recovery |
+| Existing extraction | Codexa owns bounded code, text, data, office, presentation, ebook, paged-document, archive, SVG, image OCR, and optional object-detection ingestion through registered extractor seams |
+| Media enrichment | Codexa currently treats audio and video as non-text binaries; a future allowlisted Codexa extractor may consume an OmniTensor transcript through a versioned port, but the existing manual `files:read-selected` grant does not authorize background corpus ingestion |
+| Semantic representation | Codexa owns batched GPU embeddings, embedding caches, vector and sparse stores, model/index identity, and incremental reuse; an OmniTensor embedding adapter is optional only if it can satisfy Codexa's registered backend contract and quality gates |
+| Grounded retrieval | Codexa owns hybrid retrieval, reranking, context selection, grounded answers, citations, and retrieval evaluation; downstream workflows consume its cited result contract rather than query storage directly |
+| Exact and near duplicates | Codexa's hashes and semantic toolkit provide the evidence substrate; a complete cryptographic digest remains mandatory before claiming byte identity, while embedding similarity is only a review candidate |
+| Organization planning | OmniTensor's file organizer may propose tags, safe names, relative folders, version groups, or archive candidates from bounded Codexa results; every apply operation remains outside model control and is previewed and validated by deterministic code |
 
-The first scan should catalog metadata immediately, build exact hashes in a
-resumable background queue, embed new or changed content in bounded batches,
-and defer expensive descriptions until a query or explicit enrichment request
-needs them. Interactive inference preempts background enrichment. File moves,
-renames, overwrites, retention decisions, and deletions require a dry run,
-explicit selection, conflict and free-space checks, and a durable rollback
-manifest; no model output is executed directly.
+The integration should be a separately packaged, deny-by-default Codexa plugin
+or another explicit versioned adapter. Codexa keeps its index, generation,
+configuration, and plugin lifecycle; OmniTensor keeps accelerator admission,
+worker isolation, cancellation, and qualified media or generation providers;
+Cinnamon supplies status and explicit user actions. File moves, renames,
+overwrites, retention decisions, and deletions require a dry run, explicit
+selection, conflict and free-space checks, and a durable rollback manifest.
 
 ## Developer, operations, and research
 
@@ -114,15 +122,17 @@ manifest; no model output is executed directly.
 
 ### Developer GPU workbench
 
-This proposed composition consolidates semantic code search, example lookup,
-failure clustering, review focus, documentation-gap detection, and release
-drafting. Syntax-aware host parsers should preserve repository, revision,
-language, symbol, and line boundaries before embeddings or generation run.
+Codexa already supplies semantic and hybrid retrieval, grounded answers,
+citations, and registered per-language code chunkers. This proposed composition
+adds task-specific developer workflows and OmniTensor generation where useful;
+it does not add another repository index. Syntax-aware Codexa parsers should
+preserve repository, revision, language, symbol, and line boundaries before
+embeddings or generation run.
 
 | Workflow | GPU role | Host and review boundary |
 | --- | --- | --- |
-| Grounded repository questions | Embed source, documentation, configuration, and selected history; generate an answer from retrieved spans | Return repository-relative file and line citations, bind every citation to the indexed revision, and suppress stale results after a worktree change |
-| Failure and log investigation | Group related test failures, compiler diagnostics, stack traces, fuzz crashes, and journal events; propose likely causes and next checks | Parse logs deterministically, preserve timestamps and source identity, redact configured secrets, and never execute a suggested command automatically |
-| Diff and review assistance | Explain a selected diff, identify high-risk areas, connect changes to tests and documentation, and draft a review checklist | Git selects the exact base and head; mandatory checks and human review cannot be omitted by model output |
-| Release and maintenance drafting | Summarize accepted commits and diffs into release notes, migration notes, or documentation candidates | Deterministic history selection and templates define scope; generated prose remains editable and carries commit or file evidence |
-| Architecture and duplication exploration | Retrieve related interfaces, implementations, dependency boundaries, and semantically similar code | Treat similarity as an investigation lead, not proof of duplication or authorization to merge or delete code |
+| Grounded repository questions | Codexa retrieves source, documentation, configuration, and selected history; a configured Codexa or OmniTensor language provider generates from those spans | Return repository-relative file and line citations, bind every citation to Codexa's indexed source version, and suppress stale results after a worktree change |
+| Failure and log investigation | Codexa retrieves and groups related test failures, compiler diagnostics, stack traces, fuzz crashes, and journal events; generation proposes likely causes and next checks | Parse logs deterministically, preserve timestamps and source identity, redact configured secrets, and never execute a suggested command automatically |
+| Diff and review assistance | Codexa supplies related code, tests, and documentation while generation explains a selected diff and drafts a review checklist | Git selects the exact base and head; mandatory checks and human review cannot be omitted by model output |
+| Release and maintenance drafting | Codexa retrieves the affected code and documentation while generation summarizes accepted commits and diffs into release or migration notes | Deterministic history selection and templates define scope; generated prose remains editable and carries commit or file evidence |
+| Architecture and duplication exploration | Codexa retrieves related interfaces, implementations, dependency boundaries, and semantically similar code | Treat similarity as an investigation lead, not proof of duplication or authorization to merge or delete code |
