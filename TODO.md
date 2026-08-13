@@ -3,6 +3,21 @@
 The GPU use-case implementation backlog is tracked directly in XTPU-0095
 through XTPU-0138; `related ids` encode its dependency order.
 
+## Work groups
+
+Items remain in the canonical lifecycle tables below; these ranges provide the
+domain grouping without weakening the required status schema.
+
+- **Platform and portability:** XTPU-0087–XTPU-0089
+- **Shared GPU foundations:** XTPU-0095–XTPU-0103
+- **Hardware and storage:** XTPU-0104–XTPU-0110
+- **Scheduling, network, and security:** XTPU-0111–XTPU-0114
+- **Developer tools:** XTPU-0115–XTPU-0120
+- **Local files and routines:** XTPU-0121–XTPU-0125
+- **Vision and image processing:** XTPU-0049, XTPU-0126–XTPU-0129
+- **Camera, equipment, and audio:** XTPU-0130–XTPU-0133
+- **Presentations, media, and screenshots:** XTPU-0134–XTPU-0138
+
 ## Findings
 
 | id | status | severity | effort | related ids | description |
@@ -43,7 +58,6 @@ through XTPU-0138; `related ids` encode its dependency order.
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
 | XTPU-0088 | blocked | high | xl | XTPU-0087 | Full Windows inference parity is blocked on a compatible OmniTensor Windows service: the current control plane is Linux session D-Bus, fallback discovery reads `/dev` and `/sys`, and accelerator SDK/driver support must be proven. Replace D-Bus with authenticated per-user IPC and implement service-authoritative Windows discovery in the runtime project before this client can provide full functionality. |
-| XTPU-0049 | blocked | low | m | — | Blocked: requires Edge TPU hardware not present on this host (AMD RX 6600 XT and 610M via Vulkan only), and measurements must be measured, never estimated. Record reproducible acceptance measurements for `low-light-enhancement` on named hardware (model, compiler, and runtime versions, input shape, warm-up, sample count, host preprocessing, CPU tone-mapping baseline) against the five manifest acceptance criteria; the workload stays disabled by default until the measured results are recorded. |
 | XTPU-0104 | blocked | high | xl | XTPU-0095, XTPU-0096, XTPU-0097, XTPU-0098, XTPU-0099, XTPU-0101, OMNI-0085, OMNI-0086, OMNI-0087 | Fan degradation prediction is blocked on representative failing/normal fan data, device-specific RPM/PWM/load telemetry, an acoustic or vibration fixture if those signals are claimed, a signed model, and real failure acceptance; NASA aircraft-engine simulation data cannot validate desktop fans. |
 | XTPU-0105 | blocked | high | xl | XTPU-0095, XTPU-0096, XTPU-0097, XTPU-0101, OMNI-0085, OMNI-0086, OMNI-0087 | Power-supply health scoring is blocked because this host exposes no trustworthy PSU voltage/current/temperature/fan telemetry; obtain supported PMBus/BMC/vendor hardware, labeled failure data, and a signed qualified model. |
 | XTPU-0106 | blocked | high | xl | XTPU-0095, XTPU-0096, XTPU-0097, XTPU-0101, OMNI-0085, OMNI-0086, OMNI-0087 | UPS battery degradation is blocked because no UPS/power-supply device or Network UPS Tools client exists here; obtain supported hardware, discharge/load histories, failure labels, and a signed qualified model while preserving deterministic shutdown policy. |
@@ -56,6 +70,7 @@ through XTPU-0138; `related ids` encode its dependency order.
 | XTPU-0114 | blocked | high | xl | XTPU-0095, XTPU-0096, XTPU-0097, XTPU-0098, XTPU-0101, XTPU-0103, OMNI-0184 | Privilege-escalation precursor detection is blocked on approval of a separate host-security profile, missing audit tools and BPF privilege, a least-privilege redacted event helper, representative attack/normal sequences, and review-only acceptance. |
 | XTPU-0125 | blocked | medium | l | XTPU-0095, XTPU-0097, XTPU-0099, XTPU-0100, XTPU-0101, OMNI-0097, OMNI-0098, OMNI-0101 | Visual/semantic image relatedness is blocked on a frozen retrieval corpus and metrics, signed CLIP-compatible ncnn artifact, embedding consumer, batching crossover measurements, and named-GPU acceptance. |
 | XTPU-0126 | blocked | high | xl | XTPU-0095, XTPU-0097, XTPU-0099, XTPU-0101 | PCB inspection is blocked on representative boards and missing/misplaced/rotated/damaged-component labels, a signed detector, camera/lighting fixture, and real-board acceptance; DeepPCB surface-defect pairs do not cover the requested component task. |
+| XTPU-0049 | blocked | low | m | — | Blocked: requires Edge TPU hardware not present on this host (AMD RX 6600 XT and 610M via Vulkan only), and measurements must be measured, never estimated. Record reproducible acceptance measurements for `low-light-enhancement` on named hardware (model, compiler, and runtime versions, input shape, warm-up, sample count, host preprocessing, CPU tone-mapping baseline) against the five manifest acceptance criteria; the workload stays disabled by default until the measured results are recorded. |
 | XTPU-0129 | blocked | high | xl | XTPU-0049, XTPU-0095, XTPU-0097, XTPU-0101, OMNI-0048, OMNI-0102, OMNI-0103, OMNI-0104, OMNI-0105, OMNI-0106 | Low-light enhancement is blocked on the decision to retain the existing Edge-TPU identity and obtain Coral hardware or create a distinct Vulkan profile, followed by a licensed model, signed artifact, fidelity corpus, and end-to-end measurements. |
 | XTPU-0130 | blocked | medium | xl | XTPU-0095, XTPU-0097, XTPU-0098, XTPU-0100, XTPU-0101 | Ergonomic posture reminders are blocked because this host has no webcam; obtain consented representative posture data, a camera fixture, signed pose artifact, non-medical thresholds, privacy controls, and real acceptance. |
 | XTPU-0131 | blocked | medium | l | XTPU-0100, XTPU-0101, XTPU-0103, XTPU-0130 | Webcam auto-framing is blocked on the pose/person provider, absent webcam, camera-control adapter, smoothing/crop benchmarks, preview/confirmation UX, and real-device acceptance. |
