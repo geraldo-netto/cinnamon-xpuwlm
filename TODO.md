@@ -24,7 +24,6 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0133 | open | medium | l | XTPU-0095, XTPU-0097, XTPU-0099, XTPU-0102 | Evaluate music genre, instrument, and mood tagging with separate bounded label sets and host/GPU candidates, returning timestamped confidence evidence for selected audio. |
 | XTPU-0152 | open | high | m | — | Add direct tests for JSON artifact validation, control-character line reporting, PNG/static-asset rejection, and valid input; include `scripts/validate-artifacts.js` in the c8 coverage scope. |
 | XTPU-0153 | open | medium | s | — | Directly test `RuntimeWorkflowController` with fake gateway/scheduler collaborators for poll caps, disposal during polling, listener removal, and error notification. |
 | XTPU-0154 | open | medium | s | XTPU-0139 | Pin exact duration, cue-count, screenshot-size, and capture-start boundaries in deterministic regression fixtures, placing shared cases in the validation suite after consolidation. |
@@ -67,6 +66,7 @@ domain grouping without weakening the required status schema.
 | XTPU-0130 | blocked | medium | xl | XTPU-0095, XTPU-0097, XTPU-0098, XTPU-0100, XTPU-0101 | Ergonomic posture reminders are blocked because this host has no webcam; obtain consented representative posture data, a camera fixture, signed pose artifact, non-medical thresholds, privacy controls, and real acceptance. |
 | XTPU-0131 | blocked | medium | l | XTPU-0100, XTPU-0101, XTPU-0103, XTPU-0130 | Webcam auto-framing is blocked on the pose/person provider, absent webcam, camera-control adapter, smoothing/crop benchmarks, preview/confirmation UX, and real-device acceptance. |
 | XTPU-0132 | blocked | high | xl | XTPU-0095, XTPU-0096, XTPU-0097, XTPU-0098, XTPU-0101 | 3D-printer failure detection is blocked on a printer/camera fixture, printer-specific normal/failure corpus, signed model, continuous-monitoring consent/scheduling, and false-positive acceptance; model output must not stop a print. |
+| XTPU-0133 | blocked | medium | l | XTPU-0095, XTPU-0097, XTPU-0099, XTPU-0102 | Music genre, instrument, and mood tagging is blocked on separate bounded label ontologies, license-compatible timestamped audio corpora and held-out splits, qualified signed audio artifacts/tensor contracts, confidence calibration, and named-hardware evidence. Unblock by publishing those inputs and a timestamped evidence schema, then benchmarking deterministic features and host/GPU candidates for per-label precision/recall, calibration, latency, and peak memory on explicitly selected audio. |
 
 ## Rejected / Won't fix
 
