@@ -380,10 +380,12 @@ function appletHarness(extraOverrides = {}) {
                     layouts: [],
                     models: [],
                     invalidations: 0,
+                    openStates: [],
                     destroyed: false,
                     render(model) { this.models.push(model); },
                     applyLayout(next) { this.layouts.push(next); return true; },
                     invalidateBody() { this.invalidations += 1; return true; },
+                    setOpen(open) { this.openStates.push(open); return true; },
                     destroy() { this.destroyed = true; },
                 };
                 views.push(view);
@@ -419,6 +421,7 @@ test("constructor binds settings, defers popup rendering, and starts polling", (
     menus[0].isOpen = false;
     menus[0].emit("open-state-changed", true);
     assert.equal(applet._menuOpen, true);
+    assert.deepEqual(views[0].openStates, [true]);
     assert.equal(views[0].models.length > 1, true);
     assert.equal(views[0].invalidations, 1);
     assert.equal(applet._renderMenu(), true);
@@ -1279,6 +1282,7 @@ test("the popup starts with a safe default and measures only after it opens", ()
 
     menus[0].emit("open-state-changed", false);
     assert.equal(applet._menuOpen, false);
+    assert.deepEqual(views[0].openStates, [true, false]);
     assert.equal(measurements, 1);
     assert.equal(views[0].layouts.length, 1, "closing the popup must not re-measure");
 });

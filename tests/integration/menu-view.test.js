@@ -72,6 +72,7 @@ function harness(actionScheduler = null) {
             return tooltip;
         },
     });
+    view.setOpen(true);
     return {calls, menu, tooltips, view, root: menu.actors[0]};
 }
 

@@ -118,6 +118,7 @@ class MenuView {
         this._confirmClearHistory = false;
         this._diagnosticFeedback = "";
         this._focusedIdentity = null;
+        this._menuOpen = false;
         this._entryDrafts = new Map();
         // Disclosure state belongs to the popup, not to saved policy: it is a
         // reading position, and it survives body rebuilds so a refresh never
@@ -158,6 +159,19 @@ class MenuView {
         }
         this._bodyKey = null;
         return true;
+    }
+
+    setOpen(open) {
+        if (this._root === null) {
+            return false;
+        }
+        const next = open === true;
+        const changed = this._menuOpen !== next;
+        this._menuOpen = next;
+        if (!next) {
+            this._focusedIdentity = null;
+        }
+        return changed;
     }
 
     render(model) {
@@ -203,6 +217,7 @@ class MenuView {
         this._bodyKey = null;
         this._model = null;
         this._focusedIdentity = null;
+        this._menuOpen = false;
         this._entryDrafts.clear();
         this._detail = null;
         this._confirmClearHistory = false;
@@ -429,7 +444,11 @@ class MenuView {
     // control is gone the first body control takes it, and when the body has no
     // control at all the selected tab does.
     _restoreBodyFocus(identity) {
-        if (identity === null || identity === undefined) {
+        if (!this._menuOpen) {
+            this._focusedIdentity = null;
+            return null;
+        }
+        if (!identity) {
             return null;
         }
         const controls = focusableControls(this._body);

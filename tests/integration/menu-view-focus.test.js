@@ -60,6 +60,7 @@ function harness() {
         menu,
         actions,
     });
+    view.setOpen(true);
     return {menu, view, root: menu.actors[0]};
 }
 
@@ -190,4 +191,22 @@ test("restoring focus without a previous identity does nothing", () => {
     assert.equal(view._restoreBodyFocus(null), null);
     assert.equal(view._restoreBodyFocus(undefined), null);
     assert.deepEqual(focused(root), []);
+});
+
+test("a closed popup clears identity and never restores hidden focus", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(baseState(), NOW));
+    view._openDetail("profiles");
+    control(root, "toggle:hardware-health").grab_key_focus();
+    assert.equal(view._focusedIdentity, "toggle:hardware-health");
+
+    assert.equal(view.setOpen(false), true);
+    assert.equal(view._focusedIdentity, null);
+    assert.equal(view.setOpen(false), false);
+    control(root, "toggle:hardware-health").focused = false;
+    assert.equal(view._restoreBodyFocus("toggle:hardware-health"), null);
+    assert.equal(control(root, "toggle:hardware-health").focused, false);
+
+    assert.equal(view.destroy(), true);
+    assert.equal(view.setOpen(true), false);
 });

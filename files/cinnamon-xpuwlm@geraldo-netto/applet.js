@@ -464,7 +464,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._view = this._viewFactory(this.menu, this._layout);
         if (typeof this.menu.connect === "function") {
             this.menu.connect("open-state-changed", (_menu, open) => {
-                this._menuOpen = open === true;
+                this._setMenuOpen(open);
                 if (open) {
                     this._applyLayout();
                     if (typeof this._view.invalidateBody === "function") {
@@ -478,6 +478,14 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
                 }
             });
         }
+    }
+
+    _setMenuOpen(open) {
+        this._menuOpen = open === true;
+        if (this._view && typeof this._view.setOpen === "function") {
+            this._view.setOpen(this._menuOpen);
+        }
+        return this._menuOpen;
     }
 
     // The work area, display scale, and text scale can all change while the
@@ -746,7 +754,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             return action();
         }
         this.menu.close(false);
-        this._menuOpen = false;
+        this._setMenuOpen(false);
         this._chooserFeedback = {owner, pendingPhase};
         this._chooserLaunchHandle = this._scheduler.schedule(0, () => {
             this._chooserLaunchHandle = null;
@@ -771,7 +779,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             return false;
         }
         this.menu.open(false);
-        this._menuOpen = true;
+        this._setMenuOpen(true);
         this._renderMenu();
         return true;
     }
