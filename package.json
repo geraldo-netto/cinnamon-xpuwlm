@@ -23,6 +23,7 @@
     "test:fuzz": "node --test tests/fuzz/*.test.js",
     "test:visual": "node --test tests/visual/*.test.js",
     "test:cjs": "\"${XPUWLM_CJS:-cjs}\" tests/cjs/production-smoke.js files/cinnamon-xpuwlm@geraldo-netto/*.js files/cinnamon-xpuwlm@geraldo-netto/lib/*.js",
+    "test:mutation:scoped": "node scripts/run-mutation-campaign.js",
     "test:mutation-target": "XPUWLM_MUTATION_RUN=1 node --test --test-concurrency=2 tests/unit/*.test.js tests/integration/*.test.js tests/regression/*.test.js tests/contract/*.test.js",
     "test:mutation:workflow-validation-target": "node --test tests/regression/workflow-validation-boundaries-regression.test.js tests/fuzz/caption-export.fuzz.test.js",
     "test:mutation:workflow-duration": "stryker run stryker.workflow-validation.config.json --mutate='files/cinnamon-xpuwlm@geraldo-netto/lib/media-transcription.js:108-115'",
