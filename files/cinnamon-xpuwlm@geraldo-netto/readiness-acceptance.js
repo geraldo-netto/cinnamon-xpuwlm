@@ -1,4 +1,4 @@
 "use strict";
 
-// Cinnamon resolves nested CommonJS imports from the applet root.
+// Maintained public facade; production does not load it as a root bridge.
 module.exports = require("./lib/readiness-acceptance.js");
