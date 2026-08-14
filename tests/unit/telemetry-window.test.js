@@ -32,9 +32,9 @@ test("telemetry stays inert until consent and replays redacted loss recovery", (
     const raw = {load: 0.5, busy: true, secret: "/private/source/path"};
 
     assert.equal(telemetry.consented(), false);
-    assert.equal(telemetry.capture("desktop.cpu", raw), false);
-    assert.equal(telemetry.markMissing("desktop.cpu", "source-offline"), false);
-    assert.equal(telemetry.recover("desktop.cpu"), false);
+    assert.equal(telemetry.capture("desktop.cpu", raw), null);
+    assert.equal(telemetry.markMissing("desktop.cpu", "source-offline"), null);
+    assert.equal(telemetry.recover("desktop.cpu"), null);
     assert.equal(redactions.length, 0);
     assert.equal(telemetry.setConsent(true), true);
     assert.equal(telemetry.setConsent(true), false);
@@ -146,7 +146,7 @@ test("telemetry validates schemas, ports, values, identifiers, and clocks", () =
 test("recovery is explicit and absent recovery is a no-op", () => {
     const telemetry = new Telemetry.TelemetryWindow(windowOptions({clock: clock([1, 2, 3])}));
     telemetry.setConsent(true);
-    assert.equal(telemetry.recover("desktop.cpu"), false);
+    assert.equal(telemetry.recover("desktop.cpu"), null);
     telemetry.markMissing("desktop.cpu", "read-failed");
     telemetry.markMissing("desktop.cpu", "device-gone");
     const recovered = telemetry.recover("desktop.cpu");

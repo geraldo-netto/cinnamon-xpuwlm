@@ -399,7 +399,15 @@ function compareActiveAlerts(left, right) {
     return 0;
 }
 
-function toViewModel(state, nowMs = Date.now(), guidance) {
+function effectiveNow(nowMs) {
+    if (nowMs === undefined) {
+        return Date.now();
+    }
+    return nowMs;
+}
+
+function toViewModel(state, nowMs, guidance) {
+    nowMs = effectiveNow(nowMs);
     const screen = effectiveScreen(state);
     const profiles = state.profiles.map(profileModel);
     const blocked = profiles.filter((profile) => profile.blocker !== null);

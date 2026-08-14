@@ -249,9 +249,11 @@ function createSurfaceModel(definition, state) {
     if (!isState(state)) {
         throw new SurfaceError("state-invalid", "generic workflow state is invalid");
     }
-    const progress = state.progress === null ? "" : `${percent(state.progress.fraction)}${
-        state.progress.detail === "" ? "" : ` · ${state.progress.detail}`
-    }`;
+    let progress = "";
+    if (state.progress !== null) {
+        const detail = state.progress.detail === "" ? "" : ` · ${state.progress.detail}`;
+        progress = `${percent(state.progress.fraction)}${detail}`;
+    }
     return Object.freeze({
         id: definition.id,
         title: definition.title,

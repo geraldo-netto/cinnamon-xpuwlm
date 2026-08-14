@@ -153,12 +153,12 @@ test("the cached detector serves the full multi-backend array from cache", async
     const now = 1_700_000_000_000;
     const {environment} = createAsyncDeviceEnvironment({pcie: [0], accel: [0]});
     const detector = new Cinnamon.CachedDeviceDetector(environment, {now: () => now});
-    const read = () => new Promise((resolve, reject) => detector.detect(false, {}, (error, devices) => {
+    const read = (options) => new Promise((resolve, reject) => detector.detect(false, options, (error, devices) => {
         if (error) { reject(error); } else { resolve(devices); }
     }));
-    const first = await read();
+    const first = await read(undefined);
     assert.deepEqual(first.map((device) => device.backend), ["tpu", "npu"]);
-    const second = await read();
+    const second = await read({});
     assert.deepEqual(second, first);
     assert.notEqual(second, first);
 });

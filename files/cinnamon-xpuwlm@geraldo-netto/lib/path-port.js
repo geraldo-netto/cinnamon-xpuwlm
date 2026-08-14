@@ -84,7 +84,9 @@ function joinPath(root, name, separator, safeAbsolute, safeName) {
     if (!safeAbsolute(root) || !safeName(name)) {
         throw new TypeError("Safe absolute root and child name are required");
     }
-    return `${root.replace(new RegExp(`${separator === "\\" ? "\\\\" : separator}+$`, "u"), "")}${separator}${name}`;
+    const escapedSeparator = separator === "\\" ? "\\\\" : separator;
+    const trailingSeparators = new RegExp(`${escapedSeparator}+$`, "u");
+    return `${root.replace(trailingSeparators, "")}${separator}${name}`;
 }
 
 const POSIX_PATHS = Object.freeze({

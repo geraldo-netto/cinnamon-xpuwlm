@@ -299,21 +299,29 @@ function appendSpeechTranscript(lines, speech) {
     if (speech.segments.length === 0) {
         return;
     }
-    lines.push(`Speech${speech.language ? ` (${speech.language})` : ""}:`);
+    const language = speech.language ? ` (${speech.language})` : "";
+    lines.push(`Speech${language}:`);
     for (const segment of speech.segments) {
         lines.push(`[${timestampText(segment.startMs)}–${timestampText(segment.endMs)}] ${segment.text}`);
     }
 }
 
+function visualLocationText(visual) {
+    if (visual.pageNumber !== null) {
+        return `Page ${visual.pageNumber}`;
+    }
+    if (visual.slideNumber !== null) {
+        return `Slide ${visual.slideNumber}`;
+    }
+    if (visual.timestampMs === null) {
+        return "Image";
+    }
+    return `Frame ${timestampText(visual.timestampMs)}`;
+}
+
 function appendVisualTranscript(lines, visuals) {
     for (const visual of visuals) {
-        const time = visual.pageNumber !== null
-            ? `Page ${visual.pageNumber}`
-            : visual.slideNumber !== null
-            ? `Slide ${visual.slideNumber}`
-            : visual.timestampMs === null
-                ? "Image"
-                : `Frame ${timestampText(visual.timestampMs)}`;
+        const time = visualLocationText(visual);
         lines.push(`${time}:`);
         if (visual.visibleText !== "") {
             lines.push(`Visible text: ${visual.visibleText}`);

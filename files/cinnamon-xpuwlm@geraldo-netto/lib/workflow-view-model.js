@@ -299,12 +299,19 @@ function jobActivity(job) {
         return null;
     }
     const running = job.pending || job.state === "running";
+    const status = running ? _("Running") : (job.stateText || _("Submitted"));
+    let tone = "healthy";
+    if (running) {
+        tone = "running";
+    } else if (job.tone === "attention") {
+        tone = "unavailable";
+    }
     return {
         id: "picture-job",
         title: job.title,
         detail: [job.sourceName, job.message, job.progressText].filter(Boolean).join(" · "),
-        status: running ? _("Running") : (job.stateText || _("Submitted")),
-        tone: running ? "running" : (job.tone === "attention" ? "unavailable" : "healthy"),
+        status,
+        tone,
         kind: running ? "running" : "recent",
     };
 }
@@ -547,15 +554,19 @@ function mediaSpeechModel(result) {
 }
 
 function mediaVisualModel(visual) {
+    let timeText;
+    if (visual.pageNumber !== null) {
+        timeText = format(_("Page %d"), visual.pageNumber);
+    } else if (visual.slideNumber !== null) {
+        timeText = format(_("Slide %d"), visual.slideNumber);
+    } else if (visual.timestampMs === null) {
+        timeText = _("Image");
+    } else {
+        timeText = format(_("Frame %s"), MediaTranscription.timestampText(visual.timestampMs));
+    }
     return {
         ...visual,
-        timeText: visual.pageNumber !== null
-            ? format(_("Page %d"), visual.pageNumber)
-            : visual.slideNumber !== null
-            ? format(_("Slide %d"), visual.slideNumber)
-            : visual.timestampMs === null
-            ? _("Image")
-            : format(_("Frame %s"), MediaTranscription.timestampText(visual.timestampMs)),
+        timeText,
     };
 }
 

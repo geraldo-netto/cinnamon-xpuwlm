@@ -36,7 +36,10 @@ const SOURCE_SUFFIXES = Object.freeze([
 const {DIGEST, REQUEST_ID} = Validation;
 const PRIVATE_REFERENCE = /^private:[A-Za-z0-9._:-]{1,200}$/u;
 const CODE = /^[a-z0-9-]{1,64}$/u;
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:Z|[+-]\d{2}:\d{2})?$/u;
+const ISO_DATE_PART = String.raw`\d{4}-\d{2}-\d{2}`;
+const ISO_TIME_PART = String.raw`\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?`;
+const ISO_ZONE_PART = String.raw`(?:Z|[+-]\d{2}:\d{2})?`;
+const ISO_DATE = new RegExp(`^${ISO_DATE_PART}T${ISO_TIME_PART}${ISO_ZONE_PART}$`, "u");
 const SOURCE_NUMBER = /:source:(\d+)(?::page:\d+)?$/u;
 const EVENT_FIELDS = new Set([
     "candidateId", "title", "start", "end", "timezone", "location", "confirmation", "evidence",

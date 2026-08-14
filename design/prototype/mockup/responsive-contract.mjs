@@ -15,12 +15,15 @@ export function supportedValue(candidate, supported, fallback) {
 }
 
 export function resolvePrototypeState(search = "") {
-  const parameters = new URLSearchParams(typeof search === "string" ? search : "");
+  const parameters = new globalThis.URLSearchParams(typeof search === "string" ? search : "");
   const activeScreen = supportedValue(parameters.get("screen"), SCREEN_NAMES, "overview");
   const activeLayout = supportedValue(parameters.get("layout"), LAYOUT_NAMES, "wide");
-  const tabScreen = activeScreen === "clear"
-    ? "alerts"
-    : activeScreen === "paused" ? "overview" : activeScreen;
+  let tabScreen = activeScreen;
+  if (activeScreen === "clear") {
+    tabScreen = "alerts";
+  } else if (activeScreen === "paused") {
+    tabScreen = "overview";
+  }
   return Object.freeze({
     activeLayout,
     activeScreen,

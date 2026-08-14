@@ -25,7 +25,8 @@ function paeth(left, up, upperLeft) {
 
 function reconstructedByte(filter, encoded, left, up, upperLeft) {
     const predictors = [0, left, up, Math.floor((left + up) / 2), paeth(left, up, upperLeft)];
-    assert.ok(filter >= 0 && filter < predictors.length, `unsupported PNG filter ${filter}`);
+    assert.ok(filter >= 0, `negative PNG filter ${filter}`);
+    assert.ok(filter < predictors.length, `unsupported PNG filter ${filter}`);
     return (encoded + predictors[filter]) & 0xff;
 }
 

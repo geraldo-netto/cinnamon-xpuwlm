@@ -52,6 +52,45 @@ test("formatters distinguish missing, recent, minute, and hour values", () => {
     assert.equal(ViewModel.formatRelativeTime(NOW + 5000, NOW), "just now");
 });
 
+test("job and media activity labels expose each conditional branch", () => {
+    assert.equal(ViewModel.jobActivity(null), null);
+    const job = {
+        pending: true,
+        state: "queued",
+        title: "Enhance image",
+        sourceName: "photo.png",
+        message: "Preparing",
+        progressText: "20%",
+        stateText: "Queued",
+        tone: "attention",
+    };
+    assert.deepEqual(ViewModel.jobActivity(job), {
+        id: "picture-job",
+        title: "Enhance image",
+        detail: "photo.png · Preparing · 20%",
+        status: "Running",
+        tone: "running",
+        kind: "running",
+    });
+    assert.equal(ViewModel.jobActivity({...job, pending: false}).status, "Queued");
+    assert.equal(ViewModel.jobActivity({...job, pending: false}).tone, "unavailable");
+    assert.equal(ViewModel.jobActivity({
+        ...job, pending: false, stateText: "", tone: "healthy",
+    }).status, "Submitted");
+    assert.equal(ViewModel.jobActivity({
+        ...job, pending: false, stateText: "", tone: "healthy",
+    }).tone, "healthy");
+
+    assert.deepEqual([
+        {pageNumber: 2, slideNumber: null, timestampMs: null},
+        {pageNumber: null, slideNumber: 3, timestampMs: null},
+        {pageNumber: null, slideNumber: null, timestampMs: null},
+        {pageNumber: null, slideNumber: null, timestampMs: 1500},
+    ].map((visual) => ViewModel.mediaVisualModel(visual).timeText), [
+        "Page 2", "Slide 3", "Image", "Frame 00:00:01.500",
+    ]);
+});
+
 test("profile grouping preserves first-seen order and clones entries", () => {
     const profiles = [
         {id: "a", group: "One"},
@@ -121,6 +160,11 @@ test("effective screen gives safety states precedence over tabs", () => {
     assert.equal(unavailablePaused.screen, "unavailable");
     assert.equal(unavailablePaused.policyPaused, true);
     assert.equal(ViewModel.toViewModel(state(), NOW).policyPaused, false);
+});
+
+test("view model defaults to the current clock when no timestamp is injected", (context) => {
+    context.mock.method(Date, "now", () => NOW);
+    assert.deepEqual(ViewModel.toViewModel(state()), ViewModel.toViewModel(state(), NOW));
 });
 
 test("status, recovery, device, and blocker projections are exact", () => {

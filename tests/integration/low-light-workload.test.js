@@ -21,7 +21,8 @@ test("low-light enhancement is a dedicated disabled-by-default catalog workload"
     assert.equal(descriptor.manifest().version, "0.2.0");
     assert.equal(definition.group, "Local workflows");
     assert.equal(definition.defaultEnabled, false);
-    assert.ok(definition.order > 50 && definition.order < 60);
+    assert.ok(definition.order > 50);
+    assert.ok(definition.order < 60);
     assert.deepEqual(descriptor.manifest().capabilities, [
         "image-enhancement",
         "enhanced-image-generation",

@@ -21,14 +21,17 @@ test("property: sampled frames remain monotonic, bounded, and reproducible", () 
         const first = Media.sampleTimestamps(duration);
         const second = Media.sampleTimestamps(duration);
         assert.deepEqual(first, second);
-        assert.ok(first.length >= 1 && first.length <= Media.MAX_VISUALS);
+        assert.ok(first.length >= 1);
+        assert.ok(first.length <= Media.MAX_VISUALS);
         assert.equal(first[0], 0);
-        assert.ok(first.every((value, position) => (
-            Number.isInteger(value)
-            && value >= 0
-            && value < duration
-            && (position === 0 || value > first[position - 1])
-        )));
+        for (const [position, value] of first.entries()) {
+            assert.equal(Number.isInteger(value), true);
+            assert.ok(value >= 0);
+            assert.ok(value < duration);
+            if (position > 0) {
+                assert.ok(value > first[position - 1]);
+            }
+        }
     }
 });
 

@@ -171,7 +171,7 @@ class TelemetryWindow {
 
     capture(sourceId, raw) {
         if (!this._consented) {
-            return false;
+            return null;
         }
         if (!identifier(sourceId)) {
             throw new TelemetryError("source-invalid", "telemetry source id is invalid");
@@ -191,7 +191,7 @@ class TelemetryWindow {
 
     markMissing(sourceId, reasonCode) {
         if (!this._consented) {
-            return false;
+            return null;
         }
         if (!identifier(sourceId) || !identifier(reasonCode)) {
             throw new TelemetryError("marker-invalid", "missing-sample marker is invalid");
@@ -205,14 +205,14 @@ class TelemetryWindow {
 
     recover(sourceId) {
         if (!this._consented) {
-            return false;
+            return null;
         }
         if (!identifier(sourceId)) {
             throw new TelemetryError("source-invalid", "telemetry source id is invalid");
         }
         const reasonCode = this._sources.get(sourceId);
         if (reasonCode === undefined) {
-            return false;
+            return null;
         }
         const monotonicMs = this._now();
         this._sources.delete(sourceId);

@@ -328,6 +328,13 @@ function detectDevicesAsync(environment, cancellable, callback) {
     });
 }
 
+function detectionOptions(options) {
+    if (options === undefined) {
+        return {};
+    }
+    return options;
+}
+
 class CachedDeviceDetector {
     constructor(environment, clock = Date, cacheMs = DEVICE_CACHE_MS) {
         this._environment = environment;
@@ -337,13 +344,14 @@ class CachedDeviceDetector {
         this._cached = null;
     }
 
-    detect(forceRefresh = false, options = {}, callback) {
+    detect(forceRefresh, options, callback) {
         if (typeof callback !== "function") {
             throw new TypeError("A device detection callback is required");
         }
         if (forceRefresh === true) {
             this.invalidate();
         }
+        options = detectionOptions(options);
         const nowMs = this._clock.now();
         if (this._cached !== null && nowMs - this._cachedAt < this._cacheMs) {
             callback(null, this._cached.map((device) => ({...device})));
