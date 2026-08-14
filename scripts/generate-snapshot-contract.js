@@ -28,8 +28,8 @@ const appletRoot = path.join(repositoryRoot, "files", UUID);
 const schemaPath = path.join(appletRoot, "runtime-snapshot.schema.json");
 const outputPath = path.join(appletRoot, "lib", "runtime-snapshot-contract.js");
 
-function readSchema() {
-    return JSON.parse(fs.readFileSync(schemaPath, "utf8"));
+function readSchema(targetSchemaPath = schemaPath) {
+    return JSON.parse(fs.readFileSync(targetSchemaPath, "utf8"));
 }
 
 // Every closed object in the snapshot, named the way the validator names it.
@@ -166,25 +166,53 @@ module.exports = {ALLOWLISTS, BOUNDS, ENUMS, REQUIRED};
 `;
 }
 
-function main() {
-    const rendered = render(readSchema());
-    const checking = process.argv.includes("--check");
-    const existing = fs.existsSync(outputPath) ? fs.readFileSync(outputPath, "utf8") : null;
-    if (checking) {
-        assert.equal(
-            existing,
-            rendered,
-            `${path.relative(repositoryRoot, outputPath)} is stale; run npm run generate:contract`,
-        );
-        console.log("snapshot contract: derived file matches the schema");
-        return;
-    }
-    fs.writeFileSync(outputPath, rendered);
-    console.log(`snapshot contract: wrote ${path.relative(repositoryRoot, outputPath)}`);
+function mainOptions(options) {
+    return {
+        argv: process.argv.slice(2),
+        logger: console,
+        outputPath,
+        repositoryRoot,
+        schemaPath,
+        ...options,
+    };
+}
+
+function currentOutput(targetOutputPath) {
+    const existing = fs.existsSync(targetOutputPath)
+        ? fs.readFileSync(targetOutputPath, "utf8")
+        : null;
+    return existing;
+}
+
+function checkOutput(rendered, options) {
+    assert.equal(
+        currentOutput(options.outputPath),
+        rendered,
+        `${path.relative(options.repositoryRoot, options.outputPath)} is stale; `
+            + "run npm run generate:contract",
+    );
+    options.logger.log("snapshot contract: derived file matches the schema");
+    return true;
+}
+
+function writeOutput(rendered, options) {
+    fs.writeFileSync(options.outputPath, rendered);
+    options.logger.log(
+        `snapshot contract: wrote ${path.relative(options.repositoryRoot, options.outputPath)}`,
+    );
+    return true;
+}
+
+function main(overrides = {}) {
+    const options = mainOptions(overrides);
+    const rendered = render(readSchema(options.schemaPath));
+    return options.argv.includes("--check")
+        ? checkOutput(rendered, options)
+        : writeOutput(rendered, options);
 }
 
 if (require.main === module) {
     main();
 }
 
-module.exports = {derive, render};
+module.exports = {derive, main, readSchema, render};
