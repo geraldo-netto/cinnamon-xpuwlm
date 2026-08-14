@@ -51,14 +51,23 @@ test("the method the applet calls is the method the service exports", (t) => {
     const source = fs.readFileSync(
         path.join(root, "src/omnitensor/dbus_transport.py"), "utf8",
     );
+    const contract = fs.readFileSync(
+        path.join(root, "src/omnitensor/contract.py"), "utf8",
+    );
 
     assert.match(
         source,
         new RegExp(`def ${Cinnamon.CONTRACT_METHOD}\\(`, "u"),
         `the service no longer exports ${Cinnamon.CONTRACT_METHOD}`,
     );
+    assert.match(source, /^from \.contract import RUNTIME_METHODS$/mu);
+    assert.match(source, /^BUS_METHODS = RUNTIME_METHODS$/mu);
+    const runtimeMethods = contract.match(
+        /^RUNTIME_METHODS = \(\n(?<body>(?: {4}"[A-Za-z]+",\n)+)\)$/mu,
+    );
+    assert.notEqual(runtimeMethods, null, "the runtime method declaration is no longer closed");
     assert.equal(
-        source.includes(`"${Cinnamon.CONTRACT_METHOD}"`),
+        runtimeMethods.groups.body.includes(`    "${Cinnamon.CONTRACT_METHOD}",\n`),
         true,
         "the method is exported but not announced in BUS_METHODS",
     );

@@ -17,6 +17,7 @@ const repositoryRoot = path.resolve(__dirname, "../..");
 
 const SERVICE_SOURCES = Object.freeze([
     "src/omnitensor/service.py",
+    "src/omnitensor/profile_selection.py",
     "src/omnitensor/scheduler.py",
     // Where the machine-readable codes are declared, beside the sentences.
     "src/omnitensor/executors/base.py",
@@ -73,7 +74,10 @@ test("the policy sentences the popup ignores are still policy sentences", (t) =>
     // Reported before the service looks at a backend, so they carry no verdict
     // about whether the profile could run. Treating either as a blocker would
     // tell a user who merely paused a profile to go and install something.
-    const status = fs.readFileSync(path.join(root, "src/omnitensor/service.py"), "utf8");
+    const status = fs.readFileSync(
+        path.join(root, "src/omnitensor/profile_selection.py"),
+        "utf8",
+    );
     for (const phrase of Blockers.POLICY_REASONS) {
         assert.match(
             status,
