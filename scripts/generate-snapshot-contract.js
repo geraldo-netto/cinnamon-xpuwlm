@@ -28,6 +28,10 @@ const appletRoot = path.join(repositoryRoot, "files", UUID);
 const schemaPath = path.join(appletRoot, "runtime-snapshot.schema.json");
 const outputPath = path.join(appletRoot, "lib", "runtime-snapshot-contract.js");
 
+function compareText(left, right) {
+    return left.localeCompare(right);
+}
+
 function readSchema(targetSchemaPath = schemaPath) {
     return JSON.parse(fs.readFileSync(targetSchemaPath, "utf8"));
 }
@@ -112,8 +116,8 @@ function derive(schema) {
     const allowlists = {};
     const required = {};
     for (const [name, object] of Object.entries(shapes)) {
-        allowlists[name] = propertiesOf(object).sort();
-        required[name] = requiredOf(object).sort();
+        allowlists[name] = propertiesOf(object).sort(compareText);
+        required[name] = requiredOf(object).sort(compareText);
     }
     return {allowlists, required, enums: enumerations(schema), bounds: bounds(schema)};
 }

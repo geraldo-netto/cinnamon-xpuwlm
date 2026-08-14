@@ -286,7 +286,7 @@ test("invalid receipts fail into rollback and rollback receipts remain exact", a
     }
 });
 
-test("constructor rejects invalid clocks, TTLs, confirmation, and audit ports", () => {
+test("constructor rejects invalid clocks, TTLs, confirmation, and audit ports", async () => {
     const current = Fixture.harness();
     for (const override of [
         {confirmationTtlMs: 999},
@@ -302,7 +302,10 @@ test("constructor rejects invalid clocks, TTLs, confirmation, and audit ports", 
     }
     const invalidClock = Fixture.harness();
     invalidClock.clock.now = () => -1;
-    assert.rejects(controller(invalidClock).preview(Fixture.request()), /clock returned invalid/u);
+    await assert.rejects(
+        controller(invalidClock).preview(Fixture.request()),
+        /clock returned invalid/u,
+    );
 });
 
 test("audit evidence must be durable, exact, and digest-bound", () => {

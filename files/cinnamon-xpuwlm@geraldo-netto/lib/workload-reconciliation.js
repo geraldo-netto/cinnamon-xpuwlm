@@ -2,6 +2,7 @@
 
 const Domain = require("./domain.js");
 const Registry = require("./workload-registry.js");
+const Validation = require("./validation.js");
 
 function versionMap(descriptors) {
     return Object.freeze(Object.fromEntries(descriptors.map((descriptor) => [
@@ -45,7 +46,7 @@ function changedIdentifiers(candidate, currentVersions, profiles) {
     const removed = [...new Set([
         ...Object.keys(previousProfiles),
         ...Object.keys(previousVersions),
-    ])].filter((id) => !known.has(id)).sort();
+    ])].filter((id) => !known.has(id)).sort(Validation.compareText);
     return Object.freeze({
         installed: Object.freeze(installed),
         upgraded: Object.freeze(upgraded),

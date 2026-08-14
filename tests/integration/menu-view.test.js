@@ -101,7 +101,7 @@ test("button actions wait until clicked dispatch has unwound", () => {
     assert.equal(scheduled[0].delayMs, 0);
     assert.equal(action.xpuwlmActionPending, true);
 
-    assert.equal(scheduled[0].callback(), false);
+    assert.equal(scheduled[0].callback(), undefined);
     assert.equal(calls, 1);
     assert.equal(action.destroyed, true);
     assert.equal(action.xpuwlmActionPending, false);
@@ -130,7 +130,7 @@ test("destroy cancels every deferred button action and late callbacks stay inert
     assert.deepEqual(cancelled, [1, 2]);
     assert.equal(view._cancelDeferredActions(), 0);
     for (const task of scheduled) {
-        assert.equal(task.callback(), false);
+        assert.equal(task.callback(), undefined);
     }
     assert.equal(calls, 0);
 });

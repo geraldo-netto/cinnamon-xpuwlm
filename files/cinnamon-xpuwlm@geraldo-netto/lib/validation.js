@@ -12,6 +12,13 @@ function isRecord(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function compareText(left, right) {
+    if (left === right) {
+        return 0;
+    }
+    return left < right ? -1 : 1;
+}
+
 function exactKeys(value, expected) {
     if (!isRecord(value)) {
         return false;
@@ -61,6 +68,7 @@ module.exports = {
     DIGEST,
     REQUEST_ID,
     boundedText,
+    compareText,
     exactKeys,
     isDigest,
     isRecord,

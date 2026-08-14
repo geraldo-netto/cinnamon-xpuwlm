@@ -1,6 +1,7 @@
 "use strict";
 
 const Manifest = require("./workload-manifest.js");
+const Validation = require("./validation.js");
 
 const MAX_MANIFEST_BYTES = 64 * 1024;
 const MAX_WORKLOADS = 128;
@@ -87,7 +88,7 @@ class ManifestDirectoryRegistry {
         if (!Array.isArray(directories)) {
             throw new TypeError("Workload directory reader must return an array");
         }
-        const names = [...new Set(directories)].sort();
+        const names = [...new Set(directories)].sort(Validation.compareText);
         if (names.length !== directories.length || names.length > MAX_WORKLOADS) {
             throw new RangeError("Workload directories must be unique and bounded");
         }

@@ -5,6 +5,7 @@ const Ajv2020 = require("ajv/dist/2020").default;
 const childProcess = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
+const Validation = require("../files/cinnamon-xpuwlm@geraldo-netto/lib/validation.js");
 
 const UUID = "cinnamon-xpuwlm@geraldo-netto";
 const repositoryRoot = path.resolve(__dirname, "..");
@@ -175,9 +176,12 @@ function validatePayloadStructure({
     filesRoot: targetFilesRoot,
 }) {
     const filesEntries = fs.readdirSync(targetFilesRoot, {withFileTypes: true});
-    assert.deepEqual(filesEntries.map((entry) => entry.name).sort(), [UUID]);
+    assert.deepEqual(filesEntries.map((entry) => entry.name).sort(Validation.compareText), [UUID]);
     assert.equal(filesEntries[0].isDirectory(), true);
-    assert.deepEqual(fs.readdirSync(targetAppletRoot).sort(), [...expectedTopLevel].sort());
+    assert.deepEqual(
+        fs.readdirSync(targetAppletRoot).sort(Validation.compareText),
+        [...expectedTopLevel].sort(Validation.compareText),
+    );
 
     for (const relativePath of payloadPaths(targetAppletRoot)) {
         const segments = relativePath.split("/");

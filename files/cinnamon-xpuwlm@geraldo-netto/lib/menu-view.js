@@ -1415,11 +1415,9 @@ class MenuView {
                 this._deferredActions.delete(handle);
             }
             button.xpuwlmActionPending = false;
-            if (this._root === null) {
-                return false;
+            if (this._root !== null) {
+                callback();
             }
-            callback();
-            return false;
         };
         try {
             handle = this._actionScheduler.schedule(0, run);

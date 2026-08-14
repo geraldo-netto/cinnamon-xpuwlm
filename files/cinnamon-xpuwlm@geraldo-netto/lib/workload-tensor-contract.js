@@ -132,7 +132,7 @@ function canonicalJson(value) {
         return `[${value.map(canonicalJson).join(",")}]`;
     }
     if (isRecord(value)) {
-        return `{${Object.keys(value).sort()
+        return `{${Object.keys(value).sort(Validation.compareText)
             .map((name) => `${JSON.stringify(name)}:${canonicalJson(value[name])}`)
             .join(",")}}`;
     }

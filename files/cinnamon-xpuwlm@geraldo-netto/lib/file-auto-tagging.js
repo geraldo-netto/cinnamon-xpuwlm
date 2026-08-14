@@ -107,7 +107,9 @@ function validInput(value) {
 }
 
 function inputFamilies(input) {
-    return Object.freeze([...new Set(input.files.map((file) => familyOf(file.name)))].sort());
+    return Object.freeze([
+        ...new Set(input.files.map((file) => familyOf(file.name))),
+    ].sort(Validation.compareText));
 }
 
 function inputSize(input) {

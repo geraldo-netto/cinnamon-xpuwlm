@@ -20,12 +20,15 @@ domain grouping without weakening the required status schema.
 - **Audit regression and mutation gates:** XTPU-0152–XTPU-0159
 - **Audit housekeeping:** XTPU-0160–XTPU-0161, XTPU-0165
 - **Requested applet UX:** XTPU-0162–XTPU-0164
+- **SonarCloud remediation:** XTPU-0174–XTPU-0177
 
 ## Findings
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
 | XTPU-0158 | in_progress | high | l | XTPU-0139, XTPU-0140, XTPU-0141, XTPU-0142, XTPU-0143, XTPU-0144, XTPU-0145, XTPU-0146, XTPU-0147, XTPU-0148, XTPU-0149, XTPU-0150, XTPU-0151, XTPU-0152, XTPU-0153, XTPU-0154, XTPU-0155, XTPU-0156, XTPU-0157, XTPU-0165 | The 101-file full campaign was aborted at 2% after confirming a roughly 37-hour runtime; finish the scoped harness reorganization, then run its non-incremental rebaseline at the retained 80% break threshold. |
+| XTPU-0175 | open | high | m | — | Resolve the eight fresh Sonar security findings by hardening two temporary-directory fixtures, validating the workload-manifest CLI root, constraining download redirects and npm lifecycle scripts, and reviewing the production-smoke dynamic loader. |
+| XTPU-0176 | open | medium | l | XTPU-0174, XTPU-0175 | Triage and remediate the remaining fresh Sonar maintainability/reliability backlog across applet JavaScript, tests, tooling, prototype CSS, and workflow metadata; preserve supported GJS/Cinnamon compatibility rather than applying browser-only syntax mechanically. |
 
 ## Blocked
 
@@ -65,3 +68,4 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
+| XTPU-0177 | wont_fix | high | xs | — | Sonar CSS rule S4654 reports 24 uses of `spacing` as an unknown browser property, but the shipped stylesheet targets Cinnamon's St theme engine where `spacing` is a supported layout property; retain the declarations and mark the Sonar issues false-positive when project administration is available. |

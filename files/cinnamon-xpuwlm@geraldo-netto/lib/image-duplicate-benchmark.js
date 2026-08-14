@@ -66,7 +66,7 @@ function imageById(input, id) {
 }
 
 function pairKey(pair) {
-    return [pair.leftId, pair.rightId].sort().join(":");
+    return [pair.leftId, pair.rightId].sort(Validation.compareText).join(":");
 }
 
 function validPair(value, input) {

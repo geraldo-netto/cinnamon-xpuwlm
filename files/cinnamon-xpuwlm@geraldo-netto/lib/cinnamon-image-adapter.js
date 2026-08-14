@@ -2,6 +2,7 @@
 
 const FileSystem = require("./gio-file-adapter.js");
 const Devices = require("./linux-device-adapter.js");
+const Validation = require("./validation.js");
 
 const {isIoError} = FileSystem;
 const {closeEnumeratorAsync} = Devices;
@@ -309,7 +310,7 @@ function listInputImages(root, environment) {
     } finally {
         enumerator.close(null);
     }
-    return names.sort();
+    return names.sort(Validation.compareText);
 }
 
 function collectInputImagesAsync(

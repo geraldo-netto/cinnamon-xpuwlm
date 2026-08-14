@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const Validation = require("../files/cinnamon-xpuwlm@geraldo-netto/lib/validation.js");
 
 const threshold = 80;
 const reportPath = path.resolve(__dirname, "../coverage/coverage-final.json");
@@ -43,8 +44,8 @@ function validLocation(value) {
 }
 
 function sameKeys(left, right) {
-    const leftKeys = Object.keys(left).sort();
-    const rightKeys = Object.keys(right).sort();
+    const leftKeys = Object.keys(left).sort(Validation.compareText);
+    const rightKeys = Object.keys(right).sort(Validation.compareText);
     return leftKeys.length === rightKeys.length
         && leftKeys.every((key, index) => key === rightKeys[index]);
 }

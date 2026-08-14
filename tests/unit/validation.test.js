@@ -18,6 +18,16 @@ test("record validation accepts only non-null non-array objects", () => {
     }
 });
 
+test("text comparison provides stable code-unit ordering", () => {
+    assert.equal(Validation.compareText("same", "same"), 0);
+    assert.equal(Validation.compareText("A", "a"), -1);
+    assert.equal(Validation.compareText("a", "A"), 1);
+    assert.deepEqual(
+        ["z", "ä", "a", "😀"].sort(Validation.compareText),
+        ["a", "z", "ä", "😀"],
+    );
+});
+
 test("exact keys supports closed array and set contracts", () => {
     assert.equal(Validation.exactKeys({a: 1, b: 2}, ["a", "b"]), true);
     assert.equal(Validation.exactKeys({a: 1, b: 2}, new Set(["a", "b"])), true);

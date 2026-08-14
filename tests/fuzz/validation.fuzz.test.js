@@ -33,6 +33,21 @@ test("fuzz: bounded text agrees with code-point length", () => {
     }
 });
 
+test("fuzz: text comparison is antisymmetric and preserves code-unit order", () => {
+    const random = generator(0x534f5254);
+    const alphabet = ["A", "Z", "a", "z", "é", "Ω", "😀"];
+    for (let index = 0; index < 5000; index += 1) {
+        const left = alphabet[Math.floor(random() * alphabet.length)];
+        const right = alphabet[Math.floor(random() * alphabet.length)];
+        const comparison = Validation.compareText(left, right);
+        assert.equal(comparison + Validation.compareText(right, left), 0);
+        assert.deepEqual(
+            [left, right].sort(Validation.compareText),
+            left <= right ? [left, right] : [right, left],
+        );
+    }
+});
+
 test("fuzz: digest and request ID predicates agree with their canonical syntax", () => {
     const random = generator(0x424f554e);
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._- !";

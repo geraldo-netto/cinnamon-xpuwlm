@@ -63,6 +63,72 @@ function sameIdentity(left, right) {
     return left.inode === right.inode && left.device === right.device;
 }
 
+function finishAsyncBytes(bytesSource, bytesResult, context) {
+    const bytes = bytesSource.read_bytes_finish(bytesResult);
+    const data = typeof bytes.get_data === "function" ? bytes.get_data() : bytes;
+    if (!context.truncateOversize
+            && context.maximumBytes !== null
+            && data.length > context.maximumBytes) {
+        context.fail(new RangeError("Runtime snapshot exceeds 1 MiB"));
+        return;
+    }
+    context.callback(null, decodeBytes(data, context.environment.ByteArray));
+}
+
+function readAsyncBytes(stream, context) {
+    const readBytes = context.maximumBytes === null
+        ? Runtime.MAX_SNAPSHOT_BYTES + 1
+        : context.maximumBytes;
+    stream.read_bytes_async(
+        readBytes,
+        null,
+        context.cancellable,
+        (source, result) => context.guarded(() => finishAsyncBytes(source, result, context)),
+    );
+}
+
+function finishAsyncOpen(readSource, readResult, expected, context) {
+    const stream = readSource.read_finish(readResult);
+    const opened = fileIdentity(stream.query_info(IDENTITY_ATTRIBUTES, context.cancellable));
+    if (!sameIdentity(expected, opened)) {
+        // A publisher that atomically replaces the snapshot between the
+        // preflight and the open trips this check benignly, so the gateway
+        // retries once with a fresh preflight instead of failing the poll.
+        const raced = new Error(
+            `Runtime snapshot path changed while opening: ${context.path}`,
+        );
+        raced.transientRace = true;
+        context.fail(raced);
+        return;
+    }
+    readAsyncBytes(stream, context);
+}
+
+function openAsyncFile(expected, context) {
+    context.file.read_async(
+        null,
+        context.cancellable,
+        (source, result) => context.guarded(
+            () => finishAsyncOpen(source, result, expected, context),
+        ),
+    );
+}
+
+function finishAsyncPreflight(infoSource, infoResult, context) {
+    const info = infoSource.query_info_finish(infoResult);
+    if (info.get_file_type() !== context.environment.Gio.FileType.REGULAR) {
+        context.fail(new Error(`Runtime snapshot is not a regular file: ${context.path}`));
+        return;
+    }
+    if (!context.truncateOversize
+            && context.maximumBytes !== null
+            && info.get_size() > context.maximumBytes) {
+        context.fail(new RangeError("Runtime snapshot exceeds 1 MiB"));
+        return;
+    }
+    openAsyncFile(fileIdentity(info), context);
+}
+
 // Bounded, cancellable GIO read that never follows a symlink and never trusts
 // the path between calls. The no-follow preflight rejects anything that is not
 // a regular file, and the identity of the opened stream must match the identity
@@ -97,52 +163,24 @@ function readFileTextAsync(path, environment, options, callback) {
             fail(error);
         }
     };
+    const context = {
+        callback,
+        cancellable,
+        environment,
+        fail,
+        file,
+        guarded,
+        maximumBytes,
+        path,
+        truncateOversize,
+    };
 
     file.query_info_async(
         IDENTITY_ATTRIBUTES,
         Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
         null,
         cancellable,
-        (infoSource, infoResult) => guarded(() => {
-            const info = infoSource.query_info_finish(infoResult);
-            if (info.get_file_type() !== Gio.FileType.REGULAR) {
-                fail(new Error(`Runtime snapshot is not a regular file: ${path}`));
-                return;
-            }
-            if (!truncateOversize && maximumBytes !== null && info.get_size() > maximumBytes) {
-                fail(new RangeError("Runtime snapshot exceeds 1 MiB"));
-                return;
-            }
-            const expected = fileIdentity(info);
-            file.read_async(null, cancellable, (readSource, readResult) => guarded(() => {
-                const stream = readSource.read_finish(readResult);
-                const opened = fileIdentity(stream.query_info(IDENTITY_ATTRIBUTES, cancellable));
-                if (!sameIdentity(expected, opened)) {
-                    // A publisher that atomically replaces the snapshot between
-                    // the preflight and the open trips this check benignly, so
-                    // the error is marked transient and the gateway retries once
-                    // with a fresh preflight instead of failing the poll.
-                    const raced = new Error(`Runtime snapshot path changed while opening: ${path}`);
-                    raced.transientRace = true;
-                    fail(raced);
-                    return;
-                }
-                stream.read_bytes_async(
-                    maximumBytes === null ? Runtime.MAX_SNAPSHOT_BYTES + 1 : maximumBytes,
-                    null,
-                    cancellable,
-                    (bytesSource, bytesResult) => guarded(() => {
-                        const bytes = bytesSource.read_bytes_finish(bytesResult);
-                        const data = typeof bytes.get_data === "function" ? bytes.get_data() : bytes;
-                        if (!truncateOversize && maximumBytes !== null && data.length > maximumBytes) {
-                            fail(new RangeError("Runtime snapshot exceeds 1 MiB"));
-                            return;
-                        }
-                        callback(null, decodeBytes(data, environment.ByteArray));
-                    }),
-                );
-            }));
-        }),
+        (source, result) => guarded(() => finishAsyncPreflight(source, result, context)),
     );
 }
 
