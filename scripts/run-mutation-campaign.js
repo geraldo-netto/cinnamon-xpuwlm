@@ -210,7 +210,7 @@ function main(arguments_ = process.argv.slice(2), services = {}) {
     fs.mkdirSync(REPORT_ROOT, {recursive: true});
     const targets = selectedTargets(arguments_);
     const execute = services.runTarget || runTarget;
-    const summary = summarize(targets.map(execute), commit);
+    const summary = summarize(targets.map((target) => execute(target)), commit);
     fs.writeFileSync(
         path.join(REPORT_ROOT, "summary.json"),
         `${JSON.stringify(summary, null, 2)}\n`,

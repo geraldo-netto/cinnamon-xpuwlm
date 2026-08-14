@@ -130,7 +130,11 @@ test("Git boundary and summary publication fail closed", () => {
     };
     assert.doesNotThrow(() => main([SOURCE], {
         cleanCommit: () => "c".repeat(40),
-        runTarget: () => result,
+        runTarget: (...arguments_) => {
+            assert.equal(arguments_.length, 1);
+            assert.equal(arguments_[0], target);
+            return result;
+        },
     }));
     const summary = JSON.parse(fs.readFileSync("mutation-report/full/summary.json", "utf8"));
     assert.equal(summary.version, 1);
