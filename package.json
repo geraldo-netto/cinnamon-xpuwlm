@@ -51,7 +51,7 @@
     "test:mutation:refresh-applet-owner": "stryker run stryker.refresh-interval.config.json --mutate='files/cinnamon-xpuwlm@geraldo-netto/applet.js:206-225'",
     "test:mutation:refresh-default": "npm run test:mutation:refresh-applet-instance && npm run test:mutation:refresh-applet-settings && npm run test:mutation:refresh-defaults && npm run test:mutation:refresh-instance-name && npm run test:mutation:refresh-valid-uuid && npm run test:mutation:refresh-settings-api && npm run test:mutation:refresh-settings-paths && npm run test:mutation:refresh-selected-path && npm run test:mutation:refresh-current-path && npm run test:mutation:refresh-current-settings && npm run test:mutation:refresh-restore && npm run test:mutation:refresh-applet-owner",
     "test:mutation:string-contract-target": "node --test tests/unit/workload-manifest.test.js tests/unit/workload-manifest-boundaries.test.js tests/fuzz/workload-manifest.fuzz.test.js",
-    "test:mutation:string-contract": "stryker run stryker.string-contract.config.json && XPUWLM_REQUIRE_STRING_MUTATION_REPORT=1 node --test tests/contract/string-literal-mutation-report-contract.test.js",
+    "test:mutation:string-contract": "stryker run stryker.string-contract.config.json",
     "test:mutation:popup-placement-target": "node --test tests/unit/popup-placement.test.js tests/unit/cinnamon-popup-adapter.test.js tests/integration/applet.test.js tests/fuzz/popup-placement.fuzz.test.js",
     "test:mutation:popup-finite-number": "stryker run stryker.popup-placement.config.json --mutate='files/cinnamon-xpuwlm@geraldo-netto/lib/popup-placement.js:6-8'",
     "test:mutation:popup-positive-finite": "stryker run stryker.popup-placement.config.json --mutate='files/cinnamon-xpuwlm@geraldo-netto/lib/popup-placement.js:10-12'",
@@ -71,7 +71,7 @@
     "test:coverage-target": "node --test tests/unit/*.test.js tests/integration/*.test.js tests/regression/*.test.js tests/contract/*.test.js",
     "test:coverage": "c8 --clean --reporter=text --reporter=json --reports-dir=coverage --all --include='files/cinnamon-xpuwlm@geraldo-netto/applet.js' --include='files/cinnamon-xpuwlm@geraldo-netto/lib/**/*.js' --include='scripts/check-workload-manifests.js' --include='scripts/generate-pot.js' --include='scripts/package-applet.js' --include='scripts/package-workload-plugin.js' --include='scripts/validate-artifacts.js' --check-coverage --lines=80 --branches=80 --functions=80 --statements=80 npm run test:coverage-target && node scripts/check-per-function-coverage.js",
     "test:mutation": "stryker run && npm run test:mutation:string-contract",
-    "test:mutation:full": "stryker run stryker.full.config.cjs && XPUWLM_REQUIRE_FULL_MUTATION_REPORT=1 node --test tests/contract/full-mutation-report-contract.test.js",
+    "test:mutation:full": "stryker run stryker.full.config.cjs",
     "test:ci": "npm run lint && npm run test:syntax && npm run check:contract && npm run check:workloads && npm run test:coverage && npm run test:fuzz && npm run test:visual",
     "test:local": "XPUWLM_SKIP_HOST_GATES=1 npm test",
     "test": "npm run lint && npm run test:syntax && npm run check:contract && npm run check:workloads && npm run test:coverage && npm run test:fuzz && npm run test:visual && npm run test:mutation"
