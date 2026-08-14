@@ -91,6 +91,10 @@ test("runner refuses process failures and validates the emitted source report", 
         /mutation run exited 9/u,
     );
     const result = runTarget(target, (_command, _arguments, options) => {
+        assert.equal(
+            options.env.PATH.split(path.delimiter)[0],
+            path.dirname(process.execPath),
+        );
         fs.mkdirSync(path.dirname(options.env.XPUWLM_MUTATION_REPORT), {recursive: true});
         fs.writeFileSync(
             options.env.XPUWLM_MUTATION_REPORT,

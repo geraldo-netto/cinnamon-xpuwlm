@@ -132,6 +132,8 @@ function runTarget(target, spawn = childProcess.spawnSync) {
             cwd: ROOT,
             env: {
                 ...process.env,
+                PATH: [path.dirname(process.execPath), process.env.PATH]
+                    .filter(Boolean).join(path.delimiter),
                 XPUWLM_MUTATION_REPORT: reportPath,
                 XPUWLM_MUTATION_SOURCE: target.source,
             },
