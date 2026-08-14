@@ -131,6 +131,13 @@ and runtimes are installed. Its rows keep enable and weight controls, but
 controls that the runtime cannot apply are insensitive and name the reason in
 text, accessible names, and tooltips.
 
+When more than one GPU route is meaningful, a GPU-capable profile also shows a
+keyboard-focusable device button. Repeated activation cycles through Automatic
+and the currently available render nodes. The control prints the device name
+and stable render-node identity; a saved identity that disappeared remains
+printed as unavailable until it is deliberately cleared or replaced. Color is
+never the only availability cue.
+
 Diagnostics always shows device, runtime, workload-service, current-state, and
 recent-issue information. Its Needs setup row opens remedy detail organised by
 remedy rather than profile, because one package or artifact can unblock several

@@ -11,6 +11,8 @@ const MAX_CLOCK_SKEW_MS = 60000;
 const DEFAULT_STALE_AFTER_MS = 15000;
 const MIN_WEIGHT = 1;
 const MAX_WEIGHT = 5;
+const MAX_DEVICE_CHOICES = 128;
+const GPU_DEVICE_ID = /^gpu-renderD[0-9]{1,6}$/u;
 const MAX_QUEUE_DEPTH = 1000000;
 const MAX_ALERTS = 100;
 const MAX_PROFILE_REASON_LENGTH = 64;
@@ -113,7 +115,7 @@ function safeText(value, maximumLength, fallback = "") {
 // so it lives on the definition beside the other manifest-derived facts.
 const PROFILE_DEFINITION_PROPERTIES = new Set([
     "id", "title", "group", "description", "icon", "order", "defaultEnabled", "defaultWeight",
-    "executable",
+    "executable", "gpuCapable",
 ]);
 
 function hasProfileDefinitionShape(value) {
@@ -143,10 +145,15 @@ function hasProfileDefinitionDefaults(value) {
         && value.order >= 0
         && value.order <= 1000
         && typeof value.defaultEnabled === "boolean"
-        && typeof value.executable === "boolean"
         && Number.isInteger(value.defaultWeight)
         && value.defaultWeight >= MIN_WEIGHT
-        && value.defaultWeight <= MAX_WEIGHT;
+        && value.defaultWeight <= MAX_WEIGHT
+        && hasProfileDefinitionCapabilities(value);
+}
+
+function hasProfileDefinitionCapabilities(value) {
+    return typeof value.executable === "boolean"
+        && typeof value.gpuCapable === "boolean";
 }
 
 function isProfileDefinition(value) {
@@ -213,7 +220,26 @@ function defaultProfileState(catalog = EMPTY_WORKLOAD_CATALOG) {
             weight: definition.defaultWeight,
         };
     }
-    return {paused: false, profiles};
+    return {paused: false, profiles, deviceChoices: {}};
+}
+
+function validGpuDeviceId(value) {
+    return typeof value === "string" && GPU_DEVICE_ID.test(value);
+}
+
+function sanitizeDeviceChoices(candidate, catalog = EMPTY_WORKLOAD_CATALOG) {
+    const choices = {};
+    const supplied = isPlainObject(candidate?.deviceChoices) ? candidate.deviceChoices : {};
+    for (const definition of requireWorkloadCatalog(catalog).definitions()) {
+        if (Object.keys(choices).length >= MAX_DEVICE_CHOICES) {
+            break;
+        }
+        const deviceId = supplied[definition.id];
+        if (validGpuDeviceId(deviceId)) {
+            choices[definition.id] = deviceId;
+        }
+    }
+    return choices;
 }
 
 function sanitizeProfileState(candidate, catalog = EMPTY_WORKLOAD_CATALOG) {
@@ -236,6 +262,7 @@ function sanitizeProfileState(candidate, catalog = EMPTY_WORKLOAD_CATALOG) {
         };
     }
     defaults.paused = candidate.paused === true;
+    defaults.deviceChoices = sanitizeDeviceChoices(candidate, catalog);
     return defaults;
 }
 
@@ -571,6 +598,7 @@ class WorkloadPortfolio {
         const state = sanitizeProfileState(candidate, catalog);
         this._paused = state.paused;
         this._profiles = state.profiles;
+        this._deviceChoices = state.deviceChoices;
     }
 
     get paused() {
@@ -600,6 +628,25 @@ class WorkloadPortfolio {
         return next !== previous;
     }
 
+    deviceChoice(id) {
+        this._assertProfile(id);
+        return this._deviceChoices[id] || null;
+    }
+
+    setDeviceChoice(id, deviceId) {
+        this._assertProfile(id);
+        if (deviceId !== null && !validGpuDeviceId(deviceId)) {
+            throw new TypeError("A GPU device choice must be a render-node identity or null");
+        }
+        const previous = this.deviceChoice(id);
+        if (deviceId === null) {
+            delete this._deviceChoices[id];
+        } else {
+            this._deviceChoices[id] = deviceId;
+        }
+        return previous !== deviceId;
+    }
+
     pauseAll() {
         if (this._paused) {
             return false;
@@ -621,7 +668,7 @@ class WorkloadPortfolio {
         for (const definition of this._catalog.definitions()) {
             profiles[definition.id] = {...this._profiles[definition.id]};
         }
-        return {paused: this._paused, profiles};
+        return {paused: this._paused, profiles, deviceChoices: {...this._deviceChoices}};
     }
 
     list(runtimeProfiles = {}) {
@@ -629,7 +676,13 @@ class WorkloadPortfolio {
             const configured = this._profiles[definition.id];
             const runtime = normalizeProfileRuntime(runtimeProfiles[definition.id]);
             const status = this._paused || !configured.enabled ? "paused" : runtime.status;
-            return {...definition, ...configured, ...runtime, status};
+            return {
+                ...definition,
+                ...configured,
+                ...runtime,
+                deviceId: this.deviceChoice(definition.id),
+                status,
+            };
         });
     }
 
@@ -653,10 +706,12 @@ module.exports = {
     EMPTY_WORKLOAD_CATALOG,
     DEVICE_STATES,
     MAX_DEVICES,
+    MAX_DEVICE_CHOICES,
     MAX_ALERTS,
     MAX_CLOCK_SKEW_MS,
     MAX_PROFILE_REASON_LENGTH,
     MAX_WEIGHT,
+    GPU_DEVICE_ID,
     MIN_GENERATED_AT,
     MIN_WEIGHT,
     NO_INPUT_ROOTS,
@@ -675,6 +730,7 @@ module.exports = {
     finiteNumber,
     health,
     hasProfileDefinitionDefaults,
+    hasProfileDefinitionCapabilities,
     hasProfileDefinitionIdentity,
     hasProfileDefinitionShape,
     hasProfileDefinitionText,
@@ -699,9 +755,11 @@ module.exports = {
     requireWorkloadCatalog,
     safeText,
     sanitizeProfileState,
+    sanitizeDeviceChoices,
     snapshotExpiryDelayMs,
     staleSnapshot,
     unavailableSnapshot,
+    validGpuDeviceId,
     unknownAlertCount,
     unknownProfileCount,
 };

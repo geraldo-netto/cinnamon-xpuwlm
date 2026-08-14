@@ -407,6 +407,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             selectTab: (tab) => this._manager.selectTab(tab),
             toggleProfile: (id) => this._manager.toggleProfile(id),
             changeWeight: (id, delta) => this._manager.changeWeight(id, delta),
+            setProfileDevice: (id, deviceId) => this._manager.setProfileDevice(id, deviceId),
             pauseAll: () => this._manager.pauseAll(),
             resumeAll: () => this._manager.resumeAll(),
             refresh: () => this._manager.retryDeviceDetection(),

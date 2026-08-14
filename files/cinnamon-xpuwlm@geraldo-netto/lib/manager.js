@@ -571,6 +571,17 @@ class WorkloadManager {
         return this._sendControl("set-profile-weight", id, value);
     }
 
+    setProfileDevice(id, deviceId) {
+        this._ensureActive();
+        if (deviceId !== null && !Domain.validGpuDeviceId(deviceId)) {
+            return false;
+        }
+        if (this._portfolio.deviceChoice(id) === deviceId) {
+            return false;
+        }
+        return this._sendControl("set-profile-device", id, deviceId);
+    }
+
     pauseAll() {
         this._ensureActive();
         return this._portfolio.paused ? false : this._sendControl("set-paused", null, true);

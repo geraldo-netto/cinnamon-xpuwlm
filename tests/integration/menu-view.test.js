@@ -45,7 +45,8 @@ function harness(actionScheduler = null) {
     const tooltips = [];
     const actions = {};
     for (const name of [
-        "selectTab", "toggleProfile", "changeWeight", "pauseAll", "resumeAll", "refresh",
+        "selectTab", "toggleProfile", "changeWeight", "setProfileDevice",
+        "pauseAll", "resumeAll", "refresh",
         "openSettings", "acknowledgeCatalogChanges", "submitJob", "chooseEventFiles",
         "chooseEventFolder", "startEventImport", "cancelEventImport", "editEventCandidate",
         "decideEventCandidate", "beginEventExport", "confirmEventExport", "backEventPreview",
@@ -343,6 +344,27 @@ test("profiles screen offers weight and enable controls", () => {
     const maximum = button(root, "Increase Hardware health weight");
     assert.equal(maximum.reactive, false);
     assert.equal(maximum.can_focus, false);
+});
+
+test("profiles screen exposes the current GPU choice as words and one reversible action", () => {
+    const {calls, view, root, tooltips} = harness();
+    const current = baseState({
+        selectedTab: "profiles",
+        devices: [
+            {id: "gpu-renderD128", backend: "gpu", available: true, name: "AMD GPU"},
+            {id: "gpu-renderD129", backend: "gpu", available: false, name: "Missing GPU"},
+        ],
+    });
+    current.profiles.find((profile) => profile.id === "hardware-health").deviceId
+        = "gpu-renderD129";
+    view.render(ViewModel.toViewModel(current, NOW));
+    view._openDetail("profiles");
+
+    const chooser = control(root, "Change GPU for Hardware health");
+    assert.match(chooser.accessibleName, /gpu-renderD129 \(unavailable\)/u);
+    assert.equal(tooltips.some(({text}) => text === chooser.accessibleName), true);
+    chooser.click();
+    assert.deepEqual(calls.at(-1), ["setProfileDevice", "hardware-health", null]);
 });
 
 test("event import stays hidden until live readiness and starts from explicit selection", () => {

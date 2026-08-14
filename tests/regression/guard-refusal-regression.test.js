@@ -74,7 +74,7 @@ test("regression: near-refusal replies stay contract failures", () => {
     for (const candidate of nearMisses) {
         assert.throws(
             () => Gateway.parseAcknowledgement(JSON.stringify(candidate)),
-            /version 1 contract/u,
+            /version 2 contract/u,
             JSON.stringify(candidate),
         );
     }

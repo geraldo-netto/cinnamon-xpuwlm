@@ -102,6 +102,21 @@ test("profile state defaults are complete and sanitization is allow-listed", () 
     assert.equal(Object.hasOwn(result.profiles, "unexpected"), false);
 });
 
+test("saved GPU choices retain only known bounded render-node identities", () => {
+    const catalog = BuiltIns.coreCatalog();
+    const known = catalog.definitions()[0].id;
+    const choices = Domain.sanitizeDeviceChoices({deviceChoices: {
+        [known]: "gpu-renderD128",
+        unknown: "gpu-renderD129",
+        invalid: "gpu-card0",
+    }}, catalog);
+    assert.deepEqual(choices, {[known]: "gpu-renderD128"});
+    assert.equal(Domain.validGpuDeviceId("gpu-renderD1"), true);
+    assert.equal(Domain.validGpuDeviceId("gpu-renderD123456"), true);
+    assert.equal(Domain.validGpuDeviceId("gpu-renderD1234567"), false);
+    assert.equal(Domain.validGpuDeviceId(true), false);
+});
+
 test("profile definitions use unique, verified symbolic icon names", () => {
     const icons = DEFINITIONS.map((profile) => profile.icon);
     assert.equal(icons.every((icon) => icon.endsWith("-symbolic")), true);
@@ -124,6 +139,7 @@ test("workload catalog injects profile identity and bounds into domain behavior"
         defaultEnabled: false,
         defaultWeight: 4,
         executable: true,
+        gpuCapable: true,
     };
     const catalog = new Domain.WorkloadCatalog([definition]);
     definition.title = "Mutated";
@@ -137,6 +153,7 @@ test("workload catalog injects profile identity and bounds into domain behavior"
     assert.deepEqual(Domain.defaultProfileState(catalog), {
         paused: false,
         profiles: {"custom-workload": {enabled: false, weight: 4}},
+        deviceChoices: {},
     });
     assert.deepEqual(
         Domain.normalizeMetrics({runningProfiles: 9}, catalog).runningProfiles,
@@ -155,7 +172,13 @@ test("workload catalog injects profile identity and bounds into domain behavior"
 
     const portfolio = new Domain.WorkloadPortfolio(null, catalog);
     assert.equal(portfolio.list().length, 1);
+    assert.equal(portfolio.list()[0].deviceId, null);
     assert.equal(portfolio.profile("custom-workload").weight, 4);
+    assert.equal(portfolio.setDeviceChoice("custom-workload", "gpu-renderD128"), true);
+    assert.equal(portfolio.deviceChoice("custom-workload"), "gpu-renderD128");
+    assert.equal(portfolio.setDeviceChoice("custom-workload", "gpu-renderD128"), false);
+    assert.equal(portfolio.setDeviceChoice("custom-workload", null), true);
+    assert.throws(() => portfolio.setDeviceChoice("custom-workload", "gpu-card0"), /render-node/u);
     assert.throws(() => portfolio.profile("hardware-health"), /Unknown workload/u);
 });
 
@@ -170,6 +193,7 @@ test("workload catalog rejects malformed and duplicate definitions", () => {
     assert.equal(Domain.hasProfileDefinitionIdentity({...valid, icon: "bad"}), false);
     assert.equal(Domain.hasProfileDefinitionText({...valid, title: ""}), false);
     assert.equal(Domain.hasProfileDefinitionDefaults({...valid, defaultWeight: 9}), false);
+    assert.equal(Domain.hasProfileDefinitionDefaults({...valid, gpuCapable: "yes"}), false);
     assert.equal(Domain.isProfileDefinition(null), false);
     assert.throws(() => new Domain.WorkloadCatalog(null), /valid profile/u);
     assert.throws(() => new Domain.WorkloadCatalog([{}]), /valid profile/u);

@@ -29,6 +29,7 @@ test("install reconciliation adds deterministic defaults and versions", () => {
             alpha: {enabled: false, weight: 1},
             beta: {enabled: true, weight: 4},
         },
+        deviceChoices: {},
         pluginVersions: {alpha: "1.0.0", beta: "2.0.0"},
     });
     assert.deepEqual(result.changes, {
@@ -66,6 +67,7 @@ test("enable, disable, and upgrade preserve compatible preferences", () => {
             alpha: {enabled: true, weight: 5},
             beta: {enabled: false, weight: 3},
         },
+        deviceChoices: {alpha: "gpu-renderD128", removed: "gpu-renderD129"},
         pluginVersions: {alpha: "1.0.0", beta: "1.0.0"},
     }, registry([
         descriptor("alpha", "2.0.0"),
@@ -74,6 +76,7 @@ test("enable, disable, and upgrade preserve compatible preferences", () => {
     assert.equal(result.state.paused, true);
     assert.deepEqual(result.state.profiles.alpha, {enabled: true, weight: 5});
     assert.deepEqual(result.state.profiles.beta, {enabled: false, weight: 3});
+    assert.deepEqual(result.state.deviceChoices, {alpha: "gpu-renderD128"});
     assert.deepEqual(result.changes, {installed: [], upgraded: ["alpha"], removed: []});
     assert.deepEqual(result.state.pluginVersions, {alpha: "2.0.0", beta: "1.0.0"});
 });
@@ -86,9 +89,11 @@ test("removal drops unknown preferences and versions without affecting known sta
             removed: {enabled: true, weight: 5},
         },
         pluginVersions: {active: "1.0.0", removed: "9.0.0", orphan: "1.0.0"},
+        deviceChoices: {active: "gpu-renderD128", removed: "gpu-renderD129"},
     }, registry([descriptor("active", "1.0.0")]));
     assert.deepEqual(result.state.profiles, {active: {enabled: false, weight: 4}});
     assert.deepEqual(result.state.pluginVersions, {active: "1.0.0"});
+    assert.deepEqual(result.state.deviceChoices, {active: "gpu-renderD128"});
     assert.deepEqual(result.changes, {
         installed: [],
         upgraded: [],

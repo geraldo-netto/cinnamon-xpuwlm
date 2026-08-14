@@ -247,10 +247,44 @@ function blockerModel(blocker) {
     };
 }
 
-function profileModel(profile) {
+function profileDeviceChoice(profile, devices) {
+    if (profile.gpuCapable !== true) {
+        return null;
+    }
+    const choices = [{id: null, label: _("Automatic"), available: true}];
+    for (const device of (Array.isArray(devices) ? devices : [])) {
+        if (device.backend === "gpu" && device.available === true) {
+            choices.push({
+                id: device.id,
+                label: format(_("%s (%s)"), device.name, device.id),
+                available: true,
+            });
+        }
+    }
+    let selected = choices.find((choice) => choice.id === profile.deviceId);
+    if (selected === undefined) {
+        selected = {
+            id: profile.deviceId,
+            label: format(_("%s (unavailable)"), profile.deviceId),
+            available: false,
+        };
+        choices.push(selected);
+    }
+    const index = choices.indexOf(selected);
+    return {
+        id: selected.id,
+        label: selected.label,
+        available: selected.available,
+        nextId: choices[(index + 1) % choices.length].id,
+        optionCount: choices.length,
+    };
+}
+
+function profileModel(profile, devices = []) {
     const blocker = blockerModel(ProfileBlockers.classifyProfileBlocker(profile));
     return {
         ...profile,
+        deviceChoice: profileDeviceChoice(profile, devices),
         executable: blocker === null,
         blocker,
         executableText: blocker === null ? "" : blocker.text,
@@ -409,10 +443,10 @@ function effectiveNow(nowMs) {
 function toViewModel(state, nowMs, guidance) {
     nowMs = effectiveNow(nowMs);
     const screen = effectiveScreen(state);
-    const profiles = state.profiles.map(profileModel);
+    const profiles = state.profiles.map((profile) => profileModel(profile, state.devices));
     const blocked = profiles.filter((profile) => profile.blocker !== null);
-    const enabledProfiles = state.profiles.filter((profile) => profile.enabled);
-    const pausedProfiles = state.profiles.filter((profile) => !profile.enabled);
+    const enabledProfiles = profiles.filter((profile) => profile.enabled);
+    const pausedProfiles = profiles.filter((profile) => !profile.enabled);
     const activeAlerts = state.alerts
         .filter((alert) => !alert.resolved)
         .sort(compareActiveAlerts)
@@ -462,7 +496,7 @@ function toViewModel(state, nowMs, guidance) {
         catalogNotice: catalogNoticeModel(state),
         unknownContent: unknownContentNotice(state),
         metrics: metricModels(state),
-        enabledGroups: groupProfiles(enabledProfiles),
+        enabledGroups: groupModels(enabledProfiles),
         allGroups: groupModels(profiles),
         runnableGroups: groupModels(profiles.filter((profile) => profile.blocker === null)),
         blockedProfiles: blocked,
@@ -578,6 +612,7 @@ module.exports = {
     inexecutableCount,
     metricModels,
     profileModel,
+    profileDeviceChoice,
     panelModel,
     setupModel,
     setupKind,

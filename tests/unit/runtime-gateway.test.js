@@ -94,6 +94,7 @@ test("snapshot parser applies injected workload catalog", () => {
         defaultEnabled: true,
         defaultWeight: 2,
         executable: true,
+        gpuCapable: true,
     }]);
     const candidate = validSnapshot();
     candidate.metrics.runningProfiles = 8;

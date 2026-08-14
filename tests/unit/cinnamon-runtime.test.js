@@ -827,7 +827,7 @@ test("runtime control transport calls the versioned D-Bus endpoint", () => {
     assert.equal(calls[0][7], Cinnamon.CONTROL_TIMEOUT_MS);
     assert.deepEqual(completions, [[null, "ack"]]);
     const command = {
-        version: 1,
+        version: 2,
         id: "command-1",
         issuedAt: NOW,
         expectedRevision: 0,
@@ -836,13 +836,13 @@ test("runtime control transport calls the versioned D-Bus endpoint", () => {
         value: true,
     };
     replyText = JSON.stringify({
-        version: 1,
+        version: 2,
         commandId: command.id,
         status: "applied",
         revision: 1,
         appliedAt: NOW,
         message: "",
-        portfolio: {paused: true, profiles: {}},
+        portfolio: {paused: true, profiles: {}, deviceChoices: {}},
     });
     const gatewayCompletions = [];
     Cinnamon.createRuntimeControlGateway(env).send(
@@ -981,8 +981,8 @@ test("the contract handshake calls the same interface with no argument", () => {
         version: 1,
         methods: ["ApplyCommand", "DescribeContract"],
         schemas: {
-            "runtime-command": 1,
-            "runtime-acknowledgement": 1,
+            "runtime-command": 2,
+            "runtime-acknowledgement": 2,
             "runtime-refusal": 1,
             "runtime-snapshot": 1,
         },

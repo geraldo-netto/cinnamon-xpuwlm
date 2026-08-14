@@ -62,6 +62,7 @@ function harness(overrides = {}) {
             portfolio: {
                 paused: false,
                 profiles: Domain.defaultProfileState(BuiltIns.coreCatalog()).profiles,
+                deviceChoices: {},
                 pluginVersions: CORE_VERSIONS,
             },
         }),
@@ -315,7 +316,7 @@ test("runtime controls wait for acknowledgement and roll back failures", () => {
     // The revision matches what was sent, so this is a refusal to apply, not
     // revision drift, and it is reported instead of resynchronised.
     requests[1].callback(null, {
-        version: 1,
+        version: 2,
         commandId: requests[1].command.id,
         status: "rejected",
         revision: requests[1].command.expectedRevision,
@@ -342,6 +343,52 @@ test("weight control clamps boundaries without sending ineffective commands", ()
     assert.equal(desktop.weight, Domain.MIN_WEIGHT);
     assert.equal(manager.changeWeight(desktop.id, -1), false);
     assert.deepEqual(requests, []);
+});
+
+test("GPU selection sends version 2 intent and retains the authoritative choice", () => {
+    const requests = [];
+    const {manager, saves} = harness({
+        controlGateway: {
+            send(command, callback) { requests.push({command, callback}); },
+            cancel: () => false,
+        },
+    });
+    manager.start();
+
+    assert.equal(manager.setProfileDevice("hardware-health", "gpu-card0"), false);
+    assert.equal(manager.setProfileDevice("hardware-health", "gpu-renderD128"), true);
+    assert.deepEqual(
+        {
+            version: requests[0].command.version,
+            operation: requests[0].command.operation,
+            profileId: requests[0].command.profileId,
+            value: requests[0].command.value,
+        },
+        {
+            version: 2,
+            operation: "set-profile-device",
+            profileId: "hardware-health",
+            value: "gpu-renderD128",
+        },
+    );
+    const portfolio = new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog());
+    portfolio.setDeviceChoice("hardware-health", "gpu-renderD128");
+    requests[0].callback(null, {
+        version: 2,
+        commandId: requests[0].command.id,
+        status: "applied",
+        revision: 1,
+        appliedAt: NOW,
+        message: "",
+        portfolio: portfolio.serialize(),
+    });
+
+    const profile = manager.state().profiles.find(
+        (candidate) => candidate.id === "hardware-health",
+    );
+    assert.equal(profile.deviceId, "gpu-renderD128");
+    assert.equal(saves.at(-1).portfolio.deviceChoices["hardware-health"], "gpu-renderD128");
+    assert.equal(manager.setProfileDevice("hardware-health", "gpu-renderD128"), false);
 });
 
 test("runtime control is unavailable safely and teardown cancels pending work", () => {
@@ -580,7 +627,7 @@ function revisionHarness() {
         },
     });
     const reject = (index, revision) => requests[index].callback(null, {
-        version: 1,
+        version: 2,
         commandId: requests[index].command.id,
         status: "rejected",
         revision,
@@ -589,7 +636,7 @@ function revisionHarness() {
         portfolio: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog()).serialize(),
     });
     const apply = (index, revision) => requests[index].callback(null, {
-        version: 1,
+        version: 2,
         commandId: requests[index].command.id,
         status: "applied",
         revision,
@@ -751,7 +798,7 @@ test("an older service and an unreadable reply are told apart from an absent one
     for (const violation of [
         RuntimeControl.contractViolation(TypeError, "Runtime acknowledgement is not text"),
         RuntimeControl.contractViolation(SyntaxError, "Runtime acknowledgement contains invalid JSON"),
-        RuntimeControl.contractViolation(TypeError, "Runtime acknowledgement does not match version 1 contract"),
+        RuntimeControl.contractViolation(TypeError, "Runtime acknowledgement does not match version 2 contract"),
         RuntimeControl.contractViolation(RangeError, "Runtime acknowledgement command ID does not match request"),
     ]) {
         assert.equal(
@@ -841,7 +888,7 @@ test("a restarted service has its policy revision relearned, not replayed", () =
     announce(true);
     manager.toggleProfile("hardware-health");
     requests[0].callback(null, {
-        version: 1,
+        version: 2,
         commandId: requests[0].command.id,
         status: "applied",
         revision: 12,
@@ -853,7 +900,7 @@ test("a restarted service has its policy revision relearned, not replayed", () =
     assert.equal(requests[1].command.expectedRevision, 12);
 
     requests[1].callback(null, {
-        version: 1,
+        version: 2,
         commandId: requests[1].command.id,
         status: "applied",
         revision: 13,
@@ -928,8 +975,8 @@ function contractDocument(overrides = {}) {
         version: 1,
         methods: ["ApplyCommand", "DescribeContract"],
         schemas: {
-            "runtime-command": 1,
-            "runtime-acknowledgement": 1,
+            "runtime-command": 2,
+            "runtime-acknowledgement": 2,
             "runtime-refusal": 1,
             "runtime-snapshot": 1,
         },
@@ -991,7 +1038,7 @@ test("a version disagreement is reported before anything is attempted", () => {
     manager.start();
 
     contractGateway.calls[0](null, new RuntimeContract.RuntimeContract(contractDocument({
-        schemas: {...contractDocument().schemas, "runtime-command": 2},
+        schemas: {...contractDocument().schemas, "runtime-command": 1},
     })));
 
     assert.equal(manager.state().contract.compatible, false);

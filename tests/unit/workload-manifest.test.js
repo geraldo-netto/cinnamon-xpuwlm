@@ -267,8 +267,13 @@ test("workload descriptor owns immutable contract data and profile projection", 
         defaultEnabled: false,
         defaultWeight: 2,
         executable: true,
+        gpuCapable: true,
     });
     assert.equal(Object.isFrozen(descriptor.profileDefinition()), true);
+    const tpuOnly = Fixtures.validWorkloadManifest();
+    delete tpuOnly.requirements.acceleratorPreference;
+    tpuOnly.requirements.accelerator = "tpu";
+    assert.equal(new Contract.WorkloadDescriptor(tpuOnly).profileDefinition().gpuCapable, false);
     assert.throws(() => new Contract.WorkloadDescriptor({}), /version 1 or 2 contract/u);
 });
 

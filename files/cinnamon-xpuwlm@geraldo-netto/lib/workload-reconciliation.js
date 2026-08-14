@@ -82,6 +82,7 @@ function reconcilePortfolioState(candidate, registry) {
     const state = {
         paused: normalized.paused,
         profiles: normalized.profiles,
+        deviceChoices: normalized.deviceChoices,
         pluginVersions,
     };
     return Object.freeze({

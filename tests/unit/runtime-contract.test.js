@@ -10,8 +10,8 @@ function document(overrides = {}) {
         version: 1,
         methods: ["ApplyCommand", "DescribeContract"],
         schemas: {
-            "runtime-command": 1,
-            "runtime-acknowledgement": 1,
+            "runtime-command": 2,
+            "runtime-acknowledgement": 2,
             "runtime-refusal": 1,
             "runtime-snapshot": 1,
         },
@@ -26,8 +26,8 @@ test("a well-formed description is accepted and reported back whole", () => {
     assert.equal(contract.compatible, true);
     assert.equal(contract.supports("ApplyCommand"), true);
     assert.equal(contract.supports("SubmitJob"), false);
-    assert.equal(contract.speaks("runtime-command", 1), true);
-    assert.equal(contract.speaks("runtime-command", 2), false);
+    assert.equal(contract.speaks("runtime-command", 2), true);
+    assert.equal(contract.speaks("runtime-command", 1), false);
 });
 
 test("not knowing is never reported as a mismatch", () => {
@@ -80,10 +80,10 @@ test("each version disagreement is reported with its direction", () => {
     // Which side is older decides who has to update, so the two are not
     // collapsed into one "mismatch".
     const newer = new Contract.RuntimeContract(document({
-        schemas: {...document().schemas, "runtime-command": 2},
+        schemas: {...document().schemas, "runtime-command": 3},
     }));
     assert.deepEqual(newer.incompatibilities(), [
-        {kind: "contract-newer", name: "runtime-command", required: 1, offered: 2},
+        {kind: "contract-newer", name: "runtime-command", required: 2, offered: 3},
     ]);
 
     const absent = document();
@@ -112,13 +112,13 @@ test("a contract this build never sends is not compared at all", () => {
 test("every incompatibility kind is one the module declares", () => {
     const contract = new Contract.RuntimeContract(document({
         methods: ["DescribeContract"],
-        schemas: {"runtime-command": 2, "runtime-acknowledgement": 1},
+        schemas: {"runtime-command": 3, "runtime-acknowledgement": 1},
     }));
 
     for (const found of contract.incompatibilities()) {
         assert.equal(Contract.INCOMPATIBILITY_KINDS.includes(found.kind), true, found.kind);
     }
-    assert.equal(contract.incompatibilities().length, 4);
+    assert.equal(contract.incompatibilities().length, 5);
 });
 
 test("the projection is frozen so a view cannot edit what the service said", () => {

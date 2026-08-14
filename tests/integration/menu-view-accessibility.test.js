@@ -38,7 +38,7 @@ function baseState(overrides = {}) {
 function harness(Atk = createAtk()) {
     const actions = {};
     for (const name of [
-        "selectTab", "toggleProfile", "changeWeight",
+        "selectTab", "toggleProfile", "changeWeight", "setProfileDevice",
         "pauseAll", "resumeAll", "refresh", "openSettings",
         "acknowledgeCatalogChanges",
         "submitJob",
@@ -137,6 +137,27 @@ test("action buttons keep the push button role", () => {
         const button = findActors(root, (actor) => actor.accessibleName === name)[0];
         assert.equal(button.accessibleRole, "push-button", name);
     }
+});
+
+test("GPU choices are keyboard-focusable push buttons with a spoken current value", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(baseState({
+        selectedTab: "profiles",
+        devices: [{
+            id: "gpu-renderD128",
+            backend: "gpu",
+            available: true,
+            name: "AMD GPU",
+        }],
+    }), NOW));
+    view._openDetail("profiles");
+
+    const choice = findActors(root, (actor) => actor instanceof FakeButton
+        && actor.accessibleName?.startsWith("Change GPU for Hardware health"))[0];
+    assert.equal(choice.accessibleRole, "push-button");
+    assert.equal(choice.can_focus, true);
+    assert.equal(choice.reactive, true);
+    assert.match(choice.accessibleName, /Current selection: Automatic/u);
 });
 
 test("a Cinnamon build without Atk roles or states still renders", () => {

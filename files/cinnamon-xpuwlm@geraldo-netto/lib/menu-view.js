@@ -74,6 +74,7 @@ class MenuView {
             selectTab: requireAction(actions, "selectTab"),
             toggleProfile: requireAction(actions, "toggleProfile"),
             changeWeight: requireAction(actions, "changeWeight"),
+            setProfileDevice: optionalAction(actions, "setProfileDevice"),
             pauseAll: requireAction(actions, "pauseAll"),
             resumeAll: requireAction(actions, "resumeAll"),
             refresh: requireAction(actions, "refresh"),
@@ -1223,11 +1224,45 @@ class MenuView {
             _(ViewModel.STATUS_LABELS[profile.status]),
             `xpuwlm-status xpuwlm-profile-status xpuwlm-status-${profile.status}`,
         ));
+        const deviceControl = this._profileDeviceControl(profile);
+        if (deviceControl !== null) {
+            row.add_child(deviceControl);
+        }
         row.add_child(editableWeight
             ? this._weightControls(profile, inert)
             : this._label(format(_("Weight %d"), profile.weight), "xpuwlm-weight-summary"));
         row.add_child(this._profileToggle(profile, inert));
         return row;
+    }
+
+    _profileDeviceControl(profile) {
+        const choice = profile.deviceChoice;
+        if (choice === null || choice.optionCount <= 1) {
+            return null;
+        }
+        const name = format(
+            _("Change GPU for %s. Current selection: %s"),
+            profile.title,
+            choice.label,
+        );
+        const button = this._identify(
+            this._button(
+                "xpuwlm-device-choice",
+                name,
+                () => this._actions.setProfileDevice(profile.id, choice.nextId),
+            ),
+            `device:${profile.id}`,
+        );
+        this._setButtonEnabled(
+            button,
+            this._policyControlEnabled(choice.optionCount > 1),
+        );
+        button.set_child(this._label(
+            format(_("GPU · %s"), choice.label),
+            `xpuwlm-device-choice-label${choice.available ? "" : " xpuwlm-device-choice-unavailable"}`,
+        ));
+        this._tooltip(button, name);
+        return button;
     }
 
     _weightControls(profile, inert = false) {

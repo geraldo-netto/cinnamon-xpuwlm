@@ -38,7 +38,7 @@ function managerFor(replyText) {
 test("regression: an unreadable reply is diagnosed as unreadable, not as a generic failure", () => {
     const unreadable = [
         "not json at all",
-        JSON.stringify({version: 1, commandId: "other-command", status: "applied", revision: 1, appliedAt: NOW, message: "", portfolio: {paused: false, profiles: {}}}),
+        JSON.stringify({version: 2, commandId: "other-command", status: "applied", revision: 1, appliedAt: NOW, message: "", portfolio: {paused: false, profiles: {}, deviceChoices: {}}}),
         JSON.stringify({version: 2, unexpected: true}),
         JSON.stringify([]),
     ];

@@ -6,7 +6,7 @@ const test = require("node:test");
 const Gateway = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-control-gateway.js");
 
 const command = {
-    version: 1,
+    version: 2,
     id: "command-1",
     issuedAt: 1_700_000_000_000,
     expectedRevision: 0,
@@ -15,13 +15,13 @@ const command = {
     value: true,
 };
 const acknowledgement = {
-    version: 1,
+    version: 2,
     commandId: "command-1",
     status: "applied",
     revision: 1,
     appliedAt: 1_700_000_000_001,
     message: "",
-    portfolio: {paused: true, profiles: {}},
+    portfolio: {paused: true, profiles: {}, deviceChoices: {}},
 };
 
 test("control gateway validates ports, commands, callbacks, and acknowledgements", () => {
@@ -36,7 +36,7 @@ test("control gateway validates ports, commands, callbacks, and acknowledgements
     assert.deepEqual(Gateway.parseAcknowledgement(JSON.stringify(acknowledgement)), acknowledgement);
     assert.throws(() => Gateway.parseAcknowledgement(null), /not text/u);
     assert.throws(() => Gateway.parseAcknowledgement("{"), /invalid JSON/u);
-    assert.throws(() => Gateway.parseAcknowledgement("{}"), /version 1 contract/u);
+    assert.throws(() => Gateway.parseAcknowledgement("{}"), /version 2 contract/u);
 });
 
 test("control gateway reports a guard refusal as a refusal, not a parse failure", () => {
@@ -105,7 +105,7 @@ test("control gateway reports transport and contract failures once", () => {
 
     gateway.send(command, (...values) => outcomes.push(values));
     callback(null, "{}");
-    assert.match(String(outcomes[1][0]), /version 1 contract/u);
+    assert.match(String(outcomes[1][0]), /version 2 contract/u);
 
     gateway.send(command, (...values) => outcomes.push(values));
     callback(null, JSON.stringify({...acknowledgement, commandId: "another-command"}));

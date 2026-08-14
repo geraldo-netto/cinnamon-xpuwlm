@@ -572,6 +572,10 @@ class WorkloadDescriptor {
     }
 
     profileDefinition() {
+        const requirements = this._manifest.requirements;
+        const preference = declared(requirements, "acceleratorPreference")
+            ? requirements.acceleratorPreference
+            : [requirements.accelerator];
         return Object.freeze({
             id: this._manifest.id,
             title: this._manifest.ui.title,
@@ -582,6 +586,7 @@ class WorkloadDescriptor {
             defaultEnabled: this._manifest.defaults.enabled,
             defaultWeight: this._manifest.defaults.weight,
             executable: this.executable,
+            gpuCapable: preference.includes("gpu"),
         });
     }
 }

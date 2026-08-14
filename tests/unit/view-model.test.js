@@ -235,6 +235,34 @@ test("metrics explain normal and held workload state", () => {
     assert.equal(paused[3].value, "Paused");
 });
 
+test("profile GPU choices expose automatic, available, and missing saved devices", () => {
+    const profile = {
+        id: "visual-library", title: "Visual library", gpuCapable: true, deviceId: null,
+    };
+    const devices = [
+        {id: "gpu-renderD128", backend: "gpu", available: true, name: "AMD GPU"},
+        {id: "gpu-renderD129", backend: "gpu", available: false, name: "Other GPU"},
+        {id: "tpu-pcie-0", backend: "tpu", available: true, name: "Coral"},
+    ];
+    assert.deepEqual(ViewModel.profileDeviceChoice(profile, devices), {
+        id: null,
+        label: "Automatic",
+        available: true,
+        nextId: "gpu-renderD128",
+        optionCount: 2,
+    });
+    assert.deepEqual(ViewModel.profileDeviceChoice({
+        ...profile, deviceId: "gpu-renderD129",
+    }, devices), {
+        id: "gpu-renderD129",
+        label: "gpu-renderD129 (unavailable)",
+        available: false,
+        nextId: null,
+        optionCount: 3,
+    });
+    assert.equal(ViewModel.profileDeviceChoice({...profile, gpuCapable: false}, devices), null);
+});
+
 test("alert model resolves profile titles and evidence", () => {
     const profiles = state().profiles;
     const known = ViewModel.alertModel({

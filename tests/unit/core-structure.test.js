@@ -222,7 +222,7 @@ test("normalized runtime fragments expose exactly their contract fields", () => 
 
 test("default state and portfolio serialization cover every declared profile", () => {
     const defaults = Domain.defaultProfileState(CATALOG);
-    assert.deepEqual(Object.keys(defaults), ["paused", "profiles"]);
+    assert.deepEqual(Object.keys(defaults), ["paused", "profiles", "deviceChoices"]);
     assert.equal(defaults.paused, false);
     assert.deepEqual(
         Object.keys(defaults.profiles),
@@ -235,7 +235,7 @@ test("default state and portfolio serialization cover every declared profile", (
         });
         assert.deepEqual(Object.keys(definition), [
             "id", "title", "group", "description", "icon", "order", "defaultEnabled", "defaultWeight",
-            "executable",
+            "executable", "gpuCapable",
         ]);
     }
 
@@ -249,7 +249,8 @@ test("default state and portfolio serialization cover every declared profile", (
     const listed = portfolio.list();
     assert.deepEqual(Object.keys(listed[0]), [
         "id", "title", "group", "description", "icon", "order", "defaultEnabled", "defaultWeight",
-        "executable", "enabled", "weight", "status", "queued", "detail", "reason",
+        "executable", "gpuCapable", "enabled", "weight", "status", "queued", "detail", "reason",
+        "deviceId",
     ]);
     listed[0].title = "mutated";
     assert.equal(portfolio.list()[0].title, "Hardware health");

@@ -186,6 +186,14 @@ msgstr ""
 msgid "%s (%d)"
 msgstr ""
 
+#: lib/view-model.js
+msgid "%s (%s)"
+msgstr ""
+
+#: lib/view-model.js
+msgid "%s (unavailable)"
+msgstr ""
+
 #: lib/panel-view-model.js
 msgid "%s Detected"
 msgstr ""
@@ -399,6 +407,10 @@ msgid "Audio, documents, images, video, and presentations"
 msgstr ""
 
 #: lib/view-model.js
+msgid "Automatic"
+msgstr ""
+
+#: lib/view-model.js
 msgid "Available"
 msgstr ""
 
@@ -472,6 +484,10 @@ msgstr ""
 
 #: lib/selected-text.js
 msgid "Cancelling selected-text request…"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Change GPU for %s. Current selection: %s"
 msgstr ""
 
 #: lib/platform-guidance.js
@@ -932,6 +948,10 @@ msgstr ""
 
 #: lib/panel-view-model.js
 msgid "GPU"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "GPU · %s"
 msgstr ""
 
 #: settings-schema.json

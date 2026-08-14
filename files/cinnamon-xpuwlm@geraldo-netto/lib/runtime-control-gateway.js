@@ -33,7 +33,7 @@ function parseAcknowledgement(text) {
     if (!Contract.isRuntimeAcknowledgement(reply)) {
         throw contractViolation(
             TypeError,
-            "Runtime acknowledgement does not match version 1 contract",
+            "Runtime acknowledgement does not match version 2 contract",
         );
     }
     return reply;
@@ -50,7 +50,7 @@ class RuntimeControlGateway {
 
     send(command, callback) {
         if (!Contract.isRuntimeCommand(command)) {
-            throw new TypeError("Runtime command does not match version 1 contract");
+            throw new TypeError("Runtime command does not match version 2 contract");
         }
         if (typeof callback !== "function") {
             throw new TypeError("A runtime command callback is required");

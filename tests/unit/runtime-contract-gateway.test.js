@@ -11,8 +11,8 @@ const description = {
     version: 1,
     methods: ["ApplyCommand", "DescribeContract"],
     schemas: {
-        "runtime-command": 1,
-        "runtime-acknowledgement": 1,
+        "runtime-command": 2,
+        "runtime-acknowledgement": 2,
         "runtime-refusal": 1,
         "runtime-snapshot": 1,
     },

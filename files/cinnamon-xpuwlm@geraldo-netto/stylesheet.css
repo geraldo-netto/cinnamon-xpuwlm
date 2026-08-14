@@ -207,6 +207,7 @@
 
 .xpuwlm-secondary-button,
 .xpuwlm-primary-button,
+.xpuwlm-device-choice,
 .xpuwlm-weight-button,
 .xpuwlm-toggle,
 .xpuwlm-paused-summary,
@@ -221,6 +222,7 @@
 
 .xpuwlm-secondary-button:hover,
 .xpuwlm-primary-button:hover,
+.xpuwlm-device-choice:hover,
 .xpuwlm-weight-button:hover,
 .xpuwlm-toggle:hover,
 .xpuwlm-paused-summary:hover,
@@ -261,6 +263,7 @@
 
 .xpuwlm-secondary-button:focus,
 .xpuwlm-primary-button:focus,
+.xpuwlm-device-choice:focus,
 .xpuwlm-weight-button:focus,
 .xpuwlm-toggle:focus,
 .xpuwlm-paused-summary:focus,
@@ -522,6 +525,19 @@
     opacity: 0.78;
 }
 
+.xpuwlm-device-choice {
+    min-width: 126px;
+    padding: 5px 9px;
+}
+
+.xpuwlm-device-choice-label {
+    font-size: 0.82em;
+}
+
+.xpuwlm-device-choice-unavailable {
+    font-weight: bold;
+}
+
 .xpuwlm-weight-control {
     spacing: 0;
 }
@@ -706,7 +722,9 @@
 .xpuwlm-mode-compact .xpuwlm-evidence-item,
 .xpuwlm-mode-dense .xpuwlm-evidence-item,
 .xpuwlm-mode-compact .xpuwlm-weight-summary,
-.xpuwlm-mode-dense .xpuwlm-weight-summary {
+.xpuwlm-mode-dense .xpuwlm-weight-summary,
+.xpuwlm-mode-compact .xpuwlm-device-choice,
+.xpuwlm-mode-dense .xpuwlm-device-choice {
     min-width: 0;
 }
 
@@ -718,6 +736,8 @@
 .xpuwlm-mode-dense .xpuwlm-toggle,
 .xpuwlm-mode-compact .xpuwlm-weight-button,
 .xpuwlm-mode-dense .xpuwlm-weight-button,
+.xpuwlm-mode-compact .xpuwlm-device-choice,
+.xpuwlm-mode-dense .xpuwlm-device-choice,
 .xpuwlm-mode-compact .xpuwlm-disclosure-row,
 .xpuwlm-mode-dense .xpuwlm-disclosure-row {
     min-height: 44px;

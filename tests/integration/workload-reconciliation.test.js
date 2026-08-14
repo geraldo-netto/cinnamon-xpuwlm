@@ -60,6 +60,7 @@ test("manager persists deterministic install, upgrade, and removal reconciliatio
     assert.equal(subject.state().paused, true);
     assert.equal(saves.length, 1);
     assert.deepEqual(saves[0].portfolio, {
+        deviceChoices: {},
         paused: true,
         profiles: {
             active: {enabled: false, weight: 5},
@@ -80,6 +81,7 @@ test("manager does not rewrite an already reconciled portfolio", () => {
                     active: {enabled: false, weight: 2},
                     installed: {enabled: true, weight: 4},
                 },
+                deviceChoices: {},
                 pluginVersions: {active: "2.0.0", installed: "1.0.0"},
             },
         }),

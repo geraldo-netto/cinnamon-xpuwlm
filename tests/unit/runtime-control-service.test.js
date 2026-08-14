@@ -10,7 +10,7 @@ const NOW = 1_700_000_000_000;
 
 function command(overrides = {}) {
     return {
-        version: 1,
+        version: 2,
         id: "command-1",
         issuedAt: NOW,
         expectedRevision: 0,
@@ -23,7 +23,7 @@ function command(overrides = {}) {
 
 function batch(changes, expectedRevision = 0, id = "b-1") {
     return {
-        version: 1,
+        version: 2,
         id,
         issuedAt: NOW,
         expectedRevision,
@@ -44,6 +44,7 @@ function harness(overrides = {}) {
         repository,
         catalog: BuiltIns.coreCatalog(),
         clock: overrides.clock || {now: () => NOW},
+        gpuDeviceIds: overrides.gpuDeviceIds || (() => ["gpu-renderD128", "gpu-renderD129"]),
     });
     return {repository, saves, service};
 }
@@ -53,16 +54,29 @@ test("runtime service validates collaborators and loaded revision", () => {
     assert.throws(() => new Service.RuntimeControlService({...base, repository: null}), /repository/u);
     assert.throws(() => new Service.RuntimeControlService({...base, catalog: {}}), /catalog/u);
     assert.throws(() => new Service.RuntimeControlService({...base, clock: {}}), /clock/u);
+    assert.throws(
+        () => new Service.RuntimeControlService({...base, gpuDeviceIds: null}),
+        /GPU device identity provider/u,
+    );
+    assert.throws(() => Service.availableGpuDeviceIds(() => "gpu-renderD128"), /valid array/u);
+    assert.throws(() => Service.availableGpuDeviceIds(() => ["gpu-card0"]), /valid array/u);
+    assert.deepEqual([...Service.availableGpuDeviceIds(() => ["gpu-renderD128"])], [
+        "gpu-renderD128",
+    ]);
     const service = new Service.RuntimeControlService({
         ...base,
         repository: {load: () => ({revision: -1}), save() {}},
     });
     assert.equal(service.state().revision, 0);
+    assert.match(service.handle(command({
+        operation: "set-profile-device",
+        value: "gpu-renderD128",
+    })).message, /GPU device is unavailable/u);
     assert.equal(Service.normalizeRevision(3), 3);
     assert.equal(Service.normalizeRevision(-1), 0);
 });
 
-test("runtime service acknowledges enabled, weight, and pause commands", () => {
+test("runtime service acknowledges enabled, weight, device, and pause commands", () => {
     const {service, saves} = harness();
     const enabled = service.handle(command());
     assert.equal(enabled.status, "applied");
@@ -74,17 +88,44 @@ test("runtime service acknowledges enabled, weight, and pause commands", () => {
         operation: "set-profile-weight",
         value: 5,
     })).portfolio.profiles["hardware-health"].weight, 5);
+    const selected = service.handle(command({
+        id: "command-3", expectedRevision: 2,
+        operation: "set-profile-device", value: "gpu-renderD129",
+    }));
+    assert.equal(selected.portfolio.deviceChoices["hardware-health"], "gpu-renderD129");
     const paused = service.handle(command({
-        id: "command-3",
-        expectedRevision: 2,
+        id: "command-4",
+        expectedRevision: 3,
         operation: "set-paused",
         profileId: null,
         value: true,
     }));
     assert.equal(paused.portfolio.paused, true);
-    assert.equal(paused.revision, 3);
-    assert.equal(saves.length, 3);
+    assert.equal(paused.revision, 4);
+    assert.equal(saves.length, 4);
     assert.deepEqual(service.state(), saves.at(-1));
+});
+
+test("ordinary policy commands do not depend on GPU discovery", () => {
+    let calls = 0;
+    const {service} = harness({
+        gpuDeviceIds() {
+            calls += 1;
+            throw new Error("GPU discovery failed");
+        },
+    });
+
+    assert.equal(service.handle(command()).status, "applied");
+    assert.equal(calls, 0);
+    const device = service.handle(command({
+        id: "command-2",
+        expectedRevision: 1,
+        operation: "set-profile-device",
+        value: "gpu-renderD128",
+    }));
+    assert.equal(device.status, "rejected");
+    assert.match(device.message, /GPU discovery failed/u);
+    assert.equal(calls, 1);
 });
 
 test("runtime service rejects revision conflicts and rolls back failures", () => {
@@ -111,7 +152,7 @@ test("runtime service rejects revision conflicts and rolls back failures", () =>
 
 test("runtime service rejects malformed commands before policy access", () => {
     const {service} = harness();
-    assert.throws(() => service.handle({}), /version 1 contract/u);
+    assert.throws(() => service.handle({}), /version 2 contract/u);
     const portfolio = service.state().portfolio;
     assert.equal(Service.applyCommand({pauseAll: () => true}, {
         operation: "future",
@@ -154,9 +195,45 @@ test("a batch is one call, one revision, and all-or-nothing", () => {
     );
 });
 
+test("device choices are available-only, clearable, and batch atomic", () => {
+    const {service} = harness();
+    const selected = service.handle(command({
+        operation: "set-profile-device", value: "gpu-renderD128",
+    }));
+    assert.deepEqual(selected.portfolio.deviceChoices, {
+        "hardware-health": "gpu-renderD128",
+    });
+
+    const unavailable = service.handle(command({
+        id: "command-2", expectedRevision: 1,
+        operation: "set-profile-device", value: "gpu-renderD999",
+    }));
+    assert.equal(unavailable.status, "rejected");
+    assert.match(unavailable.message, /unavailable/u);
+    assert.deepEqual(service.state().portfolio.deviceChoices, {
+        "hardware-health": "gpu-renderD128",
+    });
+
+    const cleared = service.handle(command({
+        id: "command-3", expectedRevision: 1,
+        operation: "set-profile-device", value: null,
+    }));
+    assert.deepEqual(cleared.portfolio.deviceChoices, {});
+
+    const atomic = service.handle(batch([
+        {profileId: "hardware-health", enabled: false},
+        {profileId: "visual-library", deviceId: "gpu-renderD999"},
+    ], 2, "command-4"));
+    assert.equal(atomic.status, "rejected");
+    assert.equal(
+        atomic.portfolio.profiles["hardware-health"].enabled,
+        selected.portfolio.profiles["hardware-health"].enabled,
+    );
+});
+
 test("the contract refuses a batch the service should never see", () => {
     const Contract = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-control-contract.js");
-    const envelope = {version: 1, id: "b-1", issuedAt: 1, expectedRevision: 0};
+    const envelope = {version: 2, id: "b-1", issuedAt: 1, expectedRevision: 0};
 
     assert.equal(Contract.isRuntimeCommand({
         ...envelope, operation: "apply-profiles", profileId: null, value: null,

@@ -1,6 +1,6 @@
 # Runtime control contract
 
-The applet sends version 1 JSON commands to the user-session D-Bus service
+The applet sends version 2 JSON commands to the user-session D-Bus service
 `org.cinnamon.OmniTensor1`, object `/org/cinnamon/OmniTensor1`,
 interface `org.cinnamon.OmniTensor1`, method `ApplyCommand(in s command,
 out s acknowledgement)`. The service implementing this name is the OmniTensor
@@ -8,10 +8,11 @@ runtime, a separate sibling project. Calls time out after five seconds and are
 cancelled when the applet is removed.
 
 The bus, object, and interface names replaced the earlier TPU-specific names;
-the operations themselves are unchanged: `set-profile-enabled`,
-`set-profile-weight`, and `set-paused`, each carrying an optimistic
-`expectedRevision`. A command to pin a workload to a specific backend is
-explicitly future work; no such operation exists in the version 1 contract.
+the operations are `set-profile-enabled`, `set-profile-weight`,
+`set-profile-device`, `set-paused`, and atomic `apply-profiles`, each carrying
+an optimistic `expectedRevision`. Device selection is a stable GPU render-node
+identity such as `gpu-renderD128`, or `null` for automatic routing. Batch
+changes carry the same choice as `deviceId`.
 
 Commands and acknowledgements must match `runtime-command.schema.json` and
 `runtime-acknowledgement.schema.json`. Each command carries the revision the
@@ -19,6 +20,10 @@ applet last observed. The service returns either an `applied` acknowledgement
 with the authoritative portfolio and next revision, or a `rejected`
 acknowledgement with the unchanged authoritative portfolio and a recovery
 message. The applet never presents an optimistic local edit as applied.
+The authoritative portfolio includes bounded `deviceChoices`. A saved GPU that
+is no longer available stays visible in the profile row as unavailable until
+the user selects another current GPU or returns to Automatic; the applet does
+not silently erase or reinterpret the choice.
 
 `lib/runtime-control-service.js` is the transport-independent reference service.
 Runtime implementations inject an atomic policy repository and workload catalog,

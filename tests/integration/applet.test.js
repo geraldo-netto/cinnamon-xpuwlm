@@ -319,6 +319,7 @@ function managerFake(initial = liveState()) {
         selectTab(value) { this.calls.push(["selectTab", value]); },
         toggleProfile(value) { this.calls.push(["toggleProfile", value]); },
         changeWeight(id, delta) { this.calls.push(["changeWeight", id, delta]); },
+        setProfileDevice(id, deviceId) { this.calls.push(["setProfileDevice", id, deviceId]); },
         pauseAll() { this.calls.push(["pauseAll"]); },
         resumeAll() { this.calls.push(["resumeAll"]); },
         acknowledgeCatalogChanges() { this.calls.push(["acknowledgeCatalogChanges"]); },
@@ -500,6 +501,7 @@ test("menu actions delegate without mixing responsibilities", () => {
     actions.selectTab("alerts");
     actions.toggleProfile("hardware-health");
     actions.changeWeight("hardware-health", -1);
+    actions.setProfileDevice("hardware-health", "gpu-renderD128");
     actions.pauseAll();
     actions.resumeAll();
     actions.refresh();
@@ -513,6 +515,7 @@ test("menu actions delegate without mixing responsibilities", () => {
         ["selectTab", "alerts"],
         ["toggleProfile", "hardware-health"],
         ["changeWeight", "hardware-health", -1],
+        ["setProfileDevice", "hardware-health", "gpu-renderD128"],
         ["pauseAll"],
         ["resumeAll"],
         ["retryDeviceDetection"],

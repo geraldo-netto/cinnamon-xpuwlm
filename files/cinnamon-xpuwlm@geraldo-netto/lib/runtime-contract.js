@@ -31,8 +31,8 @@ const MAX_CONTRACT_VERSION = 65535;
 // whatever it happens to find compares nothing.
 const REQUIRED_METHODS = Object.freeze(["ApplyCommand"]);
 const REQUIRED_CONTRACTS = Object.freeze({
-    "runtime-command": 1,
-    "runtime-acknowledgement": 1,
+    "runtime-command": 2,
+    "runtime-acknowledgement": 2,
     "runtime-refusal": 1,
     "runtime-snapshot": 1,
 });
