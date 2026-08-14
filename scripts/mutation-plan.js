@@ -30,7 +30,6 @@ const BEHAVIOR_MODULES = new Set([
     "media-preprocessing",
     "media-transcription",
     "plugin-inventory",
-    "popup-placement",
     "presentation-planning",
     "presentation-review",
     "profile-blockers",

@@ -10,7 +10,7 @@ const {BEHAVIOR_MODULES, mutationTargets} = require("../../scripts/mutation-plan
 
 test("scoped mutation config pairs every source with focused unit tests", () => {
     const targets = mutationTargets();
-    assert.equal(targets.length, 45);
+    assert.equal(targets.length, 44);
     assert.equal(targets.length, BEHAVIOR_MODULES.size);
     assert.equal(new Set(targets.map((target) => target.source)).size, targets.length);
     for (const target of targets) {

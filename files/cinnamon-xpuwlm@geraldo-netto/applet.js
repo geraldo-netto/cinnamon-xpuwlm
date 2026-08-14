@@ -20,7 +20,6 @@ const Util = imports.misc.util;
 
 const AlertNotifier = require("./lib/alert-notifier.js");
 const CinnamonPlatform = require("./lib/cinnamon-platform-adapter.js");
-const CinnamonPopup = require("./lib/cinnamon-popup-adapter.js");
 const CinnamonRuntime = require("./lib/cinnamon-runtime.js");
 const ClipboardSelectionPort = require("./lib/clipboard-selection-port.js");
 const Domain = require("./lib/domain.js");
@@ -333,7 +332,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
 
     _createPresentation(overrides) {
         this._menuFactory = overrides.menuFactory
-            || CinnamonPopup.createCenteredPopupMenuFactory({Applet, Main});
+            || ((applet, orientation) => new Applet.AppletPopupMenu(applet, orientation));
         this._menuManagerFactory = overrides.menuManagerFactory
             || ((applet) => new PopupMenu.PopupMenuManager(applet));
         this._layoutProvider = overrides.layoutProvider

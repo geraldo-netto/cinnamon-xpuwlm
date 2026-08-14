@@ -4,7 +4,6 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
-const CinnamonPopup = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-popup-adapter.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
 const Layout = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/layout.js");
 const Manifest = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-manifest.js");
@@ -1259,30 +1258,24 @@ test("the popup starts with a safe default and measures only after it opens", ()
     assert.equal(views[0].layouts.length, 1, "closing the popup must not re-measure");
 });
 
-test("the production menu factory owns centered Cinnamon popup construction", () => {
-    const original = CinnamonPopup.createCenteredPopupMenuFactory;
+test("the production menu uses Cinnamon's native panel-anchored popup", () => {
+    const original = global.imports.ui.applet.AppletPopupMenu;
     const calls = [];
-    const menu = new FakeMenu();
-    CinnamonPopup.createCenteredPopupMenuFactory = (ports) => {
-        calls.push(["factory", ports.Applet, ports.Main]);
-        return (owner, orientation) => {
+    class NativeMenu extends FakeMenu {
+        constructor(owner, orientation) {
+            super();
             calls.push(["menu", owner, orientation]);
-            return menu;
-        };
-    };
+        }
+    }
+    global.imports.ui.applet.AppletPopupMenu = NativeMenu;
     try {
         const {applet, views} = appletHarness({menuFactory: undefined});
-        assert.deepEqual(calls[0], [
-            "factory",
-            global.imports.ui.applet,
-            global.imports.ui.main,
-        ]);
-        assert.deepEqual(calls[1], ["menu", applet, "top"]);
-        assert.equal(applet.menu, menu);
-        assert.equal(views[0].menu, menu);
+        assert.deepEqual(calls, [["menu", applet, "top"]]);
+        assert.equal(applet.menu instanceof NativeMenu, true);
+        assert.equal(views[0].menu, applet.menu);
         applet.on_applet_removed_from_panel();
     } finally {
-        CinnamonPopup.createCenteredPopupMenuFactory = original;
+        global.imports.ui.applet.AppletPopupMenu = original;
     }
 });
 
