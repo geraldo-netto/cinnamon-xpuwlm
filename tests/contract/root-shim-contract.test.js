@@ -63,7 +63,11 @@ test("root shim inventory is exactly production bridges plus intentional facades
     );
 });
 
-test("every maintained root shim has exact role bytes and its same-name target", () => {
+test("every maintained root shim has exact role bytes and its same-name target", {
+    skip: process.env.XPUWLM_MUTATION_RUN === "1"
+        ? "Stryker instruments the production shim bytes"
+        : false,
+}, () => {
     const graph = Package.productionRequireGraph(Package.payloadRoot);
     for (const [role, basenames] of [
         ["bridge", graph.rootShims],

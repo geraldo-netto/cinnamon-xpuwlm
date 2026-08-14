@@ -23,7 +23,7 @@
     "test:fuzz": "node --test tests/fuzz/*.test.js",
     "test:visual": "node --test tests/visual/*.test.js",
     "test:cjs": "\"${XPUWLM_CJS:-cjs}\" tests/cjs/production-smoke.js files/cinnamon-xpuwlm@geraldo-netto/*.js files/cinnamon-xpuwlm@geraldo-netto/lib/*.js",
-    "test:mutation-target": "node --test --test-concurrency=2 tests/unit/*.test.js tests/integration/*.test.js tests/regression/*.test.js tests/contract/*.test.js",
+    "test:mutation-target": "XPUWLM_MUTATION_RUN=1 node --test --test-concurrency=2 tests/unit/*.test.js tests/integration/*.test.js tests/regression/*.test.js tests/contract/*.test.js",
     "test:mutation:workflow-validation-target": "node --test tests/regression/workflow-validation-boundaries-regression.test.js tests/fuzz/caption-export.fuzz.test.js",
     "test:mutation:workflow-duration": "stryker run stryker.workflow-validation.config.json --mutate='files/cinnamon-xpuwlm@geraldo-netto/lib/media-transcription.js:108-115'",
     "test:mutation:workflow-cues": "stryker run stryker.workflow-validation.config.json --mutate='files/cinnamon-xpuwlm@geraldo-netto/lib/caption-export.js:56-68'",
@@ -40,6 +40,7 @@
     "test:coverage-target": "node --test tests/unit/*.test.js tests/integration/*.test.js tests/regression/*.test.js tests/contract/*.test.js",
     "test:coverage": "c8 --clean --reporter=text --reporter=json --reports-dir=coverage --all --include='files/cinnamon-xpuwlm@geraldo-netto/applet.js' --include='files/cinnamon-xpuwlm@geraldo-netto/lib/**/*.js' --include='scripts/check-workload-manifests.js' --include='scripts/generate-pot.js' --include='scripts/package-applet.js' --include='scripts/package-workload-plugin.js' --include='scripts/validate-artifacts.js' --check-coverage --lines=80 --branches=80 --functions=80 --statements=80 npm run test:coverage-target && node scripts/check-per-function-coverage.js",
     "test:mutation": "stryker run && npm run test:mutation:string-contract",
+    "test:mutation:full": "stryker run stryker.full.config.cjs",
     "test:ci": "npm run lint && npm run test:syntax && npm run check:contract && npm run check:workloads && npm run test:coverage && npm run test:fuzz && npm run test:visual",
     "test:local": "XPUWLM_SKIP_HOST_GATES=1 npm test",
     "test": "npm run lint && npm run test:syntax && npm run check:contract && npm run check:workloads && npm run test:coverage && npm run test:fuzz && npm run test:visual && npm run test:mutation"

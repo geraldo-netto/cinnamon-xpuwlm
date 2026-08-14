@@ -15,7 +15,11 @@ const MANAGER_PATH = path.join(
     "../../files/cinnamon-xpuwlm@geraldo-netto/lib/manager.js",
 );
 
-test("workload runtime ownership stays outside the manager facade", () => {
+test("workload runtime ownership stays outside the manager facade", {
+    skip: process.env.XPUWLM_MUTATION_RUN === "1"
+        ? "Stryker instruments the manager source"
+        : false,
+}, () => {
     const source = fs.readFileSync(MANAGER_PATH, "utf8");
     assert.match(source, /new WorkloadRuntimeController\(\{/u);
     for (const method of ["_relistPictures", "_sweepOnce", "_dispatchJob", "_pollJob"]) {

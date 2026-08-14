@@ -20,7 +20,11 @@ const GENERATED_PATH = path.join(
 );
 const SCRIPT_PATH = path.join(REPOSITORY_ROOT, "scripts/generate-snapshot-contract.js");
 
-test("snapshot contract renderer is byte-identical to the checked-in contract", () => {
+test("snapshot contract renderer is byte-identical to the checked-in contract", {
+    skip: process.env.XPUWLM_MUTATION_RUN === "1"
+        ? "Stryker instruments the checked-in generated module"
+        : false,
+}, () => {
     const checkedIn = fs.readFileSync(GENERATED_PATH, "utf8")
         .replace(/^\/\/ @ts-nocheck\n/u, "");
     assert.equal(

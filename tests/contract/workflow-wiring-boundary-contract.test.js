@@ -14,7 +14,11 @@ const APPLET_PATH = path.join(
     "../../files/cinnamon-xpuwlm@geraldo-netto/applet.js",
 );
 
-test("workflow controller construction stays outside the applet lifecycle", () => {
+test("workflow controller construction stays outside the applet lifecycle", {
+    skip: process.env.XPUWLM_MUTATION_RUN === "1"
+        ? "Stryker instruments the applet source"
+        : false,
+}, () => {
     const source = fs.readFileSync(APPLET_PATH, "utf8");
     assert.match(source, /WorkflowWiring\.createWorkflowControllers\(\{/u);
     for (const method of [
