@@ -24,6 +24,7 @@ function environment(entries = {}) {
         get_path() { return this.path; }
         get_basename() { return this.path.split("/").pop(); }
         get_child(name) { return new File(`${this.path}/${name}`); }
+        query_exists() { return files.has(this.path); }
         query_info() {
             const entry = files.get(this.path);
             if (!entry) { throw new Error(`missing ${this.path}`); }
@@ -284,9 +285,20 @@ test("export creates a private new file and refuses source replacement", () => {
     env.Gtk.dialogs[1].respond(env.Gtk.ResponseType.ACCEPT);
     assert.match(String(refusal), /output must differ/u);
 
+    let conflict = null;
+    exporter.saveIcs("x", [], (error) => { conflict = error; });
+    env.Gtk.dialogs[2].filenames = ["/events/one.txt"];
+    env.Gtk.dialogs[2].respond(env.Gtk.ResponseType.ACCEPT);
+    assert.equal(conflict.code, "export-invalid");
+    assert.equal(
+        conflict.detail,
+        "Choose a different filename; the selected calendar file already exists",
+    );
+    assert.equal(env.writes.length, 1, "an existing file is never opened for writing");
+
     let cancelled = "pending";
     exporter.saveIcs("x", [], (error, path) => { cancelled = [error, path]; });
-    env.Gtk.dialogs[2].respond(env.Gtk.ResponseType.CANCEL);
+    env.Gtk.dialogs[3].respond(env.Gtk.ResponseType.CANCEL);
     assert.deepEqual(cancelled, [null, []]);
 });
 
@@ -468,6 +480,11 @@ test("environment and private writer return and close their exact resources", ()
     assert.equal(Port.writeNewPrivateFile("/events/new.ics", "calendar", env), "/events/new.ics");
     assert.equal(env.closed, closedBefore + 1);
     assert.deepEqual(env.writes, [{path: "/events/new.ics", bytes: {text: "calendar"}}]);
+    assert.throws(
+        () => Port.writeNewPrivateFile("/events/one.txt", "replacement", env),
+        (error) => error.code === "export-invalid" && /already exists/u.test(error.detail),
+    );
+    assert.equal(env.writes.length, 1);
 });
 
 test("external source picker and exporter keep native UI outside Cinnamon", () => {
@@ -526,6 +543,14 @@ test("external source picker and exporter keep native UI outside Cinnamon", () =
         assert.equal(path, null);
     });
     requests[3].callback(null, ["/events/blocked.ics"]);
+
+    exporter.saveIcs("calendar", [], (error, path) => {
+        assert.equal(error.code, "export-invalid");
+        assert.match(error.detail, /already exists/u);
+        assert.equal(path, null);
+    });
+    requests[4].callback(null, ["/events/one.txt"]);
+    assert.equal(env.writes.length, 1, "external save also preserves an existing file");
     assert.throws(() => Port.createExternalEventExporter({}, lifecycle), /GIO and ByteArray/u);
     assert.throws(() => Port.createExternalEventExporter(env, {}), /external/u);
 });

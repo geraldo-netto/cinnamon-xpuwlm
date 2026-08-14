@@ -358,7 +358,14 @@ function createGtkEventSourcePicker(candidate, chooserLifecycle) {
 
 function writeNewPrivateFile(path, text, environment) {
     const Gio = environment.Gio;
-    const stream = Gio.File.new_for_path(path).create(Gio.FileCreateFlags.PRIVATE, null);
+    const file = Gio.File.new_for_path(path);
+    if (file.query_exists(null)) {
+        throw new EventImport.EventImportError(
+            "export-invalid",
+            _("Choose a different filename; the selected calendar file already exists"),
+        );
+    }
+    const stream = file.create(Gio.FileCreateFlags.PRIVATE, null);
     try {
         const bytes = environment.ByteArray.fromString(text);
         stream.write_all(bytes, null);

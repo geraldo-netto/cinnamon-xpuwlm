@@ -506,6 +506,10 @@ msgstr ""
 msgid "Check the runtime version"
 msgstr ""
 
+#: lib/event-source-port.js
+msgid "Choose a different filename; the selected calendar file already exists"
+msgstr ""
+
 #: lib/event-import.js
 msgid "Choose a new calendar file…"
 msgstr ""
