@@ -692,9 +692,12 @@ class EventImportController {
     }
 
     _publish() {
-        const state = this.state();
         for (const listener of this._listeners) {
-            listener(state);
+            try {
+                listener(this.state());
+            } catch {
+                // A view subscriber cannot unwind a transport or scheduler callback.
+            }
         }
     }
 

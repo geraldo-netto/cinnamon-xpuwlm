@@ -177,3 +177,17 @@ test("listener removal and transport failures have exact notification boundaries
     assert.equal(controller.setAvailability(true, "Ready"), true);
     assert.equal(states.length, 2);
 });
+
+test("a failing workflow listener cannot block later subscribers", () => {
+    const {controller} = harness();
+    const states = [];
+    controller.subscribe((state) => {
+        state.phase = "corrupted";
+        throw new Error("view failed");
+    });
+    controller.subscribe((state) => states.push(state));
+
+    assert.doesNotThrow(() => controller.start());
+    assert.equal(controller.state().phase, "running");
+    assert.deepEqual(states.map((state) => state.phase), ["running"]);
+});

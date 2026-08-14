@@ -671,6 +671,20 @@ test("controller drives choose, submit, progress, preview, confirmation, and new
     assert.equal(controller.state().phase, "idle");
 });
 
+test("a failing event listener cannot block later subscribers", () => {
+    const {controller} = harness();
+    const states = [];
+    controller.subscribe((state) => {
+        state.phase = "corrupted";
+        throw new Error("view failed");
+    });
+    controller.subscribe((state) => states.push(state));
+
+    assert.doesNotThrow(() => controller.setAvailability(true, "ready"));
+    assert.equal(controller.state().phase, "idle");
+    assert.deepEqual(states.map((state) => state.phase), ["idle"]);
+});
+
 test("controller preserves explicit back, cancellation, and late-callback safety", () => {
     const {controller, gateway, picker, timer} = harness();
     controller.setAvailability(true, "ready");
