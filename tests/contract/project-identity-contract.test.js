@@ -67,7 +67,7 @@ test("production sources contain no accidental legacy identity references", () =
     const filenames = [
         path.join(ROOT, "package.json"),
         path.join(ROOT, "package-lock.json"),
-        path.join(ROOT, "stryker.config.json"),
+        path.join(ROOT, "stryker.config.cjs"),
         ...roots.flatMap(filesUnder),
     ];
     const stale = [];

@@ -4,78 +4,68 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const ROOT = path.resolve(__dirname, "..");
-const LIBRARY_ROOT = path.join(
-    ROOT,
-    "files/cinnamon-xpuwlm@geraldo-netto/lib",
-);
-const UNIT_ROOT = path.join(ROOT, "tests/unit");
-const BEHAVIOR_MODULES = new Set([
-    "alert-notifier",
-    "artifact-qualification",
-    "background-execution",
-    "caption-export",
-    "document-question",
-    "domain",
-    "event-import",
-    "failure-log-backoff",
-    "failure-reporter",
-    "file-auto-tagging",
-    "file-categorization",
-    "file-organizer",
-    "generic-workflow-surface",
-    "ics-export",
-    "job-submission",
-    "layout",
-    "manager",
-    "media-preprocessing",
-    "media-transcription",
-    "plugin-inventory",
-    "popup-placement",
-    "presentation-planning",
-    "presentation-review",
-    "profile-blockers",
-    "readiness-acceptance",
-    "rehearsal-briefing",
-    "routine-recognition",
-    "runtime-contract",
-    "runtime-control-contract",
-    "runtime-control-service",
-    "runtime-job-contract",
-    "runtime-refusal-contract",
-    "runtime-snapshot-schema-validator",
-    "screenshot-assistant",
-    "selected-text",
-    "snapshot-validator",
-    "telemetry-window",
-    "tensor-encoder",
-    "validation",
-    "view-model",
-    "workflow-controller",
-    "workload-manifest",
-    "workload-reconciliation",
-    "workload-registry",
-    "workload-result",
+const APPLET_ROOT = path.join(ROOT, "files/cinnamon-xpuwlm@geraldo-netto");
+const LIBRARY_ROOT = path.join(APPLET_ROOT, "lib");
+const TEST_ROOT = path.join(ROOT, "tests");
+const TEST_FAMILIES = Object.freeze([
+    "contract",
+    "fuzz",
+    "integration",
+    "regression",
+    "unit",
 ]);
+const TOOL_SOURCES = Object.freeze([
+    "check-workload-manifests.js",
+    "generate-pot.js",
+    "generate-snapshot-contract.js",
+    "package-applet.js",
+    "package-workload-plugin.js",
+    "validate-artifacts.js",
+]);
+
+function compareText(left, right) {
+    return left < right ? -1 : left > right ? 1 : 0;
+}
 
 function relativePath(file) {
     return path.relative(ROOT, file).split(path.sep).join("/");
 }
 
-function matchingUnitTests(moduleName) {
-    return fs.globSync(path.join(UNIT_ROOT, `${moduleName}*.test.js`))
-        .map(relativePath)
-        .sort();
+function mutationSources() {
+    return [
+        path.join(APPLET_ROOT, "applet.js"),
+        ...fs.globSync(path.join(LIBRARY_ROOT, "*.js")).sort(compareText),
+        ...TOOL_SOURCES.map((basename) => path.join(ROOT, "scripts", basename)),
+    ].map(relativePath);
+}
+
+function focusedTestFiles() {
+    return TEST_FAMILIES.flatMap((family) => (
+        fs.globSync(path.join(TEST_ROOT, family, "*.test.js"))
+    )).sort(compareText);
+}
+
+function focusedTests(source, testFiles = focusedTestFiles()) {
+    const basename = path.basename(source, ".js");
+    return testFiles.filter((testFile) => {
+        const testBasename = path.basename(testFile, ".test.js");
+        return testBasename.startsWith(basename)
+            || fs.readFileSync(testFile, "utf8").includes(basename);
+    }).map(relativePath);
 }
 
 function mutationTargets() {
-    return fs.globSync(path.join(LIBRARY_ROOT, "*.js"))
-        .sort()
-        .filter((source) => BEHAVIOR_MODULES.has(path.basename(source, ".js")))
-        .map((source) => ({
-            source: relativePath(source),
-            tests: matchingUnitTests(path.basename(source, ".js")),
-        }))
-        .filter((target) => target.tests.length > 0);
+    const testFiles = focusedTestFiles();
+    return mutationSources().map((source) => ({
+        source,
+        tests: focusedTests(source, testFiles),
+    }));
 }
 
-module.exports = {BEHAVIOR_MODULES, mutationTargets};
+module.exports = {
+    TEST_FAMILIES,
+    TOOL_SOURCES,
+    focusedTests,
+    mutationSources,
+    mutationTargets,
+};

@@ -32,7 +32,6 @@ function copiedRepository(context) {
         "info.json",
         "package.json",
         "screenshot.png",
-        "stryker.config.json",
     ]) {
         fs.copyFileSync(path.join(REPOSITORY_ROOT, filename), path.join(root, filename));
     }
@@ -188,10 +187,10 @@ test("JSON validation refuses empty workloads, non-directories, and weak thresho
     );
 
     const thresholdRoots = copiedRepository(context);
-    const strykerPath = path.join(thresholdRoots.repositoryRoot, "stryker.config.json");
-    const stryker = JSON.parse(fs.readFileSync(strykerPath, "utf8"));
-    stryker.thresholds.break = 79;
-    fs.writeFileSync(strykerPath, JSON.stringify(stryker));
+    const packagePath = path.join(thresholdRoots.repositoryRoot, "package.json");
+    const packageDocument = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+    packageDocument.mutationPolicy.threshold = 79;
+    fs.writeFileSync(packagePath, JSON.stringify(packageDocument));
     assert.throws(() => Artifacts.validateJsonArtifacts(thresholdRoots));
 });
 

@@ -141,7 +141,7 @@ const FORBIDDEN_PAYLOAD_FILES = new Set([
     "eslint.config.cjs",
     "package-lock.json",
     "package.json",
-    "stryker.config.json",
+    "stryker.config.cjs",
 ]);
 
 function readJson(root, relativePath) {
@@ -222,7 +222,6 @@ function validateJsonArtifacts({
     const refusalSchema = readJson(targetAppletRoot, "runtime-refusal.schema.json");
     const contractSchema = readJson(targetAppletRoot, "runtime-contract.schema.json");
     const packageJson = readJson(targetRepositoryRoot, "package.json");
-    const stryker = readJson(targetRepositoryRoot, "stryker.config.json");
     const Domain = require(path.join(targetAppletRoot, "lib/domain.js"));
     const Manifest = require(path.join(targetAppletRoot, "lib/workload-manifest.js"));
     const Registry = require(path.join(targetAppletRoot, "lib/workload-registry.js"));
@@ -289,9 +288,18 @@ function validateJsonArtifacts({
     assert.equal(packageJson.scripts["test:contract"], "node --test tests/contract/*.test.js");
     assert.equal(packageJson.devDependencies.ajv, "8.18.0");
     assert.equal(packageJson.scripts["test:visual"], "node --test tests/visual/*.test.js");
-    assert.equal(packageJson.scripts["test:mutation-target"].includes("tests/visual"), false);
+    assert.equal(
+        packageJson.scripts["test:mutation:full"],
+        "node scripts/run-mutation-campaign.js",
+    );
+    assert.equal(packageJson.scripts["test:mutation:full"].includes("tests/visual"), false);
     assert.equal(packageJson.scripts["test:local"], "XPUWLM_SKIP_HOST_GATES=1 npm test");
-    assert.equal(stryker.thresholds.break >= 80, true);
+    assert.deepEqual(Object.keys(packageJson.mutationPolicy).sort(), [
+        "excludedMutations", "sourceCount", "threshold",
+    ]);
+    assert.equal(packageJson.mutationPolicy.threshold >= 80, true);
+    assert.equal(packageJson.mutationPolicy.sourceCount, 101);
+    assert.deepEqual(packageJson.mutationPolicy.excludedMutations, ["StringLiteral"]);
 }
 
 function readWorkflow(root, name) {
