@@ -38,12 +38,12 @@ test("regression: Activity invalidates when only the runtime job count changes",
     assert.equal(running.activity.activeCount, 1);
 });
 
-test("regression: Diagnostics invalidates when only its last-update source changes", () => {
+test("regression: volatile Diagnostics ages do not invalidate the popup body", () => {
     const earlier = ViewModel.toViewModel(state({selectedTab: "setup"}), NOW + 60_000);
     const later = ViewModel.toViewModel(state({
         selectedTab: "setup", generatedAt: NOW + 30_000,
     }), NOW + 60_000);
 
-    assert.notEqual(earlier.bodyKey, later.bodyKey);
+    assert.equal(earlier.bodyKey, later.bodyKey);
     assert.notDeepEqual(earlier.diagnostics.current, later.diagnostics.current);
 });

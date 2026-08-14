@@ -118,6 +118,7 @@ class MenuView {
         this._confirmClearHistory = false;
         this._diagnosticFeedback = "";
         this._focusedIdentity = null;
+        this._entryDrafts = new Map();
         // Disclosure state belongs to the popup, not to saved policy: it is a
         // reading position, and it survives body rebuilds so a refresh never
         // collapses the group under the user's cursor.
@@ -148,6 +149,14 @@ class MenuView {
         if (this._model !== null) {
             this.render(this._model);
         }
+        return true;
+    }
+
+    invalidateBody() {
+        if (this._root === null) {
+            return false;
+        }
+        this._bodyKey = null;
         return true;
     }
 
@@ -194,6 +203,7 @@ class MenuView {
         this._bodyKey = null;
         this._model = null;
         this._focusedIdentity = null;
+        this._entryDrafts.clear();
         this._detail = null;
         this._confirmClearHistory = false;
         this._diagnosticFeedback = "";
@@ -380,6 +390,7 @@ class MenuView {
 
     _renderBody(model) {
         const previous = this._focusedIdentity;
+        this._captureEntryDrafts();
         destroyChildren(this._body);
         this._blocked = null;
         if (model.controlMessage) {
@@ -390,7 +401,28 @@ class MenuView {
             ));
         }
         this._renderScreen(model);
+        this._pruneEntryDrafts();
         return this._restoreBodyFocus(previous);
+    }
+
+    _captureEntryDrafts() {
+        for (const control of focusableControls(this._body)) {
+            const saved = this._entryDrafts.get(control.xpuwlmIdentity);
+            if (saved && typeof control.get_text === "function") {
+                saved.draft = control.get_text();
+            }
+        }
+    }
+
+    _pruneEntryDrafts() {
+        const active = new Set(focusableControls(this._body)
+            .filter((control) => typeof control.get_text === "function")
+            .map((control) => control.xpuwlmIdentity));
+        for (const identity of this._entryDrafts.keys()) {
+            if (!active.has(identity)) {
+                this._entryDrafts.delete(identity);
+            }
+        }
     }
 
     // A rebuilt body keeps the caret on the same semantic control; when that
@@ -1309,7 +1341,15 @@ class MenuView {
     }
 
     _entry(text, accessibleName, identity) {
-        return ActorUtils.entry(this._St, text, accessibleName, identity);
+        const modelText = String(text || "");
+        const saved = this._entryDrafts.get(identity);
+        const draft = saved && saved.modelText === modelText ? saved.draft : modelText;
+        this._entryDrafts.set(identity, {modelText, draft});
+        const entry = ActorUtils.entry(this._St, draft, accessibleName, identity);
+        entry.connect("key-focus-in", () => {
+            this._focusedIdentity = identity;
+        });
+        return entry;
     }
 
     // Narrow, high-scale, and large-text popups wrap descriptive text instead of

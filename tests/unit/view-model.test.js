@@ -123,6 +123,62 @@ test("effective screen gives safety states precedence over tabs", () => {
     assert.equal(ViewModel.toViewModel(state(), NOW).policyPaused, false);
 });
 
+test("status, recovery, device, and blocker projections are exact", () => {
+    assert.deepEqual(ViewModel.STATUS_LABELS, {
+        healthy: "Healthy",
+        running: "Running",
+        watching: "Watching",
+        idle: "Idle",
+        paused: "Paused",
+        unavailable: "Unavailable",
+    });
+    const recoveryState = state({
+        health: {device: "present", runtime: "absent", detail: "Runtime detail"},
+        device: {...state().device, reason: "Device detail"},
+    });
+    const guidance = {
+        recoveryFor(runtime) {
+            assert.equal(runtime, "absent");
+            return {
+                kicker: "Recovery",
+                title: "Reconnect runtime",
+                description: "Restore the session service",
+                steps: [["1", "Inspect", "Read the service status"]],
+            };
+        },
+    };
+    assert.deepEqual(ViewModel.recoveryModel(recoveryState, guidance), {
+        kicker: "Recovery",
+        title: "Reconnect runtime",
+        description: "Restore the session service",
+        steps: [
+            {number: "1", title: "Inspect", description: "Read the service status"},
+            {number: "2", title: "Retry now", description: "Runtime detail"},
+        ],
+    });
+    assert.equal(ViewModel.recoveryModel({
+        ...recoveryState,
+        health: {...recoveryState.health, detail: ""},
+    }, guidance).steps[1].description, "Device detail");
+
+    assert.deepEqual(ViewModel.deviceModels({devices: [
+        {id: "gpu-b", backend: "gpu", name: "GPU B", available: false, load: 90},
+        {id: "future", backend: "future", name: "Future", available: true, load: 3},
+        {id: "gpu-a", backend: "gpu", name: "GPU A", available: true, load: 42, vendor: "AMD"},
+        {id: "tpu", backend: "tpu", name: "TPU", available: true, load: 5},
+    ]}), [
+        {id: "tpu", name: "TPU", backendText: "TPU", statusText: "Available", loadText: "5%", available: true, vendor: ""},
+        {id: "gpu-a", name: "GPU A", backendText: "GPU", statusText: "Available", loadText: "42%", available: true, vendor: "AMD"},
+        {id: "gpu-b", name: "GPU B", backendText: "GPU", statusText: "Absent", loadText: "—", available: false, vendor: ""},
+        {id: "future", name: "Future", backendText: "Accel", statusText: "Available", loadText: "3%", available: true, vendor: ""},
+    ]);
+    assert.deepEqual(ViewModel.deviceModels({devices: "invalid"}), []);
+    assert.equal(ViewModel.inexecutableCount([
+        {reason: "serving", status: "running", executable: true},
+        {reason: "runtime-missing", status: "unavailable", executable: false},
+    ]), 1);
+});
+
 test("metrics explain normal and held workload state", () => {
     const normal = ViewModel.metricModels(state({attentionCount: 1}));
     assert.deepEqual(normal[1], {label: "Queue", value: "2", suffix: "jobs"});
@@ -219,7 +275,11 @@ test("view model groups profiles, separates alerts, and creates stable body key"
     );
     assert.doesNotThrow(() => JSON.parse(model.bodyKey));
     const agedModel = ViewModel.toViewModel(state({alerts, attentionCount: 1}), NOW + 10_000);
-    assert.notEqual(agedModel.bodyKey, model.bodyKey);
+    assert.equal(agedModel.bodyKey, model.bodyKey);
+    const restampedModel = ViewModel.toViewModel(state({
+        alerts, attentionCount: 1, generatedAt: NOW + 5_000,
+    }), NOW + 10_000);
+    assert.equal(restampedModel.bodyKey, model.bodyKey);
 
     const offline = ViewModel.toViewModel(state({
         device: {available: false, state: "absent", name: "No TPU", kind: "unknown", reason: "Connect device"},

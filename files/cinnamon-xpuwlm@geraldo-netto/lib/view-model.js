@@ -486,12 +486,11 @@ function toViewModel(state, nowMs = Date.now(), guidance) {
             screen,
             unknownContent: state.unknownContent,
             profiles: state.profiles,
-            alerts: activeAlerts.concat(resolvedAlerts),
+            alerts: state.alerts,
             device: state.device,
             devices: state.devices,
             health: healthOf(state),
             metrics: state.metrics,
-            generatedAt: state.generatedAt,
             paused: state.paused,
             control,
             // The run surface changes without the snapshot changing: a job

@@ -379,9 +379,11 @@ function appletHarness(extraOverrides = {}) {
                     layout,
                     layouts: [],
                     models: [],
+                    invalidations: 0,
                     destroyed: false,
                     render(model) { this.models.push(model); },
                     applyLayout(next) { this.layouts.push(next); return true; },
+                    invalidateBody() { this.invalidations += 1; return true; },
                     destroy() { this.destroyed = true; },
                 };
                 views.push(view);
@@ -393,7 +395,7 @@ function appletHarness(extraOverrides = {}) {
     return {applet, gateways, manager, menuManagers, menus, poller, settings: settingsInstances[0], views};
 }
 
-test("constructor binds settings, registers icon, renders, and starts polling", () => {
+test("constructor binds settings, defers popup rendering, and starts polling", () => {
     const {applet, manager, menus, poller, settings, views} = appletHarness();
     assert.deepEqual(applet.baseArguments, {orientation: "top", panelHeight: 40, instanceId: 7});
     assert.deepEqual(applet.symbolicIconNames, [
@@ -408,7 +410,18 @@ test("constructor binds settings, registers icon, renders, and starts polling", 
     assert.deepEqual(manager.calls[0], ["start"]);
     assert.deepEqual(poller.calls, [["start", 5]]);
     assert.equal(menus.length, 1);
-    assert.equal(views[0].models.length, 1);
+    assert.equal(views[0].models.length, 0);
+    manager.callback(liveState({generatedAt: Date.now() + 1_000}));
+    assert.equal(views[0].models.length, 0, "closed popup polls must not render actors");
+    menus[0].isOpen = true;
+    manager.callback(liveState({generatedAt: Date.now() + 2_000}));
+    assert.equal(views[0].models.length, 1, "native menu state also permits visible renders");
+    menus[0].isOpen = false;
+    menus[0].emit("open-state-changed", true);
+    assert.equal(applet._menuOpen, true);
+    assert.equal(views[0].models.length > 1, true);
+    assert.equal(views[0].invalidations, 1);
+    assert.equal(applet._renderMenu(), true);
     assert.equal(settings.getValue("identity-migration-version"), 0,
         "an injected settings factory owns its own migration policy");
 });
@@ -467,12 +480,13 @@ test("injected platform composition owns app guidance, transport, and discovery"
             },
         },
     };
-    const {applet, views} = appletHarness({platform});
+    const {applet, menus, views} = appletHarness({platform});
     assert.equal(calls.filter(([name]) => name === "job").length, 6);
     for (const name of ["control", "watch", "contract", "inventory", "inputs", "guidance"]) {
         assert.equal(calls.some(([called]) => called === name), true, name);
     }
     assert.equal(calls.some(([name]) => name === "runtime"), false);
+    menus[0].emit("open-state-changed", true);
     assert.equal(views[0].models[0].recovery.title, "Platform recovery");
     applet.on_applet_removed_from_panel();
 });
@@ -625,8 +639,10 @@ test("event import is gated by live plug-in readiness and actions stay local", (
         pluginInventoryGateway: inventoryGateway,
     });
 
-    assert.equal(views[0].models.at(-1).eventImport.available, true);
     assert.equal(inventoryGateway.describes, 1);
+    menus[0].emit("open-state-changed", true);
+    assert.equal(views[0].models.at(-1).eventImport.available, true);
+    assert.equal(inventoryGateway.describes, 2, "opening the popup refreshes readiness");
     const actions = applet._menuActions();
     actions.chooseEventFiles();
     actions.chooseEventFolder();
@@ -644,8 +660,6 @@ test("event import is gated by live plug-in readiness and actions stay local", (
         ["beginExport"], ["confirmExport"], ["backToPreview"], ["reset"],
     ]);
 
-    menus[0].emit("open-state-changed", true);
-    assert.equal(inventoryGateway.describes, 2, "opening the popup refreshes readiness");
     const latest = applet._latestState;
     applet._latestState = null;
     assert.doesNotThrow(() => eventImport.listener());
@@ -738,6 +752,7 @@ test("chooser completion restores popup focus with visible result feedback", () 
 
     applet._eventImport._replace({phase: "idle", message: "Selection cancelled"});
     assert.equal(menus[0].isOpen, true);
+    assert.equal(applet._menuOpen, true);
     assert.equal(menus[0].openCount, 1);
     assert.equal(views[0].models.at(-1).eventImport.message, "Selection cancelled");
     assert.equal(applet._restoreChooserFeedback(applet._eventImport, "idle"), false);
@@ -746,6 +761,7 @@ test("chooser completion restores popup focus with visible result feedback", () 
     applet._eventImport.chooseFiles = () => false;
     applet.on_applet_clicked();
     assert.equal(applet._menuActions().chooseEventFiles(), true);
+    assert.equal(applet._menuOpen, false);
     scheduled.at(-1).callback();
     assert.equal(menus[0].isOpen, true, "a refused chooser action restores the popup");
     applet._teardown();
@@ -1044,7 +1060,9 @@ test("click and orientation lifecycle replace menu and preserve latest state", (
     assert.equal(views[0].destroyed, true);
     assert.equal(menuManagers[0].menus.length, 0);
     assert.equal(menus[1].orientation, "bottom");
-    assert.equal(views[1].models.length, 1);
+    assert.equal(views[1].models.length, 0);
+    menus[1].emit("open-state-changed", true);
+    assert.equal(views[1].models.length > 0, true);
     applet.menu = null;
     assert.doesNotThrow(() => applet.on_applet_clicked());
 });
@@ -1224,7 +1242,12 @@ test("render updates safety styling and ignores work after teardown", () => {
 
 test("menu destruction and panel rendering tolerate missing transient state", () => {
     const {applet} = appletHarness();
+    const latest = applet._latestState;
+    applet._latestState = null;
+    assert.equal(applet._renderMenu(), false);
+    applet._latestState = latest;
     assert.equal(applet._destroyMenu(), true);
+    assert.equal(applet._renderMenu(), false);
     assert.equal(applet._destroyMenu(), false);
     applet._latestState = null;
     assert.doesNotThrow(() => applet._renderPanel());
@@ -1248,12 +1271,14 @@ test("the popup starts with a safe default and measures only after it opens", ()
     assert.equal(measurements, 0, "construction must not inspect an unstaged applet actor");
 
     menus[0].emit("open-state-changed", true);
+    assert.equal(applet._menuOpen, true);
     assert.equal(measurements, 1);
     assert.equal(views[0].layouts.length, 1);
     assert.equal(views[0].layouts[0].mode, "compact");
     assert.equal(applet._layout.mode, "compact");
 
     menus[0].emit("open-state-changed", false);
+    assert.equal(applet._menuOpen, false);
     assert.equal(measurements, 1);
     assert.equal(views[0].layouts.length, 1, "closing the popup must not re-measure");
 });

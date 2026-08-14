@@ -130,6 +130,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._destroyed = false;
         this._latestState = null;
         this._panelIconStatus = null;
+        this._menuOpen = false;
         this._logger = overrides.logger || defaultLogger();
         this.settings = null;
         this.menu = null;
@@ -458,12 +459,18 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
 
     _createMenu(orientation) {
         this.menu = this._menuFactory(this, orientation);
+        this._menuOpen = false;
         this.menuManager.addMenu(this.menu);
         this._view = this._viewFactory(this.menu, this._layout);
         if (typeof this.menu.connect === "function") {
             this.menu.connect("open-state-changed", (_menu, open) => {
+                this._menuOpen = open === true;
                 if (open) {
                     this._applyLayout();
+                    if (typeof this._view.invalidateBody === "function") {
+                        this._view.invalidateBody();
+                    }
+                    this._renderMenu();
                     this._refreshEventAvailability();
                     // Input enumeration is asynchronous and starts only when
                     // somebody opens the popup, never on the poll interval.
@@ -502,6 +509,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         const view = this._view;
         const menuManager = this.menuManager;
         this.menu = null;
+        this._menuOpen = false;
         this._view = null;
         this._runIsolated([
             ["destroy the popup view", () => view && view.destroy()],
@@ -541,11 +549,24 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             Date.now(),
             this._platform.guidance,
         );
-        if (this._view) {
+        if (this._view && this.menu
+                && (this._menuOpen || this.menu.isOpen === true)) {
             this._view.render(model);
         }
         this._renderPanel(model);
         this._notifier.observe(this._latestState.alerts, this._latestState.profiles);
+    }
+
+    _renderMenu() {
+        if (!this._view || !this._latestState) {
+            return false;
+        }
+        this._view.render(ViewModel.toViewModel(
+            this._latestState,
+            Date.now(),
+            this._platform.guidance,
+        ));
+        return true;
     }
 
     _refreshEventAvailability() {
@@ -725,6 +746,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             return action();
         }
         this.menu.close(false);
+        this._menuOpen = false;
         this._chooserFeedback = {owner, pendingPhase};
         this._chooserLaunchHandle = this._scheduler.schedule(0, () => {
             this._chooserLaunchHandle = null;
@@ -749,6 +771,8 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             return false;
         }
         this.menu.open(false);
+        this._menuOpen = true;
+        this._renderMenu();
         return true;
     }
 

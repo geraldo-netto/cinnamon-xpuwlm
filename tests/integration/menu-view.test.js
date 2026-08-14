@@ -430,6 +430,62 @@ test("selected-document UI asks explicitly and renders only public citations", (
     assert.deepEqual(calls.at(-1), ["resetDocumentQuestion"]);
 });
 
+test("entry drafts and focus survive an unrelated body rebuild", () => {
+    const {view, root} = harness();
+    const selected = baseState({
+        selectedTab: "profiles",
+        documentQuestion: documentWorkflow({
+            phase: "selected",
+            sources: [{path: "/private/guide.pdf", name: "guide.pdf", size: 42}],
+        }),
+    });
+    view.render(ViewModel.toViewModel(selected, NOW));
+    view._openDetail("documents");
+    const original = findActors(
+        root, (actor) => actor.accessibleName === "Question for selected documents",
+    )[0];
+    original.set_text("What must I restart?");
+    original.grab_key_focus();
+
+    view.render(ViewModel.toViewModel({
+        ...selected,
+        metrics: {...selected.metrics, queueDepth: selected.metrics.queueDepth + 1},
+    }, NOW));
+
+    const rebuilt = findActors(
+        root, (actor) => actor.accessibleName === "Question for selected documents",
+    )[0];
+    assert.notStrictEqual(rebuilt, original);
+    assert.equal(rebuilt.get_text(), "What must I restart?");
+    assert.equal(rebuilt.focused, true);
+    assert.equal(view._focusedIdentity, "document-question-input");
+});
+
+test("entry draft cache keeps only live entries and yields to changed model text", () => {
+    const {view} = harness();
+    const uncached = view._entry("model", "Uncached", "uncached");
+    view._body.add_child(uncached);
+    view._entryDrafts.delete("uncached");
+    assert.doesNotThrow(() => view._captureEntryDrafts());
+
+    const unrelatedButton = new FakeButton({can_focus: true});
+    unrelatedButton.xpuwlmIdentity = "not-an-entry";
+    view._body.add_child(unrelatedButton);
+    view._entryDrafts.set("not-an-entry", {modelText: "", draft: "stale"});
+    assert.doesNotThrow(() => view._captureEntryDrafts());
+    view._pruneEntryDrafts();
+    assert.equal(view._entryDrafts.has("not-an-entry"), false);
+
+    const stale = view._entry("old", "Stale", "stale");
+    stale.set_text("draft");
+    view._body.add_child(stale);
+    view._captureEntryDrafts();
+    assert.equal(view._entry("new", "Stale", "stale").get_text(), "new");
+    view._entryDrafts.set("gone", {modelText: "old", draft: "draft"});
+    view._pruneEntryDrafts();
+    assert.equal(view._entryDrafts.has("gone"), false);
+});
+
 test("selected-document render helpers preserve every branch and actor effect", () => {
     const empty = harness();
     assert.equal(empty.view._renderDocumentQuestion(null), false);
@@ -1262,8 +1318,12 @@ test("body rendering skips unchanged content and destroy is idempotent", () => {
     const originalChildren = body.children.slice();
     view.render(model);
     assert.deepEqual(body.children, originalChildren);
+    assert.equal(view.invalidateBody(), true);
+    view.render(model);
+    assert.notDeepEqual(body.children, originalChildren);
     assert.equal(view.destroy(), true);
     assert.equal(root.destroyed, true);
+    assert.equal(view.invalidateBody(), false);
     assert.equal(view.destroy(), false);
 });
 
