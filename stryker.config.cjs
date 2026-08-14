@@ -2,7 +2,6 @@
 
 const path = require("node:path");
 
-const {mutationPolicy} = require("./package.json");
 const {mutationTargets} = require("./scripts/mutation-plan.js");
 
 const targets = mutationTargets();
@@ -30,14 +29,10 @@ module.exports = {
     coverageAnalysis: "off",
     incremental: false,
     mutate: [selected.source],
-    mutator: {excludedMutations: mutationPolicy.excludedMutations},
+    mutator: {excludedMutations: ["StringLiteral"]},
     reporters: ["clear-text", "progress", "json"],
     jsonReporter: {fileName: reportPath},
-    thresholds: {
-        high: mutationPolicy.threshold,
-        low: mutationPolicy.threshold,
-        break: mutationPolicy.threshold,
-    },
+    thresholds: {high: 80, low: 80, break: 80},
     concurrency: 2,
     timeoutMS: 10000,
     timeoutFactor: 2.5,

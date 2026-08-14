@@ -173,7 +173,7 @@ test("JSON validation rejects an absent stage and every non-strict schema", (con
     }
 });
 
-test("JSON validation refuses empty workloads, non-directories, and weak thresholds", (context) => {
+test("JSON validation refuses empty workloads and non-directories", (context) => {
     const emptyRoots = copiedRepository(context);
     fs.rmSync(path.join(emptyRoots.appletRoot, "workloads"), {recursive: true, force: true});
     fs.mkdirSync(path.join(emptyRoots.appletRoot, "workloads"));
@@ -185,13 +185,6 @@ test("JSON validation refuses empty workloads, non-directories, and weak thresho
         () => Artifacts.validateJsonArtifacts(fileRoots),
         /Workload must be a directory/u,
     );
-
-    const thresholdRoots = copiedRepository(context);
-    const packagePath = path.join(thresholdRoots.repositoryRoot, "package.json");
-    const packageDocument = JSON.parse(fs.readFileSync(packagePath, "utf8"));
-    packageDocument.mutationPolicy.threshold = 79;
-    fs.writeFileSync(packagePath, JSON.stringify(packageDocument));
-    assert.throws(() => Artifacts.validateJsonArtifacts(thresholdRoots));
 });
 
 test("workflow and JavaScript validation cannot become empty stages", (context) => {

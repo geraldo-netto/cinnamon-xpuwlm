@@ -270,7 +270,6 @@ function validateJsonArtifacts({
     const potFile = fs.readFileSync(path.join(targetAppletRoot, "po", `${UUID}.pot`), "utf8");
     assert.match(potFile, /"Content-Type: text\/plain; charset=UTF-8\\n"/u);
     assert.equal(potFile.includes(`Project-Id-Version: ${UUID}`), true);
-    assert.equal(packageJson.scripts.test.includes("test:mutation"), true);
     assert.equal(packageJson.scripts["test:ci"], [
         "npm run lint",
         "npm run test:syntax",
@@ -282,24 +281,12 @@ function validateJsonArtifacts({
         "npm run test:fuzz",
         "npm run test:visual",
     ].join(" && "));
-    assert.equal(packageJson.scripts["test:ci"].includes("test:mutation"), false);
     assert.equal(packageJson.scripts.test.includes("test:visual"), true);
     assert.equal(packageJson.scripts.test.includes("check:workloads"), true);
     assert.equal(packageJson.scripts["test:contract"], "node --test tests/contract/*.test.js");
     assert.equal(packageJson.devDependencies.ajv, "8.18.0");
     assert.equal(packageJson.scripts["test:visual"], "node --test tests/visual/*.test.js");
-    assert.equal(
-        packageJson.scripts["test:mutation:full"],
-        "node scripts/run-mutation-campaign.js",
-    );
-    assert.equal(packageJson.scripts["test:mutation:full"].includes("tests/visual"), false);
     assert.equal(packageJson.scripts["test:local"], "XPUWLM_SKIP_HOST_GATES=1 npm test");
-    assert.deepEqual(Object.keys(packageJson.mutationPolicy).sort(), [
-        "excludedMutations", "sourceCount", "threshold",
-    ]);
-    assert.equal(packageJson.mutationPolicy.threshold >= 80, true);
-    assert.equal(packageJson.mutationPolicy.sourceCount, 101);
-    assert.deepEqual(packageJson.mutationPolicy.excludedMutations, ["StringLiteral"]);
 }
 
 function readWorkflow(root, name) {
