@@ -100,7 +100,7 @@ function verifyNativeStateWrite() {
         }
         const [ok, contents] = GLib.file_get_contents(statePath);
         const stored = ok ? JSON.parse(ByteArray.toString(contents)) : null;
-        if (!stored || stored.selectedTab !== "profiles" || stored.activityClearedAt !== 42) {
+        if (stored?.selectedTab !== "profiles" || stored.activityClearedAt !== 42) {
             throw new Error("CJS state smoke did not persist the expected state");
         }
     } finally {

@@ -88,7 +88,7 @@ function defaultLogger() {
 }
 
 function settingsInstanceId(metadata, instanceId) {
-    const maximum = metadata && metadata["max-instances"];
+    const maximum = metadata?.["max-instances"];
     return maximum === 1 ? metadata.uuid : instanceId;
 }
 
@@ -521,8 +521,8 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._menuOpen = false;
         this._view = null;
         this._runIsolated([
-            ["destroy the popup view", () => view && view.destroy()],
-            ["remove the popup menu", () => menuManager && menuManager.removeMenu(menu)],
+            ["destroy the popup view", () => view?.destroy()],
+            ["remove the popup menu", () => menuManager?.removeMenu(menu)],
             ["destroy the popup menu", () => menu.destroy()],
         ]);
         return true;
@@ -747,7 +747,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             || this._chooserLaunchHandle !== null) {
             return false;
         }
-        if (!this.menu || this.menu.isOpen !== true || typeof this.menu.close !== "function") {
+        if (this.menu?.isOpen !== true || typeof this.menu.close !== "function") {
             return action();
         }
         this.menu.close(false);
@@ -819,25 +819,25 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._chooserLifecycle = null;
         this._chooserFeedback = null;
         this._runIsolated([
-            ["stop the refresh timer", () => poller && poller.stop()],
+            ["stop the refresh timer", () => poller?.stop()],
             ["cancel a pending chooser launch", () => this._cancelChooserLaunch()],
-            ["destroy open file choosers", () => chooserLifecycle && chooserLifecycle.dispose()],
-            ["release the state subscription", () => unsubscribe && unsubscribe()],
-            ["release the event subscription", () => eventUnsubscribe && eventUnsubscribe()],
-            ["release the document subscription", () => documentUnsubscribe && documentUnsubscribe()],
-            ["release the selected-text subscription", () => selectedTextUnsubscribe && selectedTextUnsubscribe()],
-            ["release the file-organizer subscription", () => fileOrganizerUnsubscribe && fileOrganizerUnsubscribe()],
-            ["release the media-transcription subscription", () => mediaTranscriptionUnsubscribe && mediaTranscriptionUnsubscribe()],
-            ["cancel plug-in inventory", () => this._pluginInventoryGateway && this._pluginInventoryGateway.cancel()],
+            ["destroy open file choosers", () => chooserLifecycle?.dispose()],
+            ["release the state subscription", () => unsubscribe?.()],
+            ["release the event subscription", () => eventUnsubscribe?.()],
+            ["release the document subscription", () => documentUnsubscribe?.()],
+            ["release the selected-text subscription", () => selectedTextUnsubscribe?.()],
+            ["release the file-organizer subscription", () => fileOrganizerUnsubscribe?.()],
+            ["release the media-transcription subscription", () => mediaTranscriptionUnsubscribe?.()],
+            ["cancel plug-in inventory", () => this._pluginInventoryGateway?.cancel()],
             ["destroy the popup menu", () => this._destroyMenu()],
-            ["dispose the workload manager", () => manager && manager.dispose()],
-            ["dispose event import", () => this._eventImport && this._eventImport.dispose()],
-            ["dispose document question", () => this._documentQuestion && this._documentQuestion.dispose()],
-            ["dispose selected-text tools", () => this._selectedText && this._selectedText.dispose()],
-            ["dispose file organizer", () => this._fileOrganizer && this._fileOrganizer.dispose()],
-            ["dispose media transcription", () => this._mediaTranscription && this._mediaTranscription.dispose()],
-            ["dispose the alert notifier", () => notifier && notifier.dispose()],
-            ["finalize the applet settings", () => settings && settings.finalize()],
+            ["dispose the workload manager", () => manager?.dispose()],
+            ["dispose event import", () => this._eventImport?.dispose()],
+            ["dispose document question", () => this._documentQuestion?.dispose()],
+            ["dispose selected-text tools", () => this._selectedText?.dispose()],
+            ["dispose file organizer", () => this._fileOrganizer?.dispose()],
+            ["dispose media transcription", () => this._mediaTranscription?.dispose()],
+            ["dispose the alert notifier", () => notifier?.dispose()],
+            ["finalize the applet settings", () => settings?.finalize()],
         ]);
         this._latestState = null;
         return true;

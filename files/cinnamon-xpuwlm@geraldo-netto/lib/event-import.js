@@ -433,7 +433,7 @@ class EventImportController {
         if (error) {
             return this._fail(String(error));
         }
-        if (!acknowledgement || acknowledgement.status !== "accepted" || !acknowledgement.jobId) {
+        if (acknowledgement?.status !== "accepted" || !acknowledgement.jobId) {
             return this._fail(acknowledgement?.message || _("Runtime rejected event extraction"));
         }
         this._polls = 0;

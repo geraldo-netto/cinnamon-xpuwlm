@@ -104,7 +104,7 @@ function validSettingsUuid(uuid) {
 }
 
 function hasSettingsFileApi(environment) {
-    return Boolean(environment && environment.GLib && environment.Gio
+    return Boolean(environment?.GLib && environment.Gio
         && typeof environment.GLib.get_home_dir === "function"
         && typeof environment.Gio.File?.new_for_path === "function");
 }
@@ -146,7 +146,7 @@ function readCurrentIdentitySettings(uuid, instanceId, environment) {
 }
 
 function restoreCurrentRefreshInterval(settings, snapshot) {
-    const value = snapshot && snapshot["refresh-interval"];
+    const value = snapshot?.["refresh-interval"];
     if (!Number.isInteger(value) || value < 1 || value > 60
             || settings.getValue("refresh-interval") === value) {
         return false;
@@ -186,7 +186,7 @@ function migrateLegacyAppletSettings(settings, environment, path = LEGACY_SETTIN
 
 class FileStateRepository {
     constructor({path, environment, legacy = null, legacyPath = null}) {
-        if (!path || !environment || !environment.Gio) {
+        if (!path || !environment?.Gio) {
             throw new TypeError("A state file path and a Gio environment are required");
         }
         this._path = expandHome(String(path), environment.GLib.get_home_dir());
@@ -426,7 +426,7 @@ function persistedAppletState(parsed) {
 // reach GIO (test harnesses); production always gets the atomic state file.
 function createStateRepository(environment, settings, path = APPLET_STATE_PATH) {
     const legacy = new CinnamonSettingsRepository(settings);
-    if (!environment || !environment.Gio || !environment.GLib) {
+    if (!environment?.Gio || !environment.GLib) {
         return legacy;
     }
     return new FileStateRepository({

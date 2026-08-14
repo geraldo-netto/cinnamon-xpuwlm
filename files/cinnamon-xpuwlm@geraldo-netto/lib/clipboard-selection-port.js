@@ -1,7 +1,7 @@
 "use strict";
 
 function requireEnvironment(environment) {
-    if (!environment || !environment.Gdk || !environment.Gtk) {
+    if (!environment?.Gdk || !environment.Gtk) {
         throw new TypeError("GTK clipboard dependencies are required");
     }
     const getClipboard = environment.Gtk.Clipboard?.get;
@@ -13,7 +13,7 @@ function requireEnvironment(environment) {
 }
 
 function clipboardAtom(environment) {
-    if (!environment || !environment.Gdk) {
+    if (!environment?.Gdk) {
         throw new TypeError("GDK clipboard dependency is required");
     }
     if (environment.Gdk.SELECTION_CLIPBOARD !== undefined) {

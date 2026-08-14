@@ -13,7 +13,7 @@ const {_} = I18n;
 const SOURCE_ATTRIBUTES = "standard::name,standard::type,standard::size";
 
 function requireEnvironment(environment) {
-    if (!environment || !environment.Gtk || !environment.Gdk
+    if (!environment?.Gtk || !environment.Gdk
         || !environment.Gio || !environment.ByteArray) {
         throw new TypeError("GTK, GDK, GIO, and ByteArray are required for event file access");
     }
@@ -21,7 +21,7 @@ function requireEnvironment(environment) {
 }
 
 function requireFileEnvironment(environment) {
-    if (!environment || !environment.Gio || !environment.ByteArray) {
+    if (!environment?.Gio || !environment.ByteArray) {
         throw new TypeError("GIO and ByteArray are required for event file access");
     }
     return environment;

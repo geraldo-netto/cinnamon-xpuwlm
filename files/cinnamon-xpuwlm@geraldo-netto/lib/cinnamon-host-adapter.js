@@ -81,7 +81,7 @@ class CinnamonScheduler {
 // Reads the raw measurements the pure layout module needs. Everything that can
 // be absent on an older Cinnamon stays optional; the layout module sanitizes.
 function createLayoutProvider({Main, St, cinnamonGlobal = global}) {
-    if (!Main || !Main.layoutManager) {
+    if (!Main?.layoutManager) {
         throw new TypeError("Cinnamon layout manager is required");
     }
     const layoutManager = Main.layoutManager;
@@ -90,7 +90,7 @@ function createLayoutProvider({Main, St, cinnamonGlobal = global}) {
             const monitor = (actor && typeof layoutManager.findMonitorForActor === "function"
                 ? layoutManager.findMonitorForActor(actor)
                 : null) || layoutManager.primaryMonitor || {};
-            const themeContext = St && St.ThemeContext
+            const themeContext = St?.ThemeContext
                 ? St.ThemeContext.get_for_stage(cinnamonGlobal.stage)
                 : null;
             return {

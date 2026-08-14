@@ -31,7 +31,7 @@ function createPosixDiscovery({environment, clock = Date, logger, workloadCatalo
 }
 
 function createCinnamonPlatform(options) {
-    if (!options || !options.environment) {
+    if (!options?.environment) {
         throw new TypeError("Cinnamon platform environment is required");
     }
     return Platform.platformComposition({

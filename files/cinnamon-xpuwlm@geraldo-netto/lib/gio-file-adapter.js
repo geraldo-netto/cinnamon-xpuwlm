@@ -43,7 +43,7 @@ function readFileText(path, environment, maximumBytes = null) {
 }
 
 function isIoError(environment, error, name) {
-    const enumeration = environment.Gio && environment.Gio.IOErrorEnum;
+    const enumeration = environment.Gio?.IOErrorEnum;
     if (!enumeration || !error || typeof error.matches !== "function") {
         return false;
     }
@@ -256,7 +256,7 @@ function joinChunks(chunks, total) {
 }
 
 function createCancellableFactory(environment) {
-    return () => (environment.Gio && environment.Gio.Cancellable
+    return () => (environment.Gio?.Cancellable
         ? new environment.Gio.Cancellable()
         : null);
 }

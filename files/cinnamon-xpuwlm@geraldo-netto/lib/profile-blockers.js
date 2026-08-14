@@ -148,7 +148,7 @@ function classifyProfileBlocker(profile) {
     if (kind !== null) {
         return {kind, detail};
     }
-    if (profile && profile.status === "unavailable") {
+    if (profile?.status === "unavailable") {
         return {kind: "unknown", detail};
     }
     if (detail !== "") {
@@ -161,7 +161,7 @@ function classifyProfileBlocker(profile) {
 // snapshot cannot answer. A profile the shipped manifest calls inexecutable
 // needs an artifact, and that is the one thing the manifest does know.
 function manifestBlocker(profile) {
-    return profile && profile.executable === false ? {kind: "model", detail: ""} : null;
+    return profile?.executable === false ? {kind: "model", detail: ""} : null;
 }
 
 module.exports = {

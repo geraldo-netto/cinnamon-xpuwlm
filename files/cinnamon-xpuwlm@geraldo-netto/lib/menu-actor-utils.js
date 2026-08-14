@@ -19,7 +19,7 @@ function box(St, styleClass, vertical = false, expand = false) {
 }
 
 function setWrap(actor, wrap, layout) {
-    if (!actor || !actor.clutter_text) {
+    if (!actor?.clutter_text) {
         return false;
     }
     const wrapping = wrap === true && layout.wrapText;
@@ -54,7 +54,7 @@ function entry(St, text, accessibleName, identity) {
 }
 
 function setAccessibleRole(Atk, actor, role) {
-    const value = Atk && Atk.Role ? Atk.Role[role] : undefined;
+    const value = Atk?.Role?.[role];
     if (value === undefined || typeof actor.set_accessible_role !== "function") {
         return false;
     }
@@ -63,7 +63,7 @@ function setAccessibleRole(Atk, actor, role) {
 }
 
 function setAccessibleState(Atk, actor, state, enabled) {
-    const value = Atk && Atk.StateType ? Atk.StateType[state] : undefined;
+    const value = Atk?.StateType?.[state];
     if (value === undefined) {
         return false;
     }

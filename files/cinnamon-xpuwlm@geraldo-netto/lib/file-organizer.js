@@ -361,7 +361,7 @@ class FileOrganizerController extends Workflow.RuntimeWorkflowController {
         if (error) {
             return this._fail(String(error));
         }
-        if (!acknowledgement || acknowledgement.status !== "accepted" || !acknowledgement.jobId) {
+        if (acknowledgement?.status !== "accepted" || !acknowledgement.jobId) {
             return this._fail(acknowledgement?.message || _("Runtime rejected file organization"));
         }
         this._polls = 0;

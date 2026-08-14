@@ -114,7 +114,7 @@ function readingModel(reading) {
     if (forecast !== null) {
         return {kind: forecast.kind, entries: [forecastReadingText(forecast)]};
     }
-    if (reading === null || reading === undefined || reading.kind !== "classification") {
+    if (reading?.kind !== "classification") {
         return null;
     }
     return {
@@ -124,7 +124,7 @@ function readingModel(reading) {
 }
 
 function jobModel(job, profiles) {
-    if (!job || !job.profileId) {
+    if (!job?.profileId) {
         return null;
     }
     const profile = profiles.find((candidate) => candidate.id === job.profileId)
@@ -212,7 +212,7 @@ function workflowPhase(workflow) {
 }
 
 function workflowAvailable(workflow) {
-    return Boolean(workflow && workflow.available === true);
+    return Boolean(workflow?.available === true);
 }
 
 function workflowAvailabilityDetail(workflow) {

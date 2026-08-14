@@ -1364,7 +1364,7 @@ class MenuView {
     _entry(text, accessibleName, identity) {
         const modelText = String(text || "");
         const saved = this._entryDrafts.get(identity);
-        const draft = saved && saved.modelText === modelText ? saved.draft : modelText;
+        const draft = saved?.modelText === modelText ? saved.draft : modelText;
         this._entryDrafts.set(identity, {modelText, draft});
         const entry = ActorUtils.entry(this._St, draft, accessibleName, identity);
         entry.connect("key-focus-in", () => {

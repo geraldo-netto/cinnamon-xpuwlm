@@ -514,7 +514,7 @@ class WorkloadRuntimeController {
         if (this._jobSubmitter === null) {
             return false;
         }
-        if (discardStaged && polling !== null && polling.stagedPath) {
+        if (discardStaged && polling?.stagedPath) {
             this._jobSubmitter.discard(polling.stagedPath);
         }
         return this._jobSubmitter.cancelResult();
