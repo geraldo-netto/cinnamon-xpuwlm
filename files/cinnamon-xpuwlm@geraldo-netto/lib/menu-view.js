@@ -22,6 +22,7 @@ const TAB_LABELS = Object.freeze({
     profiles: N_("System"),
     setup: N_("Diagnostics"),
 });
+const MAX_RECENT_RESOLVED_ALERTS = 5;
 
 function requireAction(actions, name) {
     if (!actions || typeof actions[name] !== "function") {
@@ -822,7 +823,10 @@ class MenuView {
     }
 
     _renderRecentActivity(model) {
-        this._addGroupHeading(_("Recent"), `${model.activity.recent.length + model.activeAlerts.length + model.resolvedAlerts.length}`);
+        const resolvedAlerts = model.resolvedAlerts.slice(0, MAX_RECENT_RESOLVED_ALERTS);
+        const recentCount = model.activity.recent.length
+            + model.activeAlerts.length + resolvedAlerts.length;
+        this._addGroupHeading(_("Recent"), `${recentCount}`);
         for (const item of model.activity.recent) {
             this._body.add_child(this._activityRow(item));
         }
@@ -830,7 +834,7 @@ class MenuView {
         for (const alert of model.activeAlerts) {
             this._body.add_child(this._alertCard(alert));
         }
-        for (const alert of model.resolvedAlerts.slice(0, 5)) {
+        for (const alert of resolvedAlerts) {
             this._body.add_child(this._activityRow({
                 id: `alert:${alert.id}`,
                 title: alert.title,
@@ -839,8 +843,6 @@ class MenuView {
                 tone: "healthy",
             }));
         }
-        const recentCount = model.activity.recent.length
-            + model.activeAlerts.length + model.resolvedAlerts.length;
         if (recentCount === 0) {
             this._body.add_child(this._label(_("No recent activity"), "xpuwlm-empty-note", true));
         }
@@ -1473,6 +1475,7 @@ WorkflowMenu.installWorkflowRenderers(MenuView.prototype);
 
 module.exports = {
     IMMEDIATE_ACTION_SCHEDULER,
+    MAX_RECENT_RESOLVED_ALERTS,
     jobDetail,
     MenuView,
     TAB_NAMES,

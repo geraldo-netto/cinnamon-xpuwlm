@@ -213,6 +213,35 @@ test("Activity empty card preserves exact visual actor direction and expansion",
     ]);
 });
 
+test("Activity Recent heading counts only the resolved alerts it renders", () => {
+    const {view} = harness();
+    const resolvedAlerts = Array.from({length: 7}, (_unused, index) => ({
+        id: `resolved-${index}`,
+        title: `Resolved alert ${index}`,
+        profileTitle: "Hardware Health",
+        age: "recently",
+    }));
+
+    view._renderRecentActivity({
+        activity: {recent: []},
+        activeAlerts: [],
+        resolvedAlerts,
+        unknownContent: null,
+    });
+
+    const headings = findActors(
+        view._body,
+        (actor) => actor.styleClasses?.has("xpuwlm-group-value"),
+    );
+    const rows = findActors(
+        view._body,
+        (actor) => actor.styleClasses?.has("xpuwlm-history-row"),
+    );
+    assert.equal(Menu.MAX_RECENT_RESOLVED_ALERTS, 5);
+    assert.deepEqual(headings.map((heading) => heading.text), ["5"]);
+    assert.equal(rows.length, 5);
+});
+
 test("System has no refresh or description and progressively discloses profiles", () => {
     const {view, root} = harness();
     view.render(ViewModel.toViewModel(state({selectedTab: "profiles"}), NOW));
