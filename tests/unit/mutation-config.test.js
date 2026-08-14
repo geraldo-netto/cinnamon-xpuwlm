@@ -10,7 +10,7 @@ const {BEHAVIOR_MODULES, mutationTargets} = require("../../scripts/mutation-plan
 
 test("scoped mutation config pairs every source with focused unit tests", () => {
     const targets = mutationTargets();
-    assert.equal(targets.length, 47);
+    assert.equal(targets.length, 45);
     assert.equal(targets.length, BEHAVIOR_MODULES.size);
     assert.equal(new Set(targets.map((target) => target.source)).size, targets.length);
     for (const target of targets) {
@@ -20,6 +20,7 @@ test("scoped mutation config pairs every source with focused unit tests", () => 
         assert.equal(target.tests.every((file) => fs.existsSync(path.join(ROOT, file))), true);
         assert.equal(target.source.includes("/scripts/"), false);
         assert.doesNotMatch(target.source, /cinnamon-.*-adapter|gio-file-adapter/u);
+        assert.equal(target.source.includes("benchmark"), false);
     }
 
     const config = require("../../stryker.config.cjs");
