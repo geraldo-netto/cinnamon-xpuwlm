@@ -27,12 +27,12 @@ class FakeTextIconApplet {
     constructor(orientation, panelHeight, instanceId) {
         this.baseArguments = {orientation, panelHeight, instanceId};
         this.actor = new FakeActor();
-        this.iconPath = null;
+        this.iconName = null;
         this.label = null;
         this.tooltip = null;
     }
 
-    set_applet_icon_symbolic_path(path) { this.iconPath = path; }
+    set_applet_icon_symbolic_name(name) { this.iconName = name; }
 
     set_applet_label(label) { this.label = label; }
 

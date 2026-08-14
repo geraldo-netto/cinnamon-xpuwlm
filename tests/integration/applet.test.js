@@ -35,15 +35,15 @@ class FakeTextIconApplet {
         this.baseArguments = {orientation, panelHeight, instanceId};
         this.instance_id = instanceId;
         this.actor = new FakeActor();
-        this.iconPath = null;
-        this.symbolicIconPaths = [];
+        this.iconName = null;
+        this.symbolicIconNames = [];
         this.label = null;
         this.tooltip = null;
     }
 
-    set_applet_icon_symbolic_path(path) {
-        this.iconPath = path;
-        this.symbolicIconPaths.push(path);
+    set_applet_icon_symbolic_name(name) {
+        this.iconName = name;
+        this.symbolicIconNames.push(name);
     }
 
     set_applet_label(label) {
@@ -397,9 +397,9 @@ function appletHarness(extraOverrides = {}) {
 test("constructor binds settings, registers icon, renders, and starts polling", () => {
     const {applet, manager, menus, poller, settings, views} = appletHarness();
     assert.deepEqual(applet.baseArguments, {orientation: "top", panelHeight: 40, instanceId: 7});
-    assert.deepEqual(applet.symbolicIconPaths, [
-        "/tmp/xpuwlm/icons/xpuwlm-symbolic-v2.svg",
-        "/tmp/xpuwlm/icons/xpuwlm-status-detected-symbolic.svg",
+    assert.deepEqual(applet.symbolicIconNames, [
+        "xpuwlm-v2-symbolic",
+        "xpuwlm-status-detected-symbolic",
     ]);
     assert.equal(iconPaths.includes("/tmp/xpuwlm/icons"), true);
     assert.equal(applet.label, "");
@@ -1074,8 +1074,8 @@ test("panel uses cached symbolic state icons and explicit accessible status", ()
     for (const [state, status, accessibleName] of states) {
         manager.callback(state);
         assert.equal(
-            applet.iconPath,
-            `/tmp/xpuwlm/icons/xpuwlm-status-${status}-symbolic.svg`,
+            applet.iconName,
+            `xpuwlm-status-${status}-symbolic`,
         );
         assert.match(applet.actor.accessibleName, accessibleName);
         assert.equal(applet.label, "");
@@ -1087,17 +1087,19 @@ test("panel uses cached symbolic state icons and explicit accessible status", ()
         }
     }
 
-    const callsBeforeRepeatedState = applet.symbolicIconPaths.length;
+    const callsBeforeRepeatedState = applet.symbolicIconNames.length;
     manager.callback(states.at(-1)[0]);
-    assert.equal(applet.symbolicIconPaths.length, callsBeforeRepeatedState);
+    assert.equal(applet.symbolicIconNames.length, callsBeforeRepeatedState);
     assert.equal(applet._setPanelIcon("online"), true);
-    assert.match(applet.iconPath, /xpuwlm-status-online-symbolic\.svg$/u);
+    assert.equal(applet.iconName, "xpuwlm-status-online-symbolic");
     assert.equal(applet._setPanelIcon("online"), false);
     assert.equal(applet._setPanelIcon("future-status"), true);
-    assert.match(applet.iconPath, /xpuwlm-status-unavailable-symbolic\.svg$/u);
+    assert.equal(applet.iconName, "xpuwlm-status-unavailable-symbolic");
     assert.equal(applet._setPanelIcon("future-status"), false);
     assert.equal(AppletModule.panelIconFilename("future-status"), "xpuwlm-status-unavailable-symbolic.svg");
     assert.equal(AppletModule.panelIconFilename("online"), "xpuwlm-status-online-symbolic.svg");
+    assert.equal(AppletModule.panelIconName("future-status"), "xpuwlm-status-unavailable-symbolic");
+    assert.equal(AppletModule.panelIconName("online"), "xpuwlm-status-online-symbolic");
 });
 
 test("panel icon stays at least 32 pixels and preserves larger zone sizes", () => {
@@ -1117,9 +1119,9 @@ test("panel icon stays at least 32 pixels and preserves larger zone sizes", () =
     assert.equal(AppletModule.panelIconSize(31.9), 32);
     assert.equal(AppletModule.panelIconSize(40), 40);
 
-    const setIcon = applet.set_applet_icon_symbolic_path.bind(applet);
-    applet.set_applet_icon_symbolic_path = (path) => {
-        setIcon(path);
+    const setIcon = applet.set_applet_icon_symbolic_name.bind(applet);
+    applet.set_applet_icon_symbolic_name = (name) => {
+        setIcon(name);
         icon.size = 16;
     };
     applet._panelIconStatus = "detected";
@@ -1391,7 +1393,7 @@ test("default environment, logger, and main construct with Cinnamon dependencies
     assert.equal(tooltip.actor, instance.actor);
     assert.equal(tooltip.text, "Unavailable");
     assert.equal(instance.label, "");
-    assert.match(instance.iconPath, /xpuwlm-status-unavailable-symbolic\.svg$/u);
+    assert.equal(instance.iconName, "xpuwlm-status-unavailable-symbolic");
     assert.match(instance.actor.accessibleName, /unknown:/u);
     assert.equal(instance.settings.getValue("identity-migration-version"), 1,
         "the production settings port records the one-time identity migration");

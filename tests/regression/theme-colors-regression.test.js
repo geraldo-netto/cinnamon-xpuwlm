@@ -19,7 +19,9 @@ const HOST_GATE_OPTIONS = SKIP_HOST_GATES
 const ST_MATRIX_SCRIPT = String.raw`
 const St = imports.gi.St;
 const GObject = imports.gi.GObject;
-const [appletStylesheet, themeStylesheet, defaultStylesheet] = ARGV;
+const Gtk = imports.gi.Gtk;
+const Gdk = imports.gi.Gdk;
+const [appletStylesheet, themeStylesheet, defaultStylesheet, iconDirectory, foreground] = ARGV;
 const theme = St.Theme.new(appletStylesheet, themeStylesheet, defaultStylesheet);
 const context = St.ThemeContext.new();
 context.set_theme(theme);
@@ -55,6 +57,41 @@ function cue(classes, pseudoClass, side, type = St.Button.$gtype) {
 const panel = node(stage, St.Widget.$gtype, "panel-top", null, "panel");
 const normalApplet = node(panel, St.BoxLayout.$gtype, "applet-box xpuwlm-panel-online");
 const attentionApplet = node(panel, St.BoxLayout.$gtype, "applet-box xpuwlm-panel-attention");
+const panelIcon = node(normalApplet, St.Icon.$gtype, "system-status-icon");
+const brandIcon = node(appletRoot, St.Icon.$gtype, "xpuwlm-brand-icon");
+const iconTheme = Gtk.IconTheme.new();
+iconTheme.append_search_path(iconDirectory);
+const symbolicColor = new Gdk.RGBA();
+symbolicColor.parse(foreground);
+const successColor = new Gdk.RGBA();
+successColor.parse("#33d17a");
+const warningColor = new Gdk.RGBA();
+warningColor.parse("#ff7800");
+const errorColor = new Gdk.RGBA();
+errorColor.parse("#e01b24");
+const iconNames = [
+    "xpuwlm-symbolic",
+    "xpuwlm-v2-symbolic",
+    "xpuwlm-device-symbolic",
+    "xpuwlm-sliders-symbolic",
+    "xpuwlm-status-online-symbolic",
+    "xpuwlm-status-detected-symbolic",
+    "xpuwlm-status-attention-symbolic",
+    "xpuwlm-status-paused-symbolic",
+    "xpuwlm-status-unavailable-symbolic",
+];
+
+function renderedSymbolicIcon(name) {
+    const info = iconTheme.lookup_icon(name, 32, Gtk.IconLookupFlags.FORCE_SYMBOLIC);
+    if (!info) return null;
+    const loaded = info.load_symbolic(symbolicColor, successColor, warningColor, errorColor);
+    return {
+        filename: info.get_filename(),
+        symbolic: loaded[1],
+        width: loaded[0].get_width(),
+        height: loaded[0].get_height(),
+    };
+}
 
 print(JSON.stringify({
     surfaces: [menu, content, appletRoot].map((value) => color(value.get_background_color())),
@@ -65,9 +102,16 @@ print(JSON.stringify({
         alert: cue("xpuwlm-alert-card", null, St.Side.LEFT, St.BoxLayout.$gtype),
     },
     panel: {
+        background: color(panel.get_background_color()),
+        iconForeground: color(panelIcon.get_foreground_color()),
         normalGeometry: geometry(normalApplet),
         attentionGeometry: geometry(attentionApplet),
     },
+    brand: {
+        background: color(brandIcon.get_background_color()),
+        foreground: color(brandIcon.get_foreground_color()),
+    },
+    icons: Object.fromEntries(iconNames.map((name) => [name, renderedSymbolicIcon(name)])),
 }));
 `;
 
@@ -169,11 +213,11 @@ function findCinnamonRuntime() {
     };
 }
 
-function renderThemeMatrix(themeStylesheet) {
+function renderThemeMatrix(themeStylesheet, foreground) {
     const runtime = findCinnamonRuntime();
     const output = childProcess.execFileSync(
         runtime.executable,
-        ["-c", ST_MATRIX_SCRIPT, stylesheetPath, themeStylesheet, "/dev/null"],
+        ["-c", ST_MATRIX_SCRIPT, stylesheetPath, themeStylesheet, "/dev/null", path.join(ROOT, "icons"), foreground],
         {
             encoding: "utf8",
             env: {
@@ -256,7 +300,7 @@ test("regression: St resolves visible cues in light, dark, and high-contrast pal
                 `.menu, .popup-menu-content, .panel-top { color: ${foreground}; background-color: ${background}; }`,
                 `.applet-box { color: ${foreground}; }`,
             ].join("\n"));
-            const matrix = renderThemeMatrix(themePath);
+            const matrix = renderThemeMatrix(themePath, foreground);
             let surface = [0, 0, 0, 255];
             for (const layer of matrix.surfaces) {
                 surface = composite(layer, surface);
@@ -272,6 +316,24 @@ test("regression: St resolves visible cues in light, dark, and high-contrast pal
                 matrix.panel.normalGeometry,
                 `${name} icon status must not change panel geometry`,
             );
+            assert.ok(
+                contrast(matrix.panel.iconForeground, matrix.panel.background) >= 4.5,
+                `${name} named symbolic panel icon must remain visible`,
+            );
+            assert.ok(
+                contrast(matrix.brand.foreground, composite(matrix.brand.background, surface)) >= 4.5,
+                `${name} named symbolic menu icon must remain visible`,
+            );
+            for (const [iconName, icon] of Object.entries(matrix.icons)) {
+                assert.ok(icon, `${name} ${iconName} must resolve from the applet icon path`);
+                assert.equal(icon.symbolic, true, `${name} ${iconName} must render symbolically`);
+                assert.deepEqual([icon.width, icon.height], [32, 32]);
+                assert.equal(
+                    path.dirname(icon.filename),
+                    path.join(ROOT, "icons"),
+                    `${name} ${iconName} must resolve the shipped asset`,
+                );
+            }
         }
     } finally {
         fs.rmSync(temporaryDirectory, {recursive: true, force: true});

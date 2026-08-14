@@ -69,6 +69,10 @@ function panelIconFilename(status) {
     return `xpuwlm-status-${safeStatus}-symbolic.svg`;
 }
 
+function panelIconName(status) {
+    return panelIconFilename(status).slice(0, -4);
+}
+
 function panelIconSize(requestedSize) {
     return Number.isFinite(requestedSize) && requestedSize > 0
         ? Math.max(MIN_PANEL_ICON_SIZE, Math.floor(requestedSize))
@@ -214,7 +218,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         );
         this._bindSettings();
         this._registerIconPath();
-        this.set_applet_icon_symbolic_path(`${metadata.path}/icons/xpuwlm-symbolic-v2.svg`);
+        this.set_applet_icon_symbolic_name("xpuwlm-v2-symbolic");
         this._applyPanelIconSize(this._iconSize);
         this.set_applet_tooltip(_("XPU Workload Manager — starting"));
         this.actor.set_accessible_name(_("XPU Workload Manager, starting"));
@@ -625,9 +629,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         if (this._panelIconStatus === iconStatus) {
             return false;
         }
-        this.set_applet_icon_symbolic_path(
-            `${this._metadata.path}/icons/${panelIconFilename(iconStatus)}`,
-        );
+        this.set_applet_icon_symbolic_name(panelIconName(iconStatus));
         this._applyPanelIconSize(this._iconSize);
         this._panelIconStatus = iconStatus;
         return true;
@@ -830,6 +832,7 @@ if (typeof module !== "undefined") {
         installTranslations,
         main,
         panelIconFilename,
+        panelIconName,
         panelIconSize,
         resolveWorkloadCatalog,
         resolveWorkloadRegistry,

@@ -15,7 +15,7 @@
     "files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-popup-adapter.js:19-26",
     "files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-popup-adapter.js:28-49",
     "files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-popup-adapter.js:51-61",
-    "files/cinnamon-xpuwlm@geraldo-netto/applet.js:330-357"
+    "files/cinnamon-xpuwlm@geraldo-netto/applet.js:334-361"
   ],
   "mutator": {
     "excludedMutations": [

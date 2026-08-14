@@ -386,7 +386,7 @@ function validateStaticAssets({
 }) {
     const iconNames = [
         "xpuwlm-symbolic.svg",
-        "xpuwlm-symbolic-v2.svg",
+        "xpuwlm-v2-symbolic.svg",
         "xpuwlm-device-symbolic.svg",
         "xpuwlm-sliders-symbolic.svg",
         "xpuwlm-status-online-symbolic.svg",

@@ -31,7 +31,7 @@ function geometryNumbers(icon) {
 }
 
 test("fuzz: all icon geometries stay visible and bounded across panel sizes", () => {
-    const names = ["xpuwlm-symbolic.svg", "xpuwlm-symbolic-v2.svg", ...STATUS_NAMES.map(
+    const names = ["xpuwlm-symbolic.svg", "xpuwlm-v2-symbolic.svg", ...STATUS_NAMES.map(
         (status) => `xpuwlm-status-${status}-symbolic.svg`,
     )];
     let seed = 0x58545055;

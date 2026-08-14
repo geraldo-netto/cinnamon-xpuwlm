@@ -6,6 +6,10 @@ const path = require("node:path");
 const test = require("node:test");
 
 const ICON_DIRECTORY = path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto/icons");
+const APPLET_SOURCE = fs.readFileSync(path.resolve(
+    __dirname,
+    "../../files/cinnamon-xpuwlm@geraldo-netto/applet.js",
+), "utf8");
 const STATUS_PALETTES = Object.freeze({
     online: "success",
     detected: "warning",
@@ -18,11 +22,17 @@ function readIcon(name) {
     return fs.readFileSync(path.join(ICON_DIRECTORY, name), "utf8");
 }
 
+test("regression: the panel resolves custom icons through Cinnamon's symbolic theme", () => {
+    assert.doesNotMatch(APPLET_SOURCE, /set_applet_icon_symbolic_path/u);
+    assert.match(APPLET_SOURCE, /set_applet_icon_symbolic_name\("xpuwlm-v2-symbolic"\)/u);
+    assert.match(APPLET_SOURCE, /set_applet_icon_symbolic_name\(panelIconName\(iconStatus\)\)/u);
+});
+
 test("regression: every panel icon remains caller-labelled and themeable", () => {
     const symbolicFallbacks = new Set(["#2e3436", "#33d17a", "#ff7800", "#e01b24"]);
     const names = [
         "xpuwlm-symbolic.svg",
-        "xpuwlm-symbolic-v2.svg",
+        "xpuwlm-v2-symbolic.svg",
         "xpuwlm-device-symbolic.svg",
         "xpuwlm-sliders-symbolic.svg",
         ...Object.keys(STATUS_PALETTES).map((status) => `xpuwlm-status-${status}-symbolic.svg`),
@@ -41,7 +51,7 @@ test("regression: every panel icon remains caller-labelled and themeable", () =>
 });
 
 test("regression: v2 panel icon preserves the compact TPU graph silhouette", () => {
-    const icon = readIcon("xpuwlm-symbolic-v2.svg");
+    const icon = readIcon("xpuwlm-v2-symbolic.svg");
     assert.match(icon, /<rect id="chip-body"/u);
     assert.match(icon, /<path id="chip-pins"/u);
     assert.match(icon, /<path id="graph-links"/u);

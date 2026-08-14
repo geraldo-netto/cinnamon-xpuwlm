@@ -13,8 +13,8 @@ const config = JSON.parse(fs.readFileSync(
     "utf8",
 ));
 const TARGETS = Object.freeze([
-    "files/cinnamon-xpuwlm@geraldo-netto/applet.js:86-89",
-    "files/cinnamon-xpuwlm@geraldo-netto/applet.js:91-107",
+    "files/cinnamon-xpuwlm@geraldo-netto/applet.js:90-93",
+    "files/cinnamon-xpuwlm@geraldo-netto/applet.js:95-111",
     "files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-state-adapter.js:20-24",
     "files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-state-adapter.js:92-100",
     "files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-state-adapter.js:102-104",
@@ -24,7 +24,7 @@ const TARGETS = Object.freeze([
     "files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-state-adapter.js:140-142",
     "files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-state-adapter.js:144-146",
     "files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-state-adapter.js:148-156",
-    "files/cinnamon-xpuwlm@geraldo-netto/applet.js:202-221",
+    "files/cinnamon-xpuwlm@geraldo-netto/applet.js:206-225",
 ]);
 const SCRIPTS = Object.freeze([
     "test:mutation:refresh-applet-instance",
