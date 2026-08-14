@@ -24,7 +24,6 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0153 | open | medium | s | — | Directly test `RuntimeWorkflowController` with fake gateway/scheduler collaborators for poll caps, disposal during polling, listener removal, and error notification. |
 | XTPU-0154 | open | medium | s | XTPU-0139 | Pin exact duration, cue-count, screenshot-size, and capture-start boundaries in deterministic regression fixtures, placing shared cases in the validation suite after consolidation. |
 | XTPU-0155 | open | low | s | — | Test `generate-snapshot-contract --check` failure and require malformed per-function coverage thresholds to fail closed. |
 | XTPU-0156 | open | high | s | XTPU-0139, XTPU-0154 | Make the targeted mutation command exercise deterministic boundary coverage for the four audited workflow validators, adding fuzz suites only when their runtime and determinism are acceptable. |
