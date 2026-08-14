@@ -309,10 +309,16 @@ function validateWorkflows({repositoryRoot: targetRepositoryRoot}) {
     assert.match(quality, /run: npm run test:ci/);
     assert.doesNotMatch(quality, /run: npm test(?:\s|$)/mu);
     assert.doesNotMatch(quality, /XPUWLM_SKIP_HOST_GATES/);
+    assert.equal(
+        [...quality.matchAll(/curl --fail --location --proto '=https' --proto-redir '=https'/gu)].length,
+        2,
+    );
+    assert.match(quality, /run: npm ci --ignore-scripts$/mu);
 
     assert.match(audit, /^ {2}schedule:$/mu);
     assert.match(audit, /^ {2}workflow_dispatch:$/mu);
     assert.match(audit, /run: npm audit --audit-level=low$/mu);
+    assert.match(audit, /run: npm ci --ignore-scripts$/mu);
     assert.doesNotMatch(audit, /run: npm test/);
 }
 

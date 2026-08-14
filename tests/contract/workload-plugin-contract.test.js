@@ -100,11 +100,35 @@ test("checker command distinguishes imports, defaults, and explicit catalogs", (
 
         const explicitOutput = childProcess.execFileSync(
             process.execPath,
-            [checkerPath, directory],
-            {encoding: "utf8"},
+            [checkerPath, "."],
+            {cwd: directory, encoding: "utf8"},
         );
         assert.equal(explicitOutput.trim(), "workload manifests: 1 valid");
+
+        const absolute = childProcess.spawnSync(
+            process.execPath,
+            [checkerPath, directory],
+            {cwd: directory, encoding: "utf8"},
+        );
+        assert.notEqual(absolute.status, 0);
+        assert.match(absolute.stderr, /must be relative/u);
     } finally {
         fs.rmSync(directory, {recursive: true, force: true});
+    }
+});
+
+test("checker CLI catalog stays inside its canonical workspace", () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "xpuwlm-checker-root-"));
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "xpuwlm-checker-outside-"));
+    try {
+        fs.mkdirSync(path.join(workspace, "catalog"));
+        fs.symlinkSync(outside, path.join(workspace, "escape"));
+        assert.equal(Checker.cliCatalogRoot("catalog", workspace), path.join(workspace, "catalog"));
+        assert.throws(() => Checker.cliCatalogRoot("../outside", workspace), /escapes/u);
+        assert.throws(() => Checker.cliCatalogRoot("escape", workspace), /escapes/u);
+        assert.throws(() => Checker.cliCatalogRoot(outside, workspace), /must be relative/u);
+    } finally {
+        fs.rmSync(workspace, {recursive: true, force: true});
+        fs.rmSync(outside, {recursive: true, force: true});
     }
 });

@@ -61,8 +61,37 @@ function checkWorkloadDirectory(root) {
     return manifests;
 }
 
+function pathIsWithin(root, candidate) {
+    const relative = path.relative(root, candidate);
+    return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".."
+        && !path.isAbsolute(relative));
+}
+
+// An explicit catalog is a developer convenience, not an unrestricted file
+// browser. Keep it relative to the invoking workspace and resolve symlinks
+// before the first directory read; callers that need arbitrary paths can set
+// that workspace deliberately with cwd.
+function cliCatalogRoot(argument, currentDirectory = process.cwd()) {
+    if (argument === undefined) {
+        return path.join(appletRoot, "workloads");
+    }
+    if (path.isAbsolute(argument)) {
+        throw new Error("Explicit workload catalog must be relative to the current directory");
+    }
+    const workspace = fs.realpathSync(currentDirectory);
+    const unresolvedRoot = path.resolve(workspace, argument);
+    if (!pathIsWithin(workspace, unresolvedRoot)) {
+        throw new Error("Explicit workload catalog escapes the current directory");
+    }
+    const root = fs.realpathSync(unresolvedRoot);
+    if (!pathIsWithin(workspace, root)) {
+        throw new Error("Explicit workload catalog escapes the current directory");
+    }
+    return root;
+}
+
 if (require.main === module) {
-    const root = path.resolve(process.argv[2] || path.join(appletRoot, "workloads"));
+    const root = cliCatalogRoot(process.argv[2]);
     const manifests = checkWorkloadDirectory(root);
     console.log(`workload manifests: ${manifests.length} valid`);
 }
@@ -70,7 +99,9 @@ if (require.main === module) {
 module.exports = {
     checkManifestFile,
     checkWorkloadDirectory,
+    cliCatalogRoot,
     formatErrors,
     manifestDirectories,
+    pathIsWithin,
     schemaErrors,
 };

@@ -50,10 +50,10 @@ jobs:
         if: matrix.channel == 'current'
         run: |
           mkdir --parents /tmp/xpuwlm-cjs-packages
-          curl --fail --location --retry 3 \
+          curl --fail --location --proto '=https' --proto-redir '=https' --retry 3 \
             --output /tmp/xpuwlm-cjs-packages/cjs_115.1+zena_amd64.deb \
             https://mirrors.edge.kernel.org/linuxmint-packages/pool/backport/c/cjs/cjs_115.1+zena_amd64.deb
-          curl --fail --location --retry 3 \
+          curl --fail --location --proto '=https' --proto-redir '=https' --retry 3 \
             --output /tmp/xpuwlm-cjs-packages/libcjs0_115.1+zena_amd64.deb \
             https://mirrors.edge.kernel.org/linuxmint-packages/pool/backport/c/cjs/libcjs0_115.1+zena_amd64.deb
           cd /tmp/xpuwlm-cjs-packages
@@ -94,7 +94,7 @@ jobs:
           sudo apt-get install --yes --no-install-recommends cinnamon cjs imagemagick librsvg2-bin
 
       - name: Install locked dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       # Only shipped dependencies gate the applet build. Development tooling
       # advisories are reported by the independent dependency-audit workflow.

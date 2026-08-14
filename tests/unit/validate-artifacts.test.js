@@ -203,6 +203,37 @@ test("workflow and JavaScript validation cannot become empty stages", (context) 
     assert.throws(() => Artifacts.validateJavaScriptSyntax({appletRoot}));
 });
 
+test("workflow validation preserves secure downloads and inert installs", (context) => {
+    const root = temporaryDirectory();
+    context.after(() => fs.rmSync(root, {recursive: true, force: true}));
+    const workflowRoot = path.join(root, ".github", "workflows");
+    fs.mkdirSync(workflowRoot, {recursive: true});
+    const originals = new Map();
+    for (const filename of ["applet-quality.yml", "dependency-audit.yml"]) {
+        const source = path.join(REPOSITORY_ROOT, ".github", "workflows", filename);
+        const target = path.join(workflowRoot, filename);
+        const contents = fs.readFileSync(source, "utf8");
+        originals.set(filename, contents);
+        fs.writeFileSync(target, contents);
+    }
+    assert.doesNotThrow(() => Artifacts.validateWorkflows({repositoryRoot: root}));
+
+    for (const [filename, secure, weakened] of [
+        [
+            "applet-quality.yml",
+            "--proto '=https' --proto-redir '=https'",
+            "--proto '=https'",
+        ],
+        ["applet-quality.yml", "npm ci --ignore-scripts", "npm ci"],
+        ["dependency-audit.yml", "npm ci --ignore-scripts", "npm ci"],
+    ]) {
+        const target = path.join(workflowRoot, filename);
+        fs.writeFileSync(target, originals.get(filename).replace(secure, weakened));
+        assert.throws(() => Artifacts.validateWorkflows({repositoryRoot: root}));
+        fs.writeFileSync(target, originals.get(filename));
+    }
+});
+
 test("static validation checks the stage and every shipped icon", (context) => {
     const missingRoot = temporaryDirectory();
     context.after(() => fs.rmSync(missingRoot, {recursive: true, force: true}));

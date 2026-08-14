@@ -8,6 +8,7 @@ const GLib = imports.gi.GLib;
 const sourceFiles = imports.system.programArgs.map((filename) => (
     GLib.canonicalize_filename(filename, GLib.get_current_dir())
 ));
+const sourceSet = new Set(sourceFiles);
 const modules = Object.create(null);
 
 function readSource(filename) {
@@ -33,7 +34,11 @@ function resolveModule(parentFilename, request) {
     }
     const parentDirectory = GLib.path_get_dirname(parentFilename);
     const requestedPath = request.endsWith(".js") ? request : `${request}.js`;
-    return GLib.canonicalize_filename(requestedPath, parentDirectory);
+    const resolved = GLib.canonicalize_filename(requestedPath, parentDirectory);
+    if (!sourceSet.has(resolved)) {
+        throw new Error(`Production module was not declared by the smoke command: ${request}`);
+    }
+    return resolved;
 }
 
 function loadModule(filename) {

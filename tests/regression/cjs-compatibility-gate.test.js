@@ -24,6 +24,8 @@ test("CJS smoke command covers root and library production sources", () => {
     assert.match(smoke, /for \(const filename of sourceFiles\) \{\s+compile\(filename\);/u);
     assert.match(smoke, /loadModule\(filename\)/u);
     assert.match(smoke, /path_get_basename\(filename\) !== "applet\.js"/u);
+    assert.match(smoke, /const sourceSet = new Set\(sourceFiles\)/u);
+    assert.match(smoke, /if \(!sourceSet\.has\(resolved\)\)/u);
 });
 
 test("compatibility matrix pins the declared runtime floor and current line", () => {
