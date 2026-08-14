@@ -12,8 +12,10 @@
     "files/cinnamon-xpuwlm@geraldo-netto/lib/**/*.js",
     "scripts/check-workload-manifests.js",
     "scripts/generate-pot.js",
+    "scripts/generate-snapshot-contract.js",
     "scripts/package-applet.js",
-    "scripts/package-workload-plugin.js"
+    "scripts/package-workload-plugin.js",
+    "scripts/validate-artifacts.js"
   ],
   "mutator": {
     "excludedMutations": ["StringLiteral"]

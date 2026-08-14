@@ -24,7 +24,6 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0157 | open | medium | s | XTPU-0152, XTPU-0155 | Add artifact-validation and snapshot-contract scripts to Stryker mutation targets only after their direct regression suites land. |
 | XTPU-0158 | open | high | l | XTPU-0139, XTPU-0140, XTPU-0141, XTPU-0142, XTPU-0143, XTPU-0144, XTPU-0145, XTPU-0146, XTPU-0147, XTPU-0148, XTPU-0149, XTPU-0150, XTPU-0151, XTPU-0152, XTPU-0153, XTPU-0154, XTPU-0155, XTPU-0156, XTPU-0157 | After all audit edits settle and no other mutation job is active, run a full non-incremental Stryker rebaseline across every configured target and retain the 80% break threshold. |
 | XTPU-0159 | open | low | s | XTPU-0158 | Evaluate narrowing the global `StringLiteral` mutation exclusion with inline directives so contract field-name mutations are measured without creating broad equivalent-mutant noise. |
 | XTPU-0161 | open | low | s | XTPU-0139 | Add an optional contract asserting that maintained root shims exactly match library modules that require root-relative loading. |
