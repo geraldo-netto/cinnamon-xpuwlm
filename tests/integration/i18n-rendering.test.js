@@ -5,10 +5,16 @@ const test = require("node:test");
 
 const AlertNotifier = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/alert-notifier.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
+const DocumentQuestion = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/document-question.js");
 const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
+const EventImport = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/event-import.js");
+const FileOrganizer = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/file-organizer.js");
 const I18n = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/i18n.js");
 const Layout = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/layout.js");
+const MediaTranscription = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/media-transcription.js");
 const Menu = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/menu-view.js");
+const PluginInventory = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/plugin-inventory.js");
+const SelectedText = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/selected-text.js");
 const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
 const {FakeMenu, createAtk, createClutter, createSt, findActors} = require("../helpers/fakes.js");
 
@@ -140,6 +146,50 @@ test("critical notifications translate their summary prefix", () => {
             [],
         );
         assert.equal(message.summary, "[XPU critical alert — %s]".replace("%s", "[Unknown profile]"));
+    } finally {
+        I18n.reset();
+    }
+});
+
+test("workflow status and readiness details use the shared translation port", () => {
+    try {
+        pseudoLocale();
+        assert.deepEqual([
+            EventImport.initialState().availabilityDetail,
+            DocumentQuestion.initialState().availabilityDetail,
+            SelectedText.initialState().availabilityDetail,
+            FileOrganizer.initialState().availabilityDetail,
+            MediaTranscription.initialState().availabilityDetail,
+        ], [
+            "[Event provider is not ready]",
+            "[Document provider is not ready]",
+            "[Selected-text provider is not ready]",
+            "[File organizer provider is not ready]",
+            "[Media transcription provider is not ready]",
+        ]);
+
+        const emptyInventory = {version: 1, generatedAt: 1, plugins: []};
+        assert.deepEqual([
+            PluginInventory.eventReadiness(emptyInventory).detail,
+            PluginInventory.documentQuestionReadiness(emptyInventory).detail,
+            PluginInventory.selectedTextReadiness(emptyInventory).detail,
+            PluginInventory.fileOrganizerReadiness(emptyInventory).detail,
+            PluginInventory.mediaTranscriptionReadiness(emptyInventory).detail,
+        ], [
+            "[Install and configure the event-extraction provider]",
+            "[Install and configure the ask-selected-files provider]",
+            "[Install and configure a selected-text provider]",
+            "[Install and configure a file-organizer provider]",
+            "[Install and configure the media-transcription provider]",
+        ]);
+
+        assert.equal(PluginInventory.readinessDetail({
+            source: "external",
+            workerState: "ready",
+            protocol: {capabilities: ["execute"]},
+            permissions: [],
+            artifacts: [{id: "qwen-events", ready: false, reason: ""}],
+        }), "[Install qwen-events]");
     } finally {
         I18n.reset();
     }

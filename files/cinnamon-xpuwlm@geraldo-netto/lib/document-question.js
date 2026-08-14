@@ -5,9 +5,12 @@
 // citation-bound public result.
 
 const Job = require("./runtime-job-contract.js");
+const I18n = require("./i18n.js");
 const Paths = require("./path-port.js");
 const Validation = require("./validation.js");
 const Workflow = require("./workflow-controller.js");
+
+const {_, format} = I18n;
 
 const PROFILE_ID = "ask-selected-files";
 const MAX_SOURCES = 16;
@@ -196,7 +199,7 @@ function submission(requestId, sources, question, pathPort = Paths.POSIX_PATHS) 
 function initialState() {
     return {
         available: false,
-        availabilityDetail: "Document provider is not ready",
+        availabilityDetail: _("Document provider is not ready"),
         phase: "idle",
         sources: [],
         jobId: "",
@@ -232,7 +235,7 @@ class DocumentQuestionController extends Workflow.RuntimeWorkflowController {
             labels: {
                 clock: "Document question clock",
                 disposed: "Document question controller",
-                failure: "Document question failed",
+                failure: _("Document question failed"),
                 gateway: "Document job gateway",
                 listener: "Document question listener",
                 scheduler: "Document scheduler",
@@ -267,14 +270,14 @@ class DocumentQuestionController extends Workflow.RuntimeWorkflowController {
             return this._fail(String(error));
         }
         if (Array.isArray(candidates) && candidates.length === 0) {
-            this._replace({phase: "idle", message: "Selection cancelled"});
+            this._replace({phase: "idle", message: _("Selection cancelled")});
             return true;
         }
         try {
             this._replace({
                 phase: "selected",
                 sources: [...selectedSources(candidates, this._paths)],
-                message: "Documents selected",
+                message: _("Documents selected"),
             });
             return true;
         } catch (selectionError) {
@@ -299,7 +302,7 @@ class DocumentQuestionController extends Workflow.RuntimeWorkflowController {
         } catch (error) {
             return this._fail(error.detail || String(error), "selected");
         }
-        this._replace({phase: "submitting", message: "Submitting selected documents…", progress: null});
+        this._replace({phase: "submitting", message: _("Submitting selected documents…"), progress: null});
         try {
             this._gateway.submit(request, (error, reply) => this._accepted(sequence, error, reply));
         } catch (error) {
@@ -316,14 +319,14 @@ class DocumentQuestionController extends Workflow.RuntimeWorkflowController {
             return this._fail(String(error));
         }
         if (!acknowledgement || acknowledgement.status !== "accepted" || !acknowledgement.jobId) {
-            return this._fail(acknowledgement?.message || "Runtime rejected document question");
+            return this._fail(acknowledgement?.message || _("Runtime rejected document question"));
         }
         this._polls = 0;
         this._replace({
             phase: "running",
             jobId: acknowledgement.jobId,
             message: acknowledgement.message,
-            progress: {fraction: 0, detail: "Queued"},
+            progress: {fraction: 0, detail: _("Queued")},
         });
         this._schedulePoll(sequence);
         return true;
@@ -335,7 +338,7 @@ class DocumentQuestionController extends Workflow.RuntimeWorkflowController {
         }
         this._polls += 1;
         if (this._polls > MAX_POLLS) {
-            return this._fail("Runtime did not report a document answer");
+            return this._fail(_("Runtime did not report a document answer"));
         }
         const requestId = `xpuwlm-question-poll-${this._clock.now()}-${this._polls}`;
         try {
@@ -367,14 +370,14 @@ class DocumentQuestionController extends Workflow.RuntimeWorkflowController {
 
     _terminalResult(result) {
         if (result.state !== "succeeded") {
-            return this._fail(result.message || `Document question ${result.state}`);
+            return this._fail(result.message || format(_("Document question %s"), result.state));
         }
         try {
             const answer = groundedAnswer(result.output, result.jobId);
             this._replace({
                 phase: "complete",
-                progress: {fraction: 1, detail: "Answer ready"},
-                message: "Answer grounded in selected documents",
+                progress: {fraction: 1, detail: _("Answer ready")},
+                message: _("Answer grounded in selected documents"),
                 answer: answer.answer,
                 providerId: answer.providerId,
                 accelerator: answer.accelerator,
@@ -394,7 +397,7 @@ class DocumentQuestionController extends Workflow.RuntimeWorkflowController {
         this._clearPoll();
         const sequence = this._nextSequence();
         const jobId = this._state.jobId;
-        this._replace({phase: "cancelling", message: "Cancelling document question…"});
+        this._replace({phase: "cancelling", message: _("Cancelling document question…")});
         if (jobId === "") {
             this._gateway.cancel();
             return this._cancelled(sequence, null);
@@ -417,7 +420,7 @@ class DocumentQuestionController extends Workflow.RuntimeWorkflowController {
         if (error) {
             return this._fail(String(error));
         }
-        this._replace({phase: "selected", jobId: "", progress: null, message: "Document question cancelled"});
+        this._replace({phase: "selected", jobId: "", progress: null, message: _("Document question cancelled")});
         return true;
     }
 

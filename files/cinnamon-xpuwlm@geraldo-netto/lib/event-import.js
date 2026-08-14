@@ -6,10 +6,13 @@
 // decisions. Nothing here is part of the public runtime snapshot.
 
 const {EventImportError} = require("./event-import-error.js");
+const I18n = require("./i18n.js");
 const IcsExport = require("./ics-export.js");
 const Job = require("./runtime-job-contract.js");
 const Paths = require("./path-port.js");
 const Validation = require("./validation.js");
+
+const {_, format} = I18n;
 
 const {
     confirmedIcs,
@@ -293,7 +296,7 @@ function requirePort(candidate, methods, label) {
 function initialState() {
     return {
         available: false,
-        availabilityDetail: "Event provider is not ready",
+        availabilityDetail: _("Event provider is not ready"),
         phase: "idle",
         selectionKind: "",
         sources: [],
@@ -391,12 +394,12 @@ class EventImportController {
             return this._fail(String(error));
         }
         if (Array.isArray(candidates) && candidates.length === 0) {
-            this._replace({phase: "idle", selectionKind: "", message: "Selection cancelled"});
+            this._replace({phase: "idle", selectionKind: "", message: _("Selection cancelled")});
             return true;
         }
         try {
             const sources = selectedSources(candidates, this._paths);
-            this._replace({phase: "selected", sources: [...sources], message: "Sources selected"});
+            this._replace({phase: "selected", sources: [...sources], message: _("Sources selected")});
             return true;
         } catch (selectionError) {
             return this._fail(selectionError.detail || String(selectionError));
@@ -411,7 +414,7 @@ class EventImportController {
         const sequence = this._nextSequence();
         const requestId = `xpuwlm-event-${this._clock.now()}-${sequence}`;
         const submission = eventSubmission(requestId, this._state.sources, this._paths);
-        this._replace({phase: "submitting", message: "Submitting selected files…", progress: null});
+        this._replace({phase: "submitting", message: _("Submitting selected files…"), progress: null});
         try {
             this._gateway.submit(submission, (error, reply) => this._accepted(sequence, error, reply));
         } catch (error) {
@@ -428,14 +431,14 @@ class EventImportController {
             return this._fail(String(error));
         }
         if (!acknowledgement || acknowledgement.status !== "accepted" || !acknowledgement.jobId) {
-            return this._fail(acknowledgement?.message || "Runtime rejected event extraction");
+            return this._fail(acknowledgement?.message || _("Runtime rejected event extraction"));
         }
         this._polls = 0;
         this._replace({
             phase: "running",
             jobId: acknowledgement.jobId,
             message: acknowledgement.message,
-            progress: {fraction: 0, detail: "Queued"},
+            progress: {fraction: 0, detail: _("Queued")},
         });
         this._schedulePoll(sequence);
         return true;
@@ -454,7 +457,7 @@ class EventImportController {
         }
         this._polls += 1;
         if (this._polls > MAX_POLLS) {
-            return this._fail("Runtime did not report an event result");
+            return this._fail(_("Runtime did not report an event result"));
         }
         const requestId = `xpuwlm-event-poll-${this._clock.now()}-${this._polls}`;
         try {
@@ -480,7 +483,7 @@ class EventImportController {
             return this._runningResult(sequence, result);
         }
         if (result.state !== "succeeded") {
-            return this._fail(result.message || `Event extraction ${result.state}`);
+            return this._fail(result.message || format(_("Event extraction %s"), result.state));
         }
         return this._completedResult(result);
     }
@@ -499,7 +502,7 @@ class EventImportController {
             }
             this._replace({
                 phase: "preview",
-                progress: {fraction: 1, detail: "Preview ready"},
+                progress: {fraction: 1, detail: _("Preview ready")},
                 message: parsed.detail,
                 candidates: parsed.candidates,
                 duplicatesDropped: parsed.duplicatesDropped,
@@ -518,7 +521,7 @@ class EventImportController {
         this._clearPoll();
         const sequence = this._nextSequence();
         const jobId = this._state.jobId;
-        this._replace({phase: "cancelling", message: "Cancelling event extraction…"});
+        this._replace({phase: "cancelling", message: _("Cancelling event extraction…")});
         if (jobId === "") {
             this._gateway.cancel();
             this._cancelled(sequence, null);
@@ -543,7 +546,7 @@ class EventImportController {
         if (error) {
             return this._fail(String(error));
         }
-        this._replace({phase: "selected", jobId: "", progress: null, message: "Event extraction cancelled"});
+        this._replace({phase: "selected", jobId: "", progress: null, message: _("Event extraction cancelled")});
         return true;
     }
 
@@ -563,7 +566,7 @@ class EventImportController {
             this._replace({
                 candidates: deduped.candidates,
                 duplicatesDropped: this._state.duplicatesDropped + deduped.dropped,
-                message: deduped.dropped > 0 ? "Duplicate event removed" : "Event updated",
+                message: deduped.dropped > 0 ? _("Duplicate event removed") : _("Event updated"),
             });
             return true;
         } catch (error) {
@@ -582,7 +585,7 @@ class EventImportController {
         }
         const candidates = this._state.candidates.map(copyCandidate);
         candidates[index] = decidedCandidate(candidates[index], decision);
-        this._replace({candidates, message: "Decision recorded"});
+        this._replace({candidates, message: _("Decision recorded")});
         return true;
     }
 
@@ -595,7 +598,7 @@ class EventImportController {
         if (refusal !== "") {
             return this._fail(refusal, "preview");
         }
-        this._replace({phase: "confirm-export", message: "Confirm before writing the calendar file"});
+        this._replace({phase: "confirm-export", message: _("Confirm before writing the calendar file")});
         return true;
     }
 
@@ -604,7 +607,7 @@ class EventImportController {
         if (this._state.phase !== "confirm-export") {
             return false;
         }
-        this._replace({phase: "preview", message: "Export not written"});
+        this._replace({phase: "preview", message: _("Export not written")});
         return true;
     }
 
@@ -620,7 +623,7 @@ class EventImportController {
             return this._fail(error.detail || String(error), "preview");
         }
         const sequence = this._nextSequence();
-        this._replace({phase: "exporting", message: "Choose a new calendar file…"});
+        this._replace({phase: "exporting", message: _("Choose a new calendar file…")});
         try {
             this._exporter.saveIcs(
                 calendar,
@@ -641,9 +644,9 @@ class EventImportController {
             return this._fail(String(error), "preview");
         }
         if (!boundedText(path, 1, 4096)) {
-            return this._fail("Calendar export was cancelled", "preview");
+            return this._fail(_("Calendar export was cancelled"), "preview");
         }
-        this._replace({phase: "complete", exportedPath: path, message: "Calendar file written"});
+        this._replace({phase: "complete", exportedPath: path, message: _("Calendar file written")});
         return true;
     }
 
@@ -684,7 +687,7 @@ class EventImportController {
 
     _fail(message, phase = "error") {
         this._clearPoll();
-        this._replace({phase, message: boundedText(message, 1, 500) ? message : "Event import failed"});
+        this._replace({phase, message: boundedText(message, 1, 500) ? message : _("Event import failed")});
         return false;
     }
 

@@ -4,10 +4,13 @@
 // deliberately has no filesystem mutation port or apply method.
 
 const DocumentQuestion = require("./document-question.js");
+const I18n = require("./i18n.js");
 const Job = require("./runtime-job-contract.js");
 const Paths = require("./path-port.js");
 const Validation = require("./validation.js");
 const Workflow = require("./workflow-controller.js");
+
+const {_, format} = I18n;
 
 const PROFILE_ID = "file-organizer";
 const MAX_PLAN_ITEMS = 16;
@@ -236,7 +239,7 @@ function submission(requestId, sources, pathPort = Paths.POSIX_PATHS) {
 function initialState() {
     return {
         available: false,
-        availabilityDetail: "File organizer provider is not ready",
+        availabilityDetail: _("File organizer provider is not ready"),
         phase: "idle",
         sources: [],
         jobId: "",
@@ -275,7 +278,7 @@ class FileOrganizerController extends Workflow.RuntimeWorkflowController {
             labels: {
                 clock: "File organizer clock",
                 disposed: "File organizer controller",
-                failure: "File organization failed",
+                failure: _("File organization failed"),
                 gateway: "File organizer gateway",
                 listener: "File organizer listener",
                 scheduler: "File organizer scheduler",
@@ -311,14 +314,14 @@ class FileOrganizerController extends Workflow.RuntimeWorkflowController {
             return this._fail(String(error));
         }
         if (Array.isArray(candidates) && candidates.length === 0) {
-            this._replace({phase: "idle", message: "Selection cancelled"});
+            this._replace({phase: "idle", message: _("Selection cancelled")});
             return true;
         }
         try {
             this._replace({
                 phase: "selected",
                 sources: [...DocumentQuestion.selectedSources(candidates, this._paths)],
-                message: "Files selected for review-only planning",
+                message: _("Files selected for review-only planning"),
             });
             return true;
         } catch (selectionError) {
@@ -342,7 +345,7 @@ class FileOrganizerController extends Workflow.RuntimeWorkflowController {
         } catch (error) {
             return this._fail(error.detail || String(error), "selected");
         }
-        this._replace({phase: "submitting", message: "Submitting selected files…", progress: null});
+        this._replace({phase: "submitting", message: _("Submitting selected files…"), progress: null});
         try {
             this._gateway.submit(request, (error, reply) => this._accepted(sequence, error, reply));
         } catch (error) {
@@ -359,14 +362,14 @@ class FileOrganizerController extends Workflow.RuntimeWorkflowController {
             return this._fail(String(error));
         }
         if (!acknowledgement || acknowledgement.status !== "accepted" || !acknowledgement.jobId) {
-            return this._fail(acknowledgement?.message || "Runtime rejected file organization");
+            return this._fail(acknowledgement?.message || _("Runtime rejected file organization"));
         }
         this._polls = 0;
         this._replace({
             phase: "running",
             jobId: acknowledgement.jobId,
             message: acknowledgement.message,
-            progress: {fraction: 0, detail: "Queued"},
+            progress: {fraction: 0, detail: _("Queued")},
         });
         this._schedulePoll(sequence);
         return true;
@@ -378,7 +381,7 @@ class FileOrganizerController extends Workflow.RuntimeWorkflowController {
         }
         this._polls += 1;
         if (this._polls > MAX_POLLS) {
-            return this._fail("Runtime did not report a file organization plan");
+            return this._fail(_("Runtime did not report a file organization plan"));
         }
         try {
             this._gateway.requestResult(
@@ -412,14 +415,14 @@ class FileOrganizerController extends Workflow.RuntimeWorkflowController {
 
     _terminalResult(result) {
         if (result.state !== "succeeded") {
-            return this._fail(result.message || `File organization ${result.state}`);
+            return this._fail(result.message || format(_("File organization %s"), result.state));
         }
         try {
             const output = organizationPlan(result.output, result.jobId, this._state.sources);
             this._replace({
                 phase: "complete",
-                progress: {fraction: 1, detail: "Plan ready"},
-                message: "Review-only plan ready; no files changed",
+                progress: {fraction: 1, detail: _("Plan ready")},
+                message: _("Review-only plan ready; no files changed"),
                 providerId: output.providerId,
                 accelerator: output.accelerator,
                 plan: [...output.plan],
@@ -438,7 +441,7 @@ class FileOrganizerController extends Workflow.RuntimeWorkflowController {
         this._clearPoll();
         const sequence = this._nextSequence();
         const jobId = this._state.jobId;
-        this._replace({phase: "cancelling", message: "Cancelling file organization…"});
+        this._replace({phase: "cancelling", message: _("Cancelling file organization…")});
         if (jobId === "") {
             this._gateway.cancel();
             return this._cancelled(sequence, null);
@@ -463,7 +466,7 @@ class FileOrganizerController extends Workflow.RuntimeWorkflowController {
         }
         this._replace({
             phase: "selected", jobId: "", progress: null,
-            message: "File organization cancelled; no files changed",
+            message: _("File organization cancelled; no files changed"),
         });
         return true;
     }

@@ -354,6 +354,14 @@ msgstr ""
 msgid "Analyze a picture"
 msgstr ""
 
+#: lib/document-question.js
+msgid "Answer grounded in selected documents"
+msgstr ""
+
+#: lib/document-question.js
+msgid "Answer ready"
+msgstr ""
+
 #: lib/workflow-event-import-menu-view.js
 msgid "Apply edits"
 msgstr ""
@@ -402,6 +410,14 @@ msgstr ""
 msgid "Back to %s"
 msgstr ""
 
+#: lib/event-import.js
+msgid "Calendar export was cancelled"
+msgstr ""
+
+#: lib/event-import.js
+msgid "Calendar file written"
+msgstr ""
+
 #: lib/event-source-port.js
 msgid "Calendar files"
 msgstr ""
@@ -438,6 +454,26 @@ msgstr ""
 msgid "Cancelled"
 msgstr ""
 
+#: lib/document-question.js
+msgid "Cancelling document question…"
+msgstr ""
+
+#: lib/event-import.js
+msgid "Cancelling event extraction…"
+msgstr ""
+
+#: lib/file-organizer.js
+msgid "Cancelling file organization…"
+msgstr ""
+
+#: lib/media-transcription.js
+msgid "Cancelling media transcription…"
+msgstr ""
+
+#: lib/selected-text.js
+msgid "Cancelling selected-text request…"
+msgstr ""
+
 #: lib/platform-guidance.js
 msgid "Check device access"
 msgstr ""
@@ -468,6 +504,10 @@ msgstr ""
 
 #: lib/platform-guidance.js
 msgid "Check the runtime version"
+msgstr ""
+
+#: lib/event-import.js
+msgid "Choose a new calendar file…"
 msgstr ""
 
 #: lib/document-source-port.js
@@ -566,8 +606,24 @@ msgstr ""
 msgid "Configuration"
 msgstr ""
 
+#: lib/plugin-inventory.js
+msgid "Configure and qualify BGE and Qwen model providers"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Configure and qualify a GPU or NPU generation provider"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Configure and qualify an event model provider"
+msgstr ""
+
 #: lib/workflow-event-import-menu-view.js
 msgid "Confirm and write a new calendar file"
+msgstr ""
+
+#: lib/event-import.js
+msgid "Confirm before writing the calendar file"
 msgstr ""
 
 #: lib/workflow-event-import-menu-view.js
@@ -670,6 +726,10 @@ msgstr ""
 msgid "Current state"
 msgstr ""
 
+#: lib/event-import.js
+msgid "Decision recorded"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Decrease %s weight"
 msgstr ""
@@ -718,16 +778,36 @@ msgstr ""
 msgid "Dismiss the workload catalog change notice"
 msgstr ""
 
-#: applet.js
+#: applet.js lib/document-question.js
 msgid "Document provider is not ready"
+msgstr ""
+
+#: lib/document-question.js
+msgid "Document question %s"
+msgstr ""
+
+#: lib/document-question.js
+msgid "Document question cancelled"
+msgstr ""
+
+#: lib/document-question.js
+msgid "Document question failed"
 msgstr ""
 
 #: lib/document-source-port.js
 msgid "Documents and images"
 msgstr ""
 
+#: lib/document-question.js
+msgid "Documents selected"
+msgstr ""
+
 #: lib/event-source-port.js
 msgid "Documents, calendars, and images"
+msgstr ""
+
+#: lib/event-import.js
+msgid "Duplicate event removed"
 msgstr ""
 
 #: lib/menu-view.js
@@ -742,8 +822,24 @@ msgstr ""
 msgid "Ends"
 msgstr ""
 
-#: applet.js
+#: lib/event-import.js
+msgid "Event extraction %s"
+msgstr ""
+
+#: lib/event-import.js
+msgid "Event extraction cancelled"
+msgstr ""
+
+#: lib/event-import.js
+msgid "Event import failed"
+msgstr ""
+
+#: applet.js lib/event-import.js
 msgid "Event provider is not ready"
+msgstr ""
+
+#: lib/event-import.js
+msgid "Event updated"
 msgstr ""
 
 #: lib/menu-view.js
@@ -770,6 +866,10 @@ msgstr ""
 msgid "Explain, summarize, rewrite, or translate"
 msgstr ""
 
+#: lib/event-import.js
+msgid "Export not written"
+msgstr ""
+
 #: lib/workflow-view-model.js
 msgid "Extract calendar events"
 msgstr ""
@@ -794,8 +894,24 @@ msgstr ""
 msgid "Failed"
 msgstr ""
 
-#: applet.js
+#: lib/file-organizer.js
+msgid "File organization %s"
+msgstr ""
+
+#: lib/file-organizer.js
+msgid "File organization cancelled; no files changed"
+msgstr ""
+
+#: lib/file-organizer.js
+msgid "File organization failed"
+msgstr ""
+
+#: applet.js lib/file-organizer.js
 msgid "File organizer provider is not ready"
+msgstr ""
+
+#: lib/file-organizer.js
+msgid "Files selected for review-only planning"
 msgstr ""
 
 #: lib/workflow-view-model.js
@@ -822,8 +938,28 @@ msgstr ""
 msgid "Generated"
 msgstr ""
 
+#: lib/plugin-inventory.js
+msgid "Grant GPU and explicitly selected media-file access"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Grant access to explicitly selected document files"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Grant access to explicitly selected files"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Grant access to the explicitly selected event files"
+msgstr ""
+
 #: lib/generic-workflow-surface.js
 msgid "Grant consent"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Grant one-shot clipboard access"
 msgstr ""
 
 #: lib/setup-view-model.js
@@ -858,8 +994,56 @@ msgstr ""
 msgid "Inspect the document"
 msgstr ""
 
+#: lib/plugin-inventory.js
+msgid "Install %s"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Install a selected-text provider with operation-quality acceptance"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Install an external event-extraction provider"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Install an external file-organizer provider"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Install an external selected-document provider"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Install an external selected-text provider"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Install and configure a file-organizer provider"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Install and configure a selected-text provider"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Install and configure the ask-selected-files provider"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Install and configure the event-extraction provider"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Install and configure the media-transcription provider"
+msgstr ""
+
 #: lib/setup-view-model.js
 msgid "Install the accelerator runtime"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Install the qualified external media-transcription provider"
 msgstr ""
 
 #: lib/view-model.js
@@ -918,8 +1102,28 @@ msgstr ""
 msgid "Logs opened"
 msgstr ""
 
-#: applet.js
+#: lib/media-transcription.js
+msgid "Media selected for local transcription"
+msgstr ""
+
+#: lib/media-transcription.js
+msgid "Media transcription %s"
+msgstr ""
+
+#: lib/media-transcription.js
+msgid "Media transcription cancelled"
+msgstr ""
+
+#: lib/media-transcription.js
+msgid "Media transcription failed"
+msgstr ""
+
+#: applet.js lib/media-transcription.js
 msgid "Media transcription provider is not ready"
+msgstr ""
+
+#: lib/media-transcription.js
+msgid "Media transcription ready"
 msgstr ""
 
 #: settings-schema.json
@@ -1170,12 +1374,20 @@ msgstr ""
 msgid "Paused groups"
 msgstr ""
 
+#: lib/file-organizer.js
+msgid "Plan ready"
+msgstr ""
+
 #: lib/setup-view-model.js
 msgid "Preparing an exact declared artifact repairs artifact-unavailable. A format-unsupported profile needs a qualified compatible variant and matching manifest contract; arbitrary weights are never a remedy."
 msgstr ""
 
 #: lib/workload-runtime-controller.js
 msgid "Preparing the picture…"
+msgstr ""
+
+#: lib/event-import.js
+msgid "Preview ready"
 msgstr ""
 
 #: lib/platform-guidance.js
@@ -1190,6 +1402,10 @@ msgstr ""
 msgid "Put a picture in %s and it will be listed here"
 msgstr ""
 
+#: lib/plugin-inventory.js
+msgid "Qualify Whisper and Qwen VL on the selected accelerator"
+msgstr ""
+
 #: lib/workflow-document-question-menu-view.js
 msgid "Question for selected documents"
 msgstr ""
@@ -1198,8 +1414,16 @@ msgstr ""
 msgid "Queue"
 msgstr ""
 
+#: lib/document-question.js lib/event-import.js lib/file-organizer.js lib/media-transcription.js lib/selected-text.js
+msgid "Queued"
+msgstr ""
+
 #: lib/generic-workflow-surface.js
 msgid "Rank %d · %s"
+msgstr ""
+
+#: lib/selected-text.js
+msgid "Reading explicit selection…"
 msgstr ""
 
 #: lib/platform-guidance.js
@@ -1290,6 +1514,10 @@ msgstr ""
 msgid "Result"
 msgstr ""
 
+#: lib/selected-text.js
+msgid "Result ready"
+msgstr ""
+
 #: lib/menu-view.js
 msgid "Resume all workloads"
 msgstr ""
@@ -1348,6 +1576,10 @@ msgstr ""
 
 #: lib/workflow-view-model.js
 msgid "Review suggestions; files are never changed"
+msgstr ""
+
+#: lib/file-organizer.js
+msgid "Review-only plan ready; no files changed"
 msgstr ""
 
 #: lib/generic-workflow-surface.js
@@ -1414,6 +1646,26 @@ msgstr ""
 msgid "Runtime controls are unavailable"
 msgstr ""
 
+#: lib/document-question.js
+msgid "Runtime did not report a document answer"
+msgstr ""
+
+#: lib/file-organizer.js
+msgid "Runtime did not report a file organization plan"
+msgstr ""
+
+#: lib/media-transcription.js
+msgid "Runtime did not report a media transcription"
+msgstr ""
+
+#: lib/selected-text.js
+msgid "Runtime did not report a selected-text result"
+msgstr ""
+
+#: lib/event-import.js
+msgid "Runtime did not report an event result"
+msgstr ""
+
 #: settings-schema.json
 msgid "Runtime integration"
 msgstr ""
@@ -1424,6 +1676,26 @@ msgstr ""
 
 #: lib/panel-view-model.js lib/platform-guidance.js
 msgid "Runtime malformed"
+msgstr ""
+
+#: lib/document-question.js
+msgid "Runtime rejected document question"
+msgstr ""
+
+#: lib/event-import.js
+msgid "Runtime rejected event extraction"
+msgstr ""
+
+#: lib/file-organizer.js
+msgid "Runtime rejected file organization"
+msgstr ""
+
+#: lib/media-transcription.js
+msgid "Runtime rejected media transcription"
+msgstr ""
+
+#: lib/selected-text.js
+msgid "Runtime rejected selected-text request"
 msgstr ""
 
 #: lib/manager.js
@@ -1516,12 +1788,32 @@ msgstr ""
 msgid "Selected sources"
 msgstr ""
 
-#: applet.js
+#: applet.js lib/selected-text.js
 msgid "Selected-text provider is not ready"
+msgstr ""
+
+#: lib/selected-text.js
+msgid "Selected-text request %s"
+msgstr ""
+
+#: lib/selected-text.js
+msgid "Selected-text request cancelled"
+msgstr ""
+
+#: lib/selected-text.js
+msgid "Selected-text request failed"
+msgstr ""
+
+#: lib/document-question.js lib/event-import.js lib/file-organizer.js lib/media-transcription.js
+msgid "Selection cancelled"
 msgstr ""
 
 #: lib/workflow-view-model.js
 msgid "Selection digest %s · span %d–%d"
+msgstr ""
+
+#: lib/selected-text.js
+msgid "Selection processed for review"
 msgstr ""
 
 #: lib/menu-view.js
@@ -1538,6 +1830,10 @@ msgstr ""
 
 #: lib/diagnostics-view-model.js
 msgid "Snapshot contract is readable"
+msgstr ""
+
+#: lib/event-import.js
+msgid "Sources selected"
 msgstr ""
 
 #: lib/workflow-media-menu-view.js
@@ -1582,6 +1878,22 @@ msgstr ""
 
 #: lib/workflow-view-model.js
 msgid "Submitted"
+msgstr ""
+
+#: lib/selected-text.js
+msgid "Submitting one-shot selection…"
+msgstr ""
+
+#: lib/document-question.js
+msgid "Submitting selected documents…"
+msgstr ""
+
+#: lib/event-import.js lib/file-organizer.js
+msgid "Submitting selected files…"
+msgstr ""
+
+#: lib/media-transcription.js
+msgid "Submitting selected media…"
 msgstr ""
 
 #: lib/workflow-file-organizer-menu-view.js
@@ -1840,6 +2152,10 @@ msgstr ""
 msgid "Transcription"
 msgstr ""
 
+#: lib/media-transcription.js
+msgid "Transcription ready"
+msgstr ""
+
 #: lib/workflow-selected-text-menu-view.js
 msgid "Translate"
 msgstr ""
@@ -1870,6 +2186,26 @@ msgstr ""
 
 #: lib/domain.js
 msgid "Unsupported runtime snapshot version"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Update the event provider to one that can execute workloads"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Update the file-organizer provider to one that can execute workloads"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Update the media provider to one that can execute workloads"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Update the selected-document provider to one that can execute workloads"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "Update the selected-text provider to one that can execute workloads"
 msgstr ""
 
 #: lib/view-model.js

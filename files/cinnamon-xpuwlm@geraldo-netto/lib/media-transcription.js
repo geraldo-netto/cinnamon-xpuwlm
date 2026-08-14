@@ -4,10 +4,13 @@
 // out. Only a qualified accelerator worker can make this workflow available.
 
 const Job = require("./runtime-job-contract.js");
+const I18n = require("./i18n.js");
 const Paths = require("./path-port.js");
 const Preprocessing = require("./media-preprocessing.js");
 const Validation = require("./validation.js");
 const Workflow = require("./workflow-controller.js");
+
+const {_, format} = I18n;
 
 const PROFILE_ID = "media-transcription";
 const {MAX_SOURCE_BYTES, MAX_DURATION_MS, MAX_VIDEO_DURATION_MS} = Preprocessing;
@@ -332,7 +335,7 @@ function transcriptText(result) {
 function initialState() {
     return {
         available: false,
-        availabilityDetail: "Media transcription provider is not ready",
+        availabilityDetail: _("Media transcription provider is not ready"),
         phase: "idle",
         sources: [],
         jobId: "",
@@ -372,7 +375,7 @@ class MediaTranscriptionController extends Workflow.RuntimeWorkflowController {
             labels: {
                 clock: "Media clock",
                 disposed: "Media transcription controller",
-                failure: "Media transcription failed",
+                failure: _("Media transcription failed"),
                 gateway: "Media gateway",
                 listener: "Media transcription listener",
                 scheduler: "Media scheduler",
@@ -408,7 +411,7 @@ class MediaTranscriptionController extends Workflow.RuntimeWorkflowController {
             return this._fail(String(error));
         }
         if (Array.isArray(candidates) && candidates.length === 0) {
-            this._replace({phase: "idle", message: "Selection cancelled"});
+            this._replace({phase: "idle", message: _("Selection cancelled")});
             return true;
         }
         try {
@@ -416,7 +419,7 @@ class MediaTranscriptionController extends Workflow.RuntimeWorkflowController {
             this._replace({
                 phase: "selected",
                 sources: [source],
-                message: "Media selected for local transcription",
+                message: _("Media selected for local transcription"),
             });
             return true;
         } catch (selectionError) {
@@ -440,7 +443,7 @@ class MediaTranscriptionController extends Workflow.RuntimeWorkflowController {
         } catch (error) {
             return this._fail(error.detail || String(error), "selected");
         }
-        this._replace({phase: "submitting", message: "Submitting selected media…", progress: null});
+        this._replace({phase: "submitting", message: _("Submitting selected media…"), progress: null});
         try {
             this._gateway.submit(request, (error, reply) => this._accepted(sequence, error, reply));
         } catch (error) {
@@ -457,14 +460,14 @@ class MediaTranscriptionController extends Workflow.RuntimeWorkflowController {
             return this._fail(String(error));
         }
         if (!acknowledgement || acknowledgement.status !== "accepted" || !acknowledgement.jobId) {
-            return this._fail(acknowledgement?.message || "Runtime rejected media transcription");
+            return this._fail(acknowledgement?.message || _("Runtime rejected media transcription"));
         }
         this._polls = 0;
         this._replace({
             phase: "running",
             jobId: acknowledgement.jobId,
             message: acknowledgement.message,
-            progress: {fraction: 0, detail: "Queued"},
+            progress: {fraction: 0, detail: _("Queued")},
         });
         this._schedulePoll(sequence);
         return true;
@@ -476,7 +479,7 @@ class MediaTranscriptionController extends Workflow.RuntimeWorkflowController {
         }
         this._polls += 1;
         if (this._polls > MAX_POLLS) {
-            return this._fail("Runtime did not report a media transcription");
+            return this._fail(_("Runtime did not report a media transcription"));
         }
         try {
             this._gateway.requestResult({
@@ -507,14 +510,14 @@ class MediaTranscriptionController extends Workflow.RuntimeWorkflowController {
 
     _terminalResult(result) {
         if (result.state !== "succeeded") {
-            return this._fail(result.message || `Media transcription ${result.state}`);
+            return this._fail(result.message || format(_("Media transcription %s"), result.state));
         }
         try {
             const output = transcriptionResult(result.output, result.jobId, this._state.sources[0]);
             this._replace({
                 phase: "complete",
-                progress: {fraction: 1, detail: "Transcription ready"},
-                message: "Media transcription ready",
+                progress: {fraction: 1, detail: _("Transcription ready")},
+                message: _("Media transcription ready"),
                 providerId: output.providerId,
                 accelerator: output.accelerator,
                 result: output,
@@ -533,7 +536,7 @@ class MediaTranscriptionController extends Workflow.RuntimeWorkflowController {
         this._clearPoll();
         const sequence = this._nextSequence();
         const jobId = this._state.jobId;
-        this._replace({phase: "cancelling", message: "Cancelling media transcription…"});
+        this._replace({phase: "cancelling", message: _("Cancelling media transcription…")});
         if (jobId === "") {
             this._gateway.cancel();
             return this._cancelled(sequence, null);
@@ -558,7 +561,7 @@ class MediaTranscriptionController extends Workflow.RuntimeWorkflowController {
         }
         this._replace({
             phase: "selected", jobId: "", progress: null,
-            message: "Media transcription cancelled",
+            message: _("Media transcription cancelled"),
         });
         return true;
     }

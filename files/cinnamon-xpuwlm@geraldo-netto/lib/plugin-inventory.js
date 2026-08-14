@@ -7,8 +7,11 @@
 // ready; Cinnamon never guesses readiness from a packaged template.
 
 const Contract = require("./runtime-control-contract.js");
+const I18n = require("./i18n.js");
 const Refusal = require("./runtime-refusal-contract.js");
 const Validation = require("./validation.js");
+
+const {_, format} = I18n;
 
 const INVENTORY_VERSION = 1;
 const MAX_PLUGINS = 128;
@@ -132,22 +135,22 @@ function parseInventory(text) {
 
 function readinessDetail(plugin) {
     if (plugin === null) {
-        return "Install and configure the event-extraction provider";
+        return _("Install and configure the event-extraction provider");
     }
     if (plugin.source !== "external") {
-        return "Install an external event-extraction provider";
+        return _("Install an external event-extraction provider");
     }
     if (plugin.workerState !== "ready") {
-        return "Configure and qualify an event model provider";
+        return _("Configure and qualify an event model provider");
     }
     if (!plugin.protocol.capabilities.includes("execute")) {
-        return "Update the event provider to one that can execute workloads";
+        return _("Update the event provider to one that can execute workloads");
     }
     if (plugin.permissions.some((permission) => !permission.granted)) {
-        return "Grant access to the explicitly selected event files";
+        return _("Grant access to the explicitly selected event files");
     }
     const missing = plugin.artifacts.find((artifact) => !artifact.ready);
-    return missing ? missing.reason || `Install ${missing.id}` : "";
+    return missing ? missing.reason || format(_("Install %s"), missing.id) : "";
 }
 
 function eventReadiness(inventory) {
@@ -161,22 +164,22 @@ function eventReadiness(inventory) {
 
 function documentReadinessDetail(plugin) {
     if (plugin === null) {
-        return "Install and configure the ask-selected-files provider";
+        return _("Install and configure the ask-selected-files provider");
     }
     if (plugin.source !== "external") {
-        return "Install an external selected-document provider";
+        return _("Install an external selected-document provider");
     }
     if (plugin.workerState !== "ready") {
-        return "Configure and qualify BGE and Qwen model providers";
+        return _("Configure and qualify BGE and Qwen model providers");
     }
     if (!plugin.protocol.capabilities.includes("execute")) {
-        return "Update the selected-document provider to one that can execute workloads";
+        return _("Update the selected-document provider to one that can execute workloads");
     }
     if (plugin.permissions.some((permission) => !permission.granted)) {
-        return "Grant access to explicitly selected document files";
+        return _("Grant access to explicitly selected document files");
     }
     const missing = plugin.artifacts.find((artifact) => !artifact.ready);
-    return missing ? missing.reason || `Install ${missing.id}` : "";
+    return missing ? missing.reason || format(_("Install %s"), missing.id) : "";
 }
 
 function documentQuestionReadiness(inventory) {
@@ -190,32 +193,32 @@ function documentQuestionReadiness(inventory) {
 
 function selectedTextReadinessDetail(plugin) {
     if (plugin === null) {
-        return "Install and configure a selected-text provider";
+        return _("Install and configure a selected-text provider");
     }
     const providerDetail = selectedTextProviderDetail(plugin);
     if (providerDetail !== "") {
         return providerDetail;
     }
     if (plugin.workerState !== "ready") {
-        return "Configure and qualify a GPU or NPU generation provider";
+        return _("Configure and qualify a GPU or NPU generation provider");
     }
     if (!plugin.protocol.capabilities.includes("execute")) {
-        return "Update the selected-text provider to one that can execute workloads";
+        return _("Update the selected-text provider to one that can execute workloads");
     }
     if (plugin.permissions.some((permission) => !permission.granted)) {
-        return "Grant one-shot clipboard access";
+        return _("Grant one-shot clipboard access");
     }
     const missing = plugin.artifacts.find((artifact) => !artifact.ready);
-    return missing ? missing.reason || `Install ${missing.id}` : "";
+    return missing ? missing.reason || format(_("Install %s"), missing.id) : "";
 }
 
 function selectedTextProviderDetail(plugin) {
     if (plugin.source !== "external") {
-        return "Install an external selected-text provider";
+        return _("Install an external selected-text provider");
     }
     return selectedTextVersionQualified(plugin.version)
         ? ""
-        : "Install a selected-text provider with operation-quality acceptance";
+        : _("Install a selected-text provider with operation-quality acceptance");
 }
 
 function selectedTextVersionQualified(version) {
@@ -239,22 +242,22 @@ function selectedTextReadiness(inventory) {
 
 function fileOrganizerReadinessDetail(plugin) {
     if (plugin === null) {
-        return "Install and configure a file-organizer provider";
+        return _("Install and configure a file-organizer provider");
     }
     if (plugin.source !== "external") {
-        return "Install an external file-organizer provider";
+        return _("Install an external file-organizer provider");
     }
     if (plugin.workerState !== "ready") {
-        return "Configure and qualify a GPU or NPU generation provider";
+        return _("Configure and qualify a GPU or NPU generation provider");
     }
     if (!plugin.protocol.capabilities.includes("execute")) {
-        return "Update the file-organizer provider to one that can execute workloads";
+        return _("Update the file-organizer provider to one that can execute workloads");
     }
     if (plugin.permissions.some((permission) => !permission.granted)) {
-        return "Grant access to explicitly selected files";
+        return _("Grant access to explicitly selected files");
     }
     const missing = plugin.artifacts.find((artifact) => !artifact.ready);
-    return missing ? missing.reason || `Install ${missing.id}` : "";
+    return missing ? missing.reason || format(_("Install %s"), missing.id) : "";
 }
 
 function fileOrganizerReadiness(inventory) {
@@ -272,24 +275,24 @@ function mediaTranscriptionReadinessDetail(plugin) {
         return provider;
     }
     if (plugin.workerState !== "ready") {
-        return "Qualify Whisper and Qwen VL on the selected accelerator";
+        return _("Qualify Whisper and Qwen VL on the selected accelerator");
     }
     if (!plugin.protocol.capabilities.includes("execute")) {
-        return "Update the media provider to one that can execute workloads";
+        return _("Update the media provider to one that can execute workloads");
     }
     if (plugin.permissions.some((permission) => !permission.granted)) {
-        return "Grant GPU and explicitly selected media-file access";
+        return _("Grant GPU and explicitly selected media-file access");
     }
     const missing = plugin.artifacts.find((artifact) => !artifact.ready);
-    return missing ? missing.reason || `Install ${missing.id}` : "";
+    return missing ? missing.reason || format(_("Install %s"), missing.id) : "";
 }
 
 function mediaTranscriptionProviderDetail(plugin) {
     if (plugin === null) {
-        return "Install and configure the media-transcription provider";
+        return _("Install and configure the media-transcription provider");
     }
     if (plugin.source !== "external" || plugin.version !== "1.0.0") {
-        return "Install the qualified external media-transcription provider";
+        return _("Install the qualified external media-transcription provider");
     }
     return "";
 }

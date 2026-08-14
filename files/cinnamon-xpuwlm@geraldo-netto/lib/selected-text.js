@@ -1,8 +1,11 @@
 "use strict";
 
 const Job = require("./runtime-job-contract.js");
+const I18n = require("./i18n.js");
 const Validation = require("./validation.js");
 const Workflow = require("./workflow-controller.js");
+
+const {_, format} = I18n;
 
 const PROFILE_ID = "selected-text-tools";
 const OPERATIONS = Object.freeze(["explain", "summarize", "rewrite", "translate", "extract-tasks"]);
@@ -145,7 +148,7 @@ function submission(requestId, selection, operation, language = null) {
 function initialState() {
     return {
         available: false,
-        availabilityDetail: "Selected-text provider is not ready",
+        availabilityDetail: _("Selected-text provider is not ready"),
         phase: "idle",
         operation: "",
         jobId: "",
@@ -184,7 +187,7 @@ class SelectedTextController extends Workflow.RuntimeWorkflowController {
             labels: {
                 clock: "Selected-text clock",
                 disposed: "Selected-text controller",
-                failure: "Selected-text request failed",
+                failure: _("Selected-text request failed"),
                 gateway: "Selected-text gateway",
                 listener: "Selected-text listener",
                 scheduler: "Selected-text scheduler",
@@ -210,7 +213,7 @@ class SelectedTextController extends Workflow.RuntimeWorkflowController {
         }
         const sequence = this._nextSequence();
         this._replace({
-            phase: "selecting", operation: normalized, message: "Reading explicit selection…",
+            phase: "selecting", operation: normalized, message: _("Reading explicit selection…"),
             result: "", tasks: [], evidence: null, progress: null,
         });
         try {
@@ -241,7 +244,7 @@ class SelectedTextController extends Workflow.RuntimeWorkflowController {
         } catch (selectionError) {
             return this._fail(selectionError.detail || String(selectionError));
         }
-        this._replace({phase: "submitting", message: "Submitting one-shot selection…"});
+        this._replace({phase: "submitting", message: _("Submitting one-shot selection…")});
         try {
             this._gateway.submit(request, (submitError, reply) => (
                 this._accepted(sequence, submitError, reply)
@@ -260,14 +263,14 @@ class SelectedTextController extends Workflow.RuntimeWorkflowController {
             return this._fail(String(error));
         }
         if (!acknowledgement || acknowledgement.status !== "accepted" || !acknowledgement.jobId) {
-            return this._fail(acknowledgement?.message || "Runtime rejected selected-text request");
+            return this._fail(acknowledgement?.message || _("Runtime rejected selected-text request"));
         }
         this._polls = 0;
         this._replace({
             phase: "running",
             jobId: acknowledgement.jobId,
             message: acknowledgement.message,
-            progress: {fraction: 0, detail: "Queued"},
+            progress: {fraction: 0, detail: _("Queued")},
         });
         this._schedulePoll(sequence);
         return true;
@@ -279,7 +282,7 @@ class SelectedTextController extends Workflow.RuntimeWorkflowController {
         }
         this._polls += 1;
         if (this._polls > MAX_POLLS) {
-            return this._fail("Runtime did not report a selected-text result");
+            return this._fail(_("Runtime did not report a selected-text result"));
         }
         try {
             this._gateway.requestResult(
@@ -313,14 +316,14 @@ class SelectedTextController extends Workflow.RuntimeWorkflowController {
 
     _terminalResult(result) {
         if (result.state !== "succeeded") {
-            return this._fail(result.message || `Selected-text request ${result.state}`);
+            return this._fail(result.message || format(_("Selected-text request %s"), result.state));
         }
         try {
             const output = selectedTextResult(result.output, result.jobId, this._state.operation);
             this._replace({
                 phase: "complete",
-                progress: {fraction: 1, detail: "Result ready"},
-                message: "Selection processed for review",
+                progress: {fraction: 1, detail: _("Result ready")},
+                message: _("Selection processed for review"),
                 result: output.result,
                 tasks: [...output.tasks],
                 providerId: output.providerId,
@@ -341,7 +344,7 @@ class SelectedTextController extends Workflow.RuntimeWorkflowController {
         this._clearPoll();
         const jobId = this._state.jobId;
         const sequence = this._nextSequence();
-        this._replace({phase: "cancelling", message: "Cancelling selected-text request…"});
+        this._replace({phase: "cancelling", message: _("Cancelling selected-text request…")});
         if (jobId === "") {
             this._clipboard.cancel();
             this._gateway.cancel();
@@ -370,7 +373,7 @@ class SelectedTextController extends Workflow.RuntimeWorkflowController {
         }
         this._replace({
             phase: "idle", operation: "", jobId: "", progress: null,
-            message: "Selected-text request cancelled",
+            message: _("Selected-text request cancelled"),
         });
         return true;
     }

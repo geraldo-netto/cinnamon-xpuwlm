@@ -275,10 +275,16 @@ test("controller selects, submits, polls, validates, clones, and resets", () => 
     assert.equal(controller.chooseFiles(), true);
     picker.callback(null, [source()]);
     assert.equal(controller.state().phase, "selected");
+    assert.equal(controller.state().message, "Media selected for local transcription");
     assert.equal(controller.start(), true);
+    assert.equal(controller.state().phase, "submitting");
+    assert.equal(controller.state().message, "Submitting selected media…");
+    assert.equal(controller.state().progress, null);
     gateway.submissions[0].callback(null, {
         jobId: "job-1", status: "accepted", message: "queued",
     });
+    assert.equal(controller.state().phase, "running");
+    assert.deepEqual(controller.state().progress, {fraction: 0, detail: "Queued"});
     assert.equal(timer.pending[0].delay, Media.POLL_INTERVAL_MS);
     timer.run();
     gateway.polls[0].callback(null, {
@@ -290,6 +296,10 @@ test("controller selects, submits, polls, validates, clones, and resets", () => 
         jobId: "job-1", state: "succeeded", output: result(),
     });
     assert.equal(controller.state().phase, "complete");
+    assert.equal(controller.state().message, "Media transcription ready");
+    assert.deepEqual(controller.state().progress, {
+        fraction: 1, detail: "Transcription ready",
+    });
     assert.equal(controller.state().result.speech.segments[0].text, "שלום");
     const clone = controller.state();
     clone.result.speech.segments[0].text = "changed";
@@ -336,6 +346,8 @@ test("controller contains selection, transport, cancellation, and stale branches
     controller.start();
     gateway.submissions[1].callback(null, {jobId: "job-2", status: "accepted", message: "q"});
     assert.equal(controller.cancel(), true);
+    assert.equal(controller.state().phase, "cancelling");
+    assert.equal(controller.state().message, "Cancelling media transcription…");
     gateway.cancellations[0].callback(null);
     assert.equal(controller.state().phase, "selected");
     assert.equal(controller.cancel(), false);
@@ -404,6 +416,18 @@ test("controller covers every constructor, selection, terminal, and fallback bra
     assert.equal(controller._cancelled(controller._sequence - 1, null), false);
     controller._fail("");
     assert.equal(controller.state().message, "Media transcription failed");
+
+    const rejected = harness();
+    rejected.controller.setAvailability(true);
+    rejected.controller.chooseFiles();
+    rejected.picker.callback(null, [source()]);
+    rejected.controller.start();
+    rejected.gateway.submissions[0].callback(null, null);
+    assert.equal(rejected.controller.state().phase, "error");
+    assert.equal(
+        rejected.controller.state().message,
+        "Runtime rejected media transcription",
+    );
 });
 
 test("synchronous port failures and pre-acknowledgement cancellation are contained", () => {
