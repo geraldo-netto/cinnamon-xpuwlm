@@ -20,13 +20,14 @@ domain grouping without weakening the required status schema.
 - **Audit regression and mutation gates:** XTPU-0152–XTPU-0159
 - **Audit housekeeping:** XTPU-0160–XTPU-0161, XTPU-0165
 - **Requested applet UX:** XTPU-0162–XTPU-0164
+- **Applet audit findings:** XTPU-0166–XTPU-0173
 - **SonarCloud remediation:** XTPU-0174–XTPU-0180
 
 ## Findings
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0158 | in_progress | high | l | XTPU-0139, XTPU-0140, XTPU-0141, XTPU-0142, XTPU-0143, XTPU-0144, XTPU-0145, XTPU-0146, XTPU-0147, XTPU-0148, XTPU-0149, XTPU-0150, XTPU-0151, XTPU-0152, XTPU-0153, XTPU-0154, XTPU-0155, XTPU-0156, XTPU-0157, XTPU-0165 | The 101-file full campaign was aborted at 2% after confirming a roughly 37-hour runtime; finish the scoped harness reorganization, then run its non-incremental rebaseline at the retained 80% break threshold. |
+| XTPU-0158 | in_progress | high | l | XTPU-0139, XTPU-0140, XTPU-0141, XTPU-0142, XTPU-0143, XTPU-0144, XTPU-0145, XTPU-0146, XTPU-0147, XTPU-0148, XTPU-0149, XTPU-0150, XTPU-0151, XTPU-0152, XTPU-0153, XTPU-0154, XTPU-0155, XTPU-0156, XTPU-0157, XTPU-0165 | The full campaign was aborted at 2% after confirming a roughly 37-hour runtime, and the scoped harness reorganization is complete: `stryker.config.cjs` mutates one selected target non-incrementally at the retained 80% break threshold and `scripts/run-mutation-campaign.js` drives the 44 scoped behavior targets from `scripts/mutation-plan.js` into per-module reports plus `mutation-report/scoped/summary.json`. Remaining: run the scoped non-incremental rebaseline — only `view-model.json` exists today and it predates `53c01f0`, which changed eight scoped targets. Stryker's local logging socket is denied (EPERM) inside the restricted agent sandbox, so run the campaign from an unrestricted shell. |
 
 ## Blocked
 
