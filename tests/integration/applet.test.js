@@ -1122,7 +1122,7 @@ test("panel uses cached symbolic state icons and explicit accessible status", ()
     assert.equal(AppletModule.panelIconName("online"), "xpuwlm-status-online-symbolic");
 });
 
-test("panel icon stays at least 32 pixels and preserves larger zone sizes", () => {
+test("panel icon respects positive zone sizes and keeps a safe fallback", () => {
     const {applet} = appletHarness();
     const icon = {
         size: 16,
@@ -1132,11 +1132,15 @@ test("panel icon stays at least 32 pixels and preserves larger zone sizes", () =
     applet._applet_icon = icon;
 
     assert.equal(applet.on_panel_icon_size_changed(16), undefined);
-    assert.equal(icon.size, 32);
+    assert.equal(icon.size, 16);
+    applet.on_panel_icon_size_changed(20);
+    assert.equal(icon.size, 20);
     applet.on_panel_icon_size_changed(48);
     assert.equal(icon.size, 48);
     assert.equal(AppletModule.panelIconSize(undefined), 32);
-    assert.equal(AppletModule.panelIconSize(31.9), 32);
+    assert.equal(AppletModule.panelIconSize(20.9), 20);
+    assert.equal(AppletModule.panelIconSize(0.5), 1);
+    assert.equal(AppletModule.panelIconSize(0), 32);
     assert.equal(AppletModule.panelIconSize(40), 40);
 
     const setIcon = applet.set_applet_icon_symbolic_name.bind(applet);

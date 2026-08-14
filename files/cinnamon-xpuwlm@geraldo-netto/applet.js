@@ -40,7 +40,8 @@ const {_} = I18n;
 
 const UUID = "cinnamon-xpuwlm@geraldo-netto";
 const PANEL_STATUSES = Object.freeze(["online", "attention", "detected", "paused", "unavailable"]);
-const MIN_PANEL_ICON_SIZE = 32;
+const DEFAULT_PANEL_ICON_SIZE = 32;
+const MIN_PANEL_ICON_SIZE = 1;
 
 // Binds the applet UUID text domain and routes the shared translation port
 // through GJS gettext. Absent gettext (test harnesses) keeps the identity
@@ -75,7 +76,7 @@ function panelIconName(status) {
 function panelIconSize(requestedSize) {
     return Number.isFinite(requestedSize) && requestedSize > 0
         ? Math.max(MIN_PANEL_ICON_SIZE, Math.floor(requestedSize))
-        : MIN_PANEL_ICON_SIZE;
+        : DEFAULT_PANEL_ICON_SIZE;
 }
 
 function defaultEnvironment() {
@@ -853,6 +854,7 @@ function main(metadata, orientation, panelHeight, instanceId) {
 
 if (typeof module !== "undefined") {
     module.exports = {
+        DEFAULT_PANEL_ICON_SIZE,
         UUID,
         MIN_PANEL_ICON_SIZE,
         PANEL_STATUSES,
