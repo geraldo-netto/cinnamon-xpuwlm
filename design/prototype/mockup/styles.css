@@ -1307,7 +1307,7 @@ body[data-screen="clear"] .tabs b {
   border: 1px solid #47a8f6;
   border-radius: 9px;
   color: white;
-  background: linear-gradient(#349bec, #2386d2);
+  background: linear-gradient(#1b78be, #126cab);
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.18), 0 3px 9px rgba(11, 91, 156, 0.25);
   font-size: 13px;
   font-weight: 800;

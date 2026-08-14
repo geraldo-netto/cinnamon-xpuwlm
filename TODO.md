@@ -20,14 +20,13 @@ domain grouping without weakening the required status schema.
 - **Audit regression and mutation gates:** XTPU-0152–XTPU-0159
 - **Audit housekeeping:** XTPU-0160–XTPU-0161, XTPU-0165
 - **Requested applet UX:** XTPU-0162–XTPU-0164
-- **SonarCloud remediation:** XTPU-0174–XTPU-0178
+- **SonarCloud remediation:** XTPU-0174–XTPU-0180
 
 ## Findings
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
 | XTPU-0158 | in_progress | high | l | XTPU-0139, XTPU-0140, XTPU-0141, XTPU-0142, XTPU-0143, XTPU-0144, XTPU-0145, XTPU-0146, XTPU-0147, XTPU-0148, XTPU-0149, XTPU-0150, XTPU-0151, XTPU-0152, XTPU-0153, XTPU-0154, XTPU-0155, XTPU-0156, XTPU-0157, XTPU-0165 | The 101-file full campaign was aborted at 2% after confirming a roughly 37-hour runtime; finish the scoped harness reorganization, then run its non-incremental rebaseline at the retained 80% break threshold. |
-| XTPU-0176 | open | medium | l | XTPU-0174, XTPU-0175 | Triage and remediate the remaining fresh Sonar maintainability/reliability backlog across applet JavaScript, tests, tooling, prototype CSS, and workflow metadata; preserve supported GJS/Cinnamon compatibility rather than applying browser-only syntax mechanically. |
 
 ## Blocked
 
@@ -69,3 +68,5 @@ domain grouping without weakening the required status schema.
 | --- | --- | --- | --- | --- | --- |
 | XTPU-0177 | wont_fix | high | xs | — | Sonar CSS rule S4654 reports 24 uses of `spacing` as an unknown browser property, but the shipped stylesheet targets Cinnamon's St theme engine where `spacing` is a supported layout property; retain the declarations and mark the Sonar issues false-positive when project administration is available. |
 | XTPU-0178 | wont_fix | high | xs | XTPU-0175 | Sonar S5443 reports two `/tmp` strings that are inert test-fixture data and never reach a filesystem API; S1523 reports the intentional CJS compatibility loader, whose dynamic compilation is restricted to the enumerated checked-in production sources. Retain these three reviewed patterns and mark the Sonar issues false-positive when project administration is available. |
+| XTPU-0179 | wont_fix | medium | xs | XTPU-0176 | Retain the reviewed JavaScript compatibility and design patterns behind Sonar S7781, S7784, S7757, and S2094: global regular-expression replacement is supported across the Cinnamon 6.0–6.6 floor; `structuredClone` is absent from the Cinnamon 6.6 CJS runtime and the JSON-only contracts intentionally reject unsupported values; constructor assignments make per-instance cancellation state explicit; and the empty workflow class is a descriptor-assembly surface. Mark these 19 issues won't-fix after the next scan. |
+| XTPU-0180 | wont_fix | medium | xs | XTPU-0176 | Sonar S7924 evaluates 16 translucent prototype backgrounds without their opaque dark parent surfaces and treats eight `aria-hidden` SVG profile icons as text. Their actual composited contrast ranges from 5.77:1 to 13.49:1; retain those rules and mark them false-positive after the next scan. The separate primary-button finding was applicable and its gradient now meets 4.5:1 at both stops. |

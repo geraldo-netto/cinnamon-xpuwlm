@@ -17,6 +17,19 @@ function pngSize(filename) {
   return [header.readUInt32BE(16), header.readUInt32BE(20)];
 }
 
+function relativeLuminance(hex) {
+  const channels = hex.match(/[0-9a-f]{2}/giu).map((value) => Number.parseInt(value, 16) / 255);
+  const linear = channels.map((value) => value <= 0.04045
+    ? value / 12.92
+    : ((value + 0.055) / 1.055) ** 2.4);
+  return (0.2126 * linear[0]) + (0.7152 * linear[1]) + (0.0722 * linear[2]);
+}
+
+function contrast(first, second) {
+  const values = [relativeLuminance(first), relativeLuminance(second)].sort((left, right) => right - left);
+  return (values[0] + 0.05) / (values[1] + 0.05);
+}
+
 test("regression: prototype declares maintainable responsive source contracts", () => {
   const html = read("index.html");
   const css = read("styles.css");
@@ -43,6 +56,17 @@ test("regression: compact references wrap content without hiding essential contr
     if (selector) {
       assert.doesNotMatch(selector[0], /display:\s*none/u);
     }
+  }
+});
+
+test("regression: primary-button gradient keeps normal text at AA contrast", () => {
+  const css = read("styles.css");
+  const rule = /\.primary-button\s*\{(?<body>[^}]*)\}/u.exec(css)?.groups?.body;
+  assert.equal(typeof rule, "string");
+  const stops = /background:\s*linear-gradient\((?<first>#[0-9a-f]{6}),\s*(?<second>#[0-9a-f]{6})\)/iu.exec(rule)?.groups;
+  assert.ok(stops);
+  for (const stop of [stops.first, stops.second]) {
+    assert.ok(contrast("#ffffff", stop) >= 4.5, `${stop} must preserve 4.5:1 contrast`);
   }
 });
 
