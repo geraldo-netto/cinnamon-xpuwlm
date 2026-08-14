@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
+const CinnamonPopup = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-popup-adapter.js");
 const BuiltIns = require("../helpers/built-in-workloads.js");
 const Layout = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/layout.js");
 const Manifest = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload-manifest.js");
@@ -57,6 +58,13 @@ class FakeTextIconApplet {
 class BoundSettings extends FakeSettings {
     constructor(owner) {
         super(owner, DEFAULTS);
+    }
+}
+
+class FakeTooltip {
+    constructor(actor, text) {
+        this.actor = actor;
+        this.text = text;
     }
 }
 
@@ -136,6 +144,7 @@ global.imports = {
         },
         popupMenu: {PopupMenuManager: FakeMenuManager},
         settings: {AppletSettings: BoundSettings},
+        tooltips: {Tooltip: FakeTooltip},
     },
 };
 
@@ -1149,6 +1158,33 @@ test("the popup starts with a safe default and measures only after it opens", ()
     assert.equal(views[0].layouts.length, 1, "closing the popup must not re-measure");
 });
 
+test("the production menu factory owns centered Cinnamon popup construction", () => {
+    const original = CinnamonPopup.createCenteredPopupMenuFactory;
+    const calls = [];
+    const menu = new FakeMenu();
+    CinnamonPopup.createCenteredPopupMenuFactory = (ports) => {
+        calls.push(["factory", ports.Applet, ports.Main]);
+        return (owner, orientation) => {
+            calls.push(["menu", owner, orientation]);
+            return menu;
+        };
+    };
+    try {
+        const {applet, views} = appletHarness({menuFactory: undefined});
+        assert.deepEqual(calls[0], [
+            "factory",
+            global.imports.ui.applet,
+            global.imports.ui.main,
+        ]);
+        assert.deepEqual(calls[1], ["menu", applet, "top"]);
+        assert.equal(applet.menu, menu);
+        assert.equal(views[0].menu, menu);
+        applet.on_applet_removed_from_panel();
+    } finally {
+        CinnamonPopup.createCenteredPopupMenuFactory = original;
+    }
+});
+
 test("an unusable layout measurement falls back to the default popup layout", () => {
     const warnings = [];
     const menu = new FakeMenu();
@@ -1250,6 +1286,11 @@ test("default environment, logger, and main construct with Cinnamon dependencies
         8,
     );
     assert.equal(instance instanceof AppletModule.XpuWorkloadApplet, true);
+    assert.equal(instance._view.constructor.name, "MenuView");
+    const tooltip = instance._view._tooltips(instance.actor, "Unavailable");
+    assert.equal(tooltip instanceof FakeTooltip, true);
+    assert.equal(tooltip.actor, instance.actor);
+    assert.equal(tooltip.text, "Unavailable");
     assert.equal(instance.label, "");
     assert.match(instance.iconPath, /xpuwlm-status-unavailable-symbolic\.svg$/u);
     assert.match(instance.actor.accessibleName, /unknown:/u);

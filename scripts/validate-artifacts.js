@@ -63,6 +63,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "platform-ports.js",
     "po",
     "plugin-inventory.js",
+    "popup-placement.js",
     "presentation-planning.js",
     "presentation-review.js",
     "rehearsal-briefing.js",
