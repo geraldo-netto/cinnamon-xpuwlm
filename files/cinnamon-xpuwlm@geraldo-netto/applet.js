@@ -83,6 +83,29 @@ function defaultLogger() {
     return CinnamonRuntime.createLogger("XPU Workload Manager");
 }
 
+function settingsInstanceId(metadata, instanceId) {
+    const maximum = metadata && metadata["max-instances"];
+    return maximum === 1 ? metadata.uuid : instanceId;
+}
+
+function createAppletSettings(owner, metadata, instanceId, overrides, environment) {
+    if (overrides.settings) {
+        return overrides.settings;
+    }
+    if (overrides.settingsFactory) {
+        return overrides.settingsFactory(owner);
+    }
+    const currentIdentity = CinnamonRuntime.readCurrentIdentitySettings(
+        metadata.uuid,
+        settingsInstanceId(metadata, instanceId),
+        environment,
+    );
+    const settings = new Settings.AppletSettings(owner, metadata.uuid, instanceId);
+    CinnamonRuntime.migrateLegacyAppletSettings(settings, environment);
+    CinnamonRuntime.restoreCurrentRefreshInterval(settings, currentIdentity);
+    return settings;
+}
+
 function resolveWorkloadCatalog(workloadRegistry) {
     return new Domain.WorkloadCatalog(WorkloadRegistry.profileDefinitions(workloadRegistry));
 }
@@ -182,13 +205,13 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             Object.hasOwn(overrides, "gettext") ? overrides.gettext : Gettext,
             this._environment,
         );
-        this.settings = overrides.settings
-            || (overrides.settingsFactory
-                ? overrides.settingsFactory(this)
-                : new Settings.AppletSettings(this, metadata.uuid, instanceId));
-        if (!overrides.settings && !overrides.settingsFactory) {
-            CinnamonRuntime.migrateLegacyAppletSettings(this.settings, this._environment);
-        }
+        this.settings = createAppletSettings(
+            this,
+            metadata,
+            instanceId,
+            overrides,
+            this._environment,
+        );
         this._bindSettings();
         this._registerIconPath();
         this.set_applet_icon_symbolic_path(`${metadata.path}/icons/xpuwlm-symbolic-v2.svg`);
@@ -801,6 +824,7 @@ if (typeof module !== "undefined") {
         MIN_PANEL_ICON_SIZE,
         PANEL_STATUSES,
         XpuWorkloadApplet,
+        createAppletSettings,
         defaultEnvironment,
         defaultLogger,
         installTranslations,
@@ -809,6 +833,7 @@ if (typeof module !== "undefined") {
         panelIconSize,
         resolveWorkloadCatalog,
         resolveWorkloadRegistry,
+        settingsInstanceId,
         unavailableEventFilePorts: WorkflowWiring.unavailableEventFilePorts,
         unavailableDocumentPicker: WorkflowWiring.unavailableDocumentPicker,
         unavailableClipboardReader: WorkflowWiring.unavailableClipboardReader,

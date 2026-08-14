@@ -21,7 +21,7 @@ const TARGETS = Object.freeze([
     "files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-popup-adapter.js:19-26",
     "files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-popup-adapter.js:28-49",
     "files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-popup-adapter.js:51-61",
-    "files/cinnamon-xpuwlm@geraldo-netto/applet.js:307-334",
+    "files/cinnamon-xpuwlm@geraldo-netto/applet.js:330-357",
 ]);
 const SCRIPTS = Object.freeze([
     "test:mutation:popup-finite-number",

@@ -11,6 +11,7 @@ function environmentOf(entries = {}) {
         ByteArray: {toString: (value) => String(value)},
         GLib: {
             get_home_dir: () => "/home/user",
+            get_user_config_dir: () => "/home/user/.config",
             file_get_contents: (path) => contents.has(path)
                 ? [true, contents.get(path)]
                 : [false, null],
@@ -30,7 +31,7 @@ function environmentOf(entries = {}) {
 function settingsOf(overrides = {}) {
     const values = {
         "show-panel-label": false,
-        "refresh-interval": 2,
+        "refresh-interval": 1,
         "runtime-state-path": Cinnamon.RUNTIME_STATE_PATH,
         "identity-migration-version": 0,
         ...overrides,
@@ -91,6 +92,128 @@ test("regression: identity migration never overwrites a setting changed under th
     assert.equal(settings.values["show-panel-label"], true);
     assert.equal(settings.values["refresh-interval"], 9);
     assert.equal(settings.values["runtime-state-path"], "/srv/new-runtime.json");
+});
+
+test("regression: the former two-second default remains an explicit user choice", () => {
+    const legacyPath = "/home/user/legacy-settings.json";
+    const environment = environmentOf({
+        [legacyPath]: JSON.stringify({
+            "refresh-interval": {value: 17},
+        }),
+    });
+    const settings = settingsOf({"refresh-interval": 2});
+
+    assert.equal(Cinnamon.migrateLegacyAppletSettings(settings, environment, legacyPath), false);
+    assert.equal(settings.values["refresh-interval"], 2);
+    assert.deepEqual(settings.writes, [["identity-migration-version", 1]]);
+});
+
+test("regression: Cinnamon schema upgrades preserve the inclusive scale maximum", () => {
+    const uuid = "cinnamon-xpuwlm@geraldo-netto";
+    const settingsInstanceId = uuid;
+    const currentPath = `/home/user/.config/cinnamon/spices/${uuid}/${uuid}.json`;
+    const environment = environmentOf({
+        [currentPath]: JSON.stringify({
+            "refresh-interval": {value: 60},
+        }),
+    });
+    const snapshot = Cinnamon.readCurrentIdentitySettings(uuid, settingsInstanceId, environment);
+    const settings = settingsOf({"refresh-interval": 1});
+
+    assert.equal(Cinnamon.currentAppletSettingsPath(uuid, settingsInstanceId, environment), currentPath);
+    assert.deepEqual(snapshot, {"refresh-interval": 60});
+    assert.equal(Cinnamon.restoreCurrentRefreshInterval(settings, snapshot), true);
+    assert.equal(settings.values["refresh-interval"], 60);
+    assert.deepEqual(settings.writes, [["refresh-interval", 60]]);
+    assert.equal(Cinnamon.restoreCurrentRefreshInterval(settings, snapshot), false);
+});
+
+test("regression: Cinnamon schema upgrades preserve legacy instance settings", () => {
+    const uuid = "cinnamon-xpuwlm@geraldo-netto";
+    const settingsInstanceId = uuid;
+    const modernPath = `/home/user/.config/cinnamon/spices/${uuid}/${uuid}.json`;
+    const legacyPath = `/home/user/.cinnamon/configs/${uuid}/${uuid}.json`;
+    const legacy = JSON.stringify({"refresh-interval": {value: 60}});
+
+    const legacyEnvironment = environmentOf({[legacyPath]: legacy});
+    assert.equal(
+        Cinnamon.currentAppletSettingsPath(uuid, settingsInstanceId, legacyEnvironment),
+        legacyPath,
+    );
+    assert.deepEqual(
+        Cinnamon.readCurrentIdentitySettings(uuid, settingsInstanceId, legacyEnvironment),
+        {"refresh-interval": 60},
+    );
+
+    const modern = JSON.stringify({"refresh-interval": {value: 17}});
+    const bothEnvironment = environmentOf({[legacyPath]: legacy, [modernPath]: modern});
+    assert.equal(
+        Cinnamon.currentAppletSettingsPath(uuid, settingsInstanceId, bothEnvironment),
+        modernPath,
+    );
+    assert.deepEqual(
+        Cinnamon.readCurrentIdentitySettings(uuid, settingsInstanceId, bothEnvironment),
+        {"refresh-interval": 17},
+    );
+});
+
+test("regression: current-settings recovery rejects unsafe paths and values", () => {
+    const environment = environmentOf();
+    for (const uuid of [null, "", "bad/path", "bad\\path", "bad\0id"]) {
+        assert.equal(Cinnamon.currentAppletSettingsPath(uuid, 8, environment), null);
+        assert.deepEqual(Cinnamon.readCurrentIdentitySettings(uuid, 8, environment), {});
+    }
+    for (const instanceId of [null, -1, 1.5, "", "bad/path", "bad\\path", "bad\0id"]) {
+        assert.equal(Cinnamon.currentAppletSettingsPath("safe@id", instanceId, environment), null);
+        assert.deepEqual(Cinnamon.readCurrentIdentitySettings("safe@id", instanceId, environment), {});
+    }
+    const settings = settingsOf();
+    for (const value of [undefined, null, true, "60", 0, 61, 1.5]) {
+        assert.equal(Cinnamon.restoreCurrentRefreshInterval(
+            settings,
+            {"refresh-interval": value},
+        ), false);
+    }
+    assert.deepEqual(settings.writes, []);
+});
+
+test("regression: numeric Cinnamon instance zero resolves to its settings file", () => {
+    const environment = environmentOf();
+    assert.equal(
+        Cinnamon.currentAppletSettingsPath("safe@id", 0, environment),
+        "/home/user/.config/cinnamon/spices/safe@id/0.json",
+    );
+});
+
+test("regression: current settings require the complete Cinnamon file API", () => {
+    const home = {get_home_dir: () => "/home/user"};
+    const file = {File: {new_for_path: () => ({query_exists: () => false})}};
+    for (const environment of [
+        null,
+        {},
+        {GLib: home},
+        {Gio: file},
+        {GLib: {}, Gio: file},
+        {GLib: {get_home_dir: "/home/user"}, Gio: file},
+        {GLib: home, Gio: {}},
+        {GLib: home, Gio: {File: null}},
+        {GLib: home, Gio: {File: {}}},
+        {GLib: home, Gio: {File: {new_for_path: "/home/user"}}},
+    ]) {
+        assert.equal(Cinnamon.currentAppletSettingsPath("safe@id", 0, environment), null);
+    }
+});
+
+test("regression: current-settings recovery tolerates a settings lookup race", () => {
+    const environment = environmentOf();
+    environment.Gio.File.new_for_path = () => ({
+        query_exists() {
+            throw new Error("settings file moved");
+        },
+    });
+
+    assert.equal(Cinnamon.currentAppletSettingsPath("safe@id", 8, environment), null);
+    assert.deepEqual(Cinnamon.readCurrentIdentitySettings("safe@id", 8, environment), {});
 });
 
 test("regression: malformed, missing, and oversize legacy settings fail closed", () => {

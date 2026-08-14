@@ -16,9 +16,10 @@ const RUNTIME_STATE_PATH = "~/.local/state/xpu-workload-manager/state.json";
 const IDENTITY_MIGRATION_VERSION = 1;
 const IDENTITY_MIGRATION_KEY = "identity-migration-version";
 const LEGACY_SETTINGS_MAX_BYTES = 64 * 1024;
+const SETTINGS_ID = /^[A-Za-z0-9@._-]+$/u;
 const MIGRATABLE_SETTING_DEFAULTS = Object.freeze({
     "show-panel-label": false,
-    "refresh-interval": 2,
+    "refresh-interval": 1,
     "runtime-state-path": RUNTIME_STATE_PATH,
 });
 
@@ -86,6 +87,72 @@ function readLegacyIdentitySettings(environment, path) {
     } catch {
         return {};
     }
+}
+
+function settingsInstanceName(instanceId) {
+    if (Number.isSafeInteger(instanceId) && instanceId >= 0) {
+        return String(instanceId);
+    }
+    if (typeof instanceId === "string" && SETTINGS_ID.test(instanceId)) {
+        return instanceId;
+    }
+    return null;
+}
+
+function validSettingsUuid(uuid) {
+    return typeof uuid === "string" && SETTINGS_ID.test(uuid);
+}
+
+function hasSettingsFileApi(environment) {
+    return Boolean(environment && environment.GLib && environment.Gio
+        && typeof environment.GLib.get_home_dir === "function"
+        && typeof environment.Gio.File?.new_for_path === "function");
+}
+
+function appletSettingsPaths(uuid, instanceId, environment) {
+    const instanceName = settingsInstanceName(instanceId);
+    if (!validSettingsUuid(uuid) || instanceName === null) {
+        return null;
+    }
+    if (!hasSettingsFileApi(environment)) {
+        return null;
+    }
+    const home = environment.GLib.get_home_dir();
+    const configRoot = typeof environment.GLib.get_user_config_dir === "function"
+        ? environment.GLib.get_user_config_dir()
+        : `${home}/.config`;
+    return Object.freeze({
+        modern: `${configRoot}/cinnamon/spices/${uuid}/${instanceName}.json`,
+        legacy: `${home}/.cinnamon/configs/${uuid}/${instanceName}.json`,
+    });
+}
+
+function selectedAppletSettingsPath(paths, environment) {
+    try {
+        const modernExists = environment.Gio.File.new_for_path(paths.modern).query_exists(null);
+        const legacyExists = environment.Gio.File.new_for_path(paths.legacy).query_exists(null);
+        return legacyExists && !modernExists ? paths.legacy : paths.modern;
+    } catch {
+        return null;
+    }
+}
+
+function currentAppletSettingsPath(uuid, instanceId, environment) {
+    return selectedAppletSettingsPath(appletSettingsPaths(uuid, instanceId, environment), environment);
+}
+
+function readCurrentIdentitySettings(uuid, instanceId, environment) {
+    return readLegacyIdentitySettings(environment, currentAppletSettingsPath(uuid, instanceId, environment));
+}
+
+function restoreCurrentRefreshInterval(settings, snapshot) {
+    const value = snapshot && snapshot["refresh-interval"];
+    if (!Number.isInteger(value) || value < 1 || value > 60
+            || settings.getValue("refresh-interval") === value) {
+        return false;
+    }
+    settings.setValue("refresh-interval", value);
+    return true;
 }
 
 function importDefaultIdentitySettings(settings, migrated) {
@@ -411,6 +478,9 @@ module.exports = {
     CinnamonSettingsRepository,
     FileStateRepository,
     createStateRepository,
+    currentAppletSettingsPath,
     migrateLegacyAppletSettings,
     migratedIdentitySettings,
+    readCurrentIdentitySettings,
+    restoreCurrentRefreshInterval,
 };

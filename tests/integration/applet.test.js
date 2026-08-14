@@ -160,6 +160,105 @@ test("workload catalog resolver projects only the injected registry", () => {
     assert.throws(() => AppletModule.resolveWorkloadCatalog(null), /registry/u);
 });
 
+test("production settings creation preserves a stored refresh interval", () => {
+    const uuid = AppletModule.UUID;
+    const instanceId = 7;
+    const settingsPath = `/home/tester/.config/cinnamon/spices/${uuid}/${uuid}.json`;
+    const contents = new Map([[settingsPath, JSON.stringify({
+        "refresh-interval": {value: 60},
+    })]]);
+    const environment = {
+        ByteArray: {toString: (value) => String(value)},
+        GLib: {
+            get_home_dir: () => "/home/tester",
+            get_user_config_dir: () => "/home/tester/.config",
+            file_get_contents: (path) => contents.has(path)
+                ? [true, contents.get(path)]
+                : [false, null],
+        },
+        Gio: {
+            FileQueryInfoFlags: {NONE: 0},
+            File: {
+                new_for_path: (path) => ({
+                    query_exists: () => contents.has(path),
+                    query_info: () => ({get_size: () => String(contents.get(path) || "").length}),
+                }),
+            },
+        },
+    };
+
+    const settings = AppletModule.createAppletSettings(
+        {},
+        {uuid, "max-instances": 1},
+        instanceId,
+        {},
+        environment,
+    );
+
+    assert.equal(settings.getValue("refresh-interval"), 60);
+    assert.equal(settings.getValue("identity-migration-version"), 1);
+});
+
+test("current identity wins when its explicit one-second choice matches the new default", () => {
+    const uuid = AppletModule.UUID;
+    const instanceId = 7;
+    const currentPath = `/home/tester/.config/cinnamon/spices/${uuid}/${uuid}.json`;
+    const legacyPath = "/home/tester/.config/cinnamon/spices/cinnamon-tpuwm@geraldo-netto/cinnamon-tpuwm@geraldo-netto.json";
+    const contents = new Map([
+        [currentPath, JSON.stringify({"refresh-interval": {value: 1}})],
+        [legacyPath, JSON.stringify({"refresh-interval": {value: 17}})],
+    ]);
+    const environment = {
+        ByteArray: {toString: (value) => String(value)},
+        GLib: {
+            get_home_dir: () => "/home/tester",
+            get_user_config_dir: () => "/home/tester/.config",
+            file_get_contents: (path) => contents.has(path)
+                ? [true, contents.get(path)]
+                : [false, null],
+        },
+        Gio: {
+            FileQueryInfoFlags: {NONE: 0},
+            File: {
+                new_for_path: (path) => ({
+                    query_exists: () => contents.has(path),
+                    query_info: () => ({get_size: () => String(contents.get(path) || "").length}),
+                }),
+            },
+        },
+    };
+
+    const settings = AppletModule.createAppletSettings(
+        {},
+        {uuid, "max-instances": 1},
+        instanceId,
+        {},
+        environment,
+    );
+
+    assert.equal(settings.getValue("refresh-interval"), 1);
+    assert.equal(settings.getValue("identity-migration-version"), 1);
+});
+
+test("settings identity follows Cinnamon single and multi-instance rules", () => {
+    const uuid = AppletModule.UUID;
+    assert.equal(AppletModule.settingsInstanceId({uuid, "max-instances": 1}, 7), uuid);
+    assert.equal(AppletModule.settingsInstanceId({uuid}, 7), 7);
+    assert.equal(AppletModule.settingsInstanceId({uuid, "max-instances": 2}, 7), 7);
+});
+
+test("explicit settings and gettext overrides remain injectable", () => {
+    const settings = {identity: "injected"};
+    assert.strictEqual(
+        AppletModule.createAppletSettings({}, {uuid: AppletModule.UUID}, 7, {settings}, {}),
+        settings,
+    );
+
+    const {applet} = appletHarness({gettext: null});
+    assert.equal(applet._environment.Gtk, global.imports.gi.Gtk);
+    assert.equal(applet._teardown(), true);
+});
+
 test("missing GTK ports fail explicitly without opening or overwriting anything", () => {
     const ports = AppletModule.unavailableEventFilePorts();
     const errors = [];
