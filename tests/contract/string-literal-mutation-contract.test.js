@@ -108,7 +108,11 @@ test("string contract pilot runs only deterministic provenance tests", () => {
     );
 });
 
-test("only Stryker-intrinsic wiring literals are skipped and every contract field is measurable", () => {
+test("only Stryker-intrinsic wiring literals are skipped and every contract field is measurable", {
+    skip: process.env.XPUWLM_MUTATION_RUN === "1"
+        ? "Stryker instruments the provenance source bytes"
+        : false,
+}, () => {
     const source = fs.readFileSync(SOURCE_PATH, "utf8");
     assert.doesNotMatch(source, /['`]/u, "single-quoted or template literals require inventory support");
     assert.doesNotMatch(source, /Stryker (?:disable|restore)[^\n]*StringLiteral/gu);

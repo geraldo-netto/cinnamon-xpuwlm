@@ -32,6 +32,26 @@ test("full mutation rebaseline is non-incremental, resource-safe, and reproducib
     });
     assert.equal(
         packageJson.scripts["test:mutation:full"],
-        "stryker run stryker.full.config.cjs",
+        "stryker run stryker.full.config.cjs && XPUWLM_REQUIRE_FULL_MUTATION_REPORT=1 node --test tests/contract/full-mutation-report-contract.test.js",
     );
+});
+
+test("full mutation mode skips only the exact instrumented-source assertions", () => {
+    const skipDeclaration = [
+        "skip: process.env.",
+        'XPUWLM_MUTATION_RUN === "1"',
+    ].join("");
+    const skipFiles = fs.globSync("tests/**/*.test.js", {cwd: ROOT})
+        .filter((relativePath) => fs.readFileSync(
+            path.join(ROOT, relativePath),
+            "utf8",
+        ).includes(skipDeclaration))
+        .sort();
+    assert.deepEqual(skipFiles, [
+        "tests/contract/root-shim-contract.test.js",
+        "tests/contract/string-literal-mutation-contract.test.js",
+        "tests/contract/workflow-wiring-boundary-contract.test.js",
+        "tests/contract/workload-runtime-boundary-contract.test.js",
+        "tests/unit/generate-snapshot-contract.test.js",
+    ]);
 });
