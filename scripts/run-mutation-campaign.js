@@ -38,7 +38,7 @@ function runTarget(target) {
     fs.rmSync(report, {force: true});
     const completed = childProcess.spawnSync(
         STRYKER,
-        ["run", "stryker.scoped.config.cjs"],
+        ["run", "stryker.config.cjs"],
         {
             cwd: ROOT,
             env: {

@@ -27,7 +27,6 @@ domain grouping without weakening the required status schema.
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
 | XTPU-0158 | in_progress | high | l | XTPU-0139, XTPU-0140, XTPU-0141, XTPU-0142, XTPU-0143, XTPU-0144, XTPU-0145, XTPU-0146, XTPU-0147, XTPU-0148, XTPU-0149, XTPU-0150, XTPU-0151, XTPU-0152, XTPU-0153, XTPU-0154, XTPU-0155, XTPU-0156, XTPU-0157, XTPU-0165 | The 101-file full campaign was aborted at 2% after confirming a roughly 37-hour runtime; finish the scoped harness reorganization, then run its non-incremental rebaseline at the retained 80% break threshold. |
-| XTPU-0169 | open | medium | s | XTPU-0158, XTPU-0166 | Collapse line-range mutation npm scripts and specialized Stryker configs into one configuration with per-file mutation globs; retain the workload-provenance StringLiteral pilot. |
 | XTPU-0170 | open | medium | s | XTPU-0166 | Remove integration and benchmark suites from mutation targets while retaining them in the regular test suite. |
 | XTPU-0171 | open | low | s | XTPU-0158 | Retire the non-attributable incremental mutation report and keep incremental mode disabled until per-test attribution makes invalidation safe. |
 

@@ -22,7 +22,7 @@ test("scoped mutation config pairs every source with focused unit tests", () => 
         assert.doesNotMatch(target.source, /cinnamon-.*-adapter|gio-file-adapter/u);
     }
 
-    const config = require("../../stryker.scoped.config.cjs");
+    const config = require("../../stryker.config.cjs");
     assert.deepEqual(config.mutate, [targets[0].source]);
     assert.equal(config.commandRunner.command.includes(targets[0].tests[0]), true);
     assert.deepEqual(config.thresholds, {high: 80, low: 80, break: 80});
