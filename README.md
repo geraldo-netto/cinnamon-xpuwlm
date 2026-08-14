@@ -111,3 +111,11 @@ can accept many jobs concurrently, but it
 serializes dispatch to each physical accelerator. Weighted userspace scheduling
 can approximate shares such as 25/25/25/25 under contention; it cannot
 physically partition one device or provide hard isolation.
+
+## Mutation testing
+
+The Stryker campaign runs each behavior module only against its matching unit
+tests. Scoped campaigns deliberately keep incremental mode disabled: the old
+command-runner cache attributed coverage to one anonymous test and could not
+invalidate results safely. Regenerate mutation evidence from a clean campaign
+until the harness provides reliable per-test attribution.
