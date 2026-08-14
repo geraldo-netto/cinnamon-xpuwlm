@@ -318,8 +318,8 @@ class FileStateRepository {
                     let error = null;
                     try {
                         source.replace_contents_finish(result);
-                    } catch (caught) {
-                        error = caught;
+                    } catch (error_) {
+                        error = error_;
                     }
                     this._finishWrite(entry, error);
                 },
@@ -402,8 +402,8 @@ class FileStateRepository {
         let error = null;
         try {
             this._replace(latest.text);
-        } catch (caught) {
-            error = caught;
+        } catch (error_) {
+            error = error_;
         }
         this._settleOutstanding([active, pending], error);
         if (error !== null) {

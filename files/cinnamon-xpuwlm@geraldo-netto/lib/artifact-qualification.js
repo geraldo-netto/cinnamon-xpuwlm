@@ -8,7 +8,7 @@ const VERSION = 1;
 const MAX_TEXT = 160;
 const MAX_URL = 512;
 const IDENTIFIER = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
-const SEMANTIC_VERSION = /^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/u;
+const SEMANTIC_VERSION = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/u;
 const SPDX_ID = /^[A-Za-z0-9][A-Za-z0-9.+-]{0,79}$/u;
 const ED25519_SIGNATURE = /^[A-Za-z0-9+/]{86}==$/u;
 const ROOT_PROPERTIES = Object.freeze([

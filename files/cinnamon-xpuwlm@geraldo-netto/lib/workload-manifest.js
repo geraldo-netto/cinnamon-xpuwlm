@@ -18,7 +18,7 @@ const RUNTIME_API_VERSION = 1;
 const MIN_WEIGHT = 1;
 const MAX_WEIGHT = 5;
 const IDENTIFIER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
-const SEMANTIC_VERSION = /^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/u;
+const SEMANTIC_VERSION = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/u;
 const COMPARATORS = new Set(["at-least", "at-most", "equal"]);
 const REQUIRED_ROOT_PROPERTIES = Object.freeze([
     "manifestVersion", "id", "version", "capabilities", "requirements", "ui",

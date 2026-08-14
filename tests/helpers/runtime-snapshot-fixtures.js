@@ -165,7 +165,7 @@ function kernelTelemetryCases() {
         }),
         snapshotCase("too many kernel buckets", false, (value) => {
             value.kernelTelemetry = kernelTelemetry({
-                histograms: [{name: "runq_latency_us", unit: "us", buckets: Array(65).fill(0)}],
+                histograms: [{name: "runq_latency_us", unit: "us", buckets: new Array(65).fill(0)}],
             });
         }),
         snapshotCase("kernel bucket above safe integer", false, (value) => {
@@ -563,27 +563,31 @@ function runtimeSnapshotSchemaCases() {
             target(value)[property] = "💡".repeat(maximum + 1);
         }));
     }
-    cases.push(snapshotCase("more than sixteen devices", false, (value) => {
-        value.devices = Array.from({length: 17}, (_, index) =>
-            deviceEntry({id: `npu-accel${index}`}));
-    }));
-    cases.push(snapshotCase("one hundred and twenty-eight profiles", true, (value) => {
-        value.profiles = Object.fromEntries(
-            Array.from({length: 128}, (_, index) => [`plugin-${index}`, {queued: 0}]),
-        );
-    }));
-    cases.push(snapshotCase("more than one hundred and twenty-eight profiles", false, (value) => {
-        value.profiles = Object.fromEntries(
-            Array.from({length: 129}, (_, index) => [`plugin-${index}`, {queued: 0}]),
-        );
-    }));
-    cases.push(snapshotCase("more than one hundred alerts", false, (value) => {
-        value.alerts = Array.from({length: 101}, (_, index) => ({
-            ...value.alerts[0],
-            id: `alert-${index}`,
-        }));
-    }));
-    cases.push(...acceptedTelemetryCases(), ...rejectedTelemetryCases(), ...kernelTelemetryCases());
+    cases.push(
+        snapshotCase("more than sixteen devices", false, (value) => {
+            value.devices = Array.from({length: 17}, (_, index) =>
+                deviceEntry({id: `npu-accel${index}`}));
+        }),
+        snapshotCase("one hundred and twenty-eight profiles", true, (value) => {
+            value.profiles = Object.fromEntries(
+                Array.from({length: 128}, (_, index) => [`plugin-${index}`, {queued: 0}]),
+            );
+        }),
+        snapshotCase("more than one hundred and twenty-eight profiles", false, (value) => {
+            value.profiles = Object.fromEntries(
+                Array.from({length: 129}, (_, index) => [`plugin-${index}`, {queued: 0}]),
+            );
+        }),
+        snapshotCase("more than one hundred alerts", false, (value) => {
+            value.alerts = Array.from({length: 101}, (_, index) => ({
+                ...value.alerts[0],
+                id: `alert-${index}`,
+            }));
+        }),
+        ...acceptedTelemetryCases(),
+        ...rejectedTelemetryCases(),
+        ...kernelTelemetryCases(),
+    );
     return cases;
 }
 

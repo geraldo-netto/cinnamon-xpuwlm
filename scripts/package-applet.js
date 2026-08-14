@@ -23,6 +23,7 @@ const ARCHIVE_MTIME = 946684800;
 const BLOCK_SIZE = 512;
 const REQUIRE_START = /\brequire\s*\(/gu;
 const STATIC_REQUIRE = /\brequire\s*\(\s*("(?:[^"\\]|\\.)*")\s*\)/gu;
+const CHECKSUM_LINE = /^([0-9a-f]{64}) {2}(.+)$/u;
 
 function compareText(left, right) {
     if (left === right) {
@@ -171,7 +172,7 @@ function parseChecksums(text) {
         if (line === "") {
             continue;
         }
-        const match = line.match(/^([0-9a-f]{64}) {2}(.+)$/u);
+        const match = CHECKSUM_LINE.exec(line);
         if (!match) {
             throw new Error(`Malformed checksum line: ${line}`);
         }
@@ -332,17 +333,14 @@ function memberDirectories(files) {
 // zero ownership, no environment-dependent metadata.
 function buildArchive(root, memberPrefix, files = payloadFiles(root)) {
     const sortedFiles = [...files].sort(compareText);
-    const blocks = [];
-    for (const directory of memberDirectories(sortedFiles.map((name) => `${memberPrefix}/${name}`))) {
-        blocks.push(tarHeader(`${directory}/`, 0, "5"));
-    }
+    const blocks = memberDirectories(sortedFiles.map((name) => `${memberPrefix}/${name}`))
+        .map((directory) => tarHeader(`${directory}/`, 0, "5"));
     for (const relativePath of sortedFiles) {
         const contents = fs.readFileSync(path.join(root, relativePath));
         blocks.push(tarHeader(`${memberPrefix}/${relativePath}`, contents.length, "0"));
         blocks.push(contents, tarPadding(contents.length));
     }
-    blocks.push(Buffer.alloc(BLOCK_SIZE * 2));
-    return Buffer.concat(blocks);
+    return Buffer.concat([...blocks, Buffer.alloc(BLOCK_SIZE * 2)]);
 }
 
 function commandStage(log, dist = distRoot) {

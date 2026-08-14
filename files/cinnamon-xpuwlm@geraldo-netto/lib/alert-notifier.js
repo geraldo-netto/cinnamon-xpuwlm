@@ -51,7 +51,7 @@ class CriticalAlertNotifier {
         const active = activeCriticalAlerts(alerts);
         const pending = active.filter((alert) => !this._notified.has(alert.id));
         const activeIds = new Set(active.map((alert) => alert.id));
-        for (const id of [...this._notified]) {
+        for (const id of this._notified) {
             if (!activeIds.has(id)) {
                 this._notified.delete(id);
             }

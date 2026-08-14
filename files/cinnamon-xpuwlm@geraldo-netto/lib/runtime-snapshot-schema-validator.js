@@ -109,7 +109,8 @@ function hasCodePointLength(value, minimum, maximum) {
         return false;
     }
     let length = 0;
-    for (const _character of value) {
+    const characters = value[Symbol.iterator]();
+    while (characters.next().done !== true) {
         length += 1;
         if (length > maximum) {
             return false;

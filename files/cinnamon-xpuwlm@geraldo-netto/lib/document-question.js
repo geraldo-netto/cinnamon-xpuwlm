@@ -23,7 +23,7 @@ const POLL_INTERVAL_MS = 500;
 const SOURCE_SUFFIXES = Object.freeze([".jpeg", ".jpg", ".md", ".pdf", ".png", ".txt", ".webp"]);
 const {DIGEST, REQUEST_ID} = Validation;
 const IDENTIFIER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
-const FILE_ID = /^selected-file-[1-9][0-9]*$/u;
+const FILE_ID = /^selected-file-[1-9]\d*$/u;
 const CITATION_FIELDS = new Set([
     "fileId", "fileName", "sourceSha256", "page", "span", "textSha256",
 ]);

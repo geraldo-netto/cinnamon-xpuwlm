@@ -167,7 +167,7 @@ function installGenericWorkflowRenderers(candidate) {
     const prototype = requirePrototype(candidate);
     assertInstallable(prototype);
     for (const name of GENERIC_RENDERER_NAMES) {
-        if (Object.prototype.hasOwnProperty.call(prototype, name)) {
+        if (Object.hasOwn(prototype, name)) {
             continue;
         }
         Object.defineProperty(

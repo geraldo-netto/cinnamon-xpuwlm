@@ -332,7 +332,7 @@ function createGio(entries = {}) {
 
 function createGioEnvironment(entries = {}) {
     return {
-        ByteArray: {toString: (bytes) => String(bytes)},
+        ByteArray: {toString: String},
         GLib: {get_home_dir: () => "/home/tester", PRIORITY_DEFAULT: 0},
         Gio: createGio(entries),
     };

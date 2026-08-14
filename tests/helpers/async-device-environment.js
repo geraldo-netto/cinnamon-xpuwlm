@@ -20,7 +20,7 @@ function createAsyncDeviceEnvironment({pcie = [], usb = [], accel = [], dri = []
             IOErrorEnum: {NOT_FOUND: 1, CANCELLED: 2},
             FileType: {REGULAR: 1, DIRECTORY: 2},
         },
-        ByteArray: {toString: (value) => String(value)},
+        ByteArray: {toString: String},
     };
 
     function textAt(path) {

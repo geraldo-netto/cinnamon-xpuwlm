@@ -42,7 +42,7 @@ function valid(overrides = {}) {
             endedAt: 2000,
             replaySha256: A,
         },
-        scenarios: Readiness.SCENARIOS.map(scenario),
+        scenarios: Readiness.SCENARIOS.map((id, index) => scenario(id, index)),
         ...overrides,
     };
 }

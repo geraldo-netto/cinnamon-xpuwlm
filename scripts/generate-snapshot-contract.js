@@ -164,7 +164,7 @@ const ENUMS = Object.freeze({
 ${frozenSets(enums)}
 });
 
-const BOUNDS = Object.freeze(${JSON.stringify(limits, null, 4).replace(/\n/gu, "\n")});
+const BOUNDS = Object.freeze(${JSON.stringify(limits, null, 4)});
 
 module.exports = {ALLOWLISTS, BOUNDS, ENUMS, REQUIRED};
 `;

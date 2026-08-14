@@ -118,7 +118,7 @@ function reasonCodeKind(profile) {
     if (code === "" || NON_BLOCKING_REASON_CODES.includes(code)) {
         return null;
     }
-    return Object.prototype.hasOwnProperty.call(REASON_CODE_KINDS, code)
+    return Object.hasOwn(REASON_CODE_KINDS, code)
         ? REASON_CODE_KINDS[code]
         : "unknown";
 }

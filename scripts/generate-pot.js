@@ -108,10 +108,10 @@ function collectSourceStrings(source, reference, catalog) {
 
 function escapePo(text) {
     return text
-        .replace(/\\/gu, "\\\\")
-        .replace(/"/gu, "\\\"")
-        .replace(/\n/gu, "\\n")
-        .replace(/\t/gu, "\\t");
+        .replace(/\\/gu, String.raw`\\`)
+        .replace(/"/gu, String.raw`\"`)
+        .replace(/\n/gu, String.raw`\n`)
+        .replace(/\t/gu, String.raw`\t`);
 }
 
 function potHeader() {
@@ -122,13 +122,13 @@ function potHeader() {
         "#, fuzzy",
         "msgid \"\"",
         "msgstr \"\"",
-        `"Project-Id-Version: ${UUID}\\n"`,
-        "\"Report-Msgid-Bugs-To: \\n\"",
-        "\"POT-Creation-Date: \\n\"",
-        "\"MIME-Version: 1.0\\n\"",
-        "\"Content-Type: text/plain; charset=UTF-8\\n\"",
-        "\"Content-Transfer-Encoding: 8bit\\n\"",
-        "\"Plural-Forms: nplurals=2; plural=(n != 1);\\n\"",
+        String.raw`"Project-Id-Version: ${UUID}\n"`,
+        String.raw`"Report-Msgid-Bugs-To: \n"`,
+        String.raw`"POT-Creation-Date: \n"`,
+        String.raw`"MIME-Version: 1.0\n"`,
+        String.raw`"Content-Type: text/plain; charset=UTF-8\n"`,
+        String.raw`"Content-Transfer-Encoding: 8bit\n"`,
+        String.raw`"Plural-Forms: nplurals=2; plural=(n != 1);\n"`,
     ].join("\n");
 }
 
@@ -137,9 +137,11 @@ function formatPotEntry(entry) {
     if (entry.msgidPlural === null) {
         lines.push("msgstr \"\"");
     } else {
-        lines.push(`msgid_plural "${escapePo(entry.msgidPlural)}"`);
-        lines.push("msgstr[0] \"\"");
-        lines.push("msgstr[1] \"\"");
+        lines.push(
+            `msgid_plural "${escapePo(entry.msgidPlural)}"`,
+            "msgstr[0] \"\"",
+            "msgstr[1] \"\"",
+        );
     }
     return lines.join("\n");
 }

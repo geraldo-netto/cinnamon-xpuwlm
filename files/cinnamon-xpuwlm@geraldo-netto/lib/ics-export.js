@@ -43,8 +43,11 @@ function icsDateProperty(name, value, timezone) {
 }
 
 function icsText(value) {
-    return String(value).replace(/\\/gu, "\\\\").replace(/;/gu, "\\;")
-        .replace(/,/gu, "\\,").replace(/\r/gu, "").replace(/\n/gu, "\\n");
+    return String(value).replace(/\\/gu, String.raw`\\`)
+        .replace(/;/gu, String.raw`\;`)
+        .replace(/,/gu, String.raw`\,`)
+        .replace(/\r/gu, "")
+        .replace(/\n/gu, String.raw`\n`);
 }
 
 function utf8Width(character) {

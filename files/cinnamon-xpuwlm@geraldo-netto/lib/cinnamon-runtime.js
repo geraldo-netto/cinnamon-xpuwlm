@@ -11,13 +11,12 @@ const Host = require("./cinnamon-host-adapter.js");
 const Images = require("./cinnamon-image-adapter.js");
 const Dbus = require("./cinnamon-dbus-adapter.js");
 
-module.exports = Object.assign(
-    {},
-    FileSystem,
-    Workloads,
-    Devices,
-    State,
-    Host,
-    Images,
-    Dbus,
-);
+module.exports = {
+    ...FileSystem,
+    ...Workloads,
+    ...Devices,
+    ...State,
+    ...Host,
+    ...Images,
+    ...Dbus,
+};
