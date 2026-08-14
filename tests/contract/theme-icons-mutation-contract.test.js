@@ -68,7 +68,11 @@ test("theme icon mutation command applies the threshold per callable", () => {
     );
 });
 
-test("theme icon mutation ranges still start at their intended callables", () => {
+test("theme icon mutation ranges still start at their intended callables", {
+    skip: process.env.XPUWLM_MUTATION_RUN === "1"
+        ? "Stryker instruments the icon target source ranges"
+        : false,
+}, () => {
     for (const [index, target] of TARGETS.entries()) {
         assert.match(targetSource(target), SIGNATURES[index]);
     }

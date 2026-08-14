@@ -48,8 +48,11 @@ test("full mutation mode skips only the exact instrumented-source assertions", (
         ).includes(skipDeclaration))
         .sort();
     assert.deepEqual(skipFiles, [
+        "tests/contract/popup-placement-mutation-contract.test.js",
+        "tests/contract/refresh-interval-mutation-contract.test.js",
         "tests/contract/root-shim-contract.test.js",
         "tests/contract/string-literal-mutation-contract.test.js",
+        "tests/contract/theme-icons-mutation-contract.test.js",
         "tests/contract/workflow-wiring-boundary-contract.test.js",
         "tests/contract/workload-runtime-boundary-contract.test.js",
         "tests/unit/generate-snapshot-contract.test.js",

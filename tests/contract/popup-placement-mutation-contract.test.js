@@ -85,7 +85,11 @@ test("popup placement mutation command applies the threshold per callable", () =
     );
 });
 
-test("popup placement mutation ranges still start at their intended callables", () => {
+test("popup placement mutation ranges still start at their intended callables", {
+    skip: process.env.XPUWLM_MUTATION_RUN === "1"
+        ? "Stryker instruments the popup target source ranges"
+        : false,
+}, () => {
     for (const [index, target] of TARGETS.entries()) {
         assert.match(targetSource(target), SIGNATURES[index]);
     }

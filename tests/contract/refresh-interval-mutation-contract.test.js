@@ -94,7 +94,11 @@ test("refresh mutation command applies the threshold per callable", () => {
     );
 });
 
-test("refresh mutation ranges still start at their intended owners", () => {
+test("refresh mutation ranges still start at their intended owners", {
+    skip: process.env.XPUWLM_MUTATION_RUN === "1"
+        ? "Stryker instruments the refresh target source ranges"
+        : false,
+}, () => {
     for (const [index, target] of TARGETS.entries()) {
         assert.match(targetSource(target), SIGNATURES[index]);
     }
