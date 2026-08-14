@@ -647,10 +647,6 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this.set_applet_tooltip(viewModel.panel.tooltip);
         this.actor.set_accessible_name(viewModel.panel.accessibleName);
         this._setPanelIcon(viewModel.panel.status);
-        for (const status of PANEL_STATUSES) {
-            this.actor.remove_style_class_name(`xpuwlm-panel-${status}`);
-        }
-        this.actor.add_style_class_name(`xpuwlm-panel-${viewModel.panel.status}`);
     }
 
     _setPanelIcon(status) {

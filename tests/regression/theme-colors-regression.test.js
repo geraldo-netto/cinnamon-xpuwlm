@@ -275,6 +275,15 @@ test("regression: semantic and interaction states explicitly use the symbolic fo
     assert.match(ruleBody(".xpuwlm-alert-card"), /border-left-width:\s*3px/u);
     assert.match(ruleBody(".xpuwlm-alert-card"), /border-left-color:\s*symbolic/u);
     assert.match(ruleBody(".xpuwlm-history-mark"), /font-weight:\s*bold/u);
+    assert.match(ruleBody(".xpuwlm-status-paused"), /color:\s*symbolic-warning/u);
+    assert.match(ruleBody(".xpuwlm-row-icon-running"), /color:\s*symbolic-warning/u);
+    assert.match(ruleBody(".xpuwlm-row-icon-healthy"), /color:\s*symbolic-success/u);
+    assert.match(ruleBody(".xpuwlm-row-icon-watching"), /color:\s*symbolic-warning/u);
+    assert.match(ruleBody(".xpuwlm-row-icon-unavailable"), /color:\s*symbolic-error/u);
+    assert.match(ruleBody(".xpuwlm-hero-ok"), /border-color:\s*symbolic-success/u);
+    assert.match(ruleBody(".xpuwlm-hero-paused"), /border-color:\s*symbolic-warning/u);
+    assert.match(ruleBody(".xpuwlm-hero-unavailable"), /border-color:\s*symbolic-error/u);
+    assert.match(ruleBody(".xpuwlm-job-normal"), /border-left:\s*3px solid symbolic-success/u);
     assert.doesNotMatch(stylesheet, /\.xpuwlm-panel-/u);
 });
 

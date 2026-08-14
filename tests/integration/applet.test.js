@@ -408,7 +408,7 @@ test("constructor binds settings, defers popup rendering, and starts polling", (
     assert.equal(applet.label, "");
     assert.match(applet.tooltip, /hardware detected/);
     assert.match(applet.actor.accessibleName, /detected: hardware detected/);
-    assert.equal(applet.actor.styleClasses.has("xpuwlm-panel-detected"), true);
+    assert.equal([...applet.actor.styleClasses].some((name) => name.startsWith("xpuwlm-panel-")), false);
     assert.deepEqual(manager.calls[0], ["start"]);
     assert.deepEqual(poller.calls, [["start", 5]]);
     assert.equal(menus.length, 1);
@@ -1099,12 +1099,10 @@ test("panel uses cached symbolic state icons and explicit accessible status", ()
         );
         assert.match(applet.actor.accessibleName, accessibleName);
         assert.equal(applet.label, "");
-        for (const candidate of AppletModule.PANEL_STATUSES) {
-            assert.equal(
-                applet.actor.styleClasses.has(`xpuwlm-panel-${candidate}`),
-                candidate === status,
-            );
-        }
+        assert.equal(
+            [...applet.actor.styleClasses].some((name) => name.startsWith("xpuwlm-panel-")),
+            false,
+        );
     }
 
     const callsBeforeRepeatedState = applet.symbolicIconNames.length;
@@ -1210,19 +1208,15 @@ test("the default applet reaches Cinnamon's critical notification tray", () => {
     assert.equal(notifications.at(-1).body, "Voltage drift");
 });
 
-test("panel state classes are a closed set that is fully cleaned between renders", () => {
+test("panel status uses accessible symbolic icons without redundant actor classes", () => {
     assert.deepEqual(AppletModule.PANEL_STATUSES, [
         "online", "attention", "detected", "paused", "unavailable",
     ]);
     const {applet, manager} = appletHarness();
-    for (const status of AppletModule.PANEL_STATUSES) {
-        applet.actor.add_style_class_name(`xpuwlm-panel-${status}`);
-    }
-    applet.actor.add_style_class_name("xpuwlm-panel-unrelated");
 
     manager.callback(liveState({source: "runtime"}));
     const applied = [...applet.actor.styleClasses].filter((name) => name.startsWith("xpuwlm-panel-"));
-    assert.deepEqual(applied.sort(), ["xpuwlm-panel-online", "xpuwlm-panel-unrelated"].sort());
+    assert.deepEqual(applied, []);
     assert.deepEqual(
         AppletModule.PANEL_STATUSES.map((status) => AppletModule.panelIconFilename(status)),
         AppletModule.PANEL_STATUSES.map((status) => `xpuwlm-status-${status}-symbolic.svg`),
@@ -1232,8 +1226,8 @@ test("panel state classes are a closed set that is fully cleaned between renders
 test("render updates safety styling and ignores work after teardown", () => {
     const {applet, manager, poller, settings} = appletHarness();
     manager.callback(liveState({source: "runtime", attentionCount: 1}));
-    assert.equal(applet.actor.styleClasses.has("xpuwlm-panel-attention"), true);
-    assert.equal(applet.actor.styleClasses.has("xpuwlm-panel-online"), false);
+    assert.equal(applet.iconName, "xpuwlm-status-attention-symbolic");
+    assert.match(applet.actor.accessibleName, /attention/u);
     assert.equal(applet._teardown(), true);
     assert.equal(applet._teardown(), false);
     assert.equal(settings.finalized, true);
@@ -1390,13 +1384,13 @@ test("applet wires a scheduler so connected state expires without a poll", () =>
         },
     );
 
-    assert.equal(applet.actor.styleClasses.has("xpuwlm-panel-online"), true);
+    assert.equal(applet.iconName, "xpuwlm-status-online-symbolic");
     assert.equal(scheduled.length, 1);
     assert.equal(scheduled[0].delayMs, Domain.DEFAULT_STALE_AFTER_MS + 1);
 
     nowMs = generatedAt + Domain.DEFAULT_STALE_AFTER_MS + 1;
     scheduled[0].callback();
-    assert.equal(applet.actor.styleClasses.has("xpuwlm-panel-unavailable"), true);
+    assert.equal(applet.iconName, "xpuwlm-status-unavailable-symbolic");
     assert.match(applet.tooltip, /stale/u);
     applet.on_applet_removed_from_panel();
 });

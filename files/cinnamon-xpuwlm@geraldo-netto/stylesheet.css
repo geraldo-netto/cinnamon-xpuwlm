@@ -190,6 +190,12 @@
     border-color: symbolic-warning;
 }
 
+.xpuwlm-status-attention,
+.xpuwlm-status-paused {
+    color: symbolic-warning;
+    border-color: symbolic-warning;
+}
+
 .xpuwlm-status-unavailable {
     color: symbolic-error;
     border-color: symbolic-error;
@@ -490,6 +496,26 @@
     background-color: rgba(127, 127, 127, 0.06);
 }
 
+.xpuwlm-row-icon-running {
+    color: symbolic-warning;
+    border-color: symbolic-warning;
+}
+
+.xpuwlm-row-icon-healthy {
+    color: symbolic-success;
+    border-color: symbolic-success;
+}
+
+.xpuwlm-row-icon-watching {
+    color: symbolic-warning;
+    border-color: symbolic-warning;
+}
+
+.xpuwlm-row-icon-unavailable {
+    color: symbolic-error;
+    border-color: symbolic-error;
+}
+
 .xpuwlm-weight-summary {
     min-width: 58px;
     font-size: 0.82em;
@@ -598,6 +624,18 @@
 
 .xpuwlm-hero-title {
     font-size: 1.2em;
+}
+
+.xpuwlm-hero-ok {
+    border-color: symbolic-success;
+}
+
+.xpuwlm-hero-paused {
+    border-color: symbolic-warning;
+}
+
+.xpuwlm-hero-unavailable {
+    border-color: symbolic-error;
 }
 
 .xpuwlm-state-action {
@@ -741,10 +779,16 @@
 
 .xpuwlm-job-pending {
     opacity: 0.72;
+    border-left: 3px solid symbolic-warning;
 }
 
 .xpuwlm-job-attention {
     font-weight: bold;
+    border-left: 3px solid symbolic-error;
+}
+
+.xpuwlm-job-normal {
+    border-left: 3px solid symbolic-success;
 }
 
 /* The answer the job was run for, one candidate per row. Indices where no
