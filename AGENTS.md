@@ -42,7 +42,8 @@ These rules apply to the entire repository.
   - fuzz or property-based coverage for changed input boundaries and state transitions;
   - mutation tests covering changed logic.
 - Achieve at least 80% coverage for every changed or added function or method, regardless of programming language. Aggregate file or project coverage does not replace this per-function requirement.
-- Run the complete relevant local test, regression, fuzz, mutation, and coverage suites before declaring work complete.
+- Unless the user explicitly requests a long or full suite, run only tests and quality gates scoped to the changed behavior; do not run complete repository suites by default.
+- Parallelize independent scoped tests and gates whenever safe, provided their temporary files, coverage data, and mutation reports cannot collide.
 - A user may explicitly waive one or more named local quality gates for the current scoped commit. A waiver is one-time: stop or skip only the named gates, never report them as passing, and disclose the waiver and partial result in the commit message and final handoff. All remaining applicable gates must still pass.
 - If required tooling is missing or a quality gate cannot run, record the blocker in `TODO.md`; do not treat the implementation or fix as complete.
 
