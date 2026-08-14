@@ -132,7 +132,7 @@ test("Git boundary and summary publication fail closed", () => {
         cleanCommit: () => "c".repeat(40),
         runTarget: (...arguments_) => {
             assert.equal(arguments_.length, 1);
-            assert.equal(arguments_[0], target);
+            assert.deepEqual(arguments_[0], target);
             return result;
         },
     }));
