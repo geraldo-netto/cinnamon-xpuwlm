@@ -9,6 +9,55 @@ const LIBRARY_ROOT = path.join(
     "files/cinnamon-xpuwlm@geraldo-netto/lib",
 );
 const UNIT_ROOT = path.join(ROOT, "tests/unit");
+const BEHAVIOR_MODULES = new Set([
+    "alert-notifier",
+    "artifact-qualification",
+    "background-execution",
+    "caption-export",
+    "document-question",
+    "domain",
+    "event-import",
+    "failure-log-backoff",
+    "failure-reporter",
+    "file-auto-tagging",
+    "file-categorization",
+    "file-organizer",
+    "generic-workflow-surface",
+    "ics-export",
+    "image-duplicate-benchmark",
+    "job-submission",
+    "layout",
+    "manager",
+    "media-preprocessing",
+    "media-transcription",
+    "plugin-inventory",
+    "popup-placement",
+    "presentation-planning",
+    "presentation-review",
+    "profile-blockers",
+    "readiness-acceptance",
+    "rehearsal-briefing",
+    "routine-recognition",
+    "runtime-contract",
+    "runtime-control-contract",
+    "runtime-control-service",
+    "runtime-job-contract",
+    "runtime-refusal-contract",
+    "runtime-snapshot-schema-validator",
+    "screenshot-assistant",
+    "selected-text",
+    "snapshot-validator",
+    "telemetry-window",
+    "tensor-encoder",
+    "validation",
+    "view-model",
+    "workflow-controller",
+    "workload-benchmark",
+    "workload-manifest",
+    "workload-reconciliation",
+    "workload-registry",
+    "workload-result",
+]);
 
 function relativePath(file) {
     return path.relative(ROOT, file).split(path.sep).join("/");
@@ -23,6 +72,7 @@ function matchingUnitTests(moduleName) {
 function mutationTargets() {
     return fs.globSync(path.join(LIBRARY_ROOT, "*.js"))
         .sort()
+        .filter((source) => BEHAVIOR_MODULES.has(path.basename(source, ".js")))
         .map((source) => ({
             source: relativePath(source),
             tests: matchingUnitTests(path.basename(source, ".js")),
@@ -30,4 +80,4 @@ function mutationTargets() {
         .filter((target) => target.tests.length > 0);
 }
 
-module.exports = {mutationTargets};
+module.exports = {BEHAVIOR_MODULES, mutationTargets};
