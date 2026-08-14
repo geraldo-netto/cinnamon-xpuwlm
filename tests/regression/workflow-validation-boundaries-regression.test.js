@@ -30,7 +30,7 @@ test("regression: media duration accepts both exact documented bounds", () => {
     }
 });
 
-test("regression: caption cue count accepts 2,048 and refuses 2,049", () => {
+test("regression: caption cue count and ordering stay bounded", () => {
     assert.equal(Media.MAX_SEGMENTS, Fixture.MAX_CUES);
     assert.equal(
         Captions.validCueSequence(Fixture.cues(Fixture.MAX_CUES), Fixture.MAX_CUES),
@@ -40,6 +40,7 @@ test("regression: caption cue count accepts 2,048 and refuses 2,049", () => {
         Captions.validCueSequence(Fixture.cues(Fixture.MAX_CUES + 1), Fixture.MAX_CUES + 1),
         false,
     );
+    assert.equal(Captions.validCueSequence(Fixture.overlappingCues(), 3), false);
 });
 
 test("regression: screenshot bytes accept both exact documented bounds", () => {

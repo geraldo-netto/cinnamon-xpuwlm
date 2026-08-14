@@ -41,6 +41,13 @@ function cues(count) {
     }));
 }
 
+function overlappingCues() {
+    return [
+        {startMs: 0, endMs: 2, text: "first"},
+        {startMs: 1, endMs: 3, text: "overlap"},
+    ];
+}
+
 module.exports = {
     CAPTURE_START_CASES,
     DURATION_CASES,
@@ -51,4 +58,5 @@ module.exports = {
     MAX_VIDEO_DURATION_MS,
     SCREENSHOT_SIZE_CASES,
     cues,
+    overlappingCues,
 };
