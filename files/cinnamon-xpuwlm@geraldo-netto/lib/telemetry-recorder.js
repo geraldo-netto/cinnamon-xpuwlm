@@ -24,15 +24,23 @@ const UNAVAILABLE_REASON = "runtime-unavailable";
 const MAX_SAMPLES = 256;
 const RETENTION_MS = 10 * 60 * 1000;
 
+// A figure the runtime did not publish is absent, not zero: recording 0 would
+// put an idle-looking reading in the record for something never measured, and
+// the window keeps null for exactly this.
 function scalar(value) {
-    return Number.isFinite(value) ? value : 0;
+    return Number.isFinite(value) ? value : null;
 }
 
 // Positional, so a snapshot that grows a field cannot widen what is retained.
+// The three figures live in two places: the canonical snapshot's `metrics`
+// carries only queueDepth and runningProfiles, and the accelerator's load
+// belongs to the device record the panel already reads.
 function redactMetrics(raw) {
-    const metrics = raw && typeof raw === "object" ? raw : {};
+    const source = raw && typeof raw === "object" ? raw : {};
+    const metrics = source.metrics && typeof source.metrics === "object" ? source.metrics : {};
+    const device = source.device && typeof source.device === "object" ? source.device : {};
     return {
-        "load": scalar(metrics.load),
+        "load": scalar(device.load),
         "queue-depth": scalar(metrics.queueDepth),
         "running-profiles": scalar(metrics.runningProfiles),
     };
@@ -77,7 +85,7 @@ class TelemetryRecorder {
             return this._window.markMissing(SOURCE_ID, reason);
         }
         this._window.recover(SOURCE_ID);
-        return this._window.capture(SOURCE_ID, state.metrics);
+        return this._window.capture(SOURCE_ID, state);
     }
 
     // What the diagnostics tab shows: enough to tell a live record from an

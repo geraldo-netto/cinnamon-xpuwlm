@@ -17,7 +17,8 @@ function recorder() {
 
 function snapshot(overrides = {}) {
     return {
-        metrics: {load: 42, queueDepth: 2, runningProfiles: 1},
+        device: {load: 42, name: "AMD GPU"},
+        metrics: {queueDepth: 2, runningProfiles: 1},
         health: {runtime: "connected"},
         stale: false,
         ...overrides,
@@ -42,27 +43,37 @@ test("nothing is recorded until the user turns the record on", () => {
 // the three figures the menu already shows.
 test("only the three declared load figures are ever retained", () => {
     assert.deepEqual(Object.keys(Recorder.redactMetrics({
-        load: 42,
-        queueDepth: 2,
-        runningProfiles: 1,
+        device: {load: 42, name: "AMD GPU", id: "gpu-renderD128"},
+        metrics: {queueDepth: 2, runningProfiles: 1},
         hostname: "workstation",
-        inputRoot: "/home/tester/pictures",
+        inputs: {roots: ["/home/tester/pictures"]},
     })), ["load", "queue-depth", "running-profiles"]);
 
-    assert.deepEqual(Recorder.redactMetrics({load: 42, queueDepth: 2, runningProfiles: 1}), {
+    // The load belongs to the device record; the canonical snapshot's metrics
+    // carry only the queue depth and the running-profile count.
+    assert.deepEqual(Recorder.redactMetrics({
+        device: {load: 42}, metrics: {queueDepth: 2, runningProfiles: 1},
+    }), {
         "load": 42,
         "queue-depth": 2,
         "running-profiles": 1,
     });
+    // A figure the runtime never published is absent, not zero: this host
+    // reports no `load` at all, and recording 0 would invent an idle reading.
     assert.deepEqual(Recorder.redactMetrics(null), {
-        "load": 0,
-        "queue-depth": 0,
-        "running-profiles": 0,
+        "load": null,
+        "queue-depth": null,
+        "running-profiles": null,
     });
-    assert.deepEqual(Recorder.redactMetrics({load: Number.NaN, queueDepth: "2"}), {
-        "load": 0,
+    assert.deepEqual(Recorder.redactMetrics({metrics: {queueDepth: 0, runningProfiles: 0}}), {
+        "load": null,
         "queue-depth": 0,
         "running-profiles": 0,
+    }, "a snapshot with no device record yet");
+    assert.deepEqual(Recorder.redactMetrics({device: {load: Number.NaN}, metrics: {queueDepth: "2"}}), {
+        "load": null,
+        "queue-depth": null,
+        "running-profiles": null,
     }, "a non-numeric figure is not smuggled through as text");
 });
 
