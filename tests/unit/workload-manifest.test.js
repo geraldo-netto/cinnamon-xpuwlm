@@ -147,7 +147,7 @@ test("version 2 workload manifest matches authoritative schema boundaries", () =
     }
 });
 
-test("plug-in artifacts accept GGUF and authenticated companion files", () => {
+test("plug-in artifacts accept loader weight formats and authenticated companion files", () => {
     const digest = "b".repeat(64);
     const artifact = {
         id: "qwen3-0-6b-q8-0",
@@ -157,6 +157,10 @@ test("plug-in artifacts accept GGUF and authenticated companion files", () => {
     };
     const cases = [
         ["GGUF", artifact, true],
+        // whisper.cpp weights the runtime loads directly. The runtime publishes
+        // them in media-transcription; rejecting the format made that plug-in
+        // the one manifest of five that could not be packaged at all.
+        ["GGML Whisper", {...artifact, format: "ggml-whisper"}, true],
         ["empty companions", {...artifact, companions: {}}, true],
         ["authenticated companions", {
             ...artifact,

@@ -52,7 +52,11 @@ const REQUIREMENT_PROPERTIES = new Set([
 const MAX_MODELS = 5;
 const ACCELERATORS = new Set(["tpu", "npu", "gpu"]);
 const MODEL_FORMATS = new Set(["tflite-edgetpu", "tflite", "onnx", "openvino", "ncnn"]);
-const PLUGIN_ARTIFACT_FORMATS = new Set([...MODEL_FORMATS, "gguf"]);
+// A plug-in ships weights the runtime loads directly, so its vocabulary is
+// wider than MODEL_FORMATS: `gguf` and `ggml-whisper` are llama.cpp and
+// whisper.cpp weight files, not accelerator-compiled model artifacts, and
+// never appear in a `model`/`models` declaration.
+const PLUGIN_ARTIFACT_FORMATS = new Set([...MODEL_FORMATS, "gguf", "ggml-whisper"]);
 const MODEL_REQUIRED = Object.freeze([
     "id", "version", "format", "fullyQuantized", "minimumCompilerVersion",
     "minimumRuntimeVersion",
