@@ -115,8 +115,12 @@ class HarnessController extends Workflow.RuntimeWorkflowController {
         return true;
     }
 
-    dispose() {
-        return this._dispose();
+    reset(blockedPhases = []) {
+        return this._reset(blockedPhases);
+    }
+
+    dispose(...cancelPorts) {
+        return this._dispose(...cancelPorts);
     }
 }
 
@@ -190,4 +194,189 @@ test("a failing workflow listener cannot block later subscribers", () => {
     assert.doesNotThrow(() => controller.start());
     assert.equal(controller.state().phase, "running");
     assert.deepEqual(states.map((state) => state.phase), ["running"]);
+});
+
+// Every workflow is constructed from injected ports, and a missing or
+// half-implemented one is a programming error that must surface at
+// construction rather than as a crash mid-run on a user's desktop.
+test("a port missing any required method is refused by name", () => {
+    const complete = {submit() {}, requestResult() {}, cancelJob() {}, cancel() {}};
+
+    assert.equal(Workflow.requirePort(complete, ["submit", "cancel"], "Gateway"), complete);
+    assert.equal(Workflow.requirePort(complete, [], "Gateway"), complete);
+
+    for (const candidate of [null, undefined, 0, "", false]) {
+        assert.throws(
+            () => Workflow.requirePort(candidate, ["submit"], "Gateway"),
+            /Gateway is required/u,
+            JSON.stringify(candidate),
+        );
+    }
+
+    // One absent method is enough, and the label names which port it was.
+    for (const missing of ["submit", "requestResult", "cancelJob", "cancel"]) {
+        const partial = {...complete};
+        delete partial[missing];
+        assert.throws(
+            () => Workflow.requirePort(partial, Object.keys(complete), "Media gateway"),
+            /Media gateway is required/u,
+            missing,
+        );
+    }
+
+    // A property that exists but is not callable is the same fault.
+    assert.throws(
+        () => Workflow.requirePort({...complete, submit: true}, ["submit"], "Gateway"),
+        /Gateway is required/u,
+    );
+});
+
+test("a controller refuses a gateway, scheduler, or clock it cannot use", () => {
+    const jobGateway = gateway();
+    const timer = scheduler();
+
+    assert.throws(() => new HarnessController({jobGateway: {}, timer}), /gateway is required/iu);
+    assert.throws(() => new HarnessController({jobGateway, timer: {}}), /scheduler is required/iu);
+
+    // The clock is checked the same way, against a controller that injects one.
+    assert.throws(
+        () => new Workflow.RuntimeWorkflowController({
+            clock: {},
+            cloneState: (state) => ({...state}),
+            gateway: jobGateway,
+            initialState,
+            labels: {clock: "Harness clock", listener: "Harness listener"},
+            pollIntervalMs: 25,
+            scheduler: timer,
+        }),
+        /clock is required/iu,
+    );
+});
+
+test("availability publishes only when it changes, and bounds its detail", () => {
+    const controller = new HarnessController({jobGateway: gateway(), timer: scheduler()});
+    const seen = [];
+    controller.subscribe((state) => seen.push([state.available, state.availabilityDetail]));
+
+    assert.equal(controller.setAvailability(true, "Ready on gpu"), true);
+    assert.equal(controller.setAvailability(true, "Ready on gpu"), false, "no change");
+    assert.equal(controller.setAvailability(false, "Provider stopped"), true);
+    assert.equal(controller.setAvailability(false, "Provider stopped"), false, "no change");
+
+    // Only `true` means available: anything else is a refusal to claim it, so
+    // this changes the detail and nothing else.
+    assert.equal(controller.setAvailability("yes", "Provider stopped"), false, "still false");
+    assert.equal(controller.state().available, false);
+
+    // A detail outside the bound is dropped rather than published.
+    assert.equal(controller.setAvailability(true, "x".repeat(241)), true);
+    assert.equal(controller.state().availabilityDetail, "");
+    assert.equal(controller.setAvailability(true, "x".repeat(240)), true);
+    assert.equal(controller.state().availabilityDetail, "x".repeat(240));
+
+    assert.deepEqual(seen.map(([available]) => available), [true, false, true, true]);
+});
+
+test("a listener is a function, and unsubscribing stops delivery", () => {
+    const controller = new HarnessController({jobGateway: gateway(), timer: scheduler()});
+    for (const candidate of [null, undefined, 7, "listener", {}]) {
+        assert.throws(() => controller.subscribe(candidate), /listener is required/iu);
+    }
+
+    const seen = [];
+    const unsubscribe = controller.subscribe((state) => seen.push(state.available));
+    controller.setAvailability(true);
+    assert.deepEqual(seen, [true]);
+
+    assert.equal(unsubscribe(), true);
+    assert.equal(unsubscribe(), false, "unsubscribing twice removes nothing");
+    controller.setAvailability(false);
+    assert.deepEqual(seen, [true], "no delivery after unsubscribe");
+});
+
+test("state is handed out as a copy, so a caller cannot edit the controller", () => {
+    const controller = new HarnessController({jobGateway: gateway(), timer: scheduler()});
+    controller.setAvailability(true, "Ready");
+
+    const first = controller.state();
+    first.available = false;
+    first.availabilityDetail = "tampered";
+
+    assert.equal(controller.state().available, true);
+    assert.equal(controller.state().availabilityDetail, "Ready");
+    assert.notEqual(controller.state(), controller.state(), "each call is its own copy");
+});
+
+// Reset returns a workflow to its starting state without forgetting what the
+// runtime said about availability, and refuses while work the user can still
+// see is in flight.
+test("reset keeps availability, clears everything else, and is refused mid-flight", () => {
+    const controller = new HarnessController({jobGateway: gateway(), timer: scheduler()});
+    controller.setAvailability(true, "Ready on gpu");
+    controller.start();
+    assert.equal(controller.state().phase, "running");
+
+    assert.equal(controller.reset(["running"]), false, "running work is not discarded silently");
+    assert.equal(controller.state().phase, "running");
+
+    assert.equal(controller.reset(["cancelling"]), true);
+    const state = controller.state();
+    assert.equal(state.phase, "idle", "back to the initial phase");
+    assert.equal(state.message, "", "and the initial message");
+    assert.equal(state.available, true, "availability is the runtime's answer, not ours");
+    assert.equal(state.availabilityDetail, "Ready on gpu");
+});
+
+// Disposal has to be final and idempotent: a second teardown must not cancel a
+// transport twice or hand a listener a state after the applet is gone.
+test("disposal cancels once, forgets listeners, and refuses later work", () => {
+    const jobGateway = gateway();
+    const timer = scheduler();
+    const controller = new HarnessController({jobGateway, timer});
+    const seen = [];
+    controller.subscribe((state) => seen.push(state.phase));
+
+    controller.setAvailability(true);
+    controller.start();
+    assert.equal(timer.pending.length, 1, "a poll is armed");
+
+    const extra = {cancelled: 0, cancel() { this.cancelled += 1; }};
+    assert.equal(controller.dispose(extra), true);
+    assert.equal(jobGateway.cancelled, 1);
+    assert.equal(extra.cancelled, 1, "every supplied port is cancelled");
+    assert.equal(timer.cancelled.length, 1, "the armed poll is cancelled");
+    assert.equal(controller.state().phase, "idle", "state returns to its initial shape");
+
+    const delivered = seen.length;
+    assert.equal(controller.dispose(extra), false, "disposal is idempotent");
+    assert.equal(jobGateway.cancelled, 1, "and cancels nothing a second time");
+    assert.equal(extra.cancelled, 1);
+    assert.equal(seen.length, delivered, "a disposed controller publishes nothing");
+
+    assert.throws(() => controller.start(), /is disposed/u);
+    assert.throws(() => controller.reset([]), /is disposed/u);
+});
+
+// A reply belonging to a superseded run must be ignored, and disposal
+// supersedes everything: both are the same guard.
+test("only the current sequence is acted on, and disposal supersedes all of them", () => {
+    const timer = scheduler();
+    const controller = new HarnessController({jobGateway: gateway(), timer});
+    controller.setAvailability(true);
+
+    controller.start();
+    const stale = timer.pending[0];
+    controller.start();
+    // The superseded poll is still armed: it is neutralised by the sequence it
+    // captured, not by being cancelled, which is what makes a late transport
+    // reply safe too.
+    assert.equal(timer.pending.length, 2);
+
+    // Firing the superseded poll must not move the current run.
+    stale.callback();
+    assert.equal(controller.state().phase, "running");
+
+    controller.dispose();
+    assert.doesNotThrow(() => timer.pending.forEach((handle) => handle.callback()));
+    assert.equal(controller.state().phase, "idle");
 });
