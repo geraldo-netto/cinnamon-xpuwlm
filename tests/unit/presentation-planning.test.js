@@ -113,3 +113,98 @@ test("export is a valid deterministic action request, never a direct write", () 
         assert.equal(Object.hasOwn(request, key), false);
     }
 });
+
+// The export request is the only thing in this workflow that reaches the
+// user's filesystem, so what it carries is the whole safety story: it must
+// refuse overwrite, name its own format, and be bound to the deck it came from.
+test("an export request is bound to its deck and refuses to overwrite", () => {
+    const review = Fixture.reviewed();
+    const deck = Planning.plannedDeck(Fixture.plan(review, {
+        slides: [Fixture.slide(1, {assetRefs: ["chart-1"]}), Fixture.slide(2)],
+    }), review, [Fixture.asset()]);
+
+    const request = Planning.exportActionRequest(deck, {
+        requestId: "xpuwlm-export-1",
+        format: "odp",
+        destination: "/home/tester/decks/rehearsal.odp",
+    });
+
+    assert.equal(request.requestId, "xpuwlm-export-1");
+    assert.equal(request.parameters.format, "odp");
+    assert.equal(request.parameters.overwrite, false, "an export never replaces a file");
+    assert.deepEqual(request.targets, ["/home/tester/decks/rehearsal.odp"]);
+    assert.equal(Object.isFrozen(request.parameters), true);
+
+    // A deck that is not this contract, or is no longer editable, cannot be
+    // exported: the request would name a document nobody reviewed.
+    for (const [label, candidate] of [
+        ["not a record", null],
+        ["wrong version", {...deck, version: Planning.VERSION + 1}],
+        ["not editable", {...deck, editable: false}],
+    ]) {
+        assert.throws(
+            () => Planning.exportActionRequest(candidate, {
+                requestId: "xpuwlm-export-1",
+                format: "odp",
+                destination: "/home/tester/decks/rehearsal.odp",
+            }),
+            /export request is invalid/u,
+            label,
+        );
+    }
+
+    // And the request itself is a closed record with a matching format.
+    for (const [label, value] of [
+        ["unknown property", {
+            requestId: "xpuwlm-export-1",
+            format: "odp",
+            destination: "/home/tester/decks/rehearsal.odp",
+            extra: true,
+        }],
+        ["request id shape", {
+            requestId: "not a request id",
+            format: "odp",
+            destination: "/home/tester/decks/rehearsal.odp",
+        }],
+        ["format mismatch", {
+            requestId: "xpuwlm-export-1",
+            format: "odp",
+            destination: "/home/tester/decks/rehearsal.pptx",
+        }],
+        ["unsupported format", {
+            requestId: "xpuwlm-export-1",
+            format: "pdf",
+            destination: "/home/tester/decks/rehearsal.pdf",
+        }],
+        ["relative destination", {
+            requestId: "xpuwlm-export-1",
+            format: "odp",
+            destination: "decks/rehearsal.odp",
+        }],
+        ["traversal", {
+            requestId: "xpuwlm-export-1",
+            format: "odp",
+            destination: "/home/tester/../../etc/rehearsal.odp",
+        }],
+    ]) {
+        assert.throws(
+            () => Planning.exportActionRequest(deck, value),
+            /export request is invalid/u,
+            label,
+        );
+    }
+});
+
+// Citations are what tie a planned slide back to something a human reviewed.
+test("a citation must point at a slide the review actually contains", () => {
+    const review = Fixture.reviewed();
+    const citation = (overrides) => ({sourceSlide: 1, evidenceIndex: 0, ...overrides});
+
+    assert.equal(Planning.validCitation(citation({}), review), true);
+    assert.equal(Planning.validCitation(citation({sourceSlide: 99}), review), false, "no such slide");
+    assert.equal(Planning.validCitation(citation({sourceSlide: 0}), review), false, "slides are 1-based");
+    assert.equal(Planning.validCitation(citation({evidenceIndex: -1}), review), false);
+    assert.equal(Planning.validCitation(citation({evidenceIndex: 0.5}), review), false);
+    assert.equal(Planning.validCitation(citation({extra: true}), review), false, "closed record");
+    assert.equal(Planning.validCitation(null, review), false);
+});
