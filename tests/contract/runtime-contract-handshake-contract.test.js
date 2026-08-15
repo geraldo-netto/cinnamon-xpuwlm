@@ -49,7 +49,7 @@ test("the method the applet calls is the method the service exports", (t) => {
         return;
     }
     const source = fs.readFileSync(
-        path.join(root, "src/omnitensor/dbus_transport.py"), "utf8",
+        path.join(root, "src/omnitensor/socket_transport.py"), "utf8",
     );
     const contract = fs.readFileSync(
         path.join(root, "src/omnitensor/contract.py"), "utf8",
@@ -57,19 +57,21 @@ test("the method the applet calls is the method the service exports", (t) => {
 
     assert.match(
         source,
-        new RegExp(`def ${Cinnamon.CONTRACT_METHOD}\\(`, "u"),
-        `the service no longer exports ${Cinnamon.CONTRACT_METHOD}`,
+        new RegExp(`"${Cinnamon.CONTRACT_METHOD}": `, "u"),
+        `the service no longer dispatches ${Cinnamon.CONTRACT_METHOD}`,
     );
+    // The dispatch table is asserted against the announced contract at
+    // startup, so a divergence cannot ship silently.
     assert.match(source, /^from \.contract import RUNTIME_METHODS$/mu);
-    assert.match(source, /^BUS_METHODS = RUNTIME_METHODS$/mu);
+    assert.match(source, /set\(table\) != set\(RUNTIME_METHODS\)/u);
     const runtimeMethods = contract.match(
-        /^RUNTIME_METHODS = \(\n(?<body>(?: {4}"[A-Za-z]+",\n)+)\)$/mu,
+        /^RUNTIME_METHODS = \(\n(?<body>(?: {4}"[a-z-]+",\n)+)\)$/mu,
     );
     assert.notEqual(runtimeMethods, null, "the runtime method declaration is no longer closed");
     assert.equal(
         runtimeMethods.groups.body.includes(`    "${Cinnamon.CONTRACT_METHOD}",\n`),
         true,
-        "the method is exported but not announced in BUS_METHODS",
+        "the method is dispatched but not announced in RUNTIME_METHODS",
     );
 });
 
@@ -80,13 +82,13 @@ test("every method this applet requires is one the service still exports", (t) =
         return;
     }
     const source = fs.readFileSync(
-        path.join(root, "src/omnitensor/dbus_transport.py"), "utf8",
+        path.join(root, "src/omnitensor/socket_transport.py"), "utf8",
     );
 
     for (const method of Contract.REQUIRED_METHODS) {
         assert.match(
             source,
-            new RegExp(`def ${method}\\(`, "u"),
+            new RegExp(`"${method}": `, "u"),
             `the applet would report a mismatch against every service: ${method} is gone`,
         );
     }

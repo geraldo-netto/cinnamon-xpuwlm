@@ -17,8 +17,8 @@ function refusalDocument(code) {
         version: 1,
         status: "rejected",
         code,
-        message: `ApplyCommand refused with ${code}`,
-        method: "ApplyCommand",
+        message: `apply-command refused with ${code}`,
+        method: "apply-command",
     };
 }
 

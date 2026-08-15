@@ -64,7 +64,7 @@ test("public result schema and defensive parser agree on every citation bound", 
     assert.deepEqual(schema.properties.accelerator.enum, ["gpu", "npu"]);
 });
 
-test("OmniTensor supplies the exact worker and D-Bus boundaries the applet calls", (t) => {
+test("OmniTensor supplies the exact worker and control boundaries the applet calls", (t) => {
     const root = requireService(t);
     if (root === null) {
         return;
@@ -73,12 +73,12 @@ test("OmniTensor supplies the exact worker and D-Bus boundaries the applet calls
         path.join(root, "src/omnitensor/plugins/document_qa.py"), "utf8",
     );
     const transport = fs.readFileSync(
-        path.join(root, "src/omnitensor/dbus_transport.py"), "utf8",
+        path.join(root, "src/omnitensor/socket_transport.py"), "utf8",
     );
     assert.match(plugin, /class DocumentQuestionPlugin/u);
     assert.match(plugin, /question_fragment/u);
     assert.match(plugin, /citation source was not retrieved/u);
-    for (const method of ["DescribePlugins", "SubmitJob", "GetJobResult", "CancelJob"]) {
-        assert.match(transport, new RegExp(`def ${method}\\(`, "u"));
+    for (const method of ["describe-plugins", "submit-job", "get-job-result", "cancel-job"]) {
+        assert.match(transport, new RegExp(`"${method}": `, "u"));
     }
 });

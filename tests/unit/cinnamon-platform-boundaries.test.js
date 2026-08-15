@@ -16,7 +16,7 @@ const ADAPTERS = Object.freeze([
     "cinnamon-state-adapter",
     "cinnamon-host-adapter",
     "cinnamon-image-adapter",
-    "cinnamon-dbus-adapter",
+    "cinnamon-socket-adapter",
 ]);
 
 test("runtime facade composes narrow platform adapters without changing exports", () => {

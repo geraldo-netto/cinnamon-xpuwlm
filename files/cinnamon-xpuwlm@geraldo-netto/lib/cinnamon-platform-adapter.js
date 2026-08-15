@@ -1,6 +1,6 @@
 "use strict";
 
-const Dbus = require("./cinnamon-dbus-adapter.js");
+const Socket = require("./cinnamon-socket-adapter.js");
 const Host = require("./cinnamon-host-adapter.js");
 const Images = require("./cinnamon-image-adapter.js");
 const Guidance = require("./platform-guidance.js");
@@ -9,11 +9,11 @@ const Platform = require("./platform-ports.js");
 
 function createPosixTransport(environment) {
     return Object.freeze({
-        createControlGateway: () => Dbus.createRuntimeControlGateway(environment),
-        createControlWatch: () => Dbus.createControlServiceWatch(environment),
-        createContractGateway: () => Dbus.createRuntimeContractGateway(environment),
-        createJobGateway: () => Dbus.createRuntimeJobGateway(environment),
-        createPluginInventoryGateway: () => Dbus.createPluginInventoryGateway(environment),
+        createControlGateway: () => Socket.createRuntimeControlGateway(environment),
+        createControlWatch: () => Socket.createControlServiceWatch(environment),
+        createContractGateway: () => Socket.createRuntimeContractGateway(environment),
+        createJobGateway: () => Socket.createRuntimeJobGateway(environment),
+        createPluginInventoryGateway: () => Socket.createPluginInventoryGateway(environment),
     });
 }
 

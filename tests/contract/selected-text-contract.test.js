@@ -78,12 +78,12 @@ test("OmniTensor owns private fragments while the applet owns the explicit clipb
         path.join(root, "src/omnitensor/plugins/selected_text.py"), "utf8",
     );
     const transport = fs.readFileSync(
-        path.join(root, "src/omnitensor/dbus_transport.py"), "utf8",
+        path.join(root, "src/omnitensor/socket_transport.py"), "utf8",
     );
     assert.match(plugin, /class SelectedTextPlugin/u);
     assert.match(plugin, /finally:\n\s+await self\._store\.discard\(request\.job_id\)/u);
     assert.doesNotMatch(plugin, /Gtk|Clipboard|clipboard watcher|connect\(/u);
-    for (const method of ["DescribePlugins", "SubmitJob", "GetJobResult", "CancelJob"]) {
-        assert.match(transport, new RegExp(`def ${method}\\(`, "u"));
+    for (const method of ["describe-plugins", "submit-job", "get-job-result", "cancel-job"]) {
+        assert.match(transport, new RegExp(`"${method}": `, "u"));
     }
 });

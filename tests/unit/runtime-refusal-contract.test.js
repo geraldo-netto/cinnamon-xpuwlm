@@ -9,8 +9,8 @@ const refusal = Object.freeze({
     version: 1,
     status: "rejected",
     code: "rate-limit-exceeded",
-    message: "ApplyCommand allows 30 calls per 10s",
-    method: "ApplyCommand",
+    message: "apply-command allows 30 calls per 10s",
+    method: "apply-command",
 });
 
 test("the refusal predicate accepts exactly the version 1 envelope", () => {
@@ -39,7 +39,7 @@ test("the refusal predicate rejects every envelope defect", () => {
         assert.equal(Refusal.isRuntimeRefusal(candidate), false, JSON.stringify(candidate));
     }
     const {method, ...withoutMethod} = refusal;
-    assert.equal(method, "ApplyCommand");
+    assert.equal(method, "apply-command");
     assert.equal(Refusal.isRuntimeRefusal(withoutMethod), false);
 });
 
@@ -53,9 +53,9 @@ test("a refused call carries the whole document, not a rendered sentence", () =>
     const error = new Refusal.RuntimeRefusedError(refusal);
     assert.equal(error.name, "RuntimeRefusedError");
     assert.equal(error.code, "rate-limit-exceeded");
-    assert.equal(error.method, "ApplyCommand");
+    assert.equal(error.method, "apply-command");
     assert.deepEqual(error.refusal, refusal);
-    assert.match(String(error), /ApplyCommand: rate-limit-exceeded/u);
+    assert.match(String(error), /apply-command: rate-limit-exceeded/u);
     assert.match(
         String(new Refusal.RuntimeRefusedError({...refusal, method: ""})),
         /the request: rate-limit-exceeded/u,

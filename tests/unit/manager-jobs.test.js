@@ -308,7 +308,7 @@ test("a transport refusal keeps the vocabulary the control path already uses", (
             status: "rejected",
             code: "rate-limit-exceeded",
             message: "too many",
-            method: "SubmitJob",
+            method: "submit-job",
         }),
     });
 

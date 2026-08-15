@@ -92,6 +92,8 @@ global.imports = {
         },
         GLib: {
             get_home_dir: () => "/home/tester",
+            get_user_runtime_dir: () => "/run/user/1000",
+            getenv: () => null,
             file_get_contents: () => [false, ""],
         },
         Gtk: {

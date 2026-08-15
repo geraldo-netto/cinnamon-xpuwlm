@@ -119,7 +119,7 @@ describe("reading a reply", () => {
                 status: "rejected",
                 code: "rate-limit-exceeded",
                 message: "too many",
-                method: "SubmitJob",
+                method: "submit-job",
             }),
         });
         let received = null;
@@ -296,7 +296,7 @@ describe("asking what became of a job", () => {
                 status: "rejected",
                 code: "rate-limit-exceeded",
                 message: "too many",
-                method: "GetJobResult",
+                method: "get-job-result",
             }),
         });
         let received = null;
@@ -305,7 +305,7 @@ describe("asking what became of a job", () => {
             received = error;
         });
 
-        assert.equal(Refusal.refusalOf(received).method, "GetJobResult");
+        assert.equal(Refusal.refusalOf(received).method, "get-job-result");
     });
 
     it("keeps the two channels independent, so a new job does not abandon a poll", () => {

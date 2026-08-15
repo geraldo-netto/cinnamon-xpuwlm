@@ -27,7 +27,7 @@ test("fuzz: refusal predicate remains equivalent to version 1 schema", () => {
     const properties = ["version", "status", "code", "message", "method"];
     const hostile = [
         null, undefined, true, false, 0, 1, 2, 1.5, "", "rejected", "applied",
-        "rate-limit-exceeded", "quota-invalid", "unknown-code", "ApplyCommand",
+        "rate-limit-exceeded", "quota-invalid", "unknown-code", "apply-command",
         "1Method", "Apply Command", "x".repeat(500), "x".repeat(501),
         "A".repeat(64), "A".repeat(65), [], {}, () => {},
     ];
@@ -36,8 +36,8 @@ test("fuzz: refusal predicate remains equivalent to version 1 schema", () => {
             version: 1,
             status: "rejected",
             code: "rate-limit-exceeded",
-            message: "ApplyCommand allows 30 calls per 10s",
-            method: "ApplyCommand",
+            message: "apply-command allows 30 calls per 10s",
+            method: "apply-command",
         };
         const property = properties[Math.floor(next() * properties.length)];
         candidate[property] = hostile[Math.floor(next() * hostile.length)];

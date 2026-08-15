@@ -46,8 +46,8 @@ test("inventory parser rejects malformed, extra, oversized, and refusal replies"
     assert.throws(() => Inventory.parseInventory(JSON.stringify(inventory({plugins: new Array(129).fill(plugin())}))), TypeError);
     assert.throws(() => Inventory.parseInventory(JSON.stringify({
         version: 1, status: "rejected", code: "rate-limit-exceeded", message: "slow down",
-        method: "DescribePlugins",
-    })), (error) => Refusal.refusalOf(error)?.method === "DescribePlugins");
+        method: "describe-plugins",
+    })), (error) => Refusal.refusalOf(error)?.method === "describe-plugins");
 });
 
 test("event readiness fails closed at every live execution gate", () => {

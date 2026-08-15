@@ -35,9 +35,9 @@ function pick(next, values) {
 test("fuzz: the contract predicate stays equivalent to the mirrored schema", () => {
     const next = random(0x5eed1c);
     const methodValues = [
-        ["ApplyCommand"], ["ApplyCommand", "DescribeContract"], [], ["a"], ["A".repeat(64)],
-        ["A".repeat(65)], ["ApplyCommand", "ApplyCommand"], ["has space"], ["1Leading"],
-        "ApplyCommand", null, 42, [null], [""],
+        ["apply-command"], ["apply-command", "describe-contract"], [], ["a"], ["A".repeat(64)],
+        ["A".repeat(65)], ["apply-command", "apply-command"], ["has space"], ["1Leading"],
+        "apply-command", null, 42, [null], [""],
         Array.from({length: 33}, (_value, index) => `Method${index}`),
     ];
     const schemaValues = [
@@ -96,7 +96,7 @@ test("fuzz: a contract never reports a mismatch it cannot name", () => {
                 schemas[name] = offered;
             }
         }
-        const methods = next() < 0.5 ? ["ApplyCommand"] : ["DescribeContract"];
+        const methods = next() < 0.5 ? ["apply-command"] : ["describe-contract"];
         const contract = new Contract.RuntimeContract({version: 1, methods, schemas});
         const found = contract.incompatibilities();
 

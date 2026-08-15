@@ -44,8 +44,8 @@ test("control gateway reports a guard refusal as a refusal, not a parse failure"
         version: 1,
         status: "rejected",
         code: "rate-limit-exceeded",
-        message: "ApplyCommand allows 30 calls per 10s",
-        method: "ApplyCommand",
+        message: "apply-command allows 30 calls per 10s",
+        method: "apply-command",
     };
     assert.throws(() => Gateway.parseAcknowledgement(JSON.stringify(refusal)), (error) => {
         assert.equal(error.name, "RuntimeRefusedError");

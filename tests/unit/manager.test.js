@@ -932,8 +932,8 @@ test("every guard refusal code reaches the user as its own sentence", () => {
             version: 1,
             status: "rejected",
             code,
-            message: `ApplyCommand refused: ${code}`,
-            method: "ApplyCommand",
+            message: `apply-command refused: ${code}`,
+            method: "apply-command",
         });
         const text = Manager.controlFailureText(error);
         assert.equal(text, Manager.REFUSAL_TEXTS[code], code);
@@ -949,8 +949,8 @@ test("a refused command surfaces its code and leaves the local policy untouched"
         version: 1,
         status: "rejected",
         code: "rate-limit-exceeded",
-        message: "ApplyCommand allows 30 calls per 10s",
-        method: "ApplyCommand",
+        message: "apply-command allows 30 calls per 10s",
+        method: "apply-command",
     };
     const {manager} = harness({
         controlGateway: {
@@ -973,7 +973,7 @@ test("a refused command surfaces its code and leaves the local policy untouched"
 function contractDocument(overrides = {}) {
     return {
         version: 1,
-        methods: ["ApplyCommand", "DescribeContract"],
+        methods: ["apply-command", "describe-contract"],
         schemas: {
             "runtime-command": 2,
             "runtime-acknowledgement": 2,
@@ -1027,7 +1027,7 @@ test("the handshake is issued on start and its answer reaches the view", () => {
     const {contract} = manager.state();
     assert.equal(contract.known, true);
     assert.equal(contract.compatible, true);
-    assert.deepEqual(contract.methods, ["ApplyCommand", "DescribeContract"]);
+    assert.deepEqual(contract.methods, ["apply-command", "describe-contract"]);
 });
 
 test("a version disagreement is reported before anything is attempted", () => {

@@ -30,6 +30,7 @@ const BEHAVIOR_MODULES = new Set([
     "manager",
     "media-preprocessing",
     "media-transcription",
+    "msgpack-codec",
     "plugin-inventory",
     "presentation-planning",
     "presentation-review",

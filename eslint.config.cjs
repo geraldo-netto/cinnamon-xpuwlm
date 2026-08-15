@@ -23,6 +23,7 @@ module.exports = [
                 Buffer: "readonly",
                 structuredClone: "readonly",
                 TextEncoder: "readonly",
+                TextDecoder: "readonly",
             },
         },
         linterOptions: {

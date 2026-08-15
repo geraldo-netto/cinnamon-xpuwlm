@@ -9,7 +9,7 @@ const Gateway = require(
 
 const description = {
     version: 1,
-    methods: ["ApplyCommand", "DescribeContract"],
+    methods: ["apply-command", "describe-contract"],
     schemas: {
         "runtime-command": 2,
         "runtime-acknowledgement": 2,
@@ -49,7 +49,7 @@ test("a well-formed description arrives as a contract, not a document", () => {
     const [error, contract] = outcomes[0];
     assert.equal(error, null);
     assert.equal(contract.known, true);
-    assert.equal(contract.supports("DescribeContract"), true);
+    assert.equal(contract.supports("describe-contract"), true);
 });
 
 test("a refusal is reported as a refusal, not as a malformed description", () => {
@@ -57,8 +57,8 @@ test("a refusal is reported as a refusal, not as a malformed description", () =>
         version: 1,
         status: "rejected",
         code: "rate-limit-exceeded",
-        message: "DescribeContract allows 20 calls per 10s",
-        method: "DescribeContract",
+        message: "describe-contract allows 20 calls per 10s",
+        method: "describe-contract",
     };
 
     assert.throws(() => Gateway.parseContract(JSON.stringify(refusal)), (error) => {

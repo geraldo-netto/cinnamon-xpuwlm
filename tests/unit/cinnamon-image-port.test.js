@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const Cinnamon = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon-runtime.js");
+const {installControlSocket} = require("../helpers/fake-control-socket.js");
 
 // The Cinnamon side of turning a picture into a model's input: GdkPixbuf for
 // the decode, GIO for the write and the directory listing, GLib for the digest
@@ -565,85 +566,39 @@ test("the image port exposes exactly what a submitter needs", async () => {
     assert.equal(port.remove(`${ROOT}/.xpuwlm-staged/x.f32`), true);
 });
 
-test("a job submission is sent to the versioned SubmitJob endpoint", () => {
+test("a job submission travels as a submit-job envelope", () => {
     const env = environment();
-    const calls = [];
-    env.Gio.DBusCallFlags = {NONE: 0};
-    env.Gio.DBus = {
-        session: {
-            call(...args) {
-                calls.push(args);
-                args.at(-1)({call_finish: () => ({deep_unpack: () => ["{}"]})}, {});
-            },
-        },
-    };
-    env.GLib.Variant = class {
-        constructor(signature, values) {
-            this.signature = signature;
-            this.values = values;
-        }
-    };
-    env.GLib.VariantType = class {
-        constructor(signature) {
-            this.signature = signature;
-        }
-    };
+    const trace = installControlSocket(env, () => ({result: {}}));
     const completions = [];
 
-    Cinnamon.submitRuntimeJobText("submission", {cancellable: null}, (...args) => {
-        completions.push(args);
-    }, env);
+    Cinnamon.submitRuntimeJobText(
+        JSON.stringify({requestId: "xpuwlm-1-1"}),
+        {cancellable: null},
+        (...args) => completions.push(args),
+        env,
+    );
 
-    assert.deepEqual(calls[0].slice(0, 4), [
-        Cinnamon.CONTROL_BUS_NAME,
-        Cinnamon.CONTROL_OBJECT_PATH,
-        Cinnamon.CONTROL_INTERFACE,
-        Cinnamon.SUBMIT_JOB_METHOD,
-    ]);
-    assert.equal(calls[0][4].values[0], "submission");
+    assert.equal(trace.requests[0].method, Cinnamon.SUBMIT_JOB_METHOD);
+    assert.deepEqual(trace.requests[0].params, {requestId: "xpuwlm-1-1"});
     assert.deepEqual(completions, [[null, "{}"]]);
 });
 
 test("the job gateway reaches the same endpoint through its own transport", () => {
     const env = environment();
-    const calls = [];
-    env.Gio.DBusCallFlags = {NONE: 0};
     env.Gio.Cancellable = class {
         cancel() {
             this.cancelled = true;
         }
     };
-    env.Gio.DBus = {
-        session: {
-            call(...args) {
-                calls.push(args[3]);
-                args.at(-1)({
-                    call_finish: () => ({
-                        deep_unpack: () => [JSON.stringify({
-                            version: 1,
-                            requestId: "xpuwlm-1-1",
-                            jobId: "job-1",
-                            status: "accepted",
-                            code: "job-accepted",
-                            message: "Job accepted",
-                            timestamp: 1,
-                        })],
-                    }),
-                }, {});
-            },
-        },
-    };
-    env.GLib.Variant = class {
-        constructor(signature, values) {
-            this.signature = signature;
-            this.values = values;
-        }
-    };
-    env.GLib.VariantType = class {
-        constructor(signature) {
-            this.signature = signature;
-        }
-    };
+    const trace = installControlSocket(env, () => ({result: {
+        version: 1,
+        requestId: "xpuwlm-1-1",
+        jobId: "job-1",
+        status: "accepted",
+        code: "job-accepted",
+        message: "Job accepted",
+        timestamp: 1,
+    }}));
     const replies = [];
 
     Cinnamon.createRuntimeJobGateway(env).submit({
@@ -658,40 +613,20 @@ test("the job gateway reaches the same endpoint through its own transport", () =
         }]},
     }, (error, reply) => replies.push([error, reply]));
 
-    assert.deepEqual(calls, [Cinnamon.SUBMIT_JOB_METHOD]);
+    assert.deepEqual(trace.requests.map((request) => request.method), [Cinnamon.SUBMIT_JOB_METHOD]);
     assert.equal(replies[0][1].jobId, "job-1");
 });
 
-test("a poll reaches the versioned GetJobResult endpoint", () => {
+test("a poll travels as a get-job-result envelope", () => {
     const env = environment();
-    const calls = [];
-    env.Gio.DBusCallFlags = {NONE: 0};
-    env.Gio.DBus = {
-        session: {
-            call(...args) {
-                calls.push(args[3]);
-                args.at(-1)({call_finish: () => ({deep_unpack: () => ["{}"]})}, {});
-            },
-        },
-    };
-    env.GLib.Variant = class {
-        constructor(signature, values) {
-            this.signature = signature;
-            this.values = values;
-        }
-    };
-    env.GLib.VariantType = class {
-        constructor(signature) {
-            this.signature = signature;
-        }
-    };
+    const trace = installControlSocket(env, () => ({result: {}}));
     const completions = [];
 
-    Cinnamon.requestRuntimeJobResultText("request", {cancellable: null}, (...args) => {
+    Cinnamon.requestRuntimeJobResultText("{}", {cancellable: null}, (...args) => {
         completions.push(args);
     }, env);
 
-    assert.deepEqual(calls, [Cinnamon.JOB_RESULT_METHOD]);
+    assert.deepEqual(trace.requests.map((request) => request.method), [Cinnamon.JOB_RESULT_METHOD]);
     assert.deepEqual(completions, [[null, "{}"]]);
 
     // The gateway's own result channel reaches the same endpoint, so the
@@ -704,49 +639,28 @@ test("a poll reaches the versioned GetJobResult endpoint", () => {
     const gateway = Cinnamon.createRuntimeJobGateway(env);
     assert.equal(gateway.pollable, true);
     gateway.requestResult({requestId: "xpuwlm-1-2", jobId: "job-1"}, () => {});
-    assert.deepEqual(calls, [Cinnamon.JOB_RESULT_METHOD, Cinnamon.JOB_RESULT_METHOD]);
+    assert.deepEqual(
+        trace.requests.map((request) => request.method),
+        [Cinnamon.JOB_RESULT_METHOD, Cinnamon.JOB_RESULT_METHOD],
+    );
 });
 
-test("a cancellation reaches the versioned CancelJob endpoint", () => {
+test("a cancellation travels as a cancel-job envelope", () => {
     const env = environment();
-    const calls = [];
-    env.Gio.DBusCallFlags = {NONE: 0};
     env.Gio.Cancellable = class {
         cancel() {
             this.cancelled = true;
         }
     };
-    env.Gio.DBus = {
-        session: {
-            call(...args) {
-                calls.push(args[3]);
-                args.at(-1)({
-                    call_finish: () => ({
-                        deep_unpack: () => [JSON.stringify({
-                            version: 1,
-                            requestId: "xpuwlm-cancel-1",
-                            jobId: "job-1",
-                            status: "cancelled",
-                            code: "job-cancelled",
-                            message: "Job cancelled",
-                            timestamp: 1,
-                        })],
-                    }),
-                }, {});
-            },
-        },
-    };
-    env.GLib.Variant = class {
-        constructor(signature, values) {
-            this.signature = signature;
-            this.values = values;
-        }
-    };
-    env.GLib.VariantType = class {
-        constructor(signature) {
-            this.signature = signature;
-        }
-    };
+    const trace = installControlSocket(env, () => ({result: {
+        version: 1,
+        requestId: "xpuwlm-cancel-1",
+        jobId: "job-1",
+        status: "cancelled",
+        code: "job-cancelled",
+        message: "Job cancelled",
+        timestamp: 1,
+    }}));
     let received = null;
 
     Cinnamon.createRuntimeJobGateway(env).cancelJob(
@@ -756,40 +670,25 @@ test("a cancellation reaches the versioned CancelJob endpoint", () => {
         },
     );
 
-    assert.deepEqual(calls, [Cinnamon.CANCEL_JOB_METHOD]);
+    assert.deepEqual(trace.requests.map((request) => request.method), [Cinnamon.CANCEL_JOB_METHOD]);
     assert.equal(received.error, null);
     assert.equal(received.reply.status, "cancelled");
 });
 
-test("the plug-in inventory gateway reaches DescribePlugins without an argument", () => {
+test("the plug-in inventory gateway reaches describe-plugins with empty params", () => {
     const env = environment();
-    const calls = [];
-    env.Gio.DBusCallFlags = {NONE: 0};
-    env.Gio.DBus = {
-        session: {
-            call(...args) {
-                calls.push(args);
-                args.at(-1)({
-                    call_finish: () => ({
-                        deep_unpack: () => [JSON.stringify({version: 1, generatedAt: 1, plugins: []})],
-                    }),
-                }, {});
-            },
-        },
-    };
-    env.GLib.VariantType = class {
-        constructor(signature) {
-            this.signature = signature;
-        }
-    };
+    const trace = installControlSocket(
+        env,
+        () => ({result: {version: 1, generatedAt: 1, plugins: []}}),
+    );
     let received = null;
 
     Cinnamon.createPluginInventoryGateway(env).describe((error, inventory) => {
         received = {error, inventory};
     });
 
-    assert.equal(calls[0][3], Cinnamon.PLUGIN_INVENTORY_METHOD);
-    assert.equal(calls[0][4], null);
+    assert.equal(trace.requests[0].method, Cinnamon.PLUGIN_INVENTORY_METHOD);
+    assert.deepEqual(trace.requests[0].params, {});
     assert.equal(received.error, null);
     assert.deepEqual(received.inventory.plugins, []);
 });

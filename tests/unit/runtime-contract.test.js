@@ -8,7 +8,7 @@ const Contract = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-
 function document(overrides = {}) {
     return {
         version: 1,
-        methods: ["ApplyCommand", "DescribeContract"],
+        methods: ["apply-command", "describe-contract"],
         schemas: {
             "runtime-command": 2,
             "runtime-acknowledgement": 2,
@@ -24,8 +24,8 @@ test("a well-formed description is accepted and reported back whole", () => {
 
     assert.equal(contract.known, true);
     assert.equal(contract.compatible, true);
-    assert.equal(contract.supports("ApplyCommand"), true);
-    assert.equal(contract.supports("SubmitJob"), false);
+    assert.equal(contract.supports("apply-command"), true);
+    assert.equal(contract.supports("submit-job"), false);
     assert.equal(contract.speaks("runtime-command", 2), true);
     assert.equal(contract.speaks("runtime-command", 1), false);
 });
@@ -40,7 +40,7 @@ test("not knowing is never reported as a mismatch", () => {
     assert.deepEqual(unknown.incompatibilities(), []);
     assert.deepEqual(unknown.methods, []);
     assert.deepEqual(unknown.schemas, {});
-    assert.equal(unknown.supports("ApplyCommand"), false);
+    assert.equal(unknown.supports("apply-command"), false);
 });
 
 test("a malformed description leaves the applet knowing nothing", () => {
@@ -52,10 +52,10 @@ test("a malformed description leaves the applet knowing nothing", () => {
         [],
         document({version: 2}),
         document({methods: []}),
-        document({methods: ["ApplyCommand", "ApplyCommand"]}),
+        document({methods: ["apply-command", "apply-command"]}),
         document({methods: ["not a method"]}),
         document({methods: ["A".repeat(65)]}),
-        document({methods: "ApplyCommand"}),
+        document({methods: "apply-command"}),
         document({schemas: null}),
         document({schemas: {"Runtime-Command": 1}}),
         document({schemas: {"runtime-command": 0}}),
@@ -68,10 +68,10 @@ test("a malformed description leaves the applet knowing nothing", () => {
 });
 
 test("a method this build calls and the service does not export is named", () => {
-    const contract = new Contract.RuntimeContract(document({methods: ["DescribeContract"]}));
+    const contract = new Contract.RuntimeContract(document({methods: ["describe-contract"]}));
 
     assert.deepEqual(contract.incompatibilities(), [
-        {kind: "method-missing", name: "ApplyCommand", required: null, offered: null},
+        {kind: "method-missing", name: "apply-command", required: null, offered: null},
     ]);
     assert.equal(contract.compatible, false);
 });
@@ -111,7 +111,7 @@ test("a contract this build never sends is not compared at all", () => {
 
 test("every incompatibility kind is one the module declares", () => {
     const contract = new Contract.RuntimeContract(document({
-        methods: ["DescribeContract"],
+        methods: ["describe-contract"],
         schemas: {"runtime-command": 3, "runtime-acknowledgement": 1},
     }));
 
@@ -135,12 +135,13 @@ test("the projection is frozen so a view cannot edit what the service said", () 
 
 test("what this build requires is declared, not inferred from the answer", () => {
     // A handshake that asks for whatever it happens to find compares nothing.
-    assert.deepEqual(Contract.REQUIRED_METHODS, ["ApplyCommand"]);
+    assert.deepEqual(Contract.REQUIRED_METHODS, ["apply-command"]);
     for (const version of Object.values(Contract.REQUIRED_CONTRACTS)) {
         assert.equal(Contract.isContractVersion(version), true);
     }
     assert.equal(Contract.isContractVersion(true), false);
-    assert.equal(Contract.isMethodList(["Ok"]), true);
+    assert.equal(Contract.isMethodList(["ok"]), true);
+    assert.equal(Contract.isMethodList(["Ok"]), false);
     assert.equal(Contract.isContractMap({}), true);
     assert.equal(Contract.isContractMap([]), false);
 });

@@ -12,7 +12,7 @@ test("scoped mutation config pairs every source with focused unit tests", () => 
     const targets = mutationTargets();
     // Two behaviour modules joined the scope with XTPU-0183: the generic
     // workflow controller and the telemetry recorder.
-    assert.equal(targets.length, 46);
+    assert.equal(targets.length, 47);
     assert.equal(targets.length, BEHAVIOR_MODULES.size);
     assert.equal(new Set(targets.map((target) => target.source)).size, targets.length);
     for (const target of targets) {

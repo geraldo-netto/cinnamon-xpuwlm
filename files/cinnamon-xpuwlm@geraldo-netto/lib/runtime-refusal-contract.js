@@ -20,7 +20,7 @@ const REFUSAL_CODES = new Set([
     "method-unknown",
     "quota-invalid",
 ]);
-const METHOD_NAME = /^[A-Za-z][A-Za-z0-9]*$|^$/u;
+const METHOD_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$|^$/u;
 
 const boundedText = Validation.boundedText;
 

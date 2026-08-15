@@ -7,6 +7,7 @@ const Cinnamon = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/cinnamon
 const ManifestFixtures = require("../helpers/workload-manifest-fixtures.js");
 const Runtime = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/runtime-gateway.js");
 const {readSnapshot} = require("../helpers/fakes.js");
+const {installControlSocket} = require("../helpers/fake-control-socket.js");
 
 const NOW = 1_700_000_000_000;
 
@@ -802,30 +803,21 @@ test("runtime gateway factory composes through an injected snapshot validator po
     assert.equal(candidates[0].version, 1);
 });
 
-test("runtime control transport calls the versioned D-Bus endpoint", () => {
-    const calls = [];
-    let replyText = "ack";
+test("runtime control transport speaks the socket envelope", () => {
     const env = environment();
-    env.Gio.DBusCallFlags = {NONE: 0};
-    env.Gio.DBus = {session: {
-        call(...args) {
-            calls.push(args);
-            args.at(-1)({call_finish: () => ({deep_unpack: () => [replyText]})}, {});
-        },
-    }};
-    env.GLib.Variant = class { constructor(signature, values) { this.signature = signature; this.values = values; } };
-    env.GLib.VariantType = class { constructor(signature) { this.signature = signature; } };
+    let replyDocument = {status: "applied"};
+    const trace = installControlSocket(env, () => ({result: replyDocument}));
     const completions = [];
-    Cinnamon.sendRuntimeCommandText("command", {cancellable: null}, (...args) => completions.push(args), env);
-    assert.deepEqual(calls[0].slice(0, 4), [
-        Cinnamon.CONTROL_BUS_NAME,
-        Cinnamon.CONTROL_OBJECT_PATH,
-        Cinnamon.CONTROL_INTERFACE,
-        Cinnamon.CONTROL_METHOD,
-    ]);
-    assert.equal(calls[0][4].values[0], "command");
-    assert.equal(calls[0][7], Cinnamon.CONTROL_TIMEOUT_MS);
-    assert.deepEqual(completions, [[null, "ack"]]);
+    Cinnamon.sendRuntimeCommandText(
+        JSON.stringify({commandId: "c-1"}),
+        {cancellable: null},
+        (...args) => completions.push(args),
+        env,
+    );
+    assert.equal(trace.requests[0].method, Cinnamon.CONTROL_METHOD);
+    assert.deepEqual(trace.requests[0].params, {commandId: "c-1"});
+    assert.deepEqual(completions, [[null, JSON.stringify({status: "applied"})]]);
+
     const command = {
         version: 2,
         id: "command-1",
@@ -835,7 +827,7 @@ test("runtime control transport calls the versioned D-Bus endpoint", () => {
         profileId: null,
         value: true,
     };
-    replyText = JSON.stringify({
+    replyDocument = {
         version: 2,
         commandId: command.id,
         status: "applied",
@@ -843,7 +835,7 @@ test("runtime control transport calls the versioned D-Bus endpoint", () => {
         appliedAt: NOW,
         message: "",
         portfolio: {paused: true, profiles: {}, deviceChoices: {}},
-    });
+    };
     const gatewayCompletions = [];
     Cinnamon.createRuntimeControlGateway(env).send(
         command,
@@ -851,40 +843,72 @@ test("runtime control transport calls the versioned D-Bus endpoint", () => {
     );
     assert.equal(gatewayCompletions[0][1].status, "applied");
 
-    env.Gio.DBus.session.call = (...args) => args.at(-1)({
-        call_finish() { throw new Error("bus unavailable"); },
-    }, {});
-    Cinnamon.sendRuntimeCommandText("command", {cancellable: null}, (...args) => completions.push(args), env);
+    // A transport failure reaches the caller rather than vanishing.
+    env.Gio.SocketClient = class {
+        set_timeout() {}
+
+        connect_async(_address, _cancellable, callback) {
+            callback(this, {});
+        }
+
+        connect_finish() {
+            throw new Error("socket unavailable");
+        }
+    };
+    Cinnamon.sendRuntimeCommandText(
+        "{}", {cancellable: null}, (...args) => completions.push(args), env,
+    );
     assert.match(completions.at(-1)[0].message, /unavailable/u);
 });
 
-test("the control service watch reports name ownership and releases its handle", () => {
+test("the control service watch tracks the socket file and releases its monitor", () => {
     const env = environment();
-    const watches = [];
-    let unwatched = null;
-    env.Gio.BusType = {SESSION: "session"};
-    env.Gio.BusNameWatcherFlags = {NONE: 0};
-    env.Gio.bus_watch_name = (busType, name, flags, appeared, vanished) => {
-        watches.push({busType, name, flags, appeared, vanished});
-        return 42;
+    const handlers = [];
+    let disconnected = null;
+    let cancelled = 0;
+    const monitor = {
+        connect: (signal, handler) => {
+            handlers.push({signal, handler});
+            return 42;
+        },
+        disconnect: (id) => { disconnected = id; },
+        cancel: () => { cancelled += 1; },
     };
-    env.Gio.bus_unwatch_name = (id) => { unwatched = id; };
+    env.Gio.File = {
+        new_for_path: (path) => ({
+            path,
+            monitor: () => monitor,
+            query_exists: () => false,
+        }),
+    };
+    env.Gio.FileMonitorFlags = {NONE: 0};
+    env.Gio.FileMonitorEvent = {CREATED: 1, DELETED: 2};
+    env.GLib.getenv = () => null;
+    env.GLib.get_user_runtime_dir = () => "/run/user/1000";
 
     const reported = [];
     const unwatch = Cinnamon.createControlServiceWatch(env).watch((value) => reported.push(value));
-    assert.equal(watches[0].name, Cinnamon.CONTROL_BUS_NAME);
-    assert.equal(watches[0].busType, "session");
-    watches[0].appeared();
-    watches[0].vanished();
-    assert.deepEqual(reported, [true, false]);
+    handlers[0].handler(null, null, null, env.Gio.FileMonitorEvent.CREATED);
+    handlers[0].handler(null, null, null, env.Gio.FileMonitorEvent.DELETED);
+    assert.deepEqual(reported, [false, true, false]);
     unwatch();
-    assert.equal(unwatched, 42);
+    assert.equal(disconnected, 42);
+    assert.equal(cancelled, 1);
 });
 
-test("an environment without the name-watch API reports nothing rather than absence", () => {
+test("an environment without the file-monitor API reports nothing rather than absence", () => {
     const env = environment();
+    env.GLib.getenv = () => null;
+    env.GLib.get_user_runtime_dir = () => "/run/user/1000";
+    delete env.Gio.File;
     assert.equal(Cinnamon.createControlServiceWatch(env).watch(() => {}), null);
-    assert.equal(Cinnamon.createControlServiceWatch({}).watch(() => {}), null);
+    assert.equal(
+        Cinnamon.createControlServiceWatch({
+            Gio: {},
+            GLib: {getenv: () => null, get_user_runtime_dir: () => "/run/user/1000"},
+        }).watch(() => {}),
+        null,
+    );
 });
 
 test("user plug-in root resolves through the XDG data dir with a home fallback", () => {
@@ -973,30 +997,21 @@ test("merged registry composition keeps bundled workloads authoritative", () => 
     assert.match(warnings[0], /shadowed/u);
 });
 
-test("the contract handshake calls the same interface with no argument", () => {
+test("the contract handshake sends empty params rather than an empty string", () => {
     // A service reading "" as a request body would be answering a different
-    // question from the one asked, so the variant is absent rather than empty.
-    const calls = [];
-    const description = JSON.stringify({
+    // question from the one asked, so the params travel empty.
+    const description = {
         version: 1,
-        methods: ["ApplyCommand", "DescribeContract"],
+        methods: ["apply-command", "describe-contract"],
         schemas: {
             "runtime-command": 2,
             "runtime-acknowledgement": 2,
             "runtime-refusal": 1,
             "runtime-snapshot": 1,
         },
-    });
+    };
     const env = environment();
-    env.Gio.DBusCallFlags = {NONE: 0};
-    env.Gio.DBus = {session: {
-        call(...args) {
-            calls.push(args);
-            args.at(-1)({call_finish: () => ({deep_unpack: () => [description]})}, {});
-        },
-    }};
-    env.GLib.Variant = class { constructor(signature, values) { this.signature = signature; this.values = values; } };
-    env.GLib.VariantType = class { constructor(signature) { this.signature = signature; } };
+    const trace = installControlSocket(env, () => ({result: description}));
 
     const completions = [];
     Cinnamon.requestRuntimeContractText(
@@ -1005,28 +1020,13 @@ test("the contract handshake calls the same interface with no argument", () => {
         env,
     );
 
-    assert.deepEqual(calls[0].slice(0, 4), [
-        Cinnamon.CONTROL_BUS_NAME,
-        Cinnamon.CONTROL_OBJECT_PATH,
-        Cinnamon.CONTROL_INTERFACE,
-        Cinnamon.CONTRACT_METHOD,
-    ]);
-    assert.equal(calls[0][4], null);
-    assert.deepEqual(completions, [[null, description]]);
+    assert.equal(trace.requests[0].method, Cinnamon.CONTRACT_METHOD);
+    assert.deepEqual(trace.requests[0].params, {});
+    assert.deepEqual(completions, [[null, JSON.stringify(description)]]);
 
     const gatewayCompletions = [];
     Cinnamon.createRuntimeContractGateway(env).describe(
         (...args) => gatewayCompletions.push(args),
     );
-    assert.equal(gatewayCompletions[0][1].supports("DescribeContract"), true);
-
-    env.Gio.DBus.session.call = (...args) => args.at(-1)({
-        call_finish() { throw new Error("bus unavailable"); },
-    }, {});
-    Cinnamon.requestRuntimeContractText(
-        {cancellable: null},
-        (...args) => completions.push(args),
-        env,
-    );
-    assert.match(completions.at(-1)[0].message, /unavailable/u);
+    assert.equal(gatewayCompletions[0][1].supports("describe-contract"), true);
 });

@@ -10,7 +10,7 @@ const Domain = require("./domain.js");
 // `method-unknown` refusal. Both were diagnosed after the fact, and neither
 // told a user the one thing that would help — update the service. D-Bus
 // introspection would not have closed the gap either: it enumerates method
-// *names*, and two services can both export `ApplyCommand` while disagreeing
+// *names*, and two services can both export `apply-command` while disagreeing
 // completely about what a command document looks like.
 //
 // So the handshake reports both halves and this module compares both against
@@ -20,7 +20,7 @@ const Domain = require("./domain.js");
 
 const CONTRACT_DOCUMENT_VERSION = 1;
 const DOCUMENT_PROPERTIES = new Set(["version", "methods", "schemas"]);
-const METHOD_NAME = /^[A-Za-z][A-Za-z0-9]{0,63}$/u;
+const METHOD_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 const CONTRACT_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const MAX_METHODS = 32;
 const MAX_CONTRACTS = 32;
@@ -29,7 +29,7 @@ const MAX_CONTRACT_VERSION = 65535;
 // Everything this build calls, and the version of every document it sends or
 // parses. Listed rather than derived, because a handshake that asks for
 // whatever it happens to find compares nothing.
-const REQUIRED_METHODS = Object.freeze(["ApplyCommand"]);
+const REQUIRED_METHODS = Object.freeze(["apply-command"]);
 const REQUIRED_CONTRACTS = Object.freeze({
     "runtime-command": 2,
     "runtime-acknowledgement": 2,

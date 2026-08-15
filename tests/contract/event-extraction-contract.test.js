@@ -93,15 +93,15 @@ test("grounded result bounds match the service schema", (t) => {
     assert.equal(schema.properties.code.pattern, EventImport.CODE.source);
 });
 
-test("OmniTensor exports every D-Bus method the event workflow calls", (t) => {
+test("OmniTensor exports every control method the event workflow calls", (t) => {
     const root = requireService(t);
     if (root === null) {
         return;
     }
     const source = fs.readFileSync(
-        path.join(root, "src/omnitensor/dbus_transport.py"), "utf8",
+        path.join(root, "src/omnitensor/socket_transport.py"), "utf8",
     );
-    for (const method of ["DescribePlugins", "SubmitJob", "GetJobResult", "CancelJob"]) {
-        assert.match(source, new RegExp(`def ${method}\\(`, "u"), method);
+    for (const method of ["describe-plugins", "submit-job", "get-job-result", "cancel-job"]) {
+        assert.match(source, new RegExp(`"${method}": `, "u"), method);
     }
 });
