@@ -229,6 +229,7 @@ test("property: ordered forecast features survive bounds and reject lane permuta
         };
         const manifest = Fixtures.validWorkloadManifest();
         manifest.requirements.accelerator = "gpu";
+        manifest.requirements.acceleratorPreference = ["gpu"];
         manifest.requirements.model = model;
         assert.equal(Boolean(oracle(manifest)), true, `iteration ${iteration}: schema`);
         assert.equal(Contract.isWorkloadManifest(manifest), true, `iteration ${iteration}`);
@@ -288,6 +289,7 @@ test("property: training provenance and native evidence stay schema-equivalent",
     for (let iteration = 0; iteration < 1000; iteration += 1) {
         const candidate = Fixtures.validWorkloadManifest();
         candidate.requirements.accelerator = "gpu";
+        candidate.requirements.acceleratorPreference = ["gpu"];
         candidate.requirements.model = {
             ...candidate.requirements.model,
             format: "ncnn",

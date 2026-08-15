@@ -33,6 +33,7 @@ function manifest({id, model = {}}) {
         requirements: {
             ...base.requirements,
             accelerator: "gpu",
+            acceleratorPreference: ["gpu"],
             model: {
                 id: `${id}-model`,
                 version: "1.0.0",

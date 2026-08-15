@@ -15,10 +15,21 @@ const schema = JSON.parse(fs.readFileSync(path.resolve(
 ), "utf8"));
 const oracle = new Ajv2020({strict: true}).compile(schema);
 
+// A declared preference has to begin with the declared accelerator, so a case
+// that moves the accelerator to test something else — a model format, a tensor
+// contract — would otherwise fail on an axis it is not exercising. Restating
+// the preference keeps each case about its own subject; cases that are about
+// the preference override it explicitly and keep that value.
 function nested(overrides) {
     const value = Fixtures.validWorkloadManifest();
     for (const [section, changes] of Object.entries(overrides)) {
         value[section] = {...value[section], ...changes};
+    }
+    const {accelerator, acceleratorPreference} = value.requirements;
+    if (overrides.requirements?.accelerator !== undefined
+        && overrides.requirements?.acceleratorPreference === undefined
+        && Array.isArray(acceleratorPreference)) {
+        value.requirements.acceleratorPreference = [accelerator];
     }
     return value;
 }
@@ -46,7 +57,7 @@ test("version 1 workload manifest matches authoritative schema boundaries", () =
             ...rest,
             requirements: (({acceleratorPreference: _p, ...kept}) => kept)(requirements),
         }))(valid), true],
-        ["preference reordered", nested({requirements: {acceleratorPreference: ["gpu", "tpu"]}}), true],
+        ["preference fallbacks reordered", nested({requirements: {acceleratorPreference: ["tpu", "gpu"]}}), true],
         ["preference empty", nested({requirements: {acceleratorPreference: []}}), false],
         ["preference duplicate", nested({requirements: {acceleratorPreference: ["tpu", "tpu"]}}), false],
         ["preference unknown item", nested({requirements: {acceleratorPreference: ["tpu", "cpu"]}}), false],
@@ -145,6 +156,31 @@ test("version 2 workload manifest matches authoritative schema boundaries", () =
         assert.equal(Contract.isWorkloadManifest(value), expected, name);
         assert.equal(Boolean(oracle(value)), expected, `${name}: schema`);
     }
+});
+
+// The runtime states this positionally in the canonical schema. ajv strict
+// cannot compile that spelling, so the shipped copy omits it and the applet
+// carries the rule here instead; `tests/contract/schema-parity-contract.test.js`
+// holds the two representations together.
+test("a declared preference must begin with the accelerator the profile was designed for", () => {
+    const cases = [
+        [["tpu", "npu", "gpu"], true],
+        [["tpu"], true],
+        [["gpu", "tpu"], false],
+        [["npu", "tpu"], false],
+    ];
+    for (const [preference, expected] of cases) {
+        const manifest = Fixtures.validWorkloadManifest();
+        manifest.requirements.acceleratorPreference = preference;
+        assert.equal(manifest.requirements.accelerator, "tpu");
+        assert.equal(Contract.declaresDesignedForFirst(manifest.requirements), expected, preference.join(","));
+        assert.equal(Contract.isWorkloadManifest(manifest), expected, `${preference.join(",")}: manifest`);
+    }
+
+    const absent = Fixtures.validWorkloadManifest();
+    delete absent.requirements.acceleratorPreference;
+    assert.equal(Contract.declaresDesignedForFirst(absent.requirements), true);
+    assert.equal(Contract.isWorkloadManifest(absent), true);
 });
 
 test("plug-in artifacts accept loader weight formats and authenticated companion files", () => {
@@ -375,6 +411,9 @@ function withModel(extra) {
     // ncnn is a GPU format, and a tpu profile may declare nothing else.
     const manifest = Fixtures.validWorkloadManifest();
     manifest.requirements.accelerator = "gpu";
+    // A declared preference leads with the declared accelerator; these cases
+    // are about model contracts, not routing.
+    manifest.requirements.acceleratorPreference = ["gpu"];
     manifest.requirements.model = {...manifest.requirements.model, ...extra};
     return manifest;
 }
@@ -740,6 +779,7 @@ test("a model may vouch for its companions or for nothing beyond itself", () => 
     // ncnn is a GPU format, and a tpu profile may declare nothing else.
     const manifest = Fixtures.validWorkloadManifest();
     manifest.requirements.accelerator = "gpu";
+    manifest.requirements.acceleratorPreference = ["gpu"];
     manifest.requirements.model = {
         id: "sample-model",
         version: "1.0.0",
@@ -772,7 +812,7 @@ test("a profile may declare one model per accelerator lane", () => {
 
     const manifest = Fixtures.validWorkloadManifest();
     manifest.requirements.accelerator = "gpu";
-    manifest.requirements.acceleratorPreference = ["npu", "gpu"];
+    manifest.requirements.acceleratorPreference = ["gpu", "npu"];
     delete manifest.requirements.model;
     manifest.requirements.models = [gpu, npu];
     assert.equal(Contract.isWorkloadManifest(manifest), true);
@@ -801,7 +841,7 @@ test("a multi-lane descriptor owns and reads every declared model", () => {
     const npu = {...gpu, id: "sample-model-npu", format: "openvino"};
     const manifest = Fixtures.validWorkloadManifest();
     manifest.requirements.accelerator = "gpu";
-    manifest.requirements.acceleratorPreference = ["npu", "gpu"];
+    manifest.requirements.acceleratorPreference = ["gpu", "npu"];
     delete manifest.requirements.model;
     manifest.requirements.models = [gpu, npu];
 
@@ -819,7 +859,7 @@ test("a multi-lane descriptor owns and reads every declared model", () => {
     assert.equal(Object.isFrozen(descriptor.manifest().requirements.acceleratorPreference), true);
     assert.deepEqual(
         descriptor.manifest().requirements.acceleratorPreference,
-        ["npu", "gpu"],
+        ["gpu", "npu"],
     );
     assert.equal(Object.isFrozen(descriptor.inputContract()), true);
     assert.deepEqual(

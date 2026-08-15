@@ -10,6 +10,7 @@ test("regression: a persisted promoted model loads without becoming hardware-qua
     const digest = (symbol) => symbol.repeat(64);
     const source = Fixtures.validWorkloadManifest();
     source.requirements.accelerator = "gpu";
+    source.requirements.acceleratorPreference = ["gpu"];
     source.requirements.model = {
         ...source.requirements.model,
         format: "ncnn",

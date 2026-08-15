@@ -209,6 +209,7 @@
           ]
         },
         "acceleratorPreference": {
+          "description": "Ordered routing intent. The first entry must be the accelerator the profile was designed for; the rest are fallbacks in order. Omitted means the global tpu > npu > gpu default.",
           "type": "array",
           "minItems": 1,
           "maxItems": 3,
@@ -504,7 +505,7 @@
           "pattern": "^[a-f0-9]{64}$"
         },
         "companions": {
-          "description": "Digests for the files that travel with the primary one \u2014 ncnn keeps every weight in the .bin beside the .param, and OpenVINO IR has the same split. Without these the publisher vouches for the graph and not for the weights: the store re-verifies its own record on every resolve, which catches a companion replaced after installation and not one substituted before it.",
+          "description": "Digests for the files that travel with the primary one \u2014 ncnn keeps every weight in the .bin beside the .param, and OpenVINO IR has the same split. Without these the publisher vouches for the graph and not for the weights: the store re-verifies its own record on every resolve, which catches a companion replaced after installation and not one substituted before it. Names are the installed filenames, which the format fixes, so a companion the format does not define is refused rather than installed under a name nothing checks.",
           "type": "object",
           "maxProperties": 8,
           "propertyNames": {

@@ -236,11 +236,30 @@ function hasOneModelDeclaration(value) {
     return single || several;
 }
 
+// The runtime states this positionally in the canonical schema, as one
+// `if`/`then` per accelerator constraining `acceleratorPreference[0]`. That
+// spelling needs an open-ended one-entry `prefixItems`, which ajv rejects
+// under `strict: true` (strictTuples) with no encoding that still admits two
+// and three-entry preferences, so the shipped schema cannot carry the rule
+// and this is where the applet enforces it instead. See the schema parity
+// gate in `tests/contract/schema-parity-contract.test.js`.
+function declaresDesignedForFirst(value) {
+    if (!declared(value, "acceleratorPreference")) {
+        return true;
+    }
+    return value.acceleratorPreference[0] === value.accelerator;
+}
+
+function declaresValidPreference(value) {
+    return !declared(value, "acceleratorPreference")
+        || (isAcceleratorPreference(value.acceleratorPreference) && declaresDesignedForFirst(value));
+}
+
 function isRequirements(value) {
     return hasRequirementProperties(value)
         && value.runtimeApi === RUNTIME_API_VERSION
         && ACCELERATORS.has(value.accelerator)
-        && (!declared(value, "acceleratorPreference") || isAcceleratorPreference(value.acceleratorPreference))
+        && declaresValidPreference(value)
         && hasBoundedMinimumDevices(value)
         && hasOneModelDeclaration(value)
         && declaresValidModels(value);
@@ -645,6 +664,8 @@ module.exports = {
     codePointLength,
     declared,
     declaredModels,
+    declaresDesignedForFirst,
+    declaresValidPreference,
     exactProperties,
     freezeManifest,
     freezePlugin,
