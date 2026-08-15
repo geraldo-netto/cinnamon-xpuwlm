@@ -64,3 +64,60 @@ test("failure log backoff resets after backward or invalid time", () => {
         "invalid-due",
     ]);
 });
+
+// The two named subclasses are what production actually constructs: the applet
+// hands one a Cinnamon logger and expects a missing method to be a
+// construction error, not a crash on the first failure it tries to report.
+test("the error and warning backoffs each require the method they emit through", () => {
+    for (const [Subject, method, pattern] of [
+        [Backoff.FailureErrorBackoff, "error", /error logger is required/u],
+        [Backoff.FailureWarningBackoff, "warn", /warning logger is required/u],
+    ]) {
+        for (const logger of [null, undefined, {}, {[method]: true}, {other() {}}]) {
+            assert.throws(() => new Subject({logger}), pattern, JSON.stringify(logger));
+        }
+        // A logger carrying the method is enough; the other one is not read.
+        assert.doesNotThrow(() => new Subject({logger: {[method]: () => {}}}));
+    }
+});
+
+test("each backoff emits through its own logger method and honours the same window", () => {
+    const errors = [];
+    const warnings = [];
+    const failure = new Backoff.FailureErrorBackoff({
+        logger: {error: (message) => errors.push(message), warn: () => {
+            throw new Error("the error backoff must not warn");
+        }},
+        initialDelayMs: 1000,
+        maximumDelayMs: 4000,
+    });
+    const warning = new Backoff.FailureWarningBackoff({
+        logger: {warn: (message) => warnings.push(message), error: () => {
+            throw new Error("the warning backoff must not error");
+        }},
+        initialDelayMs: 1000,
+        maximumDelayMs: 4000,
+    });
+
+    assert.equal(failure.error("runtime", "runtime is gone", 0), true);
+    assert.equal(failure.error("runtime", "runtime is gone", 500), false, "inside the window");
+    assert.equal(failure.error("runtime", "runtime is gone", 1000), true);
+    assert.deepEqual(errors, ["runtime is gone", "runtime is gone"]);
+
+    assert.equal(warning.warn("inputs", "input root is gone", 0), true);
+    assert.equal(warning.warn("inputs", "input root is gone", 500), false);
+    assert.deepEqual(warnings, ["input root is gone"]);
+
+    // Recovery forgets the key, so the next failure is reported immediately
+    // rather than being swallowed by a window the user cannot see.
+    assert.equal(warning.recover("inputs"), true);
+    assert.equal(warning.recover("inputs"), false, "already recovered");
+    assert.equal(warning.warn("inputs", "input root is gone", 600), true);
+    assert.equal(warnings.length, 2);
+
+    // The warning backoff coerces its key, so a caller passing a number and a
+    // caller passing its text are the same failure rather than two.
+    assert.equal(warning.warn(7, "numeric key", 0), true);
+    assert.equal(warning.warn("7", "numeric key", 100), false, "the same key, coerced");
+    assert.equal(warning.recover(7), true);
+});
