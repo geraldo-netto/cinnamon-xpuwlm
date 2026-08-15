@@ -165,3 +165,156 @@ test("review plan exposes tags only and no mutation capability", () => {
         assert.throws(() => Tagging.reviewTagPlan(...args), /review-only tagging plan is invalid/u);
     }
 });
+
+function recommendationReport(overrides = {}) {
+    return {
+        workloadId: Tagging.WORKLOAD_ID,
+        inputs: [{id: "batch-1", families: ["text"], size: 4, batchSize: 2}],
+        candidates: [
+            {id: "host-suffix", kind: "host", summaries: [{accuracy: 0.95, p95LatencyMs: 40}]},
+            {id: "gpu-model", kind: "gpu", summaries: [{accuracy: 0.97, p95LatencyMs: 25}]},
+        ],
+        ...overrides,
+    };
+}
+
+// The recommendation decides which implementation actually runs, so the
+// threshold, the tie-break, and the "nothing qualified" answer are the whole
+// contract: a rule that drifts picks a slower or less accurate tagger and says
+// nothing about it.
+test("the fastest candidate at or above the accuracy floor is recommended", () => {
+    const [only] = Tagging.recommendTaggers(recommendationReport());
+    assert.equal(only.inputId, "batch-1");
+    assert.equal(only.candidateId, "gpu-model", "lowest measured p95 wins");
+    assert.equal(only.candidateKind, "gpu");
+    assert.equal(only.reason, "measured-lowest-p95");
+    assert.deepEqual(only.families, ["text"]);
+    assert.equal(only.size, 4);
+    assert.equal(only.batchSize, 2);
+
+    // The floor is inclusive: a candidate exactly at it qualifies.
+    const exact = Tagging.recommendTaggers(recommendationReport({
+        candidates: [
+            {id: "slow-sure", kind: "host", summaries: [{accuracy: 0.9, p95LatencyMs: 90}]},
+        ],
+    }))[0];
+    assert.equal(exact.candidateId, "slow-sure");
+
+    // Below it, nothing is recommended and the reason says which rule refused.
+    const none = Tagging.recommendTaggers(recommendationReport({
+        candidates: [
+            {id: "fast-wrong", kind: "gpu", summaries: [{accuracy: 0.89, p95LatencyMs: 1}]},
+        ],
+    }))[0];
+    assert.equal(none.candidateId, null);
+    assert.equal(none.candidateKind, null);
+    assert.equal(none.reason, "accuracy-threshold-not-met");
+
+    // Accuracy is never traded for speed: a faster candidate under the floor
+    // loses to a slower one above it.
+    const honest = Tagging.recommendTaggers(recommendationReport({
+        candidates: [
+            {id: "fast-wrong", kind: "gpu", summaries: [{accuracy: 0.5, p95LatencyMs: 1}]},
+            {id: "slow-right", kind: "host", summaries: [{accuracy: 0.99, p95LatencyMs: 500}]},
+        ],
+    }))[0];
+    assert.equal(honest.candidateId, "slow-right");
+});
+
+test("a measured tie is broken by identifier, so the answer is reproducible", () => {
+    const tie = (ids) => Tagging.recommendTaggers(recommendationReport({
+        candidates: ids.map((id) => ({
+            id, kind: "host", summaries: [{accuracy: 0.95, p95LatencyMs: 30}],
+        })),
+    }))[0].candidateId;
+
+    // Whatever order they were measured in, the same candidate is chosen.
+    assert.equal(tie(["beta", "alpha"]), "alpha");
+    assert.equal(tie(["alpha", "beta"]), "alpha");
+    assert.equal(tie(["b", "a", "c"]), "a");
+});
+
+test("each input is answered on its own measurements", () => {
+    const report = recommendationReport({
+        inputs: [
+            {id: "small", families: ["text"], size: 1, batchSize: 1},
+            {id: "large", families: ["image"], size: 900, batchSize: 8},
+        ],
+        candidates: [
+            {
+                id: "host-suffix",
+                kind: "host",
+                summaries: [{accuracy: 0.95, p95LatencyMs: 5}, {accuracy: 0.95, p95LatencyMs: 800}],
+            },
+            {
+                id: "gpu-model",
+                kind: "gpu",
+                summaries: [{accuracy: 0.95, p95LatencyMs: 60}, {accuracy: 0.95, p95LatencyMs: 90}],
+            },
+        ],
+    });
+    const [small, large] = Tagging.recommendTaggers(report);
+    assert.equal(small.candidateId, "host-suffix", "the host wins on a small batch");
+    assert.equal(large.candidateId, "gpu-model", "and loses on a large one");
+});
+
+test("a report that is not the measured shape is refused rather than ranked", () => {
+    const cases = {
+        "not a record": null,
+        "foreign workload": recommendationReport({workloadId: "other-workload"}),
+        "no inputs": recommendationReport({inputs: []}),
+        "input id": recommendationReport({inputs: [{id: "", families: [], size: 1, batchSize: 1}]}),
+        "input families": recommendationReport({
+            inputs: [{id: "batch-1", families: "text", size: 1, batchSize: 1}],
+        }),
+        "input size": recommendationReport({
+            inputs: [{id: "batch-1", families: [], size: 0, batchSize: 1}],
+        }),
+        "input batch": recommendationReport({
+            inputs: [{id: "batch-1", families: [], size: 1, batchSize: 0}],
+        }),
+        "no candidates": recommendationReport({candidates: []}),
+        "candidate id": recommendationReport({
+            candidates: [{id: "", kind: "host", summaries: [{accuracy: 1, p95LatencyMs: 1}]}],
+        }),
+        "candidate kind": recommendationReport({
+            candidates: [{id: "a", kind: "cpu", summaries: [{accuracy: 1, p95LatencyMs: 1}]}],
+        }),
+        // One summary per input, or the index the ranking uses is meaningless.
+        "summary count": recommendationReport({
+            candidates: [{id: "a", kind: "host", summaries: []}],
+        }),
+        "accuracy above one": recommendationReport({
+            candidates: [{id: "a", kind: "host", summaries: [{accuracy: 1.1, p95LatencyMs: 1}]}],
+        }),
+        "accuracy below zero": recommendationReport({
+            candidates: [{id: "a", kind: "host", summaries: [{accuracy: -0.1, p95LatencyMs: 1}]}],
+        }),
+        "accuracy not finite": recommendationReport({
+            candidates: [
+                {id: "a", kind: "host", summaries: [{accuracy: Number.NaN, p95LatencyMs: 1}]},
+            ],
+        }),
+        "negative latency": recommendationReport({
+            candidates: [{id: "a", kind: "host", summaries: [{accuracy: 1, p95LatencyMs: -1}]}],
+        }),
+        "latency not finite": recommendationReport({
+            candidates: [
+                {id: "a", kind: "host", summaries: [{accuracy: 1, p95LatencyMs: Infinity}]},
+            ],
+        }),
+    };
+    for (const [label, report] of Object.entries(cases)) {
+        assert.throws(() => Tagging.recommendTaggers(report), /report is invalid/u, label);
+    }
+
+    // The floor itself is a probability, and a nonsense one is refused rather
+    // than silently admitting or excluding everything.
+    for (const floor of [-0.1, 1.1, Number.NaN, "0.9", null]) {
+        assert.throws(
+            () => Tagging.recommendTaggers(recommendationReport(), floor),
+            /report is invalid/u,
+            String(floor),
+        );
+    }
+});
