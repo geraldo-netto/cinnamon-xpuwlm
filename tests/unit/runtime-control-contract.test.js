@@ -149,3 +149,118 @@ test("device choice maps and batch fields share exact schema bounds", () => {
 });
 
 module.exports = {acknowledgement, command};
+
+// A batch exists so several profile settings land as one revision: sending
+// them separately spends a revision each and leaves policy half-applied when
+// one fails. So the shape of a batch is the whole guarantee, and the applet's
+// mirror has to agree with the schema on every part of it.
+test("a batch command carries changes, no single target, and at least one edit", () => {
+    const batch = (changes, overrides = {}) => command({
+        operation: "apply-profiles",
+        profileId: null,
+        value: null,
+        changes,
+        ...overrides,
+    });
+
+    const agree = (candidate, expected, label) => {
+        assert.equal(Contract.isRuntimeCommand(candidate), expected, label);
+        assert.equal(Boolean(commandOracle(candidate)), expected, `${label}: schema`);
+    };
+
+    agree(batch([{profileId: "visual-library", enabled: false}]), true, "one enable");
+    agree(batch([{profileId: "visual-library", weight: 5}]), true, "one weight");
+    agree(batch([{profileId: "visual-library", deviceId: null}]), true, "clearing a device");
+    agree(batch([
+        {profileId: "visual-library", enabled: true, weight: 3, deviceId: "gpu-renderD128"},
+        {profileId: "hardware-health", enabled: false},
+    ]), true, "several profiles at once");
+
+    // A batch names its targets inside `changes`, so the single-target fields
+    // must stay empty; carrying both would leave two answers to one question.
+    agree(batch([{profileId: "a", enabled: true}], {profileId: "a"}), false, "target as well");
+    agree(batch([{profileId: "a", enabled: true}], {value: true}), false, "value as well");
+
+    // An empty batch spends a revision to change nothing.
+    agree(batch([]), false, "no changes");
+
+    // A change that names a profile without editing it is the same waste, and
+    // the mirror refuses it where the schema does not. That is deliberate on
+    // both sides: the runtime rejects it in domain code so it can say which
+    // fields were missing ("neither enabled nor weight"), which a schema
+    // keyword would replace with the generic contract message. The mirror
+    // matches the runtime's behaviour, not merely its schema.
+    const noop = batch([{profileId: "visual-library"}]);
+    assert.equal(Contract.isRuntimeCommand(noop), false, "the mirror refuses a no-op change");
+    assert.equal(Boolean(commandOracle(noop)), true, "the schema leaves it to the runtime");
+
+    agree(batch([{profileId: "", enabled: true}]), false, "empty profile id");
+    agree(batch([{profileId: "visual-library", unknown: true}]), false, "unknown property");
+    agree(batch([{profileId: "visual-library", enabled: "yes"}]), false, "enabled not boolean");
+    agree(batch([{profileId: "visual-library", weight: 0}]), false, "weight under the floor");
+    agree(batch([{profileId: "visual-library", weight: 6}]), false, "weight over the ceiling");
+    agree(batch([{profileId: "visual-library", weight: 2.5}]), false, "fractional weight");
+    agree(batch([{profileId: "visual-library", deviceId: "renderD128"}]), false, "device id shape");
+    agree(batch(["visual-library"]), false, "change is not a record");
+    agree(batch("visual-library"), false, "changes is not an array");
+
+    // The batch is bounded, so one command cannot become an unbounded write.
+    const one = {profileId: "visual-library", enabled: true};
+    agree(batch(new Array(Contract.MAX_CHANGES).fill(one)), true, "at the bound");
+    agree(batch(new Array(Contract.MAX_CHANGES + 1).fill(one)), false, "over the bound");
+});
+
+test("optional profile values are checked only when the change carries them", () => {
+    assert.equal(Contract.validOptionalProfileValues({}), true, "nothing to check");
+    assert.equal(Contract.validOptionalProfileValues({enabled: true}), true);
+    assert.equal(Contract.validOptionalProfileValues({enabled: 1}), false);
+    assert.equal(Contract.validOptionalProfileValues({weight: 3}), true);
+    assert.equal(Contract.validOptionalProfileValues({weight: 9}), false);
+    assert.equal(Contract.validOptionalProfileValues({deviceId: null}), true);
+    assert.equal(Contract.validOptionalProfileValues({deviceId: "gpu-renderD128"}), true);
+    assert.equal(Contract.validOptionalProfileValues({deviceId: "nonsense"}), false);
+    // One bad value spoils the change even when the others are fine.
+    assert.equal(
+        Contract.validOptionalProfileValues({enabled: true, weight: 3, deviceId: "bad"}),
+        false,
+    );
+});
+
+// A refusal the applet raises itself must be distinguishable from a transport
+// error, or the menu reports "the runtime refused this" for a bus that never
+// carried the command.
+test("a contract violation is marked and recognised, and nothing else is", () => {
+    const violation = Contract.contractViolation(Error, "command does not match version 2");
+    assert.equal(violation instanceof Error, true);
+    assert.equal(violation.message, "command does not match version 2");
+    assert.equal(Contract.isContractViolation(violation), true);
+
+    const typed = Contract.contractViolation(TypeError, "bad type");
+    assert.equal(typed instanceof TypeError, true);
+    assert.equal(Contract.isContractViolation(typed), true);
+
+    for (const candidate of [
+        null, undefined, "violation", 7, {},
+        new Error("bus is gone"),
+        {controlContractViolation: false},
+        {controlContractViolation: "true"},
+    ]) {
+        assert.equal(Contract.isContractViolation(candidate), false, JSON.stringify(candidate));
+    }
+});
+
+test("a control gateway is refused unless it can both send and cancel", () => {
+    const complete = {send() {}, cancel() {}};
+    assert.equal(Contract.requireControlGateway(complete), complete);
+
+    for (const candidate of [
+        null, undefined, 0, "", {}, {send() {}}, {cancel() {}},
+        {send: true, cancel() {}}, {send() {}, cancel: "no"},
+    ]) {
+        assert.throws(
+            () => Contract.requireControlGateway(candidate),
+            /gateway/iu,
+            JSON.stringify(candidate),
+        );
+    }
+});
