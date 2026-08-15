@@ -1,33 +1,32 @@
 # TODO
 
-The GPU use-case implementation backlog is tracked directly in XTPU-0104
-through XTPU-0138; `related ids` encode its dependency order.
-
 ## Work groups
 
 Items remain in the canonical lifecycle tables below; these ranges provide the
 domain grouping without weakening the required status schema.
 
-- **Platform and portability:** XTPU-0087–XTPU-0089
+- **Platform and portability:** XTPU-0087, XTPU-0088
 - **Hardware and storage:** XTPU-0104–XTPU-0110
 - **Scheduling, network, and security:** XTPU-0111–XTPU-0114
 - **Developer tools:** XTPU-0115–XTPU-0120
 - **Local files and routines:** XTPU-0125
 - **Vision and image processing:** XTPU-0049, XTPU-0126–XTPU-0129
 - **Camera, equipment, and audio:** XTPU-0130–XTPU-0133
-- **Audit validation and packaging:** XTPU-0139–XTPU-0141
-- **Audit responsibility splits and wiring:** XTPU-0142–XTPU-0151
-- **Audit regression and mutation gates:** XTPU-0152–XTPU-0159
-- **Audit housekeeping:** XTPU-0160–XTPU-0161, XTPU-0165
-- **Requested applet UX:** XTPU-0162–XTPU-0164
-- **Applet audit findings:** XTPU-0166–XTPU-0173
-- **SonarCloud remediation:** XTPU-0174–XTPU-0180
+- **Runtime contract drift:** XTPU-0181, XTPU-0182
+- **Wiring gaps:** XTPU-0183
+- **Mutation gates:** XTPU-0158
+- **Ledger hygiene:** XTPU-0184
+- **SonarCloud remediation:** XTPU-0177–XTPU-0180
 
 ## Findings
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0158 | in_progress | high | l | XTPU-0139, XTPU-0140, XTPU-0141, XTPU-0142, XTPU-0143, XTPU-0144, XTPU-0145, XTPU-0146, XTPU-0147, XTPU-0148, XTPU-0149, XTPU-0150, XTPU-0151, XTPU-0152, XTPU-0153, XTPU-0154, XTPU-0155, XTPU-0156, XTPU-0157, XTPU-0165 | The full campaign was aborted at 2% after confirming a roughly 37-hour runtime, and the scoped harness reorganization is complete: `stryker.config.cjs` mutates one selected target non-incrementally at the retained 80% break threshold and `scripts/run-mutation-campaign.js` drives the 44 scoped behavior targets from `scripts/mutation-plan.js` into per-module reports plus `mutation-report/scoped/summary.json`. Remaining: run the scoped non-incremental rebaseline — only `view-model.json` exists today and it predates `53c01f0`, which changed eight scoped targets. Stryker's local logging socket is denied (EPERM) inside the restricted agent sandbox, so run the campaign from an unrestricted shell. |
+| XTPU-0158 | in_progress | high | l | — | The full campaign was aborted at 2% after confirming a roughly 37-hour runtime, and the scoped harness reorganization is complete: `stryker.config.cjs` mutates one selected target non-incrementally at the retained 80% break threshold and `scripts/run-mutation-campaign.js` drives the 44 scoped behavior targets from `scripts/mutation-plan.js` into per-module reports plus `mutation-report/scoped/summary.json`. Remaining: run the scoped non-incremental rebaseline — only `view-model.json` exists today and it predates `53c01f0`, which changed eight scoped targets. Stryker's local logging socket is denied (EPERM) inside the restricted agent sandbox, so run the campaign from an unrestricted shell. Its former 20-entry dependency list named only removed rows and was pruned; see XTPU-0184. |
+| XTPU-0181 | open | high | s | XTPU-0182 | Accept `ggml-whisper` as a plug-in artifact format: the runtime's media transcription plug-in cannot be packaged as a workload plug-in at all. `npm run package:plugin validate` over the runtime's five published manifests verifies four and rejects one — `plug-in problem: manifest.json fails the version 1 schema: /plugin/artifacts/1/format must be equal to one of the allowed values` for `media-transcription`, whose `whisper-small-multilingual` artifact declares `ggml-whisper`. Two independent applet gates reject it: the vendored `workload-manifest.schema.json` format enum, and `PLUGIN_ARTIFACT_FORMATS` at `lib/workload-manifest.js:55`, which `isPluginArtifact` (`:365`) applies so `isWorkloadManifest` fails the whole document. The runtime treats the format as canonical (`schemas/workload-manifest.schema.json`, `media_installation.py:36`, `plugins/artifacts.py:22`) and its own registry accepts the manifest. Should a manifest reach `<XDG_DATA_HOME>/cinnamon-xpuwlm@geraldo-netto/workloads/` by another route, user discovery skips it with a warning rather than failing loudly. Note also that `lib/plugin-inventory.js:61` accepts any `boundedText(value.format, 1, 40)`, so the D-Bus inventory path and the manifest path already disagree — decide which one owns the format vocabulary. |
+| XTPU-0182 | open | medium | xs | XTPU-0181 | Gate the vendored schema copies against the runtime repository. Comparing the six schemas shared with omnitensor as parsed JSON, five are identical and `workload-manifest.schema.json` is the sole semantic drift: the applet copy omits `ggml-whisper` from the artifact format enum, the three `accelerator` → `acceleratorPreference[0]` `if`/`then` conditionals, and the `acceleratorPreference` description. Drift is invisible to both repositories — `npm run check:workloads` only validates the nine bundled manifests against the local copy, and it passes. Add a cross-repository equality check, or consume one published copy. Tracked on the runtime side as OMNI-0341. |
+| XTPU-0183 | open | medium | l | — | Decide, per module, whether to wire or delete the 19 shipped `lib/` modules that `applet.js` cannot reach. A require-graph walk from `applet.js` reaches 73 of the 92 `lib/` modules; these 19 are never among them: `artifact-qualification`, `background-execution`, `caption-export`, `deterministic-action-port`, `file-auto-tagging`, `file-categorization`, `generic-workflow-menu-view`, `generic-workflow-surface`, `image-duplicate-benchmark`, `presentation-planning`, `presentation-review`, `readiness-acceptance`, `rehearsal-briefing`, `routine-recognition`, `runtime-control-service`, `screenshot-assistant`, `telemetry-window`, `workload-benchmark`, `workload-result` — 5,165 lines, about a fifth of the applet's library code. There is no dynamic `require` anywhere in the applet, so nothing reaches them at runtime; `lib/workflow-wiring.js` statically wires only the five workflows that match the runtime's five published plug-in manifests. They still carry the per-function coverage gate and part of the 44-target mutation scope, so the cost is ongoing. `generic-workflow-surface` and `generic-workflow-menu-view` look like an unfinished generic replacement for that hand-wiring; settle that first, since it decides several of the others. |
+| XTPU-0184 | open | low | s | — | Decide what `related ids` means once a referenced row is removed, then repair the ledger. 30 of 38 rows cite at least one ID that no longer has a row; the prerequisite cluster XTPU-0095, XTPU-0096, XTPU-0097, XTPU-0099, XTPU-0101 alone is cited by 25 of them. Cross-repository `OMNI-####` references are deliberate and are not affected. Either restore the prerequisite rows the dependencies point at, or rewrite each dependency as prose in its description. XTPU-0158, whose entire list was dangling, was pruned in place; the rest need the policy decision first. |
 
 ## Blocked
 
