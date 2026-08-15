@@ -36,6 +36,7 @@ const PlatformPorts = require("./lib/platform-ports.js");
 const ViewModel = require("./lib/view-model.js");
 const WorkloadRegistry = require("./lib/workload-registry.js");
 const WorkflowWiring = require("./lib/workflow-wiring.js");
+const XpuwlmLauncher = require("./lib/xpuwlm-launcher.js");
 
 const {_} = I18n;
 
@@ -134,6 +135,11 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._panelIconStatus = null;
         this._menuOpen = false;
         this._logger = overrides.logger || defaultLogger();
+        this._launcher = overrides.launcher || XpuwlmLauncher.createLauncher(
+            {GLib},
+            (commandLine) => Util.spawnCommandLineAsync(commandLine),
+            this._logger,
+        );
         this.settings = null;
         this.menu = null;
         this.menuManager = null;
@@ -434,6 +440,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             resumeAll: () => this._manager.resumeAll(),
             refresh: () => this._manager.retryDeviceDetection(),
             openSettings: () => this._openSettings(),
+            openLauncher: () => this._openLauncher(),
             clearActivity: () => this._clearActivity(),
             openLogs: () => this._openLogs(),
             copyReport: (report) => this._copyReport(report),
@@ -730,6 +737,14 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
 
     _openSettings() {
         Util.spawnCommandLineAsync(`xlet-settings applet ${UUID} -i ${this.instance_id}`);
+    }
+
+    // Everything the workflows do now lives in the Python client; this panel
+    // starts it and keeps drawing the accelerator status it reads from the
+    // published snapshot on its own.
+    _openLauncher() {
+        this.menu.close();
+        return this._launcher.launch("ui");
     }
 
     _clearActivity() {

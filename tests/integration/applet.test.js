@@ -95,6 +95,11 @@ global.imports = {
             get_user_runtime_dir: () => "/run/user/1000",
             getenv: () => null,
             file_get_contents: () => [false, ""],
+            // No client is installed in the harness, so the launcher falls
+            // back to the bare command and PATH — which is what a machine
+            // without the Python client would do.
+            FileTest: {IS_EXECUTABLE: 8},
+            file_test: () => false,
         },
         Gtk: {
             Clipboard: {
@@ -577,6 +582,9 @@ test("menu actions delegate without mixing responsibilities", () => {
     assert.equal(actions.clearActivity(), true);
     assert.equal(actions.openLogs(), true);
     assert.equal(actions.copyReport("diagnostics"), true);
+    // The launcher hands the user's action to the Python client and closes the
+    // menu; the panel keeps drawing status from the snapshot it reads itself.
+    assert.equal(actions.openLauncher(), true);
     assert.deepEqual(manager.calls.slice(1), [
         ["selectTab", "alerts"],
         ["toggleProfile", "hardware-health"],
@@ -589,9 +597,10 @@ test("menu actions delegate without mixing responsibilities", () => {
         ["acknowledgeCatalogChanges"],
         ["clearActivity"],
     ]);
-    assert.deepEqual(spawned.slice(-2), [
+    assert.deepEqual(spawned.slice(-3), [
         `xlet-settings applet ${AppletModule.UUID} -i 7`,
         "x-terminal-emulator -e journalctl --user -u omnitensor.service -f",
+        "'xpuwlm' ui",
     ]);
     assert.deepEqual(copiedReports.slice(-2), [["diagnostics", -1], ["store"]]);
 });

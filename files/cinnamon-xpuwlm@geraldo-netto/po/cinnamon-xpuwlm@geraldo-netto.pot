@@ -1383,6 +1383,10 @@ msgid "Only chosen files and this one question reach the isolated workers"
 msgstr ""
 
 #: lib/menu-view.js
+msgid "Open"
+msgstr ""
+
+#: lib/menu-view.js
 msgid "Open XPU Workload Manager settings"
 msgstr ""
 
@@ -1396,6 +1400,10 @@ msgstr ""
 
 #: lib/menu-view.js
 msgid "Open setup details, %s"
+msgstr ""
+
+#: lib/menu-view.js
+msgid "Open the XPU Workload Manager window"
 msgstr ""
 
 #: lib/platform-guidance.js

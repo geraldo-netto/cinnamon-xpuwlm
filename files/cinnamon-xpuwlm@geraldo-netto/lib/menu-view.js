@@ -81,6 +81,7 @@ class MenuView {
             resumeAll: requireAction(actions, "resumeAll"),
             refresh: requireAction(actions, "refresh"),
             openSettings: requireAction(actions, "openSettings"),
+            openLauncher: optionalAction(actions, "openLauncher"),
             clearActivity: optionalAction(actions, "clearActivity"),
             openLogs: optionalAction(actions, "openLogs"),
             copyReport: optionalAction(actions, "copyReport"),
@@ -374,6 +375,15 @@ class MenuView {
         const refresh = this._button("xpuwlm-secondary-button", _("Refresh XPU status"), this._actions.refresh);
         refresh.set_child(this._label(_("Refresh"), "xpuwlm-button-label"));
         footer.add_child(refresh);
+        if (this._actions.openLauncher) {
+            const launcher = this._button(
+                "xpuwlm-secondary-button",
+                _("Open the XPU Workload Manager window"),
+                this._actions.openLauncher,
+            );
+            launcher.set_child(this._label(_("Open"), "xpuwlm-button-label"));
+            footer.add_child(launcher);
+        }
         const settings = this._button("xpuwlm-secondary-button", _("Open XPU Workload Manager settings"), this._actions.openSettings);
         settings.set_child(new this._St.Icon({
             icon_name: "emblem-system-symbolic",
