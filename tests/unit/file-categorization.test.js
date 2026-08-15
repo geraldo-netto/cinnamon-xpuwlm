@@ -114,3 +114,108 @@ test("review output combines category and tags without apply capability", () => 
     assert.throws(() => Categorization.reviewCategorization(input, [], "candidate"));
     assert.throws(() => Categorization.reviewCategorization(input, predictions, "Bad id"));
 });
+
+// The taxonomy is closed on purpose: a category outside it reaches the review
+// surface as a label nobody defined, and the whole point of this workflow is
+// that a human reviews a bounded vocabulary rather than free text.
+test("only the published taxonomy is a category", () => {
+    for (const category of Categorization.CATEGORIES) {
+        assert.equal(Categorization.validCategory(category), true, category);
+    }
+    assert.equal(Categorization.CATEGORIES.includes("other"), true, "the escape hatch exists");
+
+    for (const value of [
+        "Receipt", "RECEIPT", " receipt", "receipt ", "invoice", "",
+        null, undefined, 7, ["receipt"], {category: "receipt"},
+    ]) {
+        assert.equal(Categorization.validCategory(value), false, JSON.stringify(value));
+    }
+});
+
+test("a file and a prediction are refused unless they name a known category", () => {
+    const file = Fixture.file("scan-1", "invoice.png", 100, ["invoice"], "receipt");
+    assert.equal(Categorization.validFile(file), true);
+    assert.equal(Categorization.validFile({...file, expectedCategory: "invoice"}), false);
+    assert.equal(Categorization.validFile({...file, unexpected: true}), false, "closed record");
+
+    const input = Fixture.input("single", [file]);
+    const prediction = Fixture.prediction("scan-1", "receipt", ["invoice"]);
+    assert.equal(Categorization.validPrediction(prediction, input), true);
+    // A prediction has to be about a file the input actually carries.
+    assert.equal(
+        Categorization.validPrediction({...prediction, fileId: "absent"}, input),
+        false,
+        "unknown file",
+    );
+    assert.equal(
+        Categorization.validPrediction({...prediction, category: "invoice"}, input),
+        false,
+        "unknown category",
+    );
+    assert.equal(
+        Categorization.validPrediction({...prediction, unexpected: true}, input),
+        false,
+        "closed record",
+    );
+});
+
+// Each refusal names which part of the plan was wrong, because "the plan is
+// invalid" sends whoever wrote it to read all of it.
+test("plan validation names the part that is wrong", () => {
+    const plan = Fixture.plan();
+    assert.doesNotThrow(() => Categorization.validatePlan(plan));
+
+    for (const [label, candidate, code] of [
+        ["not a record", null, "plan-invalid"],
+        ["inputs missing", {...plan, inputs: undefined}, "plan-invalid"],
+        ["candidates missing", {...plan, candidates: undefined}, "plan-invalid"],
+        ["input shape", {...plan, inputs: [{id: "", files: []}]}, "inputs-invalid"],
+        [
+            "candidate shape",
+            {...plan, candidates: [{id: "x", kind: "cpu", categorize: () => {}}]},
+            "candidates-invalid",
+        ],
+    ]) {
+        assert.throws(
+            () => Categorization.validatePlan(candidate),
+            (error) => error.code === code,
+            `${label} should raise ${code}`,
+        );
+    }
+});
+
+// The recommendation is delegated to the tagging benchmark, so the identity
+// checks here are what stop a report from another workload or another taxonomy
+// version being ranked as if it were this one.
+test("a report is ranked only when it is this workload at this taxonomy version", () => {
+    const report = {
+        workloadId: Categorization.WORKLOAD_ID,
+        taxonomyVersion: Categorization.TAXONOMY_VERSION,
+        inputs: [{id: "batch", families: ["image"], size: 1, batchSize: 1}],
+        candidates: [
+            {id: "metadata", kind: "host", summaries: [{accuracy: 0.95, p95LatencyMs: 10}]},
+        ],
+    };
+    const [only] = Categorization.recommendCategorizers(report);
+    assert.equal(only.candidateId, "metadata");
+
+    for (const [label, candidate] of [
+        ["not a record", null],
+        ["foreign workload", {...report, workloadId: "file-auto-tagging"}],
+        ["missing taxonomy version", {...report, taxonomyVersion: undefined}],
+        ["older taxonomy version", {...report, taxonomyVersion: Categorization.TAXONOMY_VERSION - 1}],
+        ["measurements missing", {...report, candidates: []}],
+    ]) {
+        assert.throws(
+            () => Categorization.recommendCategorizers(candidate),
+            (error) => error.code === "report-invalid",
+            label,
+        );
+    }
+
+    // A nonsense floor is refused rather than admitting or excluding all.
+    assert.throws(
+        () => Categorization.recommendCategorizers(report, 1.5),
+        (error) => error.code === "report-invalid",
+    );
+});
