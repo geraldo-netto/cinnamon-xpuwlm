@@ -46,6 +46,7 @@ const BEHAVIOR_MODULES = new Set([
     "screenshot-assistant",
     "selected-text",
     "snapshot-validator",
+    "telemetry-recorder",
     "telemetry-window",
     "tensor-encoder",
     "validation",

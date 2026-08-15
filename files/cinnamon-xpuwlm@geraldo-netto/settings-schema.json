@@ -1,42 +1,66 @@
 {
   "layout": {
     "type": "layout",
-    "pages": ["general-page", "runtime-page"],
+    "pages": [
+      "general-page",
+      "runtime-page"
+    ],
     "general-page": {
       "type": "page",
       "title": "General",
-      "sections": ["panel-section", "polling-section"]
+      "sections": [
+        "panel-section",
+        "polling-section"
+      ]
     },
     "runtime-page": {
       "type": "page",
       "title": "Runtime integration",
-      "sections": ["runtime-section", "safety-section"]
+      "sections": [
+        "runtime-section",
+        "safety-section"
+      ]
     },
     "panel-section": {
       "type": "section",
       "title": "Panel",
-      "keys": ["show-panel-label"]
+      "keys": [
+        "show-panel-label"
+      ]
     },
     "polling-section": {
       "type": "section",
       "title": "Monitoring",
-      "keys": ["refresh-interval"]
+      "keys": [
+        "refresh-interval"
+      ]
     },
     "runtime-section": {
       "type": "section",
       "title": "Workload runtime",
-      "keys": ["runtime-state-path", "runtime-help"]
+      "keys": [
+        "runtime-state-path",
+        "runtime-help"
+      ]
     },
     "safety-section": {
       "type": "section",
       "title": "Safety boundary",
-      "keys": ["safety-help"]
+      "keys": [
+        "safety-help"
+      ]
     }
   },
   "show-panel-label": {
     "type": "switch",
     "default": false,
     "description": "Show XPU status beside the panel icon"
+  },
+  "telemetry-consent": {
+    "type": "switch",
+    "default": false,
+    "description": "Keep a local record of runtime load figures",
+    "tooltip": "Off by default. When on, only the load, queue depth, and running-profile counts already shown in this menu are kept, in memory, for up to ten minutes, and never leave this computer."
   },
   "refresh-interval": {
     "type": "scale",

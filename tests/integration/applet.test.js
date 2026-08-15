@@ -500,6 +500,29 @@ test("injected platform composition owns app guidance, transport, and discovery"
     applet.on_applet_removed_from_panel();
 });
 
+test("the local load record follows its setting in both directions", () => {
+    const calls = [];
+    const telemetryRecorder = {
+        setConsent: (value) => calls.push(["consent", value]),
+        record: (state) => calls.push(["record", state.source]),
+        summary: () => ({consented: false, samples: 0, gaps: 0, retentionMs: 0}),
+    };
+    const {applet} = appletHarness({telemetryRecorder});
+
+    // Construction applies whatever the setting already says, because the
+    // binding only fires on change.
+    assert.deepEqual(calls[0], ["consent", false]);
+
+    applet.telemetryConsent = true;
+    assert.equal(applet._onTelemetryConsentChanged(), true);
+    assert.equal(calls.some(([name, value]) => name === "consent" && value === true), true);
+
+    applet.telemetryConsent = false;
+    applet._onTelemetryConsentChanged();
+    assert.equal(calls.some(([name, value]) => name === "consent" && value === false), true);
+    assert.equal(calls.some(([name]) => name === "record"), true, "snapshots reach the record");
+});
+
 test("generic workflow actions reach the registry and its failures are logged", () => {
     const dispatched = [];
     const genericWorkflowRegistry = {

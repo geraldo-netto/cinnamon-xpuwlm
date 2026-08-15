@@ -83,6 +83,13 @@ test("header, System, and Diagnostics project exact healthy and offline states",
             id: "service", icon: "system-run-symbolic", title: "Workload service",
             detail: "Runtime controls are available", status: "Ready", tone: "healthy",
         },
+        // The local load record is off until the user turns it on, and says so
+        // rather than being absent from the health list.
+        {
+            id: "telemetry", icon: "utilities-system-monitor-symbolic",
+            title: "Local load record", detail: "Off. No load figures are being kept.",
+            status: "Off", tone: "healthy",
+        },
     ]);
 
     const offlineState = state({

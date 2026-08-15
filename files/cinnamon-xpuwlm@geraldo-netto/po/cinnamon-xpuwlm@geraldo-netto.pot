@@ -114,6 +114,12 @@ msgstr[1] ""
 msgid "%d queued"
 msgstr ""
 
+#: lib/diagnostics-view-model.js
+msgid "%d reading"
+msgid_plural "%d readings"
+msgstr[0] ""
+msgstr[1] ""
+
 #: lib/generic-workflow-menu-view.js
 msgid "%d retained result"
 msgid_plural "%d retained results"
@@ -1090,6 +1096,10 @@ msgstr ""
 msgid "Keep"
 msgstr ""
 
+#: settings-schema.json
+msgid "Keep a local record of runtime load figures"
+msgstr ""
+
 #: lib/workflow-view-model.js
 msgid "Keep current folder"
 msgstr ""
@@ -1114,8 +1124,18 @@ msgstr ""
 msgid "Live runtime and device information"
 msgstr ""
 
+#: lib/diagnostics-view-model.js
+msgid "Load, queue depth, and running profiles, kept in memory for %d minute."
+msgid_plural "Load, queue depth, and running profiles, kept in memory for %d minutes."
+msgstr[0] ""
+msgstr[1] ""
+
 #: lib/platform-guidance.js
 msgid "Local discovery could not complete, so device presence is unknown rather than reported as absent."
+msgstr ""
+
+#: lib/diagnostics-view-model.js
+msgid "Local load record"
 msgstr ""
 
 #: lib/menu-view.js
@@ -1334,8 +1354,16 @@ msgstr ""
 msgid "Nothing is missing"
 msgstr ""
 
-#: lib/menu-view.js
+#: lib/diagnostics-view-model.js lib/menu-view.js
 msgid "Off"
+msgstr ""
+
+#: settings-schema.json
+msgid "Off by default. When on, only the load, queue depth, and running-profile counts already shown in this menu are kept, in memory, for up to ten minutes, and never leave this computer."
+msgstr ""
+
+#: lib/diagnostics-view-model.js
+msgid "Off. No load figures are being kept."
 msgstr ""
 
 #: lib/generic-workflow-surface.js

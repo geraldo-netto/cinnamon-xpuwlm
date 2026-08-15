@@ -19,7 +19,6 @@ const UNREACHABLE_LIBRARIES = Object.freeze([
     "routine-recognition.js",
     "runtime-control-service.js",
     "screenshot-assistant.js",
-    "telemetry-window.js",
     "workload-benchmark.js",
 ]);
 

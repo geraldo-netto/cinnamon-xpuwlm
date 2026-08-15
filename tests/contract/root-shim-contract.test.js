@@ -23,7 +23,7 @@ const INTENTIONAL_ROOT_FACADES = Object.freeze([
     "routine-recognition.js",
     "runtime-control-service.js",
     "screenshot-assistant.js",
-    "telemetry-window.js",
+    "telemetry-recorder.js",
     "workflow-wiring.js",
     "workload-benchmark.js",
 ]);

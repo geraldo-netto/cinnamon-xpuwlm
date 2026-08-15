@@ -30,6 +30,7 @@ const JobSubmission = require("./lib/job-submission.js");
 const Layout = require("./lib/layout.js");
 const Manager = require("./lib/manager.js");
 const Menu = require("./lib/menu-view.js");
+const TelemetryRecorder = require("./lib/telemetry-recorder.js");
 const PluginInventory = require("./lib/plugin-inventory.js");
 const PlatformPorts = require("./lib/platform-ports.js");
 const ViewModel = require("./lib/view-model.js");
@@ -308,6 +309,10 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._selectedText = controllers.selectedText;
         this._fileOrganizer = controllers.fileOrganizer;
         this._mediaTranscription = controllers.mediaTranscription;
+        this._telemetry = overrides.telemetryRecorder || new TelemetryRecorder.TelemetryRecorder();
+        // The binding only fires on change, so a session that starts with the
+        // setting already on would otherwise record nothing until it is toggled.
+        this._telemetry.setConsent(this.telemetryConsent === true);
         this._genericWorkflows = overrides.genericWorkflowRegistry
             || WorkflowWiring.createGenericWorkflowRegistry({
                 descriptors: this._workloadRegistry.descriptors(),
@@ -408,6 +413,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this.settings.bind("refresh-interval", "refreshInterval", () => this._onRuntimeSettingsChanged());
         this.settings.bind("runtime-state-path", "runtimeStatePath", () => this._onRuntimeSettingsChanged());
         this.settings.bind("show-panel-label", "showPanelLabel", () => this._renderPanel());
+        this.settings.bind("telemetry-consent", "telemetryConsent", () => this._onTelemetryConsentChanged());
     }
 
     _registerIconPath() {
@@ -474,6 +480,16 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             resetMediaTranscription: () => this._mediaTranscription.reset(),
             dispatchGenericWorkflow: (id, action, value) => this._genericWorkflows.dispatch(id, action, value),
         };
+    }
+
+    // Consent is a setting, so the record follows it in both directions:
+    // turning it off clears what was kept rather than only stopping new work.
+    _onTelemetryConsentChanged() {
+        this._telemetry.setConsent(this.telemetryConsent === true);
+        if (this._latestState) {
+            this._render(this._latestState);
+        }
+        return true;
     }
 
     _createMenu(orientation) {
@@ -563,6 +579,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         if (this._destroyed) {
             return;
         }
+        this._telemetry.record(state);
         this._latestState = {
             ...state,
             eventImport: this._eventImport.state(),
@@ -571,6 +588,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             fileOrganizer: this._fileOrganizer.state(),
             mediaTranscription: this._mediaTranscription.state(),
             genericWorkflows: this._genericWorkflows.models(),
+            telemetry: this._telemetry.summary(),
         };
         const model = ViewModel.toViewModel(
             this._latestState,

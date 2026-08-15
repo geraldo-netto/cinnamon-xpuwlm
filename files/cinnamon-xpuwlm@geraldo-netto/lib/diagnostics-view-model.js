@@ -53,6 +53,44 @@ function diagnosticsReport(state, tools, activity, setup, control, nowMs) {
     ].join("\n");
 }
 
+// The local load record is off until the user turns it on, so its row states
+// what is kept rather than only whether it is running: a record nobody asked
+// for is the thing worth being explicit about.
+function telemetryHealth(telemetry) {
+    const summary = telemetry && typeof telemetry === "object"
+        ? telemetry
+        : {consented: false, samples: 0, gaps: 0, retentionMs: 0};
+    if (summary.consented !== true) {
+        return {
+            id: "telemetry",
+            icon: "utilities-system-monitor-symbolic",
+            title: _("Local load record"),
+            detail: _("Off. No load figures are being kept."),
+            status: _("Off"),
+            tone: "healthy",
+        };
+    }
+    const minutes = Math.round(summary.retentionMs / 60000);
+    return {
+        id: "telemetry",
+        icon: "utilities-system-monitor-symbolic",
+        title: _("Local load record"),
+        detail: format(
+            ngettext(
+                "Load, queue depth, and running profiles, kept in memory for %d minute.",
+                "Load, queue depth, and running profiles, kept in memory for %d minutes.",
+                minutes,
+            ),
+            minutes,
+        ),
+        status: format(
+            ngettext("%d reading", "%d readings", summary.samples),
+            summary.samples,
+        ),
+        tone: summary.gaps > 0 ? "attention" : "healthy",
+    };
+}
+
 function diagnosticsModel(state, tools, activity, setup, activeAlerts, control, nowMs) {
     const service = workloadServiceStatus(control);
     const toolSetup = tools.filter((tool) => !tool.available).map((tool) => ({
@@ -93,6 +131,7 @@ function diagnosticsModel(state, tools, activity, setup, activeAlerts, control, 
                 status: service.status,
                 tone: service.tone,
             },
+            telemetryHealth(state.telemetry),
         ],
         toolSetup,
         profileSetupCount,
@@ -166,6 +205,7 @@ function systemModel(state) {
 
 module.exports = {
     diagnosticsModel,
+    telemetryHealth,
     diagnosticsReport,
     formatRelativeTime,
     systemModel,
