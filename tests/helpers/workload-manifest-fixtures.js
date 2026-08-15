@@ -15,6 +15,9 @@ function validWorkloadManifest(overrides = {}) {
                 id: "sample-model",
                 version: "1.0.0",
                 format: "tflite-edgetpu",
+                // Which file the model is. The runtime refuses a model without
+                // one, so the schema requires it.
+                sha256: "a".repeat(64),
                 fullyQuantized: true,
                 minimumCompilerVersion: "16",
                 minimumRuntimeVersion: "16",

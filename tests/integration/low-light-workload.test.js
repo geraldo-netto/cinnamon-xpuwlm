@@ -9,9 +9,19 @@ const Manifest = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workload
 const BuiltIns = require("../helpers/built-in-workloads.js");
 
 const manifestPath = path.join(BuiltIns.ROOT, "low-light-enhancement", "manifest.json");
+// The pinned Retinexformer contracts live in the runtime's model recipe, which
+// is their source of truth. The profile declares no model until the artifact
+// exists and can be pinned by digest, so the recipe is what these check.
+const recipePath = path.join(
+    __dirname, "../../../omnitensor/model-recipes/retinexformer-lol-v1.json",
+);
 
 function manifest() {
     return JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+}
+
+function recipe() {
+    return JSON.parse(fs.readFileSync(recipePath, "utf8"));
 }
 
 test("low-light enhancement is a dedicated disabled-by-default catalog workload", () => {
@@ -29,17 +39,20 @@ test("low-light enhancement is a dedicated disabled-by-default catalog workload"
     ]);
     assert.equal(descriptor.manifest().requirements.accelerator, "gpu");
     assert.deepEqual(descriptor.manifest().requirements.acceleratorPreference, ["gpu"]);
-    assert.equal(descriptor.manifest().requirements.model.id, "retinexformer-lol-v1");
-    assert.equal(descriptor.manifest().requirements.model.format, "ncnn");
-    assert.equal(descriptor.manifest().requirements.model.fullyQuantized, false);
+    // No model is declared: the runtime refuses one without a sha256, and the
+    // Retinexformer ncnn artifact has never been produced, so declaring it
+    // shipped a profile that could never run.
+    assert.equal(descriptor.manifest().requirements.model, null);
 });
 
 test("low-light model metadata is replaceable without changing workload identity", () => {
     const candidate = manifest();
     candidate.requirements.model = {
-        ...candidate.requirements.model,
         id: "replacement-model",
         version: "2.0.0",
+        format: "ncnn",
+        sha256: "d".repeat(64),
+        fullyQuantized: false,
         minimumCompilerVersion: "replacement-compiler",
         minimumRuntimeVersion: "replacement-runtime",
     };
@@ -74,7 +87,7 @@ test("low-light contract separates host pipeline and measurable acceptance", () 
 });
 
 test("low-light tensor and output contracts match the pinned Retinexformer recipe", () => {
-    const model = new Manifest.WorkloadDescriptor(manifest()).manifest().requirements.model;
+    const model = recipe();
     assert.deepEqual(model.tensorContract, {
         inputs: [{
             shape: [1, 3, 256, 256],

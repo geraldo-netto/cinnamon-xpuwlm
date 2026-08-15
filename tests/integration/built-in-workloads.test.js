@@ -52,7 +52,10 @@ test("the shipped catalog reports which workloads the runtime can execute", () =
     const executable = descriptors.filter((descriptor) => descriptor.executable);
     assert.deepEqual(
         executable.map((descriptor) => descriptor.id),
-        ["low-light-enhancement", "visual-library"],
+        ["visual-library"],
+        // low-light-enhancement declared a model the runtime could never
+        // resolve — no sha256, and no artifact to pin — so it declares none
+        // and is not executable until the Retinexformer artifact exists.
         "only the workloads that declare a model can run",
     );
     for (const descriptor of descriptors) {

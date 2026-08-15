@@ -30,8 +30,9 @@ test("fuzz: manifest predicate stays equivalent to authoritative schema", () => 
         ["manifestVersion"], ["id"], ["version"], ["capabilities"],
         ["requirements", "runtimeApi"], ["requirements", "accelerator"],
         ["requirements", "minimumDevices"], ["requirements", "model"],
-        // Optional properties: JSON Schema treats an explicit `undefined` as
-        // absent, and the mirror has to agree in both directions.
+        // JSON Schema treats an explicit `undefined` as absent, because
+        // `JSON.stringify` drops it, and the mirror has to agree in both
+        // directions for optional and required names alike.
         ["requirements", "acceleratorPreference"], ["requirements", "model", "sha256"],
         ["ui", "title"], ["ui", "group"], ["ui", "description"], ["ui", "icon"],
         ["defaults", "enabled"], ["defaults", "weight"],
@@ -145,10 +146,11 @@ test("property: GGUF companion mutations stay schema-equivalent", () => {
     }
 });
 
-// `requirements.model.sha256` is optional, so the exact key-count rule no
-// longer applies to the model record. Both the schema and the predicate must
-// agree on absent, well-formed, and malformed digests alike.
-test("property: optional model digests stay equivalent to the authoritative schema", () => {
+// The model record has optional properties, so the exact key-count rule does
+// not apply to it. Both the schema and the predicate must agree on absent,
+// well-formed, and malformed digests alike — absent is now a rejection, since
+// the runtime cannot resolve a model without one.
+test("property: model digests stay equivalent to the authoritative schema", () => {
     const next = random(0x0d19e57);
     const digest = "a".repeat(64);
     const candidates = [
@@ -209,6 +211,7 @@ test("property: ordered forecast features survive bounds and reject lane permuta
             id: "forecast-gpu",
             version: "1.0.0",
             format: "ncnn",
+            sha256: "a".repeat(64),
             fullyQuantized: false,
             minimumCompilerVersion: "1.0",
             minimumRuntimeVersion: "1.0",

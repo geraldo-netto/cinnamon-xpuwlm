@@ -252,7 +252,7 @@ test("a version 2 descriptor carries an immutable, independent plug-in subtree",
 test("an optional property explicitly set to undefined counts as absent", () => {
     const cases = [
         ["accelerator preference", (value) => { value.requirements.acceleratorPreference = undefined; }],
-        ["model digest", (value) => { value.requirements.model.sha256 = undefined; }],
+        ["model companions", (value) => { value.requirements.model.companions = undefined; }],
     ];
     for (const [name, mutate] of cases) {
         const value = Fixtures.validWorkloadManifest();
@@ -382,29 +382,26 @@ test("a singular model and preference are independently cloned and frozen", () =
 // An optional property makes an exact key count the wrong rule: a manifest
 // that pins its artifact digest was rejected outright, and one that omits it
 // must still load.
-test("optional model digests load, and malformed ones are still rejected", () => {
+test("a model digest is required, and a malformed one is still rejected", () => {
     const withDigest = Fixtures.validWorkloadManifest();
     withDigest.requirements.model.sha256 = "b".repeat(64);
     const descriptor = new Contract.WorkloadDescriptor(withDigest);
     assert.equal(descriptor.manifest().requirements.model.sha256, "b".repeat(64));
     assert.equal(Object.isFrozen(descriptor.manifest().requirements.model), true);
 
+    // The runtime cannot tell which file a model without a digest means, so a
+    // manifest that omits one declares a profile that can never run.
     const without = Fixtures.validWorkloadManifest();
-    assert.equal(Contract.isWorkloadManifest(without), true);
-    const bare = new Contract.WorkloadDescriptor(without).manifest();
-    assert.equal(Object.hasOwn(bare.requirements.model, "sha256"), false);
+    delete without.requirements.model.sha256;
+    assert.equal(Contract.isWorkloadManifest(without), false);
+    assert.equal(Boolean(oracle(without)), false, "the schema agrees");
 
     for (const value of ["B".repeat(64), "b".repeat(63), "b".repeat(65), "", null, 7]) {
         const invalid = Fixtures.validWorkloadManifest();
         invalid.requirements.model.sha256 = value;
-        assert.equal(Contract.isWorkloadManifest(invalid), false, `digest ${JSON.stringify(value)}`);
+        assert.equal(Contract.isWorkloadManifest(invalid), false, String(value));
+        assert.equal(Boolean(oracle(invalid)), false, `${String(value)}: schema`);
     }
-
-    assert.equal(Contract.boundedProperties({a: 1}, ["a"], new Set(["a", "b"])), true);
-    assert.equal(Contract.boundedProperties({a: 1, b: 2}, ["a"], new Set(["a", "b"])), true);
-    assert.equal(Contract.boundedProperties({b: 2}, ["a"], new Set(["a", "b"])), false);
-    assert.equal(Contract.boundedProperties({a: 1, c: 3}, ["a"], new Set(["a", "b"])), false);
-    assert.equal(Contract.boundedProperties(null, [], new Set()), false);
 });
 
 function withModel(extra) {
@@ -804,6 +801,7 @@ test("a profile may declare one model per accelerator lane", () => {
         id: "sample-model",
         version: "1.0.0",
         format: "ncnn",
+        sha256: "a".repeat(64),
         fullyQuantized: false,
         minimumCompilerVersion: "1.0",
         minimumRuntimeVersion: "1.0",
@@ -833,6 +831,7 @@ test("a multi-lane descriptor owns and reads every declared model", () => {
         id: "sample-model-gpu",
         version: "1.0.0",
         format: "ncnn",
+        sha256: "a".repeat(64),
         fullyQuantized: false,
         minimumCompilerVersion: "1.0",
         minimumRuntimeVersion: "1.0",
@@ -887,6 +886,7 @@ test("two entries state one contract however they spell it", () => {
         id: "m",
         version: "1.0.0",
         format: "ncnn",
+        sha256: "a".repeat(64),
         fullyQuantized: false,
         minimumCompilerVersion: "1.0",
         minimumRuntimeVersion: "1.0",

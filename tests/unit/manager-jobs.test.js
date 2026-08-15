@@ -38,6 +38,7 @@ function manifest({id, model = {}}) {
                 id: `${id}-model`,
                 version: "1.0.0",
                 format: "ncnn",
+                sha256: "a".repeat(64),
                 fullyQuantized: false,
                 minimumCompilerVersion: "1.0",
                 minimumRuntimeVersion: "1.0",

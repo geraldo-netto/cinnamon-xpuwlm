@@ -57,18 +57,20 @@ const MODEL_FORMATS = new Set(["tflite-edgetpu", "tflite", "onnx", "openvino", "
 // whisper.cpp weight files, not accelerator-compiled model artifacts, and
 // never appear in a `model`/`models` declaration.
 const PLUGIN_ARTIFACT_FORMATS = new Set([...MODEL_FORMATS, "gguf", "ggml-whisper"]);
+// `sha256` pins the exact artifact a profile may run, and is required: the
+// runtime refuses a model without one because it cannot tell which file the
+// manifest means, so a manifest that omits it declares a profile that can
+// never run. It was optional here while the runtime was assumed to fall back
+// to the digest recorded at install time, which it does not.
 const MODEL_REQUIRED = Object.freeze([
-    "id", "version", "format", "fullyQuantized", "minimumCompilerVersion",
+    "id", "version", "format", "sha256", "fullyQuantized", "minimumCompilerVersion",
     "minimumRuntimeVersion",
 ]);
-// `sha256` pins the exact artifact a profile may run. It is optional: manifests
-// written before the runtime verified the digest have none, and the runtime
-// then falls back to the digest recorded at install time.
-// `tensorContract` states what the model expects of its input. Optional for
-// the same reason `sha256` is: manifests written before the field exist, and
-// absent means the runtime checks nothing, exactly as it did.
+// `tensorContract` states what the model expects of its input. Optional
+// because manifests written before the field exist, and absent means the
+// runtime checks nothing, exactly as it did.
 const MODEL_PROPERTIES = new Set([
-    ...MODEL_REQUIRED, "sha256", "companions", "tensorContract", "featureContract",
+    ...MODEL_REQUIRED, "companions", "tensorContract", "featureContract",
     "trainingContract", "nativeEvidence", "outputContract",
 ]);
 // Digests for the files that travel with the primary one. Optional in the
@@ -89,9 +91,14 @@ const exactProperties = Validation.exactKeys;
 
 // An exact key count is wrong wherever the contract has optional properties:
 // every required name must be present, and no name outside the allowed set.
+//
+// Present means carrying a value, not merely owning the key. `JSON.stringify`
+// drops a key whose value is `undefined`, so the document the runtime receives
+// does not have it, and a mirror that counted `Object.hasOwn` would accept a
+// manifest the schema rejects.
 function boundedProperties(value, required, allowed) {
     return isRecord(value)
-        && required.every((name) => Object.hasOwn(value, name))
+        && required.every((name) => value[name] !== undefined)
         && Object.keys(value).every((name) => allowed.has(name));
 }
 
