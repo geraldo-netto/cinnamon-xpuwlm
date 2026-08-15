@@ -55,7 +55,7 @@ test("event readiness fails closed at every live execution gate", () => {
     const cases = [
         [inventory({plugins: []}), /install and configure/iu],
         [inventory({plugins: [plugin({source: "bundled"})]}), /external/iu],
-        [inventory({plugins: [plugin({workerState: "starting"})]}), /configure and qualify/iu],
+        [inventory({plugins: [plugin({workerState: "starting"})]}), /still starting/iu],
         [inventory({plugins: [plugin({protocol: {minimum: 1, maximum: 1, capabilities: ["health"]}})]}), /execute/iu],
         [inventory({plugins: [plugin({permissions: [{name: "files:read-selected", granted: false}]})]}), /grant access/iu],
         [inventory({plugins: [plugin({artifacts: [{id: "qwen-events", version: "1", format: "gguf", ready: false, reason: "model missing"}]})]}), /model missing/iu],
@@ -85,7 +85,7 @@ test("selected-document readiness independently requires its qualified external 
     const cases = [
         [[], /install and configure/iu],
         [[{...documentPlugin, source: "bundled"}], /external/iu],
-        [[{...documentPlugin, workerState: "starting"}], /BGE and Qwen/iu],
+        [[{...documentPlugin, workerState: "starting"}], /still starting/iu],
         [[{...documentPlugin, protocol: {minimum: 1, maximum: 1, capabilities: ["health"]}}], /execute/iu],
         [[{...documentPlugin, permissions: [{name: "files:read-selected", granted: false}]}], /grant access/iu],
         [[{...documentPlugin, artifacts: [{
@@ -118,7 +118,7 @@ test("selected-text readiness requires a qualified one-shot external worker", ()
         [[], /install and configure/iu],
         [[{...selectedTextPlugin, source: "bundled"}], /external/iu],
         [[{...selectedTextPlugin, version: "1.0.0"}], /operation-quality acceptance/iu],
-        [[{...selectedTextPlugin, workerState: "starting"}], /GPU or NPU/iu],
+        [[{...selectedTextPlugin, workerState: "starting"}], /still starting/iu],
         [[{...selectedTextPlugin,
             protocol: {minimum: 1, maximum: 1, capabilities: ["health"]}}], /execute/iu],
         [[{...selectedTextPlugin,
@@ -162,7 +162,7 @@ test("file-organizer readiness requires a qualified external review-only worker"
     const cases = [
         [[], /install and configure/iu],
         [[{...organizerPlugin, source: "bundled"}], /external/iu],
-        [[{...organizerPlugin, workerState: "starting"}], /GPU or NPU/iu],
+        [[{...organizerPlugin, workerState: "starting"}], /still starting/iu],
         [[{...organizerPlugin,
             protocol: {minimum: 1, maximum: 1, capabilities: ["health"]}}], /execute/iu],
         [[{...organizerPlugin,
@@ -199,7 +199,7 @@ test("media readiness requires the exact hardware-qualified external worker", ()
         [[], /install and configure/iu],
         [[{...mediaPlugin, source: "bundled"}], /qualified external/iu],
         [[{...mediaPlugin, version: "1.1.0"}], /qualified external/iu],
-        [[{...mediaPlugin, workerState: "starting"}], /Whisper and Qwen VL/u],
+        [[{...mediaPlugin, workerState: "starting"}], /still starting/iu],
         [[{...mediaPlugin,
             protocol: {minimum: 1, maximum: 1, capabilities: ["health"]}}], /execute/iu],
         [[{...mediaPlugin,
@@ -424,4 +424,79 @@ test("mixed grants and invalid readiness fail with the exact boundary reason", (
         (error) => error instanceof TypeError
             && error.message === "Event readiness requires a valid plug-in inventory",
     );
+});
+
+// A dead worker is not an unqualified provider. Saying so sent people to
+// install artifacts that were already installed and correct, which is how five
+// failed launches went unnoticed.
+test("a failed worker says it failed, and carries the runtime's reason", () => {
+    const failed = plugin({
+        workerState: "failed",
+        workerDetail: "ModuleNotFoundError: no module named qwen",
+    });
+    const detail = Inventory.eventReadiness(inventory({plugins: [failed]})).detail;
+    assert.match(detail, /failed to start/u);
+    assert.match(detail, /no module named qwen/u);
+    assert.doesNotMatch(detail, /qualify/iu, "it is not a qualification problem");
+
+    // A runtime that has nothing to say still says which kind of problem it is.
+    const bare = Inventory.eventReadiness(inventory({plugins: [plugin({workerState: "failed"})]}));
+    assert.match(bare.detail, /failed to start/u);
+    assert.match(bare.detail, /runtime service log/u);
+
+    // A worker still coming up is not a failure at all.
+    const starting = Inventory.eventReadiness(
+        inventory({plugins: [plugin({workerState: "starting"})]}),
+    );
+    assert.match(starting.detail, /still starting/u);
+
+    // Every readiness surface answers the same way, so one dead worker cannot
+    // read as a launch failure in one tool and a qualification gap in another.
+    const readiness = [
+        Inventory.documentQuestionReadiness,
+        Inventory.selectedTextReadiness,
+        Inventory.fileOrganizerReadiness,
+        Inventory.mediaTranscriptionReadiness,
+    ];
+    for (const answer of readiness) {
+        const result = answer(inventory({
+            plugins: [failed, plugin({id: "ask-selected-files", workerState: "failed",
+                workerDetail: "ModuleNotFoundError: no module named qwen"}),
+            plugin({id: "selected-text-tools", workerState: "failed",
+                workerDetail: "ModuleNotFoundError: no module named qwen"}),
+            plugin({id: "file-organizer", workerState: "failed",
+                workerDetail: "ModuleNotFoundError: no module named qwen"}),
+            plugin({id: "media-transcription", workerState: "failed",
+                workerDetail: "ModuleNotFoundError: no module named qwen"})],
+        }));
+        assert.equal(result.available, false);
+    }
+});
+
+// The record is closed, so a field the runtime adds and the applet does not
+// know invalidates the whole inventory — reported to the user as a runtime
+// that is publishing nothing, which reads exactly like a service that is down.
+test("the worker reason is optional, bounded, and cannot smuggle a new field", () => {
+    assert.equal(Inventory.validPlugin(plugin()), true, "absent is valid");
+    assert.equal(Inventory.validPlugin(plugin({workerDetail: null})), true, "null is valid");
+    assert.equal(Inventory.validPlugin(plugin({workerDetail: "worker exited 1"})), true);
+    assert.equal(
+        Inventory.validPlugin(plugin({workerDetail: "x".repeat(Inventory.MAX_WORKER_DETAIL)})),
+        true,
+        "at the bound",
+    );
+
+    assert.equal(
+        Inventory.validPlugin(plugin({workerDetail: "x".repeat(Inventory.MAX_WORKER_DETAIL + 1)})),
+        false,
+        "over the bound",
+    );
+    assert.equal(Inventory.validPlugin(plugin({workerDetail: ""})), false, "empty says nothing");
+    assert.equal(Inventory.validPlugin(plugin({workerDetail: 7})), false);
+    assert.equal(Inventory.validPlugin(plugin({unknownField: "x"})), false, "still closed");
+
+    // A required field is still required; optional does not mean lax.
+    const missing = plugin();
+    delete missing.workerState;
+    assert.equal(Inventory.validPlugin(missing), false);
 });

@@ -2036,6 +2036,18 @@ msgstr ""
 msgid "The last snapshot is older than its freshness deadline, so its values are no longer shown as current."
 msgstr ""
 
+#: lib/plugin-inventory.js
+msgid "The provider failed to start: %s"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "The provider failed to start; see the runtime service log"
+msgstr ""
+
+#: lib/plugin-inventory.js
+msgid "The provider is still starting"
+msgstr ""
+
 #: lib/view-model.js
 msgid "The runtime cannot run this profile"
 msgstr ""

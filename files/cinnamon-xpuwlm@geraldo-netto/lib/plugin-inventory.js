@@ -15,10 +15,16 @@ const {_, format} = I18n;
 
 const INVENTORY_VERSION = 1;
 const MAX_PLUGINS = 128;
-const PLUGIN_FIELDS = new Set([
+const REQUIRED_PLUGIN_FIELDS = Object.freeze([
     "id", "version", "source", "distribution", "workerState", "protocol", "triggers",
     "artifacts", "permissions", "configurationSchema", "secretConfigurationKeys",
 ]);
+// Why a worker is not running. Optional, because a runtime that predates it
+// sends nothing and a closed record would reject the whole inventory — which
+// is exactly how a field added on one side takes the catalog down on the
+// other. Without it every dead worker reads as an unqualified provider.
+const PLUGIN_FIELDS = new Set([...REQUIRED_PLUGIN_FIELDS, "workerDetail"]);
+const MAX_WORKER_DETAIL = 300;
 const PROTOCOL_FIELDS = new Set(["minimum", "maximum", "capabilities"]);
 const ARTIFACT_FIELDS = new Set(["id", "version", "format", "ready", "reason"]);
 const PERMISSION_FIELDS = new Set(["name", "granted"]);
@@ -70,8 +76,39 @@ function validPermission(value) {
         && typeof value.granted === "boolean";
 }
 
+function boundedProperties(value, required, allowed) {
+    return isRecord(value)
+        && required.every((name) => Object.hasOwn(value, name))
+        && Object.keys(value).every((name) => allowed.has(name));
+}
+
+// A worker that failed to start is not an unqualified provider, and saying so
+// sent people to install artifacts that were already installed and correct.
+// The runtime's own reason is the only thing that names what to do instead.
+function workerFailureDetail(plugin, fallback) {
+    if (plugin.workerState === "failed" || plugin.workerState === "exhausted") {
+        const detail = boundedText(plugin.workerDetail, 1, MAX_WORKER_DETAIL)
+            ? plugin.workerDetail
+            : "";
+        return detail === ""
+            ? _("The provider failed to start; see the runtime service log")
+            : format(_("The provider failed to start: %s"), detail);
+    }
+    if (plugin.workerState === "starting" || plugin.workerState === "restarting") {
+        return _("The provider is still starting");
+    }
+    return fallback;
+}
+
+function validWorkerDetail(value) {
+    return !Object.hasOwn(value, "workerDetail")
+        || value.workerDetail === null
+        || boundedText(value.workerDetail, 1, MAX_WORKER_DETAIL);
+}
+
 function validPluginIdentity(value) {
-    return exactRecord(value, PLUGIN_FIELDS)
+    return boundedProperties(value, REQUIRED_PLUGIN_FIELDS, PLUGIN_FIELDS)
+        && validWorkerDetail(value)
         && boundedText(value.id, 1, 120)
         && IDENTIFIER.test(value.id)
         && boundedText(value.version, 1, 40)
@@ -141,7 +178,7 @@ function readinessDetail(plugin) {
         return _("Install an external event-extraction provider");
     }
     if (plugin.workerState !== "ready") {
-        return _("Configure and qualify an event model provider");
+        return workerFailureDetail(plugin, _("Configure and qualify an event model provider"));
     }
     if (!plugin.protocol.capabilities.includes("execute")) {
         return _("Update the event provider to one that can execute workloads");
@@ -170,7 +207,7 @@ function documentReadinessDetail(plugin) {
         return _("Install an external selected-document provider");
     }
     if (plugin.workerState !== "ready") {
-        return _("Configure and qualify BGE and Qwen model providers");
+        return workerFailureDetail(plugin, _("Configure and qualify BGE and Qwen model providers"));
     }
     if (!plugin.protocol.capabilities.includes("execute")) {
         return _("Update the selected-document provider to one that can execute workloads");
@@ -200,7 +237,9 @@ function selectedTextReadinessDetail(plugin) {
         return providerDetail;
     }
     if (plugin.workerState !== "ready") {
-        return _("Configure and qualify a GPU or NPU generation provider");
+        return workerFailureDetail(
+            plugin, _("Configure and qualify a GPU or NPU generation provider"),
+        );
     }
     if (!plugin.protocol.capabilities.includes("execute")) {
         return _("Update the selected-text provider to one that can execute workloads");
@@ -248,7 +287,9 @@ function fileOrganizerReadinessDetail(plugin) {
         return _("Install an external file-organizer provider");
     }
     if (plugin.workerState !== "ready") {
-        return _("Configure and qualify a GPU or NPU generation provider");
+        return workerFailureDetail(
+            plugin, _("Configure and qualify a GPU or NPU generation provider"),
+        );
     }
     if (!plugin.protocol.capabilities.includes("execute")) {
         return _("Update the file-organizer provider to one that can execute workloads");
@@ -275,7 +316,7 @@ function mediaTranscriptionReadinessDetail(plugin) {
         return provider;
     }
     if (plugin.workerState !== "ready") {
-        return _("Qualify Whisper and Qwen VL on the selected accelerator");
+        return workerFailureDetail(plugin, _("Qualify Whisper and Qwen VL on the selected accelerator"));
     }
     if (!plugin.protocol.capabilities.includes("execute")) {
         return _("Update the media provider to one that can execute workloads");
@@ -369,6 +410,7 @@ class PluginInventoryGateway {
 module.exports = {
     INVENTORY_VERSION,
     MAX_PLUGINS,
+    MAX_WORKER_DETAIL,
     PluginInventoryGateway,
     documentQuestionReadiness,
     fileOrganizerReadiness,
@@ -388,4 +430,6 @@ module.exports = {
     validPermission,
     validPlugin,
     validProtocol,
+    validWorkerDetail,
+    workerFailureDetail,
 };
