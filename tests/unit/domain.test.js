@@ -427,3 +427,90 @@ test("unknown-content counting tolerates every hostile collection shape", () => 
 });
 
 module.exports = {NOW, validSnapshot};
+
+const device = (overrides = {}) => ({
+    id: "gpu-renderD128",
+    backend: "gpu",
+    available: true,
+    name: "GPU",
+    kind: "dri",
+    ...overrides,
+});
+
+// The device list is what the whole panel is about, so its normalisation is
+// load-bearing: a duplicate, an unbounded list, or a wrong preference order
+// puts the wrong accelerator in front of the user.
+test("devices are de-duplicated, bounded, and keep the order they arrived in", () => {
+    const normalized = Domain.normalizeDevices([
+        device({id: "gpu-renderD128"}),
+        device({id: "gpu-renderD129"}),
+        device({id: "gpu-renderD128", name: "Duplicate"}),
+    ]);
+    assert.deepEqual(normalized.map((entry) => entry.id), ["gpu-renderD128", "gpu-renderD129"]);
+    assert.equal(normalized[0].name, "GPU", "the first entry for an id wins");
+
+    const many = Array.from({length: Domain.MAX_DEVICES + 5}, (_value, index) => device({
+        id: `gpu-renderD${128 + index}`,
+    }));
+    assert.equal(Domain.normalizeDevices(many).length, Domain.MAX_DEVICES);
+
+    // Anything that is not a list of devices is an empty list, not a crash.
+    for (const candidate of [null, undefined, "devices", {}, 7]) {
+        assert.deepEqual(Domain.normalizeDevices(candidate), [], JSON.stringify(candidate));
+    }
+    // An entry that cannot be normalised is dropped rather than poisoning the list.
+    assert.deepEqual(
+        Domain.normalizeDevices([null, device({id: "gpu-renderD128"}), "nonsense"])
+            .map((entry) => entry.id),
+        ["gpu-renderD128"],
+    );
+});
+
+test("the aggregate device is the first available one in accelerator order", () => {
+    const tpu = device({id: "tpu-pcie-0", backend: "tpu", kind: "apex"});
+    const npu = device({id: "npu-accel0", backend: "npu", kind: "accel"});
+    const gpu = device({id: "gpu-renderD128", backend: "gpu"});
+
+    // Preference is tpu > npu > gpu regardless of the order they were listed.
+    assert.equal(Domain.aggregateDevice([gpu, npu, tpu]).id, "tpu-pcie-0");
+    assert.equal(Domain.aggregateDevice([gpu, npu]).id, "npu-accel0");
+    assert.equal(Domain.aggregateDevice([gpu]).id, "gpu-renderD128");
+
+    // Availability outranks preference: an absent TPU does not hide a live GPU.
+    assert.equal(
+        Domain.aggregateDevice([{...tpu, available: false}, gpu]).id,
+        "gpu-renderD128",
+    );
+
+    // All absent is a different answer from nothing probed, and the panel says
+    // so: one reports an absent accelerator, the other reports unknown.
+    const allAbsent = Domain.aggregateDevice([{...gpu, available: false}]);
+    assert.equal(allAbsent.available, false);
+    assert.equal(allAbsent.id, null);
+    assert.notEqual(allAbsent.state, Domain.aggregateDevice([]).state);
+});
+
+// A root the applet cannot resolve is worse than no root: the picture list
+// silently reads empty and nothing says why.
+test("input roots are absolute, bounded, and safe text", () => {
+    const inputs = Domain.normalizeInputs({
+        roots: ["/home/tester/pictures", "relative/path", "", "/home/tester/scans"],
+        maxBytes: 4096,
+    });
+    assert.deepEqual(inputs.roots, ["/home/tester/pictures", "/home/tester/scans"]);
+    assert.equal(inputs.maxBytes, 4096);
+    assert.equal(Object.isFrozen(inputs.roots), true);
+
+    for (const candidate of [null, undefined, {}, {roots: "not-a-list"}, 7]) {
+        assert.deepEqual(Domain.normalizeInputs(candidate).roots, [], JSON.stringify(candidate));
+    }
+
+    // A negative or nonsense byte bound reads as zero rather than as no bound.
+    for (const maxBytes of [-1, Number.NaN, "4096", null, undefined]) {
+        assert.equal(Domain.normalizeInputs({roots: [], maxBytes}).maxBytes, 0, String(maxBytes));
+    }
+
+    const many = Array.from({length: 200}, (_value, index) => `/root/${index}`);
+    assert.equal(Domain.normalizeInputs({roots: many, maxBytes: 1}).roots.length <= many.length, true);
+    assert.equal(Domain.normalizeInputs({roots: many, maxBytes: 1}).roots.length >= 1, true);
+});
