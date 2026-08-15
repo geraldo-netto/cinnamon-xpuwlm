@@ -194,8 +194,46 @@ const ACTIVE_WORKFLOW_PHASES = new Set([
 const REVIEW_WORKFLOW_PHASES = new Set(["preview", "confirm-export"]);
 const RECENT_WORKFLOW_PHASES = new Set(["complete", "error"]);
 
+// A generic workflow has no bespoke spec: its row is projected from the surface
+// model the registry already built, so registering a workflow is the only step
+// needed to make it appear.
+const GENERIC_TOOL_ICON = "system-run-symbolic";
+const GENERIC_DETAIL_PREFIX = "generic:";
+const genericDetailId = (detail) => (typeof detail === "string" && detail.startsWith(GENERIC_DETAIL_PREFIX)
+    ? detail.slice(GENERIC_DETAIL_PREFIX.length)
+    : "");
+
+function genericSurfaceModels(state) {
+    return Array.isArray(state.genericWorkflows) ? state.genericWorkflows : [];
+}
+
+function genericToolModel(surface) {
+    const working = surface.progress.visible;
+    return {
+        id: `${GENERIC_DETAIL_PREFIX}${surface.id}`,
+        detail: `${GENERIC_DETAIL_PREFIX}${surface.id}`,
+        icon: GENERIC_TOOL_ICON,
+        title: surface.title,
+        description: surface.description,
+        available: surface.status.tone !== "unavailable",
+        enabled: surface.status.tone !== "unavailable" || working,
+        phase: working ? "running" : "idle",
+        status: surface.status.label,
+        statusTone: surface.status.tone,
+        setupDetail: surface.unavailable.visible ? surface.unavailable.detail : "",
+        projected: surface,
+    };
+}
+
+function genericToolModels(state) {
+    return genericSurfaceModels(state).map(genericToolModel);
+}
+
 function toolModels(state, workflows, run) {
-    return TOOL_SPECS.map((spec) => toolModel(spec, state, workflows, run));
+    return [
+        ...TOOL_SPECS.map((spec) => toolModel(spec, state, workflows, run)),
+        ...genericToolModels(state),
+    ];
 }
 
 function toolStatus(available, working) {
@@ -653,6 +691,11 @@ module.exports = {
     runReason,
     runningWorkflowActivity,
     selectedTextModel,
+    GENERIC_DETAIL_PREFIX,
+    genericDetailId,
+    genericSurfaceModels,
+    genericToolModel,
+    genericToolModels,
     toolModel,
     toolModels,
     toolStatus,

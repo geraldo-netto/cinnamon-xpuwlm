@@ -146,6 +146,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._selectedTextUnsubscribe = null;
         this._fileOrganizerUnsubscribe = null;
         this._mediaTranscriptionUnsubscribe = null;
+        this._genericWorkflowUnsubscribe = null;
         this._chooserLifecycle = null;
         this._chooserLaunchHandle = null;
         this._chooserFeedback = null;
@@ -164,6 +165,11 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._createServices(metadata, overrides);
         this._createPresentation(overrides);
         this._unsubscribe = this._manager.subscribe((state) => this._render(state));
+        this._genericWorkflowUnsubscribe = this._genericWorkflows.subscribe(() => {
+            if (this._latestState) {
+                this._render(this._latestState);
+            }
+        });
         this._eventUnsubscribe = this._eventImport.subscribe(() => {
             if (this._latestState) {
                 this._render(this._latestState);
@@ -302,6 +308,16 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._selectedText = controllers.selectedText;
         this._fileOrganizer = controllers.fileOrganizer;
         this._mediaTranscription = controllers.mediaTranscription;
+        this._genericWorkflows = overrides.genericWorkflowRegistry
+            || WorkflowWiring.createGenericWorkflowRegistry({
+                descriptors: this._workloadRegistry.descriptors(),
+                gateway: () => this._platform.transport.createJobGateway(),
+                scheduler: this._scheduler,
+                clock: this._clock,
+                timer: this._scheduler,
+                leasePort: overrides.backgroundLeasePort || null,
+                logger: this._logger,
+            });
     }
 
     _createManager(overrides) {
@@ -456,6 +472,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             startMediaTranscription: () => this._mediaTranscription.start(),
             cancelMediaTranscription: () => this._mediaTranscription.cancel(),
             resetMediaTranscription: () => this._mediaTranscription.reset(),
+            dispatchGenericWorkflow: (id, action, value) => this._genericWorkflows.dispatch(id, action, value),
         };
     }
 
@@ -553,6 +570,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             selectedText: this._selectedText.state(),
             fileOrganizer: this._fileOrganizer.state(),
             mediaTranscription: this._mediaTranscription.state(),
+            genericWorkflows: this._genericWorkflows.models(),
         };
         const model = ViewModel.toViewModel(
             this._latestState,
@@ -806,6 +824,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         const selectedTextUnsubscribe = this._selectedTextUnsubscribe;
         const fileOrganizerUnsubscribe = this._fileOrganizerUnsubscribe;
         const mediaTranscriptionUnsubscribe = this._mediaTranscriptionUnsubscribe;
+        const genericWorkflowUnsubscribe = this._genericWorkflowUnsubscribe;
         const manager = this._manager;
         const notifier = this._notifier;
         const settings = this.settings;
@@ -829,6 +848,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             ["release the selected-text subscription", () => selectedTextUnsubscribe?.()],
             ["release the file-organizer subscription", () => fileOrganizerUnsubscribe?.()],
             ["release the media-transcription subscription", () => mediaTranscriptionUnsubscribe?.()],
+            ["release the generic workflow subscription", () => genericWorkflowUnsubscribe?.()],
             ["cancel plug-in inventory", () => this._pluginInventoryGateway?.cancel()],
             ["destroy the popup menu", () => this._destroyMenu()],
             ["dispose the workload manager", () => manager?.dispose()],
@@ -837,6 +857,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             ["dispose selected-text tools", () => this._selectedText?.dispose()],
             ["dispose file organizer", () => this._fileOrganizer?.dispose()],
             ["dispose media transcription", () => this._mediaTranscription?.dispose()],
+            ["dispose generic workflows", () => this._genericWorkflows?.dispose()],
             ["dispose the alert notifier", () => notifier?.dispose()],
             ["finalize the applet settings", () => settings?.finalize()],
         ]);

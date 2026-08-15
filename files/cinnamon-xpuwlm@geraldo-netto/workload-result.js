@@ -1,4 +1,4 @@
 "use strict";
 
-// Maintained public facade; production does not load it as a root bridge.
+// Cinnamon resolves nested CommonJS imports from the applet root.
 module.exports = require("./lib/workload-result.js");

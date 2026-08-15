@@ -37,6 +37,7 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "file-auto-tagging.js",
     "file-categorization.js",
     "file-organizer.js",
+    "generic-workflow-controller.js",
     "generic-workflow-menu-view.js",
     "generic-workflow-surface.js",
     "failure-log-backoff.js",

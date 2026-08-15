@@ -29,8 +29,12 @@ test("staging, checksums, install and uninstall verification round-trip", () => 
     // The staged tree is the payload: byte-identical files, nothing extra.
     const installReport = Package.verifyInstall(stagedRoot, checksums);
     assert.deepEqual(installReport, {ok: true, missing: [], mismatched: [], unexpected: []});
-    assert.equal(fs.existsSync(path.join(stagedRoot, "generic-workflow-surface.js")), false);
-    assert.equal(fs.existsSync(path.join(stagedRoot, "lib/generic-workflow-surface.js")), false);
+    // The generic workflow surface is wired, so it ships; a module the applet
+    // still cannot reach does not, which is what keeps staging honest.
+    assert.equal(fs.existsSync(path.join(stagedRoot, "generic-workflow-surface.js")), true);
+    assert.equal(fs.existsSync(path.join(stagedRoot, "lib/generic-workflow-surface.js")), true);
+    assert.equal(fs.existsSync(path.join(stagedRoot, "screenshot-assistant.js")), false);
+    assert.equal(fs.existsSync(path.join(stagedRoot, "lib/screenshot-assistant.js")), false);
     assert.equal(Package.runCommand(["verify", stagedRoot], () => {}), 0);
 
     // A tampered install fails verification with the offending path named.

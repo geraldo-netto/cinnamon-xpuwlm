@@ -7,13 +7,10 @@ const Package = require("../../scripts/package-applet.js");
 
 const UNREACHABLE_LIBRARIES = Object.freeze([
     "artifact-qualification.js",
-    "background-execution.js",
     "caption-export.js",
     "deterministic-action-port.js",
     "file-auto-tagging.js",
     "file-categorization.js",
-    "generic-workflow-menu-view.js",
-    "generic-workflow-surface.js",
     "image-duplicate-benchmark.js",
     "presentation-planning.js",
     "presentation-review.js",
@@ -24,7 +21,6 @@ const UNREACHABLE_LIBRARIES = Object.freeze([
     "screenshot-assistant.js",
     "telemetry-window.js",
     "workload-benchmark.js",
-    "workload-result.js",
 ]);
 
 test("applet payload JavaScript is exactly the production graph and its Cinnamon shims", () => {

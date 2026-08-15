@@ -1,4 +1,4 @@
 "use strict";
 
 // Cinnamon resolves nested CommonJS imports from the applet root.
-module.exports = require("./lib/background-execution.js");
+module.exports = require("./lib/generic-workflow-controller.js");

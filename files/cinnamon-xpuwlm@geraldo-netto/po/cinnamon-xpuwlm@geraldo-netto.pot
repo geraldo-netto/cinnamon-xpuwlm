@@ -462,7 +462,7 @@ msgstr ""
 msgid "Cancel selected-text request"
 msgstr ""
 
-#: lib/workflow-view-model.js
+#: lib/generic-workflow-controller.js lib/workflow-view-model.js
 msgid "Cancelled"
 msgstr ""
 
@@ -484,6 +484,10 @@ msgstr ""
 
 #: lib/selected-text.js
 msgid "Cancelling selected-text request…"
+msgstr ""
+
+#: lib/generic-workflow-controller.js
+msgid "Cancelling…"
 msgstr ""
 
 #: lib/menu-view.js
@@ -616,6 +620,10 @@ msgstr ""
 
 #: lib/workflow-document-question-menu-view.js
 msgid "Clear this answer and start again"
+msgstr ""
+
+#: lib/generic-workflow-controller.js
+msgid "Complete"
 msgstr ""
 
 #: lib/menu-view.js
@@ -1438,7 +1446,7 @@ msgstr ""
 msgid "Queue"
 msgstr ""
 
-#: lib/document-question.js lib/event-import.js lib/file-organizer.js lib/media-transcription.js lib/selected-text.js
+#: lib/document-question.js lib/event-import.js lib/file-organizer.js lib/generic-workflow-controller.js lib/media-transcription.js lib/selected-text.js
 msgid "Queued"
 msgstr ""
 
@@ -1540,6 +1548,10 @@ msgstr ""
 
 #: lib/selected-text.js
 msgid "Result ready"
+msgstr ""
+
+#: lib/workflow-wiring.js
+msgid "Results stay on this computer and are cleared when you clear them."
 msgstr ""
 
 #: lib/menu-view.js
@@ -1682,6 +1694,10 @@ msgstr ""
 msgid "Runtime did not report a media transcription"
 msgstr ""
 
+#: lib/generic-workflow-controller.js
+msgid "Runtime did not report a result"
+msgstr ""
+
 #: lib/selected-text.js
 msgid "Runtime did not report a selected-text result"
 msgstr ""
@@ -1724,6 +1740,10 @@ msgstr ""
 
 #: lib/manager.js
 msgid "Runtime rejected the change; retry"
+msgstr ""
+
+#: lib/generic-workflow-controller.js
+msgid "Runtime rejected the workflow"
 msgstr ""
 
 #: settings-schema.json
@@ -1918,6 +1938,10 @@ msgstr ""
 
 #: lib/media-transcription.js
 msgid "Submitting selected media…"
+msgstr ""
+
+#: lib/generic-workflow-controller.js
+msgid "Submitting…"
 msgstr ""
 
 #: lib/workflow-file-organizer-menu-view.js
@@ -2274,6 +2298,14 @@ msgstr ""
 
 #: lib/workflow-view-model.js
 msgid "Work with selected text"
+msgstr ""
+
+#: lib/generic-workflow-controller.js
+msgid "Workflow %s"
+msgstr ""
+
+#: lib/generic-workflow-controller.js
+msgid "Workflow failed"
 msgstr ""
 
 #: lib/generic-workflow-surface.js lib/workflow-view-model.js

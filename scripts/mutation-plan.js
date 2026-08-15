@@ -22,6 +22,7 @@ const BEHAVIOR_MODULES = new Set([
     "file-auto-tagging",
     "file-categorization",
     "file-organizer",
+    "generic-workflow-controller",
     "generic-workflow-surface",
     "ics-export",
     "job-submission",

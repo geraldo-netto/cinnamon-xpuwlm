@@ -9,15 +9,12 @@ const Package = require("../../scripts/package-applet.js");
 
 const INTENTIONAL_ROOT_FACADES = Object.freeze([
     "artifact-qualification.js",
-    "background-execution.js",
     "caption-export.js",
     "cinnamon-platform-adapter.js",
     "cinnamon-runtime.js",
     "deterministic-action-port.js",
     "file-auto-tagging.js",
     "file-categorization.js",
-    "generic-workflow-menu-view.js",
-    "generic-workflow-surface.js",
     "image-duplicate-benchmark.js",
     "presentation-planning.js",
     "presentation-review.js",
@@ -29,7 +26,6 @@ const INTENTIONAL_ROOT_FACADES = Object.freeze([
     "telemetry-window.js",
     "workflow-wiring.js",
     "workload-benchmark.js",
-    "workload-result.js",
 ]);
 
 function rootJavaScript() {

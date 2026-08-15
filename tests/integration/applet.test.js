@@ -485,7 +485,12 @@ test("injected platform composition owns app guidance, transport, and discovery"
         },
     };
     const {applet, menus, views} = appletHarness({platform});
-    assert.equal(calls.filter(([name]) => name === "job").length, 6);
+    // Five bespoke workflows and the picture submitter, plus one per executable
+    // profile: each generic workflow owns its transport, because disposing a
+    // controller cancels the gateway it holds.
+    const executable = BuiltIns.coreRegistry().descriptors()
+        .filter((descriptor) => descriptor.executable).length;
+    assert.equal(calls.filter(([name]) => name === "job").length, 6 + executable);
     for (const name of ["control", "watch", "contract", "inventory", "inputs", "guidance"]) {
         assert.equal(calls.some(([called]) => called === name), true, name);
     }
@@ -493,6 +498,38 @@ test("injected platform composition owns app guidance, transport, and discovery"
     menus[0].emit("open-state-changed", true);
     assert.equal(views[0].models[0].recovery.title, "Platform recovery");
     applet.on_applet_removed_from_panel();
+});
+
+test("generic workflow actions reach the registry and its failures are logged", () => {
+    const dispatched = [];
+    const genericWorkflowRegistry = {
+        dispatch(id, action, value) {
+            dispatched.push([id, action, value]);
+            return id === "visual-library";
+        },
+        models: () => [],
+        subscribe: () => () => true,
+        dispose: () => true,
+    };
+    const warned = [];
+    const {applet} = appletHarness({
+        genericWorkflowRegistry,
+        logger: {log() {}, warn: (message) => warned.push(message), error() {}},
+    });
+    const actions = applet._menuActions();
+
+    assert.equal(actions.dispatchGenericWorkflow("visual-library", "run-now", true), true);
+    assert.equal(actions.dispatchGenericWorkflow("absent", "run-now", false), false);
+    assert.deepEqual(dispatched, [
+        ["visual-library", "run-now", true],
+        ["absent", "run-now", false],
+    ]);
+
+    // The registry builds its own background reporter when the applet owns it,
+    // so reach that path through a real registry rather than this double.
+    const real = appletHarness();
+    real.applet._genericWorkflows.dispose();
+    assert.equal(warned.length, 0);
 });
 
 test("menu actions delegate without mixing responsibilities", () => {

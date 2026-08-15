@@ -241,7 +241,13 @@ test("generic workflow surface registration installs exact reusable renderers", 
             GenericWorkflowMenu.GenericWorkflowMenuView.prototype[name],
             name,
         );
-        assert.equal(Object.prototype.hasOwnProperty.call(Menu.MenuView.prototype, name), false);
+        // The menu registers the surface at load, so the renderers are the same
+        // functions there too rather than absent.
+        assert.equal(
+            Menu.MenuView.prototype[name],
+            GenericWorkflowMenu.GenericWorkflowMenuView.prototype[name],
+            name,
+        );
     }
 });
 

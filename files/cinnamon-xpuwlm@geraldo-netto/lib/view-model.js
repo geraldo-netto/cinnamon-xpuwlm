@@ -67,6 +67,7 @@ const {
     mediaWorkflowVisible,
     omittedCount,
     organizerEvidenceText,
+    genericSurfaceModels,
     progressText,
     readingModel,
     runModel,
@@ -464,6 +465,7 @@ function toViewModel(state, nowMs, guidance) {
         mediaTranscription: mediaTranscriptionModel(state),
     };
     const run = runModel(state);
+    const genericWorkflows = genericSurfaceModels(state);
     const tools = toolModels(state, workflows, run);
     const activity = activityModel(state, workflows, run);
     const setup = setupModel(profiles);
@@ -492,6 +494,7 @@ function toViewModel(state, nowMs, guidance) {
                     : format(ngettext("%d active job", "%d active jobs", activity.activeCount), activity.activeCount),
             ].filter(Boolean).join(" · ")
             : `${runtimeStatusText(state)} · ${healthOf(state).detail || state.device.reason} · ${format(_("Last update %s"), formatRelativeTime(state.generatedAt, nowMs))}`,
+        genericWorkflows,
         panel: panelModel(state),
         catalogNotice: catalogNoticeModel(state),
         unknownContent: unknownContentNotice(state),

@@ -5,8 +5,10 @@ const Layout = require("./layout.js");
 const ActorUtils = require("./menu-actor-utils.js");
 const MenuFocus = require("./menu-focus.js");
 const RenderHost = require("./menu-render-host.js");
+const GenericSurface = require("./generic-workflow-surface.js");
 const ViewModel = require("./view-model.js");
 const WorkflowMenu = require("./workflow-menu-view.js");
+const WorkflowViewModel = require("./workflow-view-model.js");
 
 const {_, N_, format, ngettext} = I18n;
 const {jobDetail} = WorkflowMenu;
@@ -567,6 +569,12 @@ class MenuView {
     }
 
     _renderSecondaryDetail(detail, model) {
+        const genericId = WorkflowViewModel.genericDetailId(detail);
+        if (genericId !== "") {
+            return this._renderGenericWorkflowSurface(
+                (model.genericWorkflows || []).find((surface) => surface.id === genericId) ?? null,
+            );
+        }
         if (detail === "media") {
             return this._renderMediaTranscription(model.mediaTranscription);
         }
@@ -1505,6 +1513,7 @@ class MenuView {
 }
 
 WorkflowMenu.installWorkflowRenderers(MenuView.prototype);
+GenericSurface.registerGenericWorkflowSurface(MenuView.prototype);
 
 module.exports = {
     IMMEDIATE_ACTION_SCHEDULER,

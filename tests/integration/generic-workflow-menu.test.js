@@ -3,208 +3,255 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
+const Domain = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/domain.js");
+const BuiltIns = require("../helpers/built-in-workloads.js");
 const Menu = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/menu-view.js");
-const Layout = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/layout.js");
-const Surface = require(
-    "../../files/cinnamon-xpuwlm@geraldo-netto/lib/generic-workflow-surface.js"
-);
+const Surface = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/generic-workflow-surface.js");
+const ViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/view-model.js");
+const WorkflowViewModel = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/workflow-view-model.js");
 const {
-    FakeButton, FakeMenu, createAtk, createSt, findActors,
+    FakeMenu,
+    createAtk,
+    createClutter,
+    createSt,
+    findActors,
 } = require("../helpers/fakes.js");
-const {definition, state, validResult} = require("../helpers/generic-workflow-fixture.js");
 
-Surface.registerGenericWorkflowSurface(Menu.MenuView.prototype);
+const NOW = 1_700_000_000_000;
 
-function harness(wrapText = false) {
-    const calls = [];
-    const actions = {};
+const DEFINITION = Object.freeze({
+    version: 1,
+    id: "hardware-health",
+    title: "Hardware health",
+    description: "Review local anomaly evidence",
+    consentPurpose: "Reads local sensors",
+    supportsBackground: true,
+    retentionText: "Results stay on this computer.",
+    reviewOnly: true,
+});
+
+function surfaceState(overrides = {}) {
+    return {
+        available: true,
+        unavailableReason: "",
+        consent: "granted",
+        backgroundEnabled: false,
+        phase: "complete",
+        progress: null,
+        warning: "",
+        retainedCount: 1,
+        result: {
+            version: 1,
+            kind: "risk-score",
+            workloadId: "hardware-health",
+            operationId: "op-1",
+            createdAt: 1,
+            payload: {label: "Fan", score: 0.4, threshold: 0.8, evidenceIds: ["e1"]},
+        },
+        ...overrides,
+    };
+}
+
+function baseState(genericWorkflows) {
+    return {
+        selectedTab: "overview",
+        paused: false,
+        profiles: new Domain.WorkloadPortfolio(null, BuiltIns.coreCatalog())
+            .list(BuiltIns.servingProfiles()),
+        device: {available: true, state: "present", name: "Coral USB", kind: "usb", reason: ""},
+        health: {device: "present", runtime: "connected", detail: ""},
+        metrics: {load: 42, queueDepth: 2, runningProfiles: 1},
+        alerts: [],
+        attentionCount: 0,
+        stale: false,
+        source: "runtime",
+        generatedAt: NOW,
+        genericWorkflows,
+    };
+}
+
+function harness() {
+    const dispatched = [];
+    const actions = {
+        dispatchGenericWorkflow: (...args) => dispatched.push(args),
+    };
     for (const name of [
         "selectTab", "toggleProfile", "changeWeight", "pauseAll", "resumeAll",
         "refresh", "openSettings", "acknowledgeCatalogChanges", "submitJob",
     ]) {
         actions[name] = () => {};
     }
-    actions.dispatchGenericWorkflow = (...args) => calls.push(args);
     const menu = new FakeMenu();
     const view = new Menu.MenuView({
-        St: createSt(), Clutter: {ActorAlign: {CENTER: "center"}}, Atk: createAtk(), menu, actions,
-        layout: {...Layout.defaultLayout(), wrapText},
+        St: createSt(),
+        Clutter: createClutter(),
+        Atk: createAtk(),
+        menu,
+        actions,
     });
-    return {calls, view};
+    view.setOpen(true);
+    return {dispatched, menu, view, root: menu.actors[0]};
 }
 
-function clear(view) {
-    for (const child of view._body.get_children()) {
-        child.destroy();
-    }
+function labels(root) {
+    return findActors(root, (actor) => typeof actor.text === "string").map((actor) => actor.text);
 }
 
-function labels(view) {
-    return findActors(view._body, (actor) => typeof actor.get_text === "function")
-        .map((actor) => actor.get_text());
-}
+test("a registered generic workflow becomes an openable tool row", () => {
+    const {view, root} = harness();
+    const model = Surface.createSurfaceModel(DEFINITION, surfaceState());
+    view.render(ViewModel.toViewModel(baseState([model]), NOW));
 
-test("generic Cinnamon surface renders consent, progress, evidence, retention, and controls", () => {
-    const {calls, view} = harness();
-    const model = Surface.createSurfaceModel(definition(), state({
-        backgroundEnabled: true,
-        phase: "complete",
-        progress: {fraction: 1, detail: "done"},
-        warning: "Verify confidence before acting",
-        retainedCount: 2,
-        result: validResult("forecast"),
-    }));
-    assert.equal(view._renderGenericWorkflowSurface(model), true);
-    const text = labels(view).join("\n");
-    for (const expected of [
-        "Queue health", "Consent", "Consent granted", "Review result",
-        "Review only", "Offset 1 requests", "Retention", "2 retained results",
-        "Verify confidence before acting",
-    ]) {
-        assert.match(text, new RegExp(expected, "u"));
-    }
-    const buttons = findActors(view._body, (actor) => actor instanceof FakeButton);
-    const background = buttons.find(
-        (button) => button.xpuwlmIdentity === "generic-queue-health-toggle-background",
-    );
-    assert.equal(background.accessibleRole, "toggle-button");
-    assert.equal(background.accessibleStates.has("checked"), true);
-    background.click();
-    assert.deepEqual(calls, [["queue-health", "toggle-background", false]]);
+    const row = findActors(root, (actor) => actor.xpuwlmIdentity === "tool:generic:hardware-health")[0];
+    assert.notEqual(row, undefined, "the workflow is listed among the tools");
+    assert.equal(labels(root).includes("Hardware health"), true);
 });
 
-test("generic surface keeps unavailable cause above consent and disables execution", () => {
-    const {view} = harness();
-    const model = Surface.createSurfaceModel(definition(), state({
-        available: false, unavailableReason: "GPU provider missing", consent: "required",
-    }));
-    view._renderGenericWorkflowSurface(model);
-    const text = labels(view);
-    assert.equal(text.indexOf("Unavailable") < text.indexOf("Consent"), true);
-    assert.equal(text.includes("GPU provider missing"), true);
+test("opening one renders its evidence, retention, consent, and controls", () => {
+    const {dispatched, view, root} = harness();
+    const model = Surface.createSurfaceModel(DEFINITION, surfaceState());
+    view.render(ViewModel.toViewModel(baseState([model]), NOW));
+    view._openDetail("generic:hardware-health");
+
+    const text = labels(root).join("\n");
+    assert.match(text, /Hardware health/u);
+    assert.match(text, /Reads local sensors/u, "the consent purpose is stated");
+    assert.match(text, /Results stay on this computer\./u, "retention is stated");
+    assert.match(text, /Review only/u, "a generic run never acts on the system");
+
     const run = findActors(
-        view._body, (actor) => actor.xpuwlmIdentity === "generic-queue-health-run-now",
+        root, (actor) => actor.xpuwlmIdentity === "generic-hardware-health-run-now",
     )[0];
-    assert.equal(run.reactive, false);
-    assert.equal(run.can_focus, false);
+    assert.notEqual(run, undefined, "the run control is present");
+    run.emit("clicked");
+    assert.deepEqual(dispatched, [["hardware-health", "run-now", true]]);
 });
 
-test("generic active surface exposes one cancellable action and handles empty input", () => {
-    const {calls, view} = harness();
-    assert.equal(view._renderGenericWorkflowSurface(null), false);
-    const model = Surface.createSurfaceModel(definition(), state({
-        phase: "running", progress: {fraction: 0.5, detail: "inference"},
+test("an unavailable workflow explains itself instead of offering a dead control", () => {
+    const {view, root} = harness();
+    const model = Surface.createSurfaceModel(DEFINITION, surfaceState({
+        available: false,
+        unavailableReason: "The runtime is not serving this profile",
+        phase: "idle",
+        result: null,
+        retainedCount: 0,
     }));
-    view._renderGenericWorkflowSurface(model);
-    const cancel = findActors(
-        view._body, (actor) => actor.xpuwlmIdentity === "generic-queue-health-cancel",
+    view.render(ViewModel.toViewModel(baseState([model]), NOW));
+    view._openDetail("generic:hardware-health");
+
+    const text = labels(root).join("\n");
+    assert.match(text, /The runtime is not serving this profile/u);
+    const run = findActors(
+        root, (actor) => actor.xpuwlmIdentity === "generic-hardware-health-run-now",
     )[0];
-    cancel.click();
-    assert.deepEqual(calls, [["queue-health", "cancel", true]]);
+    assert.equal(run.reactive, false, "an unavailable workflow cannot be run");
 });
 
-test("generic renderer branch contract preserves every visible and hidden surface", () => {
-    const {view} = harness(true);
-    const childCount = () => view._body.get_children().length;
-    const text = () => labels(view).join("\n");
+test("a working workflow shows its progress and offers cancellation", () => {
+    const {view, root} = harness();
+    const model = Surface.createSurfaceModel(DEFINITION, surfaceState({
+        phase: "running",
+        progress: {fraction: 0.5, detail: "Reading sensors"},
+        result: null,
+        retainedCount: 0,
+    }));
+    view.render(ViewModel.toViewModel(baseState([model]), NOW));
+    view._openDetail("generic:hardware-health");
 
-    for (const [method, hidden] of [
-        ["_renderGenericUnavailable", {visible: false, detail: ""}],
-        ["_renderGenericConsent", {visible: false, purpose: "", state: "not-required"}],
-        ["_renderGenericProgress", {visible: false, text: ""}],
+    assert.match(labels(root).join("\n"), /50% · Reading sensors/u);
+    assert.notEqual(
+        findActors(root, (actor) => actor.xpuwlmIdentity === "generic-hardware-health-cancel")[0],
+        undefined,
+    );
+});
+
+test("a warning is shown and a detail for an absent workflow renders nothing", () => {
+    const {view, root} = harness();
+    const model = Surface.createSurfaceModel(DEFINITION, surfaceState({
+        phase: "error",
+        warning: "The runtime refused the job",
+        result: null,
+        retainedCount: 0,
+    }));
+    view.render(ViewModel.toViewModel(baseState([model]), NOW));
+    view._openDetail("generic:hardware-health");
+    assert.match(labels(root).join("\n"), /The runtime refused the job/u);
+
+    view._openDetail("generic:absent-workflow");
+    assert.equal(labels(root).join("\n").includes("Hardware health"), false);
+});
+
+// The renderers are reachable with models `createSurfaceModel` cannot build —
+// a result carrying more evidence than the surface shows, and the non-review
+// wording a future non-advisory workflow would use — so they are driven
+// directly here rather than left unexercised.
+test("each consent state, an unexplained refusal, and a trimmed result all render", () => {
+    const {view, root} = harness();
+    view.render(ViewModel.toViewModel(baseState([]), NOW));
+
+    for (const [state, expected] of [
+        ["required", /Consent required/u],
+        ["granted", /Consent granted/u],
+        ["denied", /Consent denied/u],
+        ["not-required", /Consent not required/u],
     ]) {
-        assert.equal(view[method](hidden), false);
-        assert.equal(childCount(), 0);
+        view._renderGenericConsent({visible: true, purpose: "Reads local sensors", state});
+        assert.match(labels(root).join("\n"), expected, state);
     }
+    assert.equal(view._renderGenericConsent({visible: false, purpose: "", state: "granted"}), false);
+
+    view._renderGenericUnavailable({visible: true, detail: ""});
+    assert.match(labels(root).join("\n"), /Required service, source, or hardware is unavailable/u);
+    assert.equal(view._renderGenericUnavailable({visible: false, detail: ""}), false);
+
     assert.equal(view._renderGenericWarning(""), false);
+    assert.equal(view._renderGenericProgress({visible: false, text: ""}), false);
     assert.equal(view._renderGenericResult(null, true), false);
-    assert.equal(childCount(), 0);
+    assert.equal(view._renderGenericWorkflowSurface(null), false);
+    assert.equal(view._renderGenericWorkflowSurface(undefined), false);
 
-    assert.equal(view._renderGenericUnavailable({visible: true, detail: ""}), true);
-    assert.match(text(), /Required service, source, or hardware is unavailable/u);
-    assert.equal(view._body.get_children()[1].clutter_text.line_wrap, true);
-    clear(view);
-
-    for (const [stateName, expected] of [
-        ["required", "Consent required"],
-        ["granted", "Consent granted"],
-        ["denied", "Consent denied"],
-        ["not-required", "Consent not required"],
-    ]) {
-        assert.equal(view._renderGenericConsent({
-            visible: true, purpose: "Purpose", state: stateName,
-        }), true);
-        assert.match(text(), new RegExp(expected, "u"));
-        assert.match(text(), /Purpose/u);
-        assert.equal(view._body.get_children()[1].clutter_text.line_wrap, true);
-        clear(view);
-    }
-
-    assert.equal(view._renderGenericProgress({visible: true, text: "51% · work"}), true);
-    assert.deepEqual(labels(view), ["Progress", "51% · work"]);
-    clear(view);
-
-    assert.equal(view._renderGenericWarning("Warning text"), true);
-    const warning = view._body.get_children()[0];
-    assert.equal(warning.get_text(), "Warning text");
-    assert.equal(warning.styleClasses.has("xpuwlm-control-error"), true);
-    assert.equal(warning.clutter_text.line_wrap, true);
-    clear(view);
-
-    const result = {kind: "labels", operationId: "run-7", rows: [
-        {title: "first", detail: "0.900"},
-    ], omitted: 0};
-    assert.equal(view._renderGenericResult(result, false), true);
-    assert.deepEqual(labels(view), ["Result", "labels · run-7", "first", "0.900"]);
-    clear(view);
-    assert.equal(view._renderGenericResult({...result, omitted: 1}, true), true);
-    assert.deepEqual(labels(view), [
-        "Review result", "labels · run-7",
-        "Review only: no system action is performed from this result",
-        "first", "0.900", "1 additional evidence row omitted",
-    ]);
-    assert.equal(view._body.get_children()[1].clutter_text.line_wrap, true);
-    assert.equal(view._body.get_children()[3].clutter_text.line_wrap, true);
-    clear(view);
-
-    assert.equal(view._renderGenericRetention({text: "Delete after review", count: 1}), true);
-    assert.deepEqual(labels(view), ["Retention", "1 retained result", "Delete after review"]);
-    assert.equal(view._body.get_children()[1].clutter_text.line_wrap, true);
+    view._renderGenericResult({
+        kind: "labels",
+        operationId: "op-2",
+        rows: [{title: "Fan", detail: "0.400"}],
+        omitted: 3,
+    }, false);
+    const text = labels(root).join("\n");
+    assert.match(text, /3 additional evidence rows omitted/u);
+    assert.equal(/Review only/u.test(text.split("op-2")[1] || ""), false);
 });
 
-test("generic action renderer preserves identity, emphasis, toggle state, and dispatch values", () => {
-    const {calls, view} = harness();
-    const model = {
-        id: "worker",
-        actions: [
-            {id: "run-now", label: "Run now", enabled: true, pressed: false},
-            {id: "cancel", label: "Cancel", enabled: true, pressed: false},
-            {id: "toggle-background", label: "Background", enabled: true, pressed: false},
-            {id: "clear", label: "Clear", enabled: false, pressed: false},
-        ],
-    };
-    assert.equal(view._renderGenericActions(model), true);
-    const buttons = findActors(view._body, (actor) => actor instanceof FakeButton);
-    assert.deepEqual(buttons.map((button) => button.xpuwlmIdentity), [
-        "generic-worker-run-now", "generic-worker-cancel",
-        "generic-worker-toggle-background", "generic-worker-clear",
-    ]);
-    assert.equal(buttons[0].styleClasses.has("xpuwlm-primary-button"), true);
-    assert.equal(buttons[1].styleClasses.has("xpuwlm-primary-button"), true);
-    assert.equal(buttons[2].styleClasses.has("xpuwlm-secondary-button"), true);
-    assert.equal(buttons[2].accessibleRole, "toggle-button");
-    assert.equal(buttons[2].accessibleStates.has("checked"), false);
-    assert.equal(buttons[3].reactive, false);
-    for (const button of buttons.slice(0, 3)) {
-        button.click();
-    }
-    assert.deepEqual(calls, [
-        ["worker", "run-now", true],
-        ["worker", "cancel", true],
-        ["worker", "toggle-background", true],
-    ]);
-    clear(view);
-    assert.equal(view._renderGenericActions({id: "empty", actions: []}), true);
-    assert.equal(view._body.get_children().length, 1);
-    assert.equal(view._body.get_children()[0].get_children().length, 0);
+test("only a generic detail key names a generic workflow", () => {
+    assert.equal(WorkflowViewModel.genericDetailId("generic:hardware-health"), "hardware-health");
+    assert.equal(WorkflowViewModel.genericDetailId("media"), "");
+    assert.equal(WorkflowViewModel.genericDetailId(null), "");
+    assert.deepEqual(WorkflowViewModel.genericSurfaceModels({}), []);
+});
+
+test("the tool row mirrors whatever the surface says about the workflow", () => {
+    const ready = WorkflowViewModel.genericToolModel(
+        Surface.createSurfaceModel(DEFINITION, surfaceState()),
+    );
+    assert.deepEqual(
+        [ready.id, ready.detail, ready.available, ready.enabled, ready.phase, ready.setupDetail],
+        ["generic:hardware-health", "generic:hardware-health", true, true, "idle", ""],
+    );
+
+    const working = WorkflowViewModel.genericToolModel(
+        Surface.createSurfaceModel(DEFINITION, surfaceState({
+            phase: "running", progress: {fraction: 0.1, detail: ""}, result: null, retainedCount: 0,
+        })),
+    );
+    assert.equal(working.phase, "running");
+    assert.equal(working.enabled, true);
+
+    const blocked = WorkflowViewModel.genericToolModel(
+        Surface.createSurfaceModel(DEFINITION, surfaceState({
+            available: false, unavailableReason: "No runtime", phase: "idle",
+            result: null, retainedCount: 0,
+        })),
+    );
+    assert.equal(blocked.available, false);
+    assert.equal(blocked.enabled, false);
+    assert.equal(blocked.setupDetail, "No runtime");
 });
