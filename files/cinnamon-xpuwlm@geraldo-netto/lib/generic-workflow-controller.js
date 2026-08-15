@@ -294,7 +294,11 @@ class GenericWorkflowController extends Workflow.RuntimeWorkflowController {
         if (Surface.ACTIVE_PHASES.has(SURFACE_PHASES[this._state.phase])) {
             return false;
         }
-        if (this._state.result === null && this._state.retainedCount === 0) {
+        // A failed run has neither a result nor a retained count, and refusing
+        // here left it stuck reporting an old failure with nothing to press.
+        if (this._state.result === null
+            && this._state.retainedCount === 0
+            && this._state.phase !== "error") {
             return false;
         }
         this._replace({result: null, retainedCount: 0, phase: "idle", message: "", progress: null});

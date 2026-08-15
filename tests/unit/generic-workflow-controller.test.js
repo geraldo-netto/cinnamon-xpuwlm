@@ -707,6 +707,28 @@ test("availability and its reason come from the snapshot the runtime published",
     registry.dispose();
 });
 
+// Live regression: a failed run has neither a result nor a retained count, so
+// the clear rule refused it and the surface offered no control at all. The
+// workflow read "Needs attention" until some later run happened to succeed.
+test("a failed run can be dismissed even though it retained nothing", () => {
+    const {controller} = harness({accept: false});
+    controller.setAvailability(true);
+    controller.runNow();
+
+    const failed = controller.model();
+    assert.equal(failed.status.tone, "attention");
+    assert.equal(failed.retention.count, 0);
+    assert.equal(failed.result, null);
+    const dismiss = failed.actions.find((item) => item.id === "clear");
+    assert.notEqual(dismiss, undefined, "the surface offers a way out");
+    assert.equal(dismiss.label, "Dismiss", "nothing was retained, so nothing is cleared");
+
+    assert.equal(controller.clearResults(), true);
+    assert.equal(controller.model().status.label, "Ready");
+    assert.equal(controller.model().warning, "");
+    assert.equal(controller.clearResults(), false, "an idle workflow has nothing to dismiss");
+});
+
 test("a disposed controller refuses further work", () => {
     const {controller} = harness();
     controller.setAvailability(true);

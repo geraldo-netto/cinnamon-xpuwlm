@@ -804,7 +804,7 @@ msgstr ""
 msgid "Discovery runs again on request."
 msgstr ""
 
-#: lib/menu-view.js lib/view-model.js
+#: lib/generic-workflow-surface.js lib/menu-view.js lib/view-model.js
 msgid "Dismiss"
 msgstr ""
 

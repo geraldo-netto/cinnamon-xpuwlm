@@ -210,10 +210,17 @@ function cancelActions(state, active) {
     return active ? [action("cancel", _("Cancel"), state.phase !== "cancelling")] : [];
 }
 
+// A failed run leaves a warning and nothing else, so a rule that only offered
+// this for retained results left the workflow reading "Needs attention" with
+// no way to dismiss it short of a successful run.
 function clearActions(state, active) {
-    return state.result !== null || state.retainedCount > 0
-        ? [action("clear", _("Clear retained results"), !active)]
-        : [];
+    if (state.result === null && state.retainedCount === 0 && state.phase !== "error") {
+        return [];
+    }
+    const label = state.result === null && state.retainedCount === 0
+        ? _("Dismiss")
+        : _("Clear retained results");
+    return [action("clear", label, !active)];
 }
 
 function actionModels(definition, state) {
