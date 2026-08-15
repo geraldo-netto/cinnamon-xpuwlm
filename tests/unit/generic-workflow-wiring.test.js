@@ -45,13 +45,29 @@ test("a profile's definition is projected from the manifest it already ships", (
 });
 
 test("the submission a generic run sends is the runtime's own job contract", () => {
-    const build = Wiring.genericRequestBuilder("hardware-health");
+    const inputs = [[[1, 2], [3, 4]]];
+    const build = Wiring.genericRequestBuilder("hardware-health", () => inputs);
     const request = build("xpuwlm-hardware-health-1-1");
 
     assert.equal(request.workloadId, "hardware-health");
     assert.equal(request.requestId, "xpuwlm-hardware-health-1-1");
-    assert.deepEqual(request.payload, {});
-    assert.throws(() => Wiring.genericRequestBuilder("Not An Id")("bad request id"), /invalid/u);
+    assert.deepEqual(request.payload, {inputs});
+    assert.throws(
+        () => Wiring.genericRequestBuilder("Not An Id", () => inputs)("bad request id"),
+        /invalid/u,
+    );
+});
+
+// Live regression: the runtime refuses a payload without an `inputs` array, so
+// a run with nothing to send was always going to come back rejected. Refusing
+// locally says the same thing in words the user can act on.
+test("a run with nothing to send is refused before the bus", () => {
+    for (const supply of [() => [], () => null, undefined]) {
+        const build = supply === undefined
+            ? Wiring.genericRequestBuilder("hardware-health")
+            : Wiring.genericRequestBuilder("hardware-health", supply);
+        assert.throws(() => build("xpuwlm-hardware-health-1-1"), /no input to send/u);
+    }
 });
 
 test("only executable profiles become generic workflows", () => {

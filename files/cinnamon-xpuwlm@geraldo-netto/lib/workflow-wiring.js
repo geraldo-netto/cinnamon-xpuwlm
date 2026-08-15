@@ -173,13 +173,23 @@ function genericDefinition(profile) {
     };
 }
 
-function genericRequestBuilder(profileId) {
+// Every job the runtime accepts carries input tensors: `dispatch.py` refuses a
+// payload without an `inputs` array, and the canonical schema cannot express
+// that because it bounds the payload without describing it. A generic run with
+// nothing to send is therefore a refusal, and it is worth making locally —
+// submitting it anyway spends a bus round trip to be told the same thing in
+// runtime vocabulary the user cannot act on.
+function genericRequestBuilder(profileId, inputsFor = () => []) {
     return (requestId) => {
+        const inputs = inputsFor(profileId);
+        if (!Array.isArray(inputs) || inputs.length === 0) {
+            throw new TypeError(_("This workflow has no input to send yet"));
+        }
         const document = {
             version: Job.JOB_VERSION,
             requestId,
             workloadId: profileId,
-            payload: {},
+            payload: {inputs},
         };
         if (!Job.isJobSubmission(document)) {
             throw new TypeError(`Generic workflow submission for ${profileId} is invalid`);
@@ -194,7 +204,9 @@ function backgroundErrorReporter(logger) {
     return (error) => logger.warn(`Background workflow failed: ${error}`);
 }
 
-function createGenericWorkflowRegistry({descriptors, gateway, scheduler, clock, timer, leasePort, logger}) {
+function createGenericWorkflowRegistry({
+    descriptors, gateway, scheduler, clock, timer, leasePort, logger, inputsFor,
+}) {
     const background = timer && leasePort && logger
         ? new Background.BackgroundExecution({
             timer, leasePort, reportError: backgroundErrorReporter(logger),
@@ -211,7 +223,7 @@ function createGenericWorkflowRegistry({descriptors, gateway, scheduler, clock, 
             gateway: gateway(),
             scheduler,
             clock,
-            buildRequest: genericRequestBuilder(profile.id),
+            buildRequest: genericRequestBuilder(profile.id, inputsFor),
         }));
     }
     return registry;

@@ -314,7 +314,8 @@ test("a request the workflow cannot build never reaches the transport", () => {
     });
     controller.setAvailability(true);
     assert.equal(controller.runNow(), false);
-    assert.match(controller.model().warning, /submission is invalid/u);
+    assert.equal(controller.model().warning, "submission is invalid",
+        "the user reads the sentence, not the constructor name");
     assert.equal(calls.length, 0);
 });
 
@@ -664,6 +665,45 @@ test("every action the surface offers is routed by the registry", () => {
     assert.equal(registry.dispatch("hardware-health", "clear"), true);
     assert.equal(registry.dispatch("hardware-health", "revoke-consent"), true);
     assert.equal(registry.models()[0].consent.state, "denied");
+    registry.dispose();
+});
+
+// Live regression: with nothing driving availability every generic workflow
+// read "Unavailable" with no reason after it, and Run could never be pressed.
+test("availability and its reason come from the snapshot the runtime published", () => {
+    const registry = new Controller.GenericWorkflowRegistry();
+    const serving = harness({definition: {...DEFINITION, id: "visual-library"}});
+    const blocked = harness({definition: {...DEFINITION, id: "low-light-enhancement"}});
+    registry.register(serving.controller);
+    registry.register(blocked.controller);
+    const servable = (profile) => ["healthy", "running", "watching", "idle"].includes(profile.status)
+        && profile.enabled !== false;
+
+    assert.equal(registry.applyProfiles([
+        {id: "visual-library", status: "watching", enabled: true, detail: "Serving on gpu"},
+        {
+            id: "low-light-enhancement",
+            status: "unavailable",
+            enabled: true,
+            detail: "gpu: the manifest declares this model without a sha256",
+        },
+    ], servable), true);
+
+    const [ready, stopped] = registry.models();
+    assert.equal(ready.status.label, "Ready");
+    assert.equal(ready.actions.find((action) => action.id === "run-now").enabled, true);
+    assert.equal(stopped.status.label, "Unavailable");
+    assert.match(stopped.unavailable.detail, /without a sha256/u);
+    assert.equal(stopped.actions.find((action) => action.id === "run-now").enabled, false);
+
+    // A profile the snapshot stops declaring has no reason left to give.
+    assert.equal(registry.applyProfiles([], servable), true);
+    assert.equal(registry.models()[0].status.label, "Unavailable");
+    assert.equal(registry.models()[0].unavailable.detail, "");
+    assert.equal(registry.applyProfiles([], servable), false, "no change to publish");
+
+    assert.equal(registry.applyProfiles(null, servable), false);
+    assert.throws(() => registry.applyProfiles([], null), /predicate is required/u);
     registry.dispose();
 });
 

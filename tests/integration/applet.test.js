@@ -531,6 +531,7 @@ test("generic workflow actions reach the registry and its failures are logged", 
             return id === "visual-library";
         },
         models: () => [],
+        applyProfiles: (profiles) => dispatched.push(["profiles", profiles.length]),
         subscribe: () => () => true,
         dispose: () => true,
     };
@@ -543,10 +544,13 @@ test("generic workflow actions reach the registry and its failures are logged", 
 
     assert.equal(actions.dispatchGenericWorkflow("visual-library", "run-now", true), true);
     assert.equal(actions.dispatchGenericWorkflow("absent", "run-now", false), false);
-    assert.deepEqual(dispatched, [
+    assert.deepEqual(dispatched.filter(([name]) => name !== "profiles"), [
         ["visual-library", "run-now", true],
         ["absent", "run-now", false],
     ]);
+    // Every published snapshot hands the registry the profiles it describes,
+    // which is where availability and its reason come from.
+    assert.equal(dispatched.some(([name, count]) => name === "profiles" && count > 0), true);
 
     // The registry builds its own background reporter when the applet owns it,
     // so reach that path through a real registry rather than this double.

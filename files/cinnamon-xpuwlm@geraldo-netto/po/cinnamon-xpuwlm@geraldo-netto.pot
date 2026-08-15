@@ -2188,6 +2188,10 @@ msgstr ""
 msgid "This runtime cannot report job outcomes; the job was accepted"
 msgstr ""
 
+#: lib/workflow-wiring.js
+msgid "This workflow has no input to send yet"
+msgstr ""
+
 #: lib/workflow-event-import-menu-view.js
 msgid "Timezone"
 msgstr ""

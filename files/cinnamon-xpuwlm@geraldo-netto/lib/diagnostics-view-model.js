@@ -49,6 +49,9 @@ function diagnosticsReport(state, tools, activity, setup, control, nowMs) {
         `${_("Active jobs")}: ${activity.activeCount}`,
         `${_("Needs setup")}: ${setupCount}`,
         `${_("Recent issues")}: ${state.attentionCount}`,
+        // A report that omits the local record cannot answer "was anything
+        // being kept?", which is the first question asked of one.
+        `${_("Local load record")}: ${telemetryHealth(state.telemetry).status}`,
         `${_("Last update")}: ${formatRelativeTime(state.generatedAt, nowMs)}`,
     ].join("\n");
 }

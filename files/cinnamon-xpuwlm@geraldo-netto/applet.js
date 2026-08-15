@@ -580,6 +580,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             return;
         }
         this._telemetry.record(state);
+        this._genericWorkflows.applyProfiles(state.profiles, ViewModel.canServe);
         this._latestState = {
             ...state,
             eventImport: this._eventImport.state(),

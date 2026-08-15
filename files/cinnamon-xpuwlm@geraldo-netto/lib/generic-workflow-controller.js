@@ -156,7 +156,9 @@ class GenericWorkflowController extends Workflow.RuntimeWorkflowController {
         try {
             request = this._buildRequest(`xpuwlm-${this._definition.id}-${this._clock.now()}-${sequence}`);
         } catch (error) {
-            return this._fail(error.detail || String(error));
+            // `String(error)` prefixes the constructor name, which turns a
+            // sentence written for the user into "TypeError: ...".
+            return this._fail(error.detail || error.message || String(error));
         }
         this._replace({phase: "submitting", message: _("Submitting…"), progress: null, result: null});
         try {
@@ -357,6 +359,30 @@ class GenericWorkflowRegistry {
 
     controller(id) {
         return this._controllers.get(id) ?? null;
+    }
+
+    // Availability is the runtime's answer, not the applet's: a profile the
+    // runtime is not serving cannot be run, and the reason it gives is the only
+    // thing that tells the user what to do about it. Without this every
+    // workflow reads "Unavailable" with nothing after it.
+    applyProfiles(profiles, servable) {
+        if (typeof servable !== "function") {
+            throw new TypeError("A profile serving predicate is required");
+        }
+        const declared = new Map((Array.isArray(profiles) ? profiles : [])
+            .filter((profile) => this._controllers.has(profile?.id))
+            .map((profile) => [profile.id, profile]));
+        let changed = false;
+        for (const [id, controller] of this._controllers) {
+            // A profile the snapshot stopped declaring is not merely idle: the
+            // catalog no longer contains it, and there is nothing to say why.
+            const profile = declared.get(id);
+            changed = controller.setAvailability(
+                profile !== undefined && servable(profile),
+                profile?.detail || "",
+            ) || changed;
+        }
+        return changed;
     }
 
     models() {

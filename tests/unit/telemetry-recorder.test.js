@@ -174,3 +174,30 @@ test("the diagnostics row states what is kept, and for how long", () => {
     assert.equal(Diagnostics.telemetryHealth(null).status, "Off");
     assert.equal(Diagnostics.telemetryHealth("nonsense").status, "Off");
 });
+
+// Live regression: the health list carried the record but the copyable report
+// did not, so the report could not answer whether anything was being kept.
+test("the copyable diagnostics report states the record's status too", () => {
+    const state = {
+        device: {available: true, name: "AMD GPU", reason: ""},
+        health: {device: "present", runtime: "connected", detail: ""},
+        generatedAt: 1_700_000_000_000,
+        attentionCount: 0,
+        telemetry: {consented: true, samples: 5, gaps: 0, retentionMs: Recorder.RETENTION_MS},
+    };
+    const report = Diagnostics.diagnosticsReport(
+        state,
+        [],
+        {activeCount: 0},
+        {sections: []},
+        {available: true},
+        1_700_000_000_000,
+    );
+    assert.match(report, /Local load record: 5 readings/u);
+
+    const off = Diagnostics.diagnosticsReport(
+        {...state, telemetry: {consented: false, samples: 0, gaps: 0, retentionMs: 0}},
+        [], {activeCount: 0}, {sections: []}, {available: true}, 1_700_000_000_000,
+    );
+    assert.match(off, /Local load record: Off/u);
+});
