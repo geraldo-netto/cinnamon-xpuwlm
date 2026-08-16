@@ -24,6 +24,13 @@ const SETTINGS_WM_CLASS = "xlet-settings.py";
 // stopped using xlet-settings — must not leave a signal handler waiting for
 // the life of the session.
 const SETTINGS_WAIT_SECONDS = 20;
+// How long the window is kept centred after it appears. The window manager
+// places a new window itself, and whether that happens before or after the
+// first idle turn is a race: measured both ways on the same desk, once
+// centred and once left in the corner. So the placement is re-applied while
+// the window settles, and released afterwards — a window the person moves a
+// second later is theirs.
+const SETTLE_MS = 2000;
 
 function isSettingsWindow(window, wmClass = SETTINGS_WM_CLASS) {
     if (!window || typeof window.get_wm_class !== "function") {
@@ -72,15 +79,36 @@ function shouldPlace(window) {
     return true;
 }
 
-function placeWindow(window) {
+// Where this window would sit if it were centred now, or null when that
+// cannot be worked out.
+function targetFor(window) {
     if (!shouldPlace(window)) {
-        return false;
+        return null;
     }
     const workArea = typeof window.get_work_area_current_monitor === "function"
         ? window.get_work_area_current_monitor()
         : null;
-    const target = centredFrame(workArea, window.get_frame_rect());
-    if (!target || typeof window.move_frame !== "function") {
+    return centredFrame(workArea, window.get_frame_rect());
+}
+
+// Already there. Asked before every move so that re-applying the placement
+// while the window settles cannot become a loop: a move to where the window
+// already is would emit another position change, which would move it again.
+function isPlaced(window) {
+    const target = targetFor(window);
+    if (!target) {
+        return false;
+    }
+    const frame = window.get_frame_rect();
+    return frame.x === target.x && frame.y === target.y;
+}
+
+function placeWindow(window) {
+    if (!shouldPlace(window)) {
+        return false;
+    }
+    const target = targetFor(window);
+    if (!target || typeof window.move_frame !== "function" || isPlaced(window)) {
         return false;
     }
     // `true` for a user operation: this is the person having asked for the
@@ -93,8 +121,11 @@ function placeWindow(window) {
 module.exports = {
     SETTINGS_WAIT_SECONDS,
     SETTINGS_WM_CLASS,
+    SETTLE_MS,
     centredFrame,
+    isPlaced,
     isSettingsWindow,
     placeWindow,
     shouldPlace,
+    targetFor,
 };

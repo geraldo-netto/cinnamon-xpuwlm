@@ -111,6 +111,39 @@ test("shouldPlace answers for the window, not for the placement", () => {
     assert.equal(Placement.shouldPlace(settingsWindow({get_frame_rect: undefined})), false);
 });
 
+test("a window already where it belongs is not moved again", () => {
+    // Re-applying the placement while the window settles must not become a
+    // loop: a move emits a position change, which would ask for another move.
+    const window = settingsWindow({
+        get_frame_rect: () => ({x: 1520, y: 744, width: 800, height: 632}),
+    });
+
+    assert.equal(Placement.isPlaced(window), true);
+    assert.equal(Placement.placeWindow(window), false);
+    assert.equal(window.moved, undefined);
+});
+
+test("a window in the corner is not where it belongs", () => {
+    assert.equal(Placement.isPlaced(settingsWindow()), false);
+    assert.equal(Placement.isPlaced(settingsWindow({allows_move: () => false})), false);
+    assert.equal(Placement.isPlaced(null), false);
+});
+
+test("the target is where the window would sit if it were centred now", () => {
+    assert.deepEqual(Placement.targetFor(settingsWindow()), {x: 1520, y: 744});
+    assert.equal(Placement.targetFor(settingsWindow({get_frame_rect: undefined})), null);
+    assert.equal(
+        Placement.targetFor(settingsWindow({get_work_area_current_monitor: () => null})),
+        null,
+    );
+});
+
+test("the settle window is bounded, so the person can move it afterwards", () => {
+    assert.equal(Number.isInteger(Placement.SETTLE_MS), true);
+    assert.ok(Placement.SETTLE_MS > 0);
+    assert.ok(Placement.SETTLE_MS <= 5000);
+});
+
 test("the wait is bounded, so a window that never appears stops being waited for", () => {
     assert.equal(Number.isInteger(Placement.SETTINGS_WAIT_SECONDS), true);
     assert.ok(Placement.SETTINGS_WAIT_SECONDS > 0);

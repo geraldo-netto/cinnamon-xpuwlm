@@ -327,20 +327,42 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
                 return;
             }
             handler = this._stopWaiting(display, handler);
-            // One turn of the loop, so the window has been given its size:
-            // centring a window that is still 1×1 puts it in the middle and
-            // then lets it grow down and right from there.
-            mainloop.idle_add(() => {
-                try {
-                    WindowPlacement.placeWindow(window);
-                } catch (error) {
-                    this._logger.warn(`could not place the settings window: ${error}`);
-                }
-                return false;
-            });
+            this._settleSettingsWindow(window, mainloop);
         });
         mainloop.timeout_add_seconds(WindowPlacement.SETTINGS_WAIT_SECONDS, () => {
             handler = this._stopWaiting(display, handler);
+            return false;
+        });
+        return true;
+    }
+
+    // A window is created before the window manager has placed it, and the
+    // placement lands either side of the first idle turn depending on how long
+    // the settings process took to start — measured both ways. So the centring
+    // is re-applied for as long as the window is still settling, and released
+    // after that, because a window the person moves later is theirs.
+    _settleSettingsWindow(window, mainloop) {
+        const place = () => {
+            try {
+                WindowPlacement.placeWindow(window);
+            } catch (error) {
+                this._logger.warn(`could not place the settings window: ${error}`);
+            }
+            return false;
+        };
+        // Always from an idle turn, never from inside the signal: a move made
+        // while the window manager is still handling its own placement is
+        // accepted and then discarded — measured, with the window reporting
+        // the corner it started in and no second position change at all.
+        let moved = 0;
+        if (typeof window.connect === "function") {
+            moved = window.connect("position-changed", () => mainloop.idle_add(place));
+        }
+        mainloop.idle_add(place);
+        mainloop.timeout_add(WindowPlacement.SETTLE_MS, () => {
+            if (moved && typeof window.disconnect === "function") {
+                window.disconnect(moved);
+            }
             return false;
         });
         return true;

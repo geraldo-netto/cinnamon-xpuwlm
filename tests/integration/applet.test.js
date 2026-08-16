@@ -181,11 +181,33 @@ class FakeDisplay {
 function settingsWindow(overrides = {}) {
     return {
         get_wm_class: () => "Xlet-settings.py",
-        get_frame_rect: () => ({x: 90, y: 90, width: 800, height: 632}),
+        signals: new Map(),
+        connect(signal, callback) {
+            const id = this.signals.size + 1;
+            this.signals.set(id, {signal, callback});
+            return id;
+        },
+        disconnect(id) {
+            this.signals.delete(id);
+        },
+        // What the window manager does a moment after the window is created.
+        placedByTheWindowManager(x, y) {
+            this.frame = {x, y, width: 800, height: 632};
+            for (const {signal, callback} of [...this.signals.values()]) {
+                if (signal === "position-changed") {
+                    callback(this);
+                }
+            }
+        },
+        frame: {x: 90, y: 90, width: 800, height: 632},
+        get_frame_rect() {
+            return this.frame;
+        },
         get_work_area_current_monitor: () => ({x: 0, y: 0, width: 3840, height: 2120}),
         allows_move: () => true,
         move_frame(userOperation, x, y) {
             this.moved = {userOperation, x, y};
+            this.frame = {...this.frame, x, y};
         },
         ...overrides,
     };
@@ -243,6 +265,12 @@ global.imports = {
             const id = nextTimerId;
             nextTimerId += 1;
             idlers.set(id, callback);
+            return id;
+        },
+        timeout_add(milliseconds, callback) {
+            const id = nextTimerId;
+            nextTimerId += 1;
+            timers.set(id, {milliseconds, callback});
             return id;
         },
         source_remove: (id) => timers.delete(id),
@@ -631,5 +659,57 @@ test("a shell that publishes no display is left alone", () => {
 
     assert.equal(applet._placeSettingsWindow(null, global.imports.mainloop), false);
     assert.equal(applet._placeSettingsWindow({}, global.imports.mainloop), false);
+    applet.on_applet_removed_from_panel();
+});
+
+test("a window the manager places after the first idle turn is still centred", () => {
+    // The measured race: the window manager places a new window itself, and
+    // that landed either side of the idle depending on how long the settings
+    // process took to start. Centred once, left in the corner once.
+    const applet = build();
+    const display = new FakeDisplay();
+    const window = settingsWindow();
+
+    applet._placeSettingsWindow(display, global.imports.mainloop);
+    display.open(window);
+    runIdlers();
+    window.placedByTheWindowManager(50, 50);
+    // The correction is queued, not made inside the signal: a move made while
+    // the window manager is still placing the window is silently discarded.
+    assert.deepEqual(window.get_frame_rect(), {x: 50, y: 50, width: 800, height: 632});
+    runIdlers();
+
+    assert.deepEqual(window.moved, {userOperation: true, x: 1520, y: 744});
+    applet.on_applet_removed_from_panel();
+});
+
+test("the applet stops correcting the window once it has settled", () => {
+    const applet = build();
+    const display = new FakeDisplay();
+    const window = settingsWindow();
+
+    applet._placeSettingsWindow(display, global.imports.mainloop);
+    display.open(window);
+    runIdlers();
+    const settling = [...timers.values()].filter((timer) => timer.milliseconds).slice(-1)[0];
+    settling.callback();
+    window.placedByTheWindowManager(50, 50);
+    runIdlers();
+
+    // Released: a window the person moves a second later is theirs.
+    assert.deepEqual(window.get_frame_rect(), {x: 50, y: 50, width: 800, height: 632});
+    applet.on_applet_removed_from_panel();
+});
+
+test("a window that cannot report signals is still placed once", () => {
+    const applet = build();
+    const display = new FakeDisplay();
+    const window = settingsWindow({connect: undefined, disconnect: undefined});
+
+    applet._placeSettingsWindow(display, global.imports.mainloop);
+    display.open(window);
+    runIdlers();
+
+    assert.deepEqual(window.moved, {userOperation: true, x: 1520, y: 744});
     applet.on_applet_removed_from_panel();
 });
