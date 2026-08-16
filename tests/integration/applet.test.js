@@ -350,6 +350,22 @@ test("clicking the applet toggles its popup", () => {
     applet.on_applet_removed_from_panel();
 });
 
+test("an applet whose icon actor cannot be sized says so instead of throwing", () => {
+    // Cinnamon's private icon actor is not part of the applet API: a shell
+    // that moves it must cost the size, not the panel presence.
+    const applet = build();
+    const real = applet._applet_icon;
+    applet._applet_icon = null;
+    assert.equal(applet._applyPanelIconSize(32), false);
+    applet._applet_icon = {};
+    assert.equal(applet._applyPanelIconSize(32), false);
+
+    applet._applet_icon = real;
+    assert.equal(applet._applyPanelIconSize(30), true);
+    assert.equal(real.size, 30);
+    applet.on_applet_removed_from_panel();
+});
+
 test("a panel height change redraws the icon rather than leaving a stale one", () => {
     const applet = build();
     const drawn = applet.symbolicIconNames.length;

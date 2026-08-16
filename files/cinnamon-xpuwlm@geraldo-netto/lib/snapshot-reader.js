@@ -18,7 +18,11 @@
 // I looked", which is not the question anyone is asking; the client's Health
 // page keeps a minute of samples and shows the ninetieth percentile.
 
-const MAX_SNAPSHOT_BYTES = 512 * 1024;
+// No ceiling: the runtime dropped its own profile cap, so a snapshot can be
+// larger than any number this file could have guessed, and refusing to read it
+// would report a working runtime as absent — the failure the panel exists to
+// tell apart from a real one.
+const MAX_SNAPSHOT_BYTES = null;
 // The service republishes every two seconds; three misses is a runtime that
 // has stopped, not one that is briefly busy.
 const STALE_AFTER_MS = 15000;
@@ -119,6 +123,15 @@ function stateFromDocument(document, nowMs) {
     });
 }
 
+// The ceiling is off by default rather than deleted: a caller that sets one is
+// still held to it, so re-imposing a bound is a one-line change.
+function tooLargeFor(contents, ceiling) {
+    if (ceiling === null || contents.length <= ceiling) {
+        return null;
+    }
+    return failed("malformed", "The runtime snapshot is larger than the panel reads");
+}
+
 // `environment` carries GLib and Gio so this stays testable off a desktop:
 // the applet passes the real ones, a test passes doubles.
 function readSnapshot(environment, filename, nowMs) {
@@ -130,8 +143,9 @@ function readSnapshot(environment, filename, nowMs) {
         if (!ok) {
             return failed("unreadable", "The runtime snapshot could not be read");
         }
-        if (contents.length > MAX_SNAPSHOT_BYTES) {
-            return failed("malformed", "The runtime snapshot is larger than the panel reads");
+        const oversized = tooLargeFor(contents, MAX_SNAPSHOT_BYTES);
+        if (oversized !== null) {
+            return oversized;
         }
         text = environment.decode(contents);
     } catch (error) {
@@ -163,4 +177,5 @@ module.exports = {
     primaryDevice,
     readSnapshot,
     stateFromDocument,
+    tooLargeFor,
 };

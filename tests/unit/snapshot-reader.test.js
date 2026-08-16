@@ -188,13 +188,37 @@ test("a read the platform reports as unsuccessful is unreadable", () => {
     assert.equal(Reader.readSnapshot(failing, "/state.json", NOW).runtime, "unreadable");
 });
 
-test("a snapshot larger than the panel reads is refused before parsing", () => {
-    const oversized = Buffer.alloc(Reader.MAX_SNAPSHOT_BYTES + 1, "x");
+test("a snapshot larger than any guessed ceiling is still read", () => {
+    // The runtime publishes one entry per installed workload with no cap, so a
+    // size limit here would report a working runtime as absent.
+    const published = JSON.stringify({
+        version: 1,
+        generatedAt: NOW,
+        devices: [{backend: "gpu", available: true}],
+        metrics: {queueDepth: 0, runningProfiles: 0},
+        profiles: {},
+        alerts: [],
+        padding: "x".repeat(2 * 1024 * 1024),
+    });
     const huge = {
         GLib: {get_home_dir: () => "/home/tester"},
-        Gio: {IOErrorEnum: {NOT_FOUND: 1}, File: {new_for_path: () => ({load_contents: () => [true, oversized]})}},
+        Gio: {
+            IOErrorEnum: {NOT_FOUND: 1},
+            File: {new_for_path: () => ({load_contents: () => [true, Buffer.from(published)]})},
+        },
         decode: (value) => value.toString("utf8"),
     };
 
-    assert.equal(Reader.readSnapshot(huge, "/state.json", NOW).runtime, "malformed");
+    assert.equal(Reader.MAX_SNAPSHOT_BYTES, null);
+    assert.equal(Reader.readSnapshot(huge, "/state.json", NOW).runtime, "connected");
+});
+
+test("a ceiling, when one is set, is still enforced before parsing", () => {
+    // The ceiling is off by default, not deleted: a caller that sets one is
+    // still held to it, so re-imposing a bound stays a one-line change.
+    const contents = Buffer.alloc(64, "x");
+
+    assert.equal(Reader.tooLargeFor(contents, null), null);
+    assert.equal(Reader.tooLargeFor(contents, 1024), null);
+    assert.equal(Reader.tooLargeFor(contents, 16).runtime, "malformed");
 });
