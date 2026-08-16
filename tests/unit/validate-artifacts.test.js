@@ -141,50 +141,38 @@ test("payload validation accepts injected roots and rejects repository files", (
     }));
 });
 
-test("JSON validation rejects an absent stage and every non-strict schema", (context) => {
+test("JSON validation rejects an absent stage", (context) => {
     const missingRoot = temporaryDirectory();
     context.after(() => fs.rmSync(missingRoot, {recursive: true, force: true}));
     assert.throws(() => Artifacts.validateJsonArtifacts({
         appletRoot: path.join(missingRoot, "missing"),
         repositoryRoot: missingRoot,
     }));
-
-    const roots = copiedRepository(context);
-    const schemas = [
-        "runtime-snapshot.schema.json",
-        "artifact-qualification.schema.json",
-        "workload-result.schema.json",
-        "workload-manifest.schema.json",
-        "runtime-command.schema.json",
-        "runtime-acknowledgement.schema.json",
-        "runtime-refusal.schema.json",
-        "runtime-contract.schema.json",
-    ];
-    for (const filename of schemas) {
-        const target = path.join(roots.appletRoot, filename);
-        const schema = JSON.parse(fs.readFileSync(target, "utf8"));
-        fs.writeFileSync(target, JSON.stringify({...schema, unknownStrictKeyword: true}));
-        assert.throws(
-            () => Artifacts.validateJsonArtifacts(roots),
-            /strict mode: unknown keyword/u,
-            filename,
-        );
-        fs.writeFileSync(target, JSON.stringify(schema));
-    }
 });
 
-test("JSON validation refuses empty workloads and non-directories", (context) => {
-    const emptyRoots = copiedRepository(context);
-    fs.rmSync(path.join(emptyRoots.appletRoot, "workloads"), {recursive: true, force: true});
-    fs.mkdirSync(path.join(emptyRoots.appletRoot, "workloads"));
-    assert.throws(() => Artifacts.validateJsonArtifacts(emptyRoots));
-
-    const fileRoots = copiedRepository(context);
-    fs.writeFileSync(path.join(fileRoots.appletRoot, "workloads/not-a-directory"), "invalid");
-    assert.throws(
-        () => Artifacts.validateJsonArtifacts(fileRoots),
-        /Workload must be a directory/u,
+test("JSON validation refuses a mirrored contract schema reappearing", (context) => {
+    // The helper reads six fields to draw an icon; the client validates the
+    // document. A schema copy here would be a second reader to keep in parity.
+    const roots = copiedRepository(context);
+    fs.writeFileSync(
+        path.join(roots.appletRoot, "runtime-snapshot.schema.json"),
+        JSON.stringify({type: "object"}),
     );
+
+    assert.throws(
+        () => Artifacts.validateJsonArtifacts(roots),
+        /must not ship mirrored contract schemas/u,
+    );
+});
+
+test("JSON validation pins the settings default to the reader's own path", (context) => {
+    const roots = copiedRepository(context);
+    const settingsPath = path.join(roots.appletRoot, "settings-schema.json");
+    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+    settings["runtime-state-path"].default = "~/somewhere/else.json";
+    fs.writeFileSync(settingsPath, JSON.stringify(settings));
+
+    assert.throws(() => Artifacts.validateJsonArtifacts(roots));
 });
 
 test("workflow and JavaScript validation cannot become empty stages", (context) => {
@@ -248,4 +236,13 @@ test("static validation checks the stage and every shipped icon", (context) => {
         "<svg><script/></svg>",
     );
     assert.throws(() => Artifacts.validateStaticAssets(roots));
+});
+
+test("the payload comparator orders names deterministically", () => {
+    // The staged inventory is compared name by name, so equal, before, and
+    // after all have to answer — a comparator that only ever returns -1 sorts
+    // nothing and would let an inventory drift through unnoticed.
+    assert.equal(Artifacts.compareText("same", "same"), 0);
+    assert.equal(Artifacts.compareText("a", "b") < 0, true);
+    assert.equal(Artifacts.compareText("b", "a") > 0, true);
 });

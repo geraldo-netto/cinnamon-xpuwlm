@@ -10,9 +10,10 @@ const {BEHAVIOR_MODULES, mutationTargets} = require("../../scripts/mutation-plan
 
 test("scoped mutation config pairs every source with focused unit tests", () => {
     const targets = mutationTargets();
-    // Two behaviour modules joined the scope with XTPU-0183: the generic
-    // workflow controller and the telemetry recorder.
-    assert.equal(targets.length, 47);
+    // Three, after XTPU-0196: the status model, the snapshot read, and the
+    // launcher. Everything else that could be silently wrong moved to the
+    // Python client and is measured there.
+    assert.equal(targets.length, 3);
     assert.equal(targets.length, BEHAVIOR_MODULES.size);
     assert.equal(new Set(targets.map((target) => target.source)).size, targets.length);
     for (const target of targets) {

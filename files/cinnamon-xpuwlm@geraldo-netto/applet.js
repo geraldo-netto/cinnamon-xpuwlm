@@ -1,15 +1,26 @@
 "use strict";
 
+// The Cinnamon helper: a panel presence and a way into the client.
+//
+// This applet used to be the product — workload screens, workflow forms,
+// policy controls, a hand-written mirror of every runtime contract, all in
+// GJS. All of that now lives in the Python client (`../xpuwlm`), which owns
+// its own window, its own GTK, and its own validation against the canonical
+// schemas. What a panel is genuinely good at is what is left here: showing at
+// a glance whether the accelerator is working and whether anything is
+// waiting, and opening the thing that can do something about it.
+//
+// The helper never talks to the runtime's socket. It reads the published
+// snapshot file, because drawing an icon must not cost a round trip, and it
+// starts the client with one spawn per user action. Two directions, no third
+// contract to keep in parity.
+
 const Applet = imports.ui.applet;
 const Atk = imports.gi.Atk;
 const ByteArray = imports.byteArray;
 const Gettext = imports.gettext;
-const Clutter = imports.gi.Clutter;
-const GdkPixbuf = imports.gi.GdkPixbuf;
-const Gdk = imports.gi.Gdk;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
-const Gtk = imports.gi.Gtk;
 const Main = imports.ui.main;
 const Mainloop = imports.mainloop;
 const PopupMenu = imports.ui.popupMenu;
@@ -18,32 +29,19 @@ const St = imports.gi.St;
 const Tooltips = imports.ui.tooltips;
 const Util = imports.misc.util;
 
-const AlertNotifier = require("./lib/alert-notifier.js");
-const CinnamonPlatform = require("./lib/cinnamon-platform-adapter.js");
-const CinnamonRuntime = require("./lib/cinnamon-runtime.js");
-const ClipboardSelectionPort = require("./lib/clipboard-selection-port.js");
-const Domain = require("./lib/domain.js");
-const ExternalChooser = require("./lib/external-chooser-port.js");
-const FailureBackoff = require("./lib/failure-log-backoff.js");
 const I18n = require("./lib/i18n.js");
-const JobSubmission = require("./lib/job-submission.js");
-const Layout = require("./lib/layout.js");
-const Manager = require("./lib/manager.js");
-const Menu = require("./lib/menu-view.js");
-const TelemetryRecorder = require("./lib/telemetry-recorder.js");
-const PluginInventory = require("./lib/plugin-inventory.js");
-const PlatformPorts = require("./lib/platform-ports.js");
-const ViewModel = require("./lib/view-model.js");
-const WorkloadRegistry = require("./lib/workload-registry.js");
-const WorkflowWiring = require("./lib/workflow-wiring.js");
+const PanelStatus = require("./lib/panel-status.js");
+const SnapshotReader = require("./lib/snapshot-reader.js");
 const XpuwlmLauncher = require("./lib/xpuwlm-launcher.js");
 
-const {_} = I18n;
+const {_, format} = I18n;
 
 const UUID = "cinnamon-xpuwlm@geraldo-netto";
-const PANEL_STATUSES = Object.freeze(["online", "attention", "detected", "paused", "unavailable"]);
 const DEFAULT_PANEL_ICON_SIZE = 32;
 const MIN_PANEL_ICON_SIZE = 1;
+const DEFAULT_REFRESH_SECONDS = 2;
+const MIN_REFRESH_SECONDS = 1;
+const MAX_REFRESH_SECONDS = 60;
 
 // Binds the applet UUID text domain and routes the shared translation port
 // through GJS gettext. Absent gettext (test harnesses) keeps the identity
@@ -66,63 +64,40 @@ function installTranslations(gettextModule, environment) {
     return true;
 }
 
-function panelIconFilename(status) {
-    const safeStatus = PANEL_STATUSES.includes(status) ? status : "unavailable";
-    return `xpuwlm-status-${safeStatus}-symbolic.svg`;
-}
-
-function panelIconName(status) {
-    return panelIconFilename(status).slice(0, -4);
-}
-
 function panelIconSize(requestedSize) {
     return Number.isFinite(requestedSize) && requestedSize > 0
         ? Math.max(MIN_PANEL_ICON_SIZE, Math.floor(requestedSize))
         : DEFAULT_PANEL_ICON_SIZE;
 }
 
+function refreshSeconds(requestedSeconds) {
+    if (!Number.isFinite(requestedSeconds)) {
+        return DEFAULT_REFRESH_SECONDS;
+    }
+    return Math.max(MIN_REFRESH_SECONDS, Math.min(MAX_REFRESH_SECONDS, Math.floor(requestedSeconds)));
+}
+
 function defaultEnvironment() {
-    return {ByteArray, Gdk, GdkPixbuf, Gio, GLib, Gtk};
+    return {
+        GLib,
+        Gio,
+        decode: (contents) => ByteArray.toString(contents),
+    };
 }
 
 function defaultLogger() {
-    return CinnamonRuntime.createLogger("XPU Workload Manager");
+    return {warn: (message) => global.logWarning(`[${UUID}] ${message}`)};
 }
 
 function settingsInstanceId(metadata, instanceId) {
-    const maximum = metadata?.["max-instances"];
-    return maximum === 1 ? metadata.uuid : instanceId;
+    return metadata && metadata["max-instances"] === 1 ? UUID : instanceId;
 }
 
 function createAppletSettings(owner, metadata, instanceId, overrides, environment) {
-    if (overrides.settings) {
+    if (overrides && overrides.settings) {
         return overrides.settings;
     }
-    if (overrides.settingsFactory) {
-        return overrides.settingsFactory(owner);
-    }
-    const currentIdentity = CinnamonRuntime.readCurrentIdentitySettings(
-        metadata.uuid,
-        settingsInstanceId(metadata, instanceId),
-        environment,
-    );
-    const settings = new Settings.AppletSettings(owner, metadata.uuid, instanceId);
-    CinnamonRuntime.migrateLegacyAppletSettings(settings, environment);
-    CinnamonRuntime.restoreCurrentRefreshInterval(settings, currentIdentity);
-    return settings;
-}
-
-function resolveWorkloadCatalog(workloadRegistry) {
-    return new Domain.WorkloadCatalog(WorkloadRegistry.profileDefinitions(workloadRegistry));
-}
-
-function resolveWorkloadRegistry(metadata, environment, override, logger = defaultLogger()) {
-    return override || CinnamonRuntime.createMergedWorkloadRegistry({
-        bundledRoot: `${metadata.path}/workloads`,
-        environment,
-        uuid: UUID,
-        logger,
-    });
+    return new Settings.AppletSettings(owner, UUID, settingsInstanceId(metadata, instanceId), environment);
 }
 
 class XpuWorkloadApplet extends Applet.TextIconApplet {
@@ -131,37 +106,26 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._metadata = metadata;
         this._orientation = orientation;
         this._destroyed = false;
-        this._latestState = null;
+        this._timer = null;
+        this._state = SnapshotReader.EMPTY_STATE;
         this._panelIconStatus = null;
-        this._menuOpen = false;
+        this._lineItems = [];
+        this._environment = overrides.environment || defaultEnvironment();
         this._logger = overrides.logger || defaultLogger();
+        this._now = overrides.now || (() => Date.now());
         this._launcher = overrides.launcher || XpuwlmLauncher.createLauncher(
-            {GLib},
+            this._environment,
             (commandLine) => Util.spawnCommandLineAsync(commandLine),
             this._logger,
         );
         this.settings = null;
         this.menu = null;
         this.menuManager = null;
-        this._view = null;
-        this._manager = null;
-        this._notifier = null;
-        this._poller = null;
-        this._unsubscribe = null;
-        this._eventUnsubscribe = null;
-        this._documentUnsubscribe = null;
-        this._selectedTextUnsubscribe = null;
-        this._fileOrganizerUnsubscribe = null;
-        this._mediaTranscriptionUnsubscribe = null;
-        this._genericWorkflowUnsubscribe = null;
-        this._chooserLifecycle = null;
-        this._chooserLaunchHandle = null;
-        this._chooserFeedback = null;
         try {
             this._construct(metadata, instanceId, overrides);
         } catch (error) {
-            // A half-built applet must not stay in the panel holding a timer, a
-            // subscription, or a settings binding.
+            // A half-built applet must not stay in the panel holding a timer
+            // or a settings binding.
             this._teardown();
             throw error;
         }
@@ -169,761 +133,168 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
 
     _construct(metadata, instanceId, overrides) {
         this._createSettings(metadata, instanceId, overrides);
-        this._createServices(metadata, overrides);
         this._createPresentation(overrides);
-        this._unsubscribe = this._manager.subscribe((state) => this._render(state));
-        this._genericWorkflowUnsubscribe = this._genericWorkflows.subscribe(() => {
-            if (this._latestState) {
-                this._render(this._latestState);
-            }
-        });
-        this._eventUnsubscribe = this._eventImport.subscribe(() => {
-            if (this._latestState) {
-                this._render(this._latestState);
-            }
-            this._restoreChooserFeedback(this._eventImport, this._eventImport.state().phase);
-        });
-        this._documentUnsubscribe = this._documentQuestion.subscribe(() => {
-            if (this._latestState) {
-                this._render(this._latestState);
-            }
-            this._restoreChooserFeedback(
-                this._documentQuestion,
-                this._documentQuestion.state().phase,
-            );
-        });
-        this._selectedTextUnsubscribe = this._selectedText.subscribe(() => {
-            if (this._latestState) {
-                this._render(this._latestState);
-            }
-        });
-        this._fileOrganizerUnsubscribe = this._fileOrganizer.subscribe(() => {
-            if (this._latestState) {
-                this._render(this._latestState);
-            }
-            this._restoreChooserFeedback(this._fileOrganizer, this._fileOrganizer.state().phase);
-        });
-        this._mediaTranscriptionUnsubscribe = this._mediaTranscription.subscribe(() => {
-            if (this._latestState) {
-                this._render(this._latestState);
-            }
-            this._restoreChooserFeedback(
-                this._mediaTranscription,
-                this._mediaTranscription.state().phase,
-            );
-        });
-        this._manager.start();
-        this._refreshEventAvailability();
-        this._poller.start(this.refreshInterval);
+        this.refresh();
+        this._startTimer();
     }
 
     _createSettings(metadata, instanceId, overrides) {
-        this._environment = overrides.environment || defaultEnvironment();
-        installTranslations(
-            Object.hasOwn(overrides, "gettext") ? overrides.gettext : Gettext,
-            this._environment,
-        );
-        this.settings = createAppletSettings(
-            this,
-            metadata,
-            instanceId,
-            overrides,
-            this._environment,
-        );
-        this._bindSettings();
-        this._registerIconPath();
-        this.set_applet_icon_symbolic_name("xpuwlm-v2-symbolic");
-        this._applyPanelIconSize(this._iconSize);
-        this.set_applet_tooltip(_("XPU Workload Manager — starting"));
-        this.actor.set_accessible_name(_("XPU Workload Manager, starting"));
-    }
-
-    _createServices(metadata, overrides) {
-        this._workloadRegistry = resolveWorkloadRegistry(
-            metadata,
-            this._environment,
-            overrides.workloadRegistry,
-            this._logger,
-        );
-        this._workloadCatalog = resolveWorkloadCatalog(this._workloadRegistry);
-        this._clock = overrides.clock || Date;
-        this._platform = PlatformPorts.requirePlatformComposition(
-            overrides.platform || CinnamonPlatform.createCinnamonPlatform({
-                environment: this._environment,
-                clock: this._clock,
-                logger: this._logger,
-                workloadCatalog: this._workloadCatalog,
-            }),
-        );
-        this._runtimeGatewayFactory = overrides.runtimeGatewayFactory
-            || ((path) => this._platform.discovery.createRuntimeGateway(path));
-        this._repository = overrides.repository
-            || CinnamonRuntime.createStateRepository(this._environment, this.settings);
-        this._runtimeGateway = overrides.runtimeGateway
-            || this._runtimeGatewayFactory(this.runtimeStatePath);
-        this._scheduler = overrides.scheduler || new CinnamonRuntime.CinnamonScheduler(Mainloop);
-        this._createControlPorts(overrides);
-        this._createEventPorts(overrides);
-        this._manager = this._createManager(overrides);
-        this._notifier = this._createNotifier(overrides);
-        this._poller = overrides.poller
-            || new CinnamonRuntime.CinnamonPoller(Mainloop, () => this._refresh());
-    }
-
-    // All three ports address the same bus name: the control gateway changes
-    // policy on it, the watch reports whether anything owns it, and the
-    // contract gateway asks what the owner speaks before either is used.
-    _createControlPorts(overrides) {
-        this._controlGateway = overrides.controlGateway
-            || this._platform.transport.createControlGateway();
-        this._jobSubmitter = overrides.jobSubmitter || new JobSubmission.JobSubmitter({
-            gateway: this._platform.transport.createJobGateway(),
-            imagePort: CinnamonRuntime.createImagePort(this._environment),
-            clock: overrides.clock || Date,
-            paths: this._platform.paths,
-        });
-        this._inputCatalog = overrides.inputCatalog
-            || this._platform.discovery.createInputCatalog();
-        this._controlWatch = overrides.controlWatch
-            || this._platform.transport.createControlWatch();
-        this._contractGateway = overrides.contractGateway
-            || this._platform.transport.createContractGateway();
-    }
-
-    _createEventPorts(overrides) {
-        try {
-            this._chooserLifecycle = ExternalChooser.requireChooserLifecycle(
-                overrides.chooserLifecycle
-                || new ExternalChooser.ExternalChooserLifecycle(this._environment),
-            );
-        } catch {
-            this._chooserLifecycle = null;
-        }
-        this._pluginInventoryGateway = overrides.pluginInventoryGateway
-            || this._platform.transport.createPluginInventoryGateway();
-        const controllers = WorkflowWiring.createWorkflowControllers({
-            environment: this._environment,
-            chooserLifecycle: this._chooserLifecycle,
-            scheduler: this._scheduler,
-            clock: this._clock,
-            paths: this._platform.paths,
-            jobGatewayFactory: () => this._platform.transport.createJobGateway(),
-            overrides,
-        });
-        this._eventImport = controllers.eventImport;
-        this._documentQuestion = controllers.documentQuestion;
-        this._selectedText = controllers.selectedText;
-        this._fileOrganizer = controllers.fileOrganizer;
-        this._mediaTranscription = controllers.mediaTranscription;
-        this._telemetry = overrides.telemetryRecorder || new TelemetryRecorder.TelemetryRecorder();
-        // The binding only fires on change, so a session that starts with the
-        // setting already on would otherwise record nothing until it is toggled.
-        this._telemetry.setConsent(this.telemetryConsent === true);
-        this._genericWorkflows = overrides.genericWorkflowRegistry
-            || WorkflowWiring.createGenericWorkflowRegistry({
-                descriptors: this._workloadRegistry.descriptors(),
-                gateway: () => this._platform.transport.createJobGateway(),
-                scheduler: this._scheduler,
-                clock: this._clock,
-                timer: this._scheduler,
-                leasePort: overrides.backgroundLeasePort || null,
-                logger: this._logger,
-            });
-    }
-
-    _createManager(overrides) {
-        return overrides.manager || new Manager.WorkloadManager({
-            repository: this._repository,
-            runtimeGateway: this._runtimeGateway,
-            contractGateway: this._contractGateway,
-            controlGateway: this._controlGateway,
-            controlWatch: this._controlWatch,
-            jobSubmitter: this._jobSubmitter,
-            inputCatalog: this._inputCatalog,
-            errorReporter: overrides.errorReporter
-                || new FailureBackoff.FailureErrorBackoff({logger: this._logger}),
-            logger: this._logger,
-            clock: this._clock,
-            scheduler: this._scheduler,
-            workloadRegistry: this._workloadRegistry,
-        });
-    }
-
-    _createNotifier(overrides) {
-        return overrides.notifier || new AlertNotifier.CriticalAlertNotifier({
-            notifications: overrides.notifications
-                || CinnamonRuntime.createCriticalNotifications(Main),
-            errorReporter: overrides.notificationReporter
-                || new FailureBackoff.FailureErrorBackoff({logger: this._logger}),
-            clock: this._clock,
-        });
+        this.settings = createAppletSettings(this, metadata, instanceId, overrides, this._orientation);
+        this._showPanelLabel = false;
+        this._refreshInterval = DEFAULT_REFRESH_SECONDS;
+        this._runtimeStatePath = SnapshotReader.RUNTIME_STATE_PATH;
+        this.settings.bind("show-panel-label", "_showPanelLabel", () => this._render());
+        this.settings.bind("refresh-interval", "_refreshInterval", () => this._startTimer());
+        this.settings.bind("runtime-state-path", "_runtimeStatePath", () => this.refresh());
     }
 
     _createPresentation(overrides) {
-        this._menuFactory = overrides.menuFactory
-            || ((applet, orientation) => new Applet.AppletPopupMenu(applet, orientation));
-        this._menuManagerFactory = overrides.menuManagerFactory
-            || ((applet) => new PopupMenu.PopupMenuManager(applet));
-        this._layoutProvider = overrides.layoutProvider
-            || CinnamonRuntime.createLayoutProvider({Main, St});
-        // Cinnamon constructs the applet before adding its actor to the stage.
-        // Measuring here makes findMonitorForActor query an unstaged widget and
-        // emits St-CRITICAL messages. The popup re-measures when it opens.
-        this._layout = Layout.defaultLayout();
-        this._viewFactory = overrides.viewFactory
-            || ((menu, layout) => new Menu.MenuView({
-                St,
-                Clutter,
-                Atk,
-                menu,
-                layout,
-                actionScheduler: this._scheduler,
-                actions: this._menuActions(),
-                // A Cinnamon tooltip attaches itself to the actor and dies with
-                // it, so the popup only has to hand over the pair.
-                tooltips: overrides.tooltips
-                    || ((actor, text) => new Tooltips.Tooltip(actor, text)),
-            }));
-        this.menuManager = this._menuManagerFactory(this);
-        this._createMenu(this._orientation);
+        this.menuManager = overrides.menuManager || new PopupMenu.PopupMenuManager(this);
+        this.menu = overrides.menu || new Applet.AppletPopupMenu(this, this._orientation);
+        this.menuManager.addMenu(this.menu);
+        this._tooltip = overrides.tooltip || new Tooltips.PanelItemTooltip(this, "", this._orientation);
+        this.actor.set_accessible_role(Atk.Role.PUSH_BUTTON);
+        this._buildMenu();
     }
 
-    on_applet_clicked(_event) {
-        if (this.menu) {
-            this.menu.toggle();
+    // Read-only lines, then the one action. The order is deliberate: what is
+    // wrong is above the way to fix it.
+    _buildMenu() {
+        this._lineItems = [];
+        for (let index = 0; index < 5; index += 1) {
+            const item = new PopupMenu.PopupMenuItem("", {reactive: false});
+            this._lineItems.push(item);
+            this.menu.addMenuItem(item);
+        }
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        const open = new PopupMenu.PopupIconMenuItem(
+            _("Open XPU Workload Manager"),
+            "system-run-symbolic",
+            St.IconType.SYMBOLIC,
+        );
+        open.connect("activate", () => this._launch());
+        this.menu.addMenuItem(open);
+    }
+
+    // The client owns its window and its errors, so a launch reports that it
+    // started, never that it worked. Saying more than that from a panel means
+    // waiting on a process the panel does not own.
+    _launch() {
+        this.menu.close();
+        if (!this._launcher.launch("ui")) {
+            Main.notify(
+                _("XPU Workload Manager"),
+                _("Could not start the client. Is xpuwlm installed?"),
+            );
         }
     }
 
-    on_orientation_changed(orientation) {
+    refresh() {
         if (this._destroyed) {
             return;
         }
-        this._orientation = orientation;
-        this._destroyMenu();
-        this.menuManager = this._menuManagerFactory(this);
-        this._createMenu(orientation);
-        if (this._latestState) {
-            this._render(this._latestState);
+        this._state = SnapshotReader.readSnapshot(
+            this._environment,
+            this._runtimeStatePath || SnapshotReader.RUNTIME_STATE_PATH,
+            this._now(),
+        );
+        this._render();
+    }
+
+    _render() {
+        const model = PanelStatus.panelModel(this._state);
+        this._setPanelIcon(model.status);
+        this.set_applet_label(this._showPanelLabel ? model.label : "");
+        this._tooltip.set_text(model.tooltip);
+        this.actor.set_accessible_name(model.accessibleName);
+        const lines = PanelStatus.popupLines(this._state);
+        this._lineItems.forEach((item, index) => {
+            const line = lines[index];
+            item.actor.visible = line !== undefined;
+            if (line !== undefined) {
+                item.label.set_text(format(_("%s: %s"), line.label, line.value));
+            }
+        });
+    }
+
+    _setPanelIcon(status) {
+        if (status === this._panelIconStatus) {
+            return;
+        }
+        // The status class is what the stylesheet colours, so it is swapped
+        // with the icon rather than left behind on the previous status.
+        if (this._panelIconStatus !== null) {
+            this.actor.remove_style_class_name(`xpuwlm-panel-${this._panelIconStatus}`);
+        }
+        this._panelIconStatus = status;
+        this.actor.add_style_class_name(`xpuwlm-panel-${status}`);
+        this.set_applet_icon_symbolic_name(PanelStatus.panelIconName(status));
+    }
+
+    _startTimer() {
+        this._stopTimer();
+        if (this._destroyed) {
+            return;
+        }
+        this._timer = Mainloop.timeout_add_seconds(refreshSeconds(this._refreshInterval), () => {
+            this.refresh();
+            return true;
+        });
+    }
+
+    _stopTimer() {
+        if (this._timer !== null) {
+            Mainloop.source_remove(this._timer);
+            this._timer = null;
         }
     }
 
-    on_panel_icon_size_changed(size) {
-        this._applyPanelIconSize(size);
+    on_applet_clicked() {
+        this.menu.toggle();
+    }
+
+    on_panel_height_changed() {
+        this._panelIconStatus = null;
+        this._render();
     }
 
     on_applet_removed_from_panel() {
         this._teardown();
     }
 
-    _bindSettings() {
-        this.settings.bind("refresh-interval", "refreshInterval", () => this._onRuntimeSettingsChanged());
-        this.settings.bind("runtime-state-path", "runtimeStatePath", () => this._onRuntimeSettingsChanged());
-        this.settings.bind("show-panel-label", "showPanelLabel", () => this._renderPanel());
-        this.settings.bind("telemetry-consent", "telemetryConsent", () => this._onTelemetryConsentChanged());
-    }
-
-    _registerIconPath() {
-        const iconTheme = Gtk.IconTheme.get_default();
-        const iconPath = `${this._metadata.path}/icons`;
-        if (!iconTheme.get_search_path().includes(iconPath)) {
-            iconTheme.append_search_path(iconPath);
-        }
-    }
-
-    _menuActions() {
-        return {
-            selectTab: (tab) => this._manager.selectTab(tab),
-            toggleProfile: (id) => this._manager.toggleProfile(id),
-            changeWeight: (id, delta) => this._manager.changeWeight(id, delta),
-            setProfileDevice: (id, deviceId) => this._manager.setProfileDevice(id, deviceId),
-            pauseAll: () => this._manager.pauseAll(),
-            resumeAll: () => this._manager.resumeAll(),
-            refresh: () => this._manager.retryDeviceDetection(),
-            openSettings: () => this._openSettings(),
-            openLauncher: () => this._openLauncher(),
-            clearActivity: () => this._clearActivity(),
-            openLogs: () => this._openLogs(),
-            copyReport: (report) => this._copyReport(report),
-            acknowledgeCatalogChanges: () => this._manager.acknowledgeCatalogChanges(),
-            submitJob: (id, picture) => this._manager.submitJob(id, picture),
-            chooseEventFiles: () => this._launchChooser(
-                () => this._eventImport.chooseFiles(), this._eventImport, "selecting",
-            ),
-            chooseEventFolder: () => this._launchChooser(
-                () => this._eventImport.chooseFolder(), this._eventImport, "selecting",
-            ),
-            startEventImport: () => this._eventImport.start(),
-            cancelEventImport: () => this._eventImport.cancel(),
-            editEventCandidate: (id, patch) => this._eventImport.edit(id, patch),
-            decideEventCandidate: (id, decision) => this._eventImport.decide(id, decision),
-            beginEventExport: () => this._eventImport.beginExport(),
-            confirmEventExport: () => this._launchChooser(
-                () => this._eventImport.confirmExport(), this._eventImport, "exporting",
-            ),
-            backEventPreview: () => this._eventImport.backToPreview(),
-            resetEventImport: () => this._eventImport.reset(),
-            chooseQuestionFiles: () => this._launchChooser(
-                () => this._documentQuestion.chooseFiles(), this._documentQuestion, "selecting",
-            ),
-            startDocumentQuestion: (question) => this._documentQuestion.start(question),
-            cancelDocumentQuestion: () => this._documentQuestion.cancel(),
-            resetDocumentQuestion: () => this._documentQuestion.reset(),
-            startSelectedText: (operation, language) => this._selectedText.start(operation, language),
-            cancelSelectedText: () => this._selectedText.cancel(),
-            resetSelectedText: () => this._selectedText.reset(),
-            chooseOrganizerFiles: () => this._launchChooser(
-                () => this._fileOrganizer.chooseFiles(), this._fileOrganizer, "selecting",
-            ),
-            startFileOrganizer: () => this._fileOrganizer.start(),
-            cancelFileOrganizer: () => this._fileOrganizer.cancel(),
-            resetFileOrganizer: () => this._fileOrganizer.reset(),
-            chooseMediaFile: () => this._launchChooser(
-                () => this._mediaTranscription.chooseFiles(),
-                this._mediaTranscription,
-                "selecting",
-            ),
-            startMediaTranscription: () => this._mediaTranscription.start(),
-            cancelMediaTranscription: () => this._mediaTranscription.cancel(),
-            resetMediaTranscription: () => this._mediaTranscription.reset(),
-            dispatchGenericWorkflow: (id, action, value) => this._genericWorkflows.dispatch(id, action, value),
-        };
-    }
-
-    // Consent is a setting, so the record follows it in both directions:
-    // turning it off clears what was kept rather than only stopping new work.
-    _onTelemetryConsentChanged() {
-        this._telemetry.setConsent(this.telemetryConsent === true);
-        if (this._latestState) {
-            this._render(this._latestState);
-        }
-        return true;
-    }
-
-    _createMenu(orientation) {
-        this.menu = this._menuFactory(this, orientation);
-        this._menuOpen = false;
-        this.menuManager.addMenu(this.menu);
-        this._view = this._viewFactory(this.menu, this._layout);
-        if (typeof this.menu.connect === "function") {
-            this.menu.connect("open-state-changed", (_menu, open) => {
-                this._setMenuOpen(open);
-                if (open) {
-                    this._applyLayout();
-                    if (typeof this._view.invalidateBody === "function") {
-                        this._view.invalidateBody();
-                    }
-                    this._renderMenu();
-                    this._refreshEventAvailability();
-                    // Input enumeration is asynchronous and starts only when
-                    // somebody opens the popup, never on the poll interval.
-                    this._manager.refreshInputs();
-                }
-            });
-        }
-    }
-
-    _setMenuOpen(open) {
-        this._menuOpen = open === true;
-        if (this._view && typeof this._view.setOpen === "function") {
-            this._view.setOpen(this._menuOpen);
-        }
-        return this._menuOpen;
-    }
-
-    // The work area, display scale, and text scale can all change while the
-    // applet lives, so the popup layout is re-resolved every time it opens.
-    _measureLayout() {
-        try {
-            return Layout.popupLayout(this._layoutProvider.measure(this.actor));
-        } catch (error) {
-            this._logger.warn(`Could not measure the popup layout: ${error}`);
-            return Layout.defaultLayout();
-        }
-    }
-
-    _applyLayout() {
-        if (this._destroyed) {
-            return false;
-        }
-        this._layout = this._measureLayout();
-        return this._view ? this._view.applyLayout(this._layout) : false;
-    }
-
-    // Every step runs even when an earlier one throws, so a failing view never
-    // leaves the menu registered with the menu manager.
-    _destroyMenu() {
-        if (!this.menu) {
-            return false;
-        }
-        const menu = this.menu;
-        const view = this._view;
-        const menuManager = this.menuManager;
-        this.menu = null;
-        this._menuOpen = false;
-        this._view = null;
-        this._runIsolated([
-            ["destroy the popup view", () => view?.destroy()],
-            ["remove the popup menu", () => menuManager?.removeMenu(menu)],
-            ["destroy the popup menu", () => menu.destroy()],
-        ]);
-        return true;
-    }
-
-    _runIsolated(steps) {
-        let failures = 0;
-        for (const [description, step] of steps) {
-            try {
-                step();
-            } catch (error) {
-                failures += 1;
-                this._logger.error(`Could not ${description}: ${error}`);
-            }
-        }
-        return failures;
-    }
-
-    _render(state) {
-        if (this._destroyed) {
-            return;
-        }
-        this._telemetry.record(state);
-        this._genericWorkflows.applyProfiles(state.profiles, ViewModel.canServe);
-        this._latestState = {
-            ...state,
-            eventImport: this._eventImport.state(),
-            documentQuestion: this._documentQuestion.state(),
-            selectedText: this._selectedText.state(),
-            fileOrganizer: this._fileOrganizer.state(),
-            mediaTranscription: this._mediaTranscription.state(),
-            genericWorkflows: this._genericWorkflows.models(),
-            telemetry: this._telemetry.summary(),
-        };
-        const model = ViewModel.toViewModel(
-            this._latestState,
-            Date.now(),
-            this._platform.guidance,
-        );
-        if (this._view && this.menu
-                && (this._menuOpen || this.menu.isOpen === true)) {
-            this._view.render(model);
-        }
-        this._renderPanel(model);
-        this._notifier.observe(this._latestState.alerts, this._latestState.profiles);
-    }
-
-    _renderMenu() {
-        if (!this._view || !this._latestState) {
-            return false;
-        }
-        this._view.render(ViewModel.toViewModel(
-            this._latestState,
-            Date.now(),
-            this._platform.guidance,
-        ));
-        return true;
-    }
-
-    _refreshEventAvailability() {
-        if (this._destroyed) {
-            return false;
-        }
-        try {
-            return this._pluginInventoryGateway.describe((error, inventory) => {
-                if (this._destroyed) {
-                    return;
-                }
-                if (error) {
-                    this._eventImport.setAvailability(false, _("Event provider is not ready"));
-                    this._documentQuestion.setAvailability(false, _("Document provider is not ready"));
-                    this._selectedText.setAvailability(false, _("Selected-text provider is not ready"));
-                    this._fileOrganizer.setAvailability(false, _("File organizer provider is not ready"));
-                    this._mediaTranscription.setAvailability(
-                        false,
-                        _("Media transcription provider is not ready"),
-                    );
-                    return;
-                }
-                const readiness = PluginInventory.eventReadiness(inventory);
-                this._eventImport.setAvailability(readiness.available, readiness.detail);
-                const documentReadiness = PluginInventory.documentQuestionReadiness(inventory);
-                this._documentQuestion.setAvailability(
-                    documentReadiness.available,
-                    documentReadiness.detail,
-                );
-                const selectedTextReadiness = PluginInventory.selectedTextReadiness(inventory);
-                this._selectedText.setAvailability(
-                    selectedTextReadiness.available,
-                    selectedTextReadiness.detail,
-                );
-                const fileOrganizerReadiness = PluginInventory.fileOrganizerReadiness(inventory);
-                this._fileOrganizer.setAvailability(
-                    fileOrganizerReadiness.available,
-                    fileOrganizerReadiness.detail,
-                );
-                const mediaReadiness = PluginInventory.mediaTranscriptionReadiness(inventory);
-                this._mediaTranscription.setAvailability(
-                    mediaReadiness.available,
-                    mediaReadiness.detail,
-                );
-            });
-        } catch {
-            this._eventImport.setAvailability(false, _("Event provider is not ready"));
-            this._documentQuestion.setAvailability(false, _("Document provider is not ready"));
-            this._selectedText.setAvailability(false, _("Selected-text provider is not ready"));
-            this._fileOrganizer.setAvailability(false, _("File organizer provider is not ready"));
-            this._mediaTranscription.setAvailability(
-                false,
-                _("Media transcription provider is not ready"),
-            );
-            return false;
-        }
-    }
-
-    _renderPanel(model = null) {
-        if (this._destroyed || (!model && !this._latestState)) {
-            return;
-        }
-        const viewModel = model || ViewModel.toViewModel(
-            this._latestState,
-            Date.now(),
-            this._platform.guidance,
-        );
-        this.set_applet_label(this.showPanelLabel ? viewModel.panel.label : "");
-        this.set_applet_tooltip(viewModel.panel.tooltip);
-        this.actor.set_accessible_name(viewModel.panel.accessibleName);
-        this._setPanelIcon(viewModel.panel.status);
-    }
-
-    _setPanelIcon(status) {
-        const iconStatus = PANEL_STATUSES.includes(status) ? status : "unavailable";
-        if (this._panelIconStatus === iconStatus) {
-            return false;
-        }
-        this.set_applet_icon_symbolic_name(panelIconName(iconStatus));
-        this._applyPanelIconSize(this._iconSize);
-        this._panelIconStatus = iconStatus;
-        return true;
-    }
-
-    _applyPanelIconSize(requestedSize) {
-        const icon = this._applet_icon;
-        if (!icon || typeof icon.set_icon_size !== "function") {
-            return false;
-        }
-        const size = panelIconSize(requestedSize);
-        if (typeof icon.get_icon_size === "function" && icon.get_icon_size() === size) {
-            return false;
-        }
-        icon.set_icon_size(size);
-        return true;
-    }
-
-    _refresh() {
-        if (!this._destroyed) {
-            this._manager.refresh();
-        }
-    }
-
-    _onRuntimeSettingsChanged() {
-        if (this._destroyed || !this._manager) {
-            return;
-        }
-        this._runtimeGateway = this._runtimeGatewayFactory(this.runtimeStatePath);
-        this._manager.replaceRuntimeGateway(this._runtimeGateway);
-        if (this._poller) {
-            this._poller.start(this.refreshInterval);
-        }
-    }
-
-    _openSettings() {
-        Util.spawnCommandLineAsync(`xlet-settings applet ${UUID} -i ${this.instance_id}`);
-    }
-
-    // Everything the workflows do now lives in the Python client; this panel
-    // starts it and keeps drawing the accelerator status it reads from the
-    // published snapshot on its own.
-    _openLauncher() {
-        this.menu.close();
-        return this._launcher.launch("ui");
-    }
-
-    _clearActivity() {
-        const results = [
-            this._clearWorkflowHistory(this._eventImport),
-            this._clearWorkflowHistory(this._documentQuestion),
-            this._clearWorkflowHistory(this._selectedText),
-            this._clearWorkflowHistory(this._fileOrganizer),
-            this._clearWorkflowHistory(this._mediaTranscription),
-            this._manager.clearActivity(),
-        ];
-        return results.some(Boolean);
-    }
-
-    _clearWorkflowHistory(controller) {
-        const phase = controller.state().phase;
-        return ["complete", "error"].includes(phase) ? controller.reset() : false;
-    }
-
-    _openLogs() {
-        try {
-            Util.spawnCommandLineAsync(
-                "x-terminal-emulator -e journalctl --user -u omnitensor.service -f",
-            );
-            return true;
-        } catch (error) {
-            this._logger.warn(`Could not open workload service logs: ${error}`);
-            return false;
-        }
-    }
-
-    _copyReport(report) {
-        try {
-            if (typeof report !== "string" || report === "") {
-                return false;
-            }
-            const clipboard = Gtk.Clipboard.get(
-                ClipboardSelectionPort.clipboardAtom(this._environment),
-            );
-            clipboard.set_text(report, -1);
-            if (typeof clipboard.store === "function") {
-                clipboard.store();
-            }
-            return true;
-        } catch (error) {
-            this._logger.warn(`Could not copy diagnostics report: ${error}`);
-            return false;
-        }
-    }
-
-    _launchChooser(action, owner, pendingPhase) {
-        if (this._destroyed || typeof action !== "function"
-            || this._chooserLaunchHandle !== null) {
-            return false;
-        }
-        if (this.menu?.isOpen !== true || typeof this.menu.close !== "function") {
-            return action();
-        }
-        this.menu.close(false);
-        this._setMenuOpen(false);
-        this._chooserFeedback = {owner, pendingPhase};
-        this._chooserLaunchHandle = this._scheduler.schedule(0, () => {
-            this._chooserLaunchHandle = null;
-            if (!this._destroyed) {
-                const launched = action();
-                if (launched === false) {
-                    this._restoreChooserFeedback(owner, "");
-                }
-            }
-        });
-        return true;
-    }
-
-    _restoreChooserFeedback(owner, currentPhase) {
-        if (this._destroyed || this._chooserFeedback === null
-            || owner !== this._chooserFeedback.owner
-            || currentPhase === this._chooserFeedback.pendingPhase) {
-            return false;
-        }
-        this._chooserFeedback = null;
-        if (!this.menu || this.menu.isOpen === true || typeof this.menu.open !== "function") {
-            return false;
-        }
-        this.menu.open(false);
-        this._setMenuOpen(true);
-        this._renderMenu();
-        return true;
-    }
-
-    _cancelChooserLaunch() {
-        if (this._chooserLaunchHandle === null) {
-            return false;
-        }
-        const handle = this._chooserLaunchHandle;
-        this._chooserLaunchHandle = null;
-        return this._scheduler.cancel(handle);
-    }
-
-    // Teardown attempts every step even after a failure, and stays idempotent
-    // afterwards, so a partially failed removal never leaks a timer or a
-    // subscription and never runs twice.
     _teardown() {
-        if (this._destroyed) {
-            return false;
-        }
         this._destroyed = true;
-        const poller = this._poller;
-        const unsubscribe = this._unsubscribe;
-        const eventUnsubscribe = this._eventUnsubscribe;
-        const documentUnsubscribe = this._documentUnsubscribe;
-        const selectedTextUnsubscribe = this._selectedTextUnsubscribe;
-        const fileOrganizerUnsubscribe = this._fileOrganizerUnsubscribe;
-        const mediaTranscriptionUnsubscribe = this._mediaTranscriptionUnsubscribe;
-        const genericWorkflowUnsubscribe = this._genericWorkflowUnsubscribe;
-        const manager = this._manager;
-        const notifier = this._notifier;
-        const settings = this.settings;
-        const chooserLifecycle = this._chooserLifecycle;
-        this._poller = null;
-        this._unsubscribe = null;
-        this._eventUnsubscribe = null;
-        this._documentUnsubscribe = null;
-        this._selectedTextUnsubscribe = null;
-        this._fileOrganizerUnsubscribe = null;
-        this._mediaTranscriptionUnsubscribe = null;
-        this._chooserLifecycle = null;
-        this._chooserFeedback = null;
-        this._runIsolated([
-            ["stop the refresh timer", () => poller?.stop()],
-            ["cancel a pending chooser launch", () => this._cancelChooserLaunch()],
-            ["destroy open file choosers", () => chooserLifecycle?.dispose()],
-            ["release the state subscription", () => unsubscribe?.()],
-            ["release the event subscription", () => eventUnsubscribe?.()],
-            ["release the document subscription", () => documentUnsubscribe?.()],
-            ["release the selected-text subscription", () => selectedTextUnsubscribe?.()],
-            ["release the file-organizer subscription", () => fileOrganizerUnsubscribe?.()],
-            ["release the media-transcription subscription", () => mediaTranscriptionUnsubscribe?.()],
-            ["release the generic workflow subscription", () => genericWorkflowUnsubscribe?.()],
-            ["cancel plug-in inventory", () => this._pluginInventoryGateway?.cancel()],
-            ["destroy the popup menu", () => this._destroyMenu()],
-            ["dispose the workload manager", () => manager?.dispose()],
-            ["dispose event import", () => this._eventImport?.dispose()],
-            ["dispose document question", () => this._documentQuestion?.dispose()],
-            ["dispose selected-text tools", () => this._selectedText?.dispose()],
-            ["dispose file organizer", () => this._fileOrganizer?.dispose()],
-            ["dispose media transcription", () => this._mediaTranscription?.dispose()],
-            ["dispose generic workflows", () => this._genericWorkflows?.dispose()],
-            ["dispose the alert notifier", () => notifier?.dispose()],
-            ["finalize the applet settings", () => settings?.finalize()],
-        ]);
-        this._latestState = null;
-        return true;
+        this._stopTimer();
+        if (this.settings && typeof this.settings.finalize === "function") {
+            this.settings.finalize();
+        }
+        if (this.menu && typeof this.menu.destroy === "function") {
+            this.menu.destroy();
+        }
     }
 }
 
 function main(metadata, orientation, panelHeight, instanceId) {
+    installTranslations(Gettext, {GLib});
     return new XpuWorkloadApplet(metadata, orientation, panelHeight, instanceId);
 }
 
 if (typeof module !== "undefined") {
     module.exports = {
         DEFAULT_PANEL_ICON_SIZE,
-        UUID,
+        DEFAULT_REFRESH_SECONDS,
+        MAX_REFRESH_SECONDS,
         MIN_PANEL_ICON_SIZE,
-        PANEL_STATUSES,
+        MIN_REFRESH_SECONDS,
+        UUID,
         XpuWorkloadApplet,
         createAppletSettings,
         defaultEnvironment,
         defaultLogger,
         installTranslations,
         main,
-        panelIconFilename,
-        panelIconName,
         panelIconSize,
-        resolveWorkloadCatalog,
-        resolveWorkloadRegistry,
+        refreshSeconds,
         settingsInstanceId,
-        unavailableEventFilePorts: WorkflowWiring.unavailableEventFilePorts,
-        unavailableDocumentPicker: WorkflowWiring.unavailableDocumentPicker,
-        unavailableClipboardReader: WorkflowWiring.unavailableClipboardReader,
     };
 }

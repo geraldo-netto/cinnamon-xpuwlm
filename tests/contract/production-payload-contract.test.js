@@ -5,21 +5,16 @@ const test = require("node:test");
 
 const Package = require("../../scripts/package-applet.js");
 
-const UNREACHABLE_LIBRARIES = Object.freeze([
-    "artifact-qualification.js",
-    "caption-export.js",
-    "deterministic-action-port.js",
-    "file-auto-tagging.js",
-    "file-categorization.js",
-    "image-duplicate-benchmark.js",
-    "presentation-planning.js",
-    "presentation-review.js",
-    "readiness-acceptance.js",
-    "rehearsal-briefing.js",
-    "routine-recognition.js",
-    "runtime-control-service.js",
-    "screenshot-assistant.js",
-    "workload-benchmark.js",
+// The helper's whole production surface. This list is the point of the gate:
+// a module that is present but unreachable is a module nobody ships and
+// nobody notices, which is how fourteen unwired libraries once accumulated
+// here. Adding a file to lib/ without wiring it now fails.
+const HELPER_MODULES = Object.freeze([
+    "applet.js",
+    "lib/i18n.js",
+    "lib/panel-status.js",
+    "lib/snapshot-reader.js",
+    "lib/xpuwlm-launcher.js",
 ]);
 
 test("applet payload JavaScript is exactly the production graph and its Cinnamon shims", () => {
@@ -35,32 +30,44 @@ test("applet payload JavaScript is exactly the production graph and its Cinnamon
     assert.equal(Object.isFrozen(graph.rootShims), true);
 });
 
-test("staged sources remain testable while unreachable module and shim pairs stay unshipped", () => {
-    const sources = Package.payloadFiles(Package.payloadRoot);
-    const payload = Package.appletPayloadFiles(Package.payloadRoot);
-    for (const basename of UNREACHABLE_LIBRARIES) {
-        for (const relativePath of [basename, `lib/${basename}`]) {
-            assert.equal(sources.includes(relativePath), true, relativePath);
-            assert.equal(payload.includes(relativePath), false, relativePath);
-        }
-    }
+test("the helper ships the panel, the reader, and the launcher — and nothing else", () => {
+    const graph = Package.productionRequireGraph(Package.payloadRoot);
+    assert.deepEqual([...graph.modules].sort(Package.compareText), [...HELPER_MODULES]);
+    assert.deepEqual([...graph.rootShims], ["i18n.js"]);
 });
 
-test("workflow wiring ships root shims for its injected path and chooser ports", () => {
+test("every JavaScript file present in the payload is reachable from the applet", () => {
     const graph = Package.productionRequireGraph(Package.payloadRoot);
+    const reachable = new Set([...graph.modules, ...graph.rootShims]);
+    const present = Package.payloadFiles(Package.payloadRoot)
+        .filter((relativePath) => relativePath.endsWith(".js"));
+    assert.deepEqual(present.filter((relativePath) => !reachable.has(relativePath)), []);
+});
+
+test("the staged payload carries the assets a panel presence needs", () => {
     const payload = Package.appletPayloadFiles(Package.payloadRoot);
-    for (const basename of [
-        "clipboard-selection-port.js", "document-source-port.js", "media-source-port.js",
-        "path-port.js",
+    for (const relativePath of [
+        "metadata.json",
+        "settings-schema.json",
+        "stylesheet.css",
+        "icon.png",
     ]) {
-        assert.equal(graph.modules.includes(`lib/${basename}`), true, basename);
-        assert.equal(graph.rootShims.includes(basename), true, basename);
-        assert.equal(payload.includes(`lib/${basename}`), true, basename);
-        assert.equal(payload.includes(basename), true, basename);
+        assert.equal(payload.includes(relativePath), true, relativePath);
     }
-    assert.equal(graph.modules.includes("lib/cinnamon-runtime.js"), true);
-    assert.equal(graph.rootShims.includes("cinnamon-runtime.js"), false);
-    assert.equal(payload.includes("cinnamon-runtime.js"), false);
-    assert.equal(graph.modules.includes("lib/workflow-wiring.js"), true);
-    assert.equal(graph.rootShims.includes("workflow-wiring.js"), false);
+    assert.equal(
+        payload.some((relativePath) => relativePath.startsWith("icons/")),
+        true,
+        "panel status icons",
+    );
+});
+
+test("the helper ships no mirrored contract schemas", () => {
+    // The client validates the runtime's documents against the canonical
+    // schemas. A copy here would be a second reader to keep in parity, which
+    // is exactly what the split removed.
+    assert.deepEqual(
+        Package.payloadFiles(Package.payloadRoot)
+            .filter((relativePath) => relativePath.endsWith(".schema.json")),
+        [],
+    );
 });

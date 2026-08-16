@@ -7,26 +7,13 @@ const test = require("node:test");
 
 const Package = require("../../scripts/package-applet.js");
 
-const INTENTIONAL_ROOT_FACADES = Object.freeze([
-    "artifact-qualification.js",
-    "caption-export.js",
-    "cinnamon-platform-adapter.js",
-    "cinnamon-runtime.js",
-    "deterministic-action-port.js",
-    "file-auto-tagging.js",
-    "file-categorization.js",
-    "image-duplicate-benchmark.js",
-    "presentation-planning.js",
-    "presentation-review.js",
-    "readiness-acceptance.js",
-    "rehearsal-briefing.js",
-    "routine-recognition.js",
-    "runtime-control-service.js",
-    "screenshot-assistant.js",
-    "telemetry-recorder.js",
-    "workflow-wiring.js",
-    "workload-benchmark.js",
-]);
+// Cinnamon resolves a nested CommonJS import from the applet root rather than
+// from the importing file's directory, so a module in lib/ that another module
+// in lib/ requires needs a same-name shim at the root. The helper has exactly
+// one: panel-status.js requires the translation port, so i18n.js bridges. The
+// shims are derived from the require graph rather than listed, so this gate
+// keeps them exact as the tree shrinks.
+const INTENTIONAL_ROOT_FACADES = Object.freeze([]);
 
 function rootJavaScript() {
     return fs.readdirSync(Package.payloadRoot, {withFileTypes: true})
@@ -57,6 +44,12 @@ test("root shim inventory is exactly production bridges plus intentional facades
         rootJavaScript(),
         [...graph.rootShims, ...INTENTIONAL_ROOT_FACADES].sort(Package.compareText),
     );
+});
+
+test("the helper's only root bridge is the translation port", () => {
+    const graph = Package.productionRequireGraph(Package.payloadRoot);
+    assert.deepEqual([...graph.rootShims], ["i18n.js"]);
+    assert.deepEqual(rootJavaScript(), ["i18n.js"]);
 });
 
 test("every maintained root shim has exact role bytes and its same-name target", {

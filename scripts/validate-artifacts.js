@@ -1,130 +1,38 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const Ajv2020 = require("ajv/dist/2020").default;
 const childProcess = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
-const Validation = require("../files/cinnamon-xpuwlm@geraldo-netto/lib/validation.js");
 
 const UUID = "cinnamon-xpuwlm@geraldo-netto";
 const repositoryRoot = path.resolve(__dirname, "..");
 const filesRoot = path.join(repositoryRoot, "files");
 const appletRoot = path.join(filesRoot, UUID);
+
+// The helper ships no shared validation module any more — everything it used
+// to validate moved to the Python client, which validates against the
+// canonical schemas rather than a mirror of them. One comparator is all this
+// script still needed from it.
+function compareText(left, right) {
+    if (left === right) {
+        return 0;
+    }
+    return left < right ? -1 : 1;
+}
 const PAYLOAD_TOP_LEVEL = Object.freeze([
     "applet.js",
-    "artifact-qualification.js",
-    "artifact-qualification.schema.json",
-    "background-execution.js",
-    "caption-export.js",
-    "cinnamon-socket-adapter.js",
-    "cinnamon-host-adapter.js",
-    "cinnamon-image-adapter.js",
-    "cinnamon-platform-adapter.js",
-    "cinnamon-runtime.js",
-    "cinnamon-state-adapter.js",
-    "cinnamon-workload-adapter.js",
-    "clipboard-selection-port.js",
-    "control-reply.schema.json",
-    "control-request.schema.json",
-    "domain.js",
-    "document-question.js",
-    "document-source-port.js",
-    "deterministic-action-port.js",
-    "diagnostics-view-model.js",
-    "event-import-error.js",
-    "event-import.js",
-    "event-source-port.js",
-    "external-chooser-port.js",
-    "file-auto-tagging.js",
-    "file-categorization.js",
-    "file-organizer.js",
-    "generic-workflow-controller.js",
-    "generic-workflow-menu-view.js",
-    "generic-workflow-surface.js",
-    "failure-log-backoff.js",
-    "failure-reporter.js",
-    "image-duplicate-benchmark.js",
+    // Cinnamon resolves a nested CommonJS import from the applet root, so the
+    // one module lib/ imports from lib/ needs its bridge here.
     "i18n.js",
-    "ics-export.js",
     "icon.png",
     "icons",
-    "job-submission.js",
-    "LICENSE",
     "lib",
-    "layout.js",
-    "manager.js",
-    "media-source-port.js",
-    "media-preprocessing.js",
-    "media-transcription.js",
-    "menu-actor-utils.js",
-    "menu-focus.js",
-    "menu-render-host.js",
+    "LICENSE",
     "metadata.json",
-    "msgpack-codec.js",
-    "panel-view-model.js",
-    "path-port.js",
-    "platform-guidance.js",
-    "platform-ports.js",
     "po",
-    "plugin-inventory.js",
-    "presentation-planning.js",
-    "presentation-review.js",
-    "rehearsal-briefing.js",
-    "readiness-acceptance.js",
-    "profile-blockers.js",
-    "gio-file-adapter.js",
-    "runtime-gateway.js",
-    "runtime-job-contract.js",
-    "runtime-job-gateway.js",
-    "runtime-control-contract.js",
-    "runtime-control-gateway.js",
-    "runtime-control-service.js",
-    "runtime-contract.js",
-    "runtime-contract-gateway.js",
-    "runtime-contract.schema.json",
-    "runtime-command.schema.json",
-    "runtime-acknowledgement.schema.json",
-    "runtime-refusal-contract.js",
-    "runtime-refusal.schema.json",
-    "routine-recognition.js",
-    "runtime-snapshot-contract.js",
-    "runtime-snapshot-schema-validator.js",
-    "runtime-snapshot.schema.json",
-    "selected-text.js",
-    "screenshot-assistant.js",
     "settings-schema.json",
-    "snapshot-validator.js",
-    "setup-view-model.js",
     "stylesheet.css",
-    "tensor-encoder.js",
-    "telemetry-recorder.js",
-    "telemetry-window.js",
-    "ui-preferences-repository.js",
-    "validation.js",
-    "view-model.js",
-    "workflow-controller.js",
-    "workflow-document-question-menu-view.js",
-    "workflow-event-import-menu-view.js",
-    "workflow-file-organizer-menu-view.js",
-    "workflow-media-menu-view.js",
-    "workflow-menu-view.js",
-    "workflow-selected-text-menu-view.js",
-    "workflow-shared-menu-view.js",
-    "workflow-view-model.js",
-    "workflow-wiring.js",
-    "workload-manifest.js",
-    "workload-manifest.schema.json",
-    "workload-provenance.js",
-    "workload-benchmark.js",
-    "workload-registry.js",
-    "workload-reconciliation.js",
-    "workload-result.js",
-    "workload-result.schema.json",
-    "workload-runtime-controller.js",
-    "workload-tensor-contract.js",
-    "workloads",
-    "linux-device-adapter.js",
 ]);
 const FORBIDDEN_PAYLOAD_SEGMENTS = new Set([
     ".cache",
@@ -181,11 +89,11 @@ function validatePayloadStructure({
     filesRoot: targetFilesRoot,
 }) {
     const filesEntries = fs.readdirSync(targetFilesRoot, {withFileTypes: true});
-    assert.deepEqual(filesEntries.map((entry) => entry.name).sort(Validation.compareText), [UUID]);
+    assert.deepEqual(filesEntries.map((entry) => entry.name).sort(compareText), [UUID]);
     assert.equal(filesEntries[0].isDirectory(), true);
     assert.deepEqual(
-        fs.readdirSync(targetAppletRoot).sort(Validation.compareText),
-        [...expectedTopLevel].sort(Validation.compareText),
+        fs.readdirSync(targetAppletRoot).sort(compareText),
+        [...expectedTopLevel].sort(compareText),
     );
 
     for (const relativePath of payloadPaths(targetAppletRoot)) {
@@ -220,77 +128,39 @@ function validateJsonArtifacts({
     repositoryRoot: targetRepositoryRoot,
 }) {
     const metadata = readJson(targetAppletRoot, "metadata.json");
-    const qualificationSchema = readJson(targetAppletRoot, "artifact-qualification.schema.json");
-    const resultSchema = readJson(targetAppletRoot, "workload-result.schema.json");
     const settings = readJson(targetAppletRoot, "settings-schema.json");
-    const schema = readJson(targetAppletRoot, "runtime-snapshot.schema.json");
-    const workloadSchema = readJson(targetAppletRoot, "workload-manifest.schema.json");
-    const commandSchema = readJson(targetAppletRoot, "runtime-command.schema.json");
-    const acknowledgementSchema = readJson(targetAppletRoot, "runtime-acknowledgement.schema.json");
-    const refusalSchema = readJson(targetAppletRoot, "runtime-refusal.schema.json");
-    const contractSchema = readJson(targetAppletRoot, "runtime-contract.schema.json");
     const packageJson = readJson(targetRepositoryRoot, "package.json");
-    const Domain = require(path.join(targetAppletRoot, "lib/domain.js"));
-    const Manifest = require(path.join(targetAppletRoot, "lib/workload-manifest.js"));
-    const Registry = require(path.join(targetAppletRoot, "lib/workload-registry.js"));
 
     assert.equal(metadata.uuid, UUID);
     assert.equal(metadata.uuid, path.basename(targetAppletRoot));
     assert.equal(packageJson.version, metadata.version);
     assert.equal(metadata["max-instances"], 1);
     assert.ok(metadata["cinnamon-version"].includes("6.6"));
-    assert.equal(schema.properties.version.const, Domain.SNAPSHOT_VERSION);
-    assert.equal(schema.properties.generatedAt.minimum, Domain.MIN_GENERATED_AT);
-    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(schema));
-    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(qualificationSchema));
-    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(resultSchema));
-    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(workloadSchema));
-    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(commandSchema));
-    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(acknowledgementSchema));
-    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(refusalSchema));
-    assert.doesNotThrow(() => new Ajv2020({strict: true}).compile(contractSchema));
-    // The predicate and the mirrored schema must agree on the bounds, or a
-    // document one accepts is a document the other rejects.
-    const Contract = require(path.join(targetAppletRoot, "lib/runtime-contract.js"));
-    assert.equal(contractSchema.properties.version.const, Contract.CONTRACT_DOCUMENT_VERSION);
-    assert.equal(contractSchema.properties.methods.maxItems, Contract.MAX_METHODS);
-    assert.equal(contractSchema.properties.schemas.maxProperties, Contract.MAX_CONTRACTS);
+    // The helper ships no schema copies. It reads six fields out of the
+    // published snapshot to draw an icon; the client validates the document
+    // against the canonical schemas, and mirroring them here is exactly the
+    // drift this split removed.
     assert.equal(
-        contractSchema.properties.schemas.additionalProperties.maximum,
-        Contract.MAX_CONTRACT_VERSION,
-    );
-    assert.deepEqual(
-        refusalSchema.properties.code.enum,
-        [...require(path.join(targetAppletRoot, "lib/runtime-refusal-contract.js")).REFUSAL_CODES],
+        fs.readdirSync(targetAppletRoot).some((name) => name.endsWith(".schema.json")),
+        false,
+        "The helper must not ship mirrored contract schemas",
     );
     assert.equal(settings["show-panel-label"].default, false);
-    assert.deepEqual(settings["profile-state"].default.profiles, {});
-    assert.equal(schema.properties.metrics.properties.runningProfiles.maximum, Registry.MAX_WORKLOADS);
-    const workloadDirectories = fs.readdirSync(path.join(targetAppletRoot, "workloads"), {
-        withFileTypes: true,
-    });
-    assert.equal(workloadDirectories.length > 0, true);
-    for (const entry of workloadDirectories) {
-        assert.equal(entry.isDirectory(), true, `Workload must be a directory: ${entry.name}`);
-        const manifest = readJson(targetAppletRoot, `workloads/${entry.name}/manifest.json`);
-        assert.equal(new Manifest.WorkloadDescriptor(manifest).id, entry.name);
-    }
+    assert.equal(
+        settings["runtime-state-path"].default,
+        require(path.join(targetAppletRoot, "lib/snapshot-reader.js")).RUNTIME_STATE_PATH,
+    );
     const potFile = fs.readFileSync(path.join(targetAppletRoot, "po", `${UUID}.pot`), "utf8");
     assert.match(potFile, /"Content-Type: text\/plain; charset=UTF-8\\n"/u);
     assert.equal(potFile.includes(`Project-Id-Version: ${UUID}`), true);
     assert.equal(packageJson.scripts["test:ci"], [
         "npm run lint",
         "npm run test:syntax",
-        // The validator's vocabulary is generated from the shipped schema, so
-        // a stale derived file has to fail before anything runs against it.
-        "npm run check:contract",
-        "npm run check:workloads",
         "npm run test:coverage",
         "npm run test:fuzz",
         "npm run test:visual",
     ].join(" && "));
     assert.equal(packageJson.scripts.test.includes("test:visual"), true);
-    assert.equal(packageJson.scripts.test.includes("check:workloads"), true);
     assert.equal(packageJson.scripts["test:contract"], "node --test tests/contract/*.test.js");
     assert.equal(packageJson.devDependencies.ajv, "8.18.0");
     assert.equal(packageJson.scripts["test:visual"], "node --test tests/visual/*.test.js");
@@ -440,6 +310,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+    compareText,
     controlCharacterLine,
     defaultRoots,
     main,

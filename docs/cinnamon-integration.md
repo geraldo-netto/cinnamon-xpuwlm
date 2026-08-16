@@ -254,7 +254,7 @@ Track at least:
 
 ### Suggested D-Bus contract
 
-Use a session-bus name such as `org.example.CoralControl1`, an object path such as `/org/example/CoralControl1`, and a matching interface name. Include a version in the API or bus name so the applet and service can reject incompatible peers. The names below are illustrative for a from-scratch integration; the production applet's actual control surface is the much smaller `org.cinnamon.OmniTensor1` contract implemented by the OmniTensor service, documented in [Runtime control contract](runtime-control.md).
+Use a session-bus name such as `org.example.CoralControl1`, an object path such as `/org/example/CoralControl1`, and a matching interface name. Include a version in the API or bus name so the applet and service can reject incompatible peers. The names below are illustrative for a from-scratch integration; the production applet's actual control surface is the much smaller `org.cinnamon.OmniTensor1` contract implemented by the OmniTensor service, documented with the runtime that implements it, in `../../omnitensor/docs/control-boundary.md`.
 
 | Member | Direction | Purpose |
 | --- | --- | --- |

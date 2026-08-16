@@ -85,8 +85,8 @@ test("source extraction harvests literal translation-port calls", () => {
 test("source scanning covers the applet root and every library module", () => {
     const files = Pot.sourceFiles();
     assert.equal(files[0], "applet.js");
-    assert.equal(files.includes("lib/view-model.js"), true);
-    assert.equal(files.includes("lib/menu-view.js"), true);
+    assert.equal(files.includes("lib/panel-status.js"), true);
+    assert.equal(files.includes("lib/snapshot-reader.js"), true);
     assert.equal(files.includes("lib/i18n.js"), true);
     assert.deepEqual(files.slice(1), [...files.slice(1)].sort());
 });
@@ -146,7 +146,6 @@ test("every harvestable settings and metadata string is catalogued", () => {
         "Panel",
         "Monitoring",
         "Workload runtime",
-        "Safety boundary",
         "Show XPU status beside the panel icon",
         "Refresh interval",
         "seconds",
@@ -160,19 +159,21 @@ test("every harvestable settings and metadata string is catalogued", () => {
 test("every runtime UI string family is catalogued from the sources", () => {
     const entries = Pot.buildRepositoryCatalog().entries();
     const messages = new Set(entries.map((entry) => entry.msgid));
+    // The helper's whole vocabulary: a status word, a device line, and the
+    // way into the client. Everything else it used to say moved with the
+    // screens that said it.
     for (const expected of [
-        "Pause all",
-        "Resume all workloads",
-        "XPU Workload Manager — starting",
-        "Monitoring has not started",
-        "Runtime snapshot is stale",
-        "No accelerator available",
-        "Tools",
-        "Healthy",
-        "advisory",
-        "%s tab, selected",
-        "XPU critical alert — %s",
-        "The runtime service could not apply the change",
+        "Online",
+        "Runtime not running",
+        "Runtime stale",
+        "Accel Offline",
+        "Accelerator",
+        "Queued",
+        "Running",
+        "Needs review",
+        "Open XPU Workload Manager",
+        "Could not start the client. Is xpuwlm installed?",
+        "XPU Workload Manager — online",
     ]) {
         assert.equal(messages.has(expected), true, `missing runtime string: ${expected}`);
     }

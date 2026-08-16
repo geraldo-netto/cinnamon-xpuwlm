@@ -1,4 +1,0 @@
-"use strict";
-
-// Maintained public facade; production does not load it as a root bridge.
-module.exports = require("./lib/cinnamon-platform-adapter.js");

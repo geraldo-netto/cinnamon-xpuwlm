@@ -3,22 +3,25 @@
 ## Overview
 
 Cinnamon XPU Workload Manager (`cinnamon-xpuwlm`) is a third-party Cinnamon
-panel applet for monitoring and controlling local machine-learning workload
-profiles across supported TPU, NPU, and GPU backends.
+panel helper for local machine-learning workload profiles across supported TPU,
+NPU, and GPU backends.
 
-The applet is the desktop coordination and presentation layer, not an inference
-engine. It renders validated device, workload, queue, and alert state; sends
-pause, enable, and weight changes; and prepares supported picture jobs through
-versioned local contracts implemented by a compatible runtime service.
+The helper is a panel presence and a way into the client. It reads the runtime's
+published snapshot to show whether the accelerator is working and whether
+anything is waiting, and it starts the Python client (`xpuwlm`), which owns
+every real interaction: workload screens, workflow forms, policy controls, and
+contract validation against the canonical schemas. The helper never talks to the
+runtime's control socket and ships no schema copies of its own.
 
 [OmniTensor](https://github.com/geraldo-netto/omnitensor) is the current
 reference runtime and test integration, not the definition of this applet. A
 different local runtime can integrate by publishing the same validated snapshot
-contract and implementing the negotiated control/job contract. The current
-version 1 D-Bus compatibility name retains the OmniTensor namespace, so another
-provider must implement that exact contract until a provider-neutral successor
-is versioned. Without a compatible runtime, the applet retains device-only
-monitoring but cannot offer workload controls or jobs.
+contract and serving the same framed control socket the client speaks. The
+snapshot the helper reads is version 1 and retains the OmniTensor namespace, so
+another provider must publish that exact document until a provider-neutral
+successor is versioned. Without a compatible runtime, the helper falls back to
+device-only monitoring of what the snapshot last said and the client has
+nothing to drive.
 
 Here **XPU** is an umbrella for the supported `tpu`, `npu`, and `gpu` backend
 families. It is not a fourth backend, a claim of universal accelerator support,
@@ -56,11 +59,8 @@ This document is application-neutral. It explains the hardware and software boun
 ## Documentation index
 
 - Product artifacts
-  - [Cinnamon applet](docs/applet.md) — current behavior, runtime boundary, quality gates, and installation
-  - [Private event import](docs/event-import.md) — supported sources, readiness, review, and safe export
-  - [Ask selected files](docs/document-questions.md) — explicit selection, grounded answers, and exact citations
-  - [Selected-text tools](docs/selected-text-tools.md) — one-shot clipboard access and review-only transformations
-  - [File organizer](docs/file-organizer.md) — explicit files, grounded metadata suggestions, and no automatic actions
+  - [Cinnamon helper](docs/applet.md) — what the panel shows, what moved to the client, and the quality gates
+  - Workload guides — event extraction, ask-selected-files, selected-text tools, file organizer and media transcription are documented with the runtime that implements them, in `../omnitensor/docs/`
   - [Reference UI/interaction design](design/prototype/DESIGN.md) — approved prototype rationale and states; not the live implementation
   - [Consolidated workload profiles](design/prototype/WORKLOADS.md)
   - [Prototype screen gallery](design/prototype/mockup/screens/all-screens.png)
@@ -86,8 +86,7 @@ This document is application-neutral. It explains the hardware and software boun
   - [Hardware integration](docs/setup.md#hardware-integration)
   - [Software setup](docs/setup.md#software-setup)
 - [Cinnamon applet integration](docs/cinnamon-integration.md)
-- [Workload plug-in authoring](docs/workload-plugins.md)
-- [Runtime control contract](docs/runtime-control.md)
+- Workload plug-in authoring and the runtime control contract — `../omnitensor/docs/extension-guide.md` and `../omnitensor/docs/control-boundary.md`
 - [Deployment, safety, and references](docs/deployment.md)
   - [Virtualization](docs/deployment.md#virtualization)
   - [Deployment and evaluation workflow](docs/deployment.md#deployment-and-evaluation-workflow)
@@ -100,10 +99,10 @@ The Edge TPU is a narrow but capable accelerator: it executes the compatible, co
 
 The evidence-based application catalog is therefore a set of mappings, not promises, while the separate speculative idea bank is intentionally a source-free brainstorming inventory. A use case is justified only when its model compiles well, quantized accuracy remains acceptable, the host-side work is controlled, the complete pipeline beats a CPU baseline, operational risk is bounded, and the archived software stack can be maintained for the intended lifetime.
 
-The repository includes the deployable Cinnamon panel applet. It presents
-accelerator and workload state, persists local profile intent, and reads a
-validated snapshot from a trusted local service; it does not contain the
-inference service or directly enforce workload policy. A compatible runtime
+The repository includes the deployable Cinnamon panel helper. It shows
+accelerator and runtime state read from a snapshot a trusted local service
+publishes, and opens the Python client for everything else; it holds no policy,
+no job submission, and no inference service. A compatible runtime
 service — not the panel UI — owns per-backend runtimes, compiled models, input
 validation, per-workload queues, scheduling, inference, accounting, and
 recovery. OmniTensor is the current reference implementation. Such a service
@@ -115,7 +114,8 @@ physically partition one device or provide hard isolation.
 ## Mutation testing
 
 The Stryker campaign runs each behavior module only against its matching unit
-tests. Scoped campaigns deliberately keep incremental mode disabled: the old
+tests. After the split the helper has three: the status model, the snapshot
+read, and the launcher. Scoped campaigns deliberately keep incremental mode disabled: the old
 command-runner cache attributed coverage to one anonymous test and could not
 invalidate results safely. Regenerate mutation evidence from a clean campaign
 until the harness provides reliable per-test attribution.

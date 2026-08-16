@@ -17,8 +17,7 @@
       "type": "page",
       "title": "Runtime integration",
       "sections": [
-        "runtime-section",
-        "safety-section"
+        "runtime-section"
       ]
     },
     "panel-section": {
@@ -42,25 +41,12 @@
         "runtime-state-path",
         "runtime-help"
       ]
-    },
-    "safety-section": {
-      "type": "section",
-      "title": "Safety boundary",
-      "keys": [
-        "safety-help"
-      ]
     }
   },
   "show-panel-label": {
     "type": "switch",
     "default": false,
     "description": "Show XPU status beside the panel icon"
-  },
-  "telemetry-consent": {
-    "type": "switch",
-    "default": false,
-    "description": "Keep a local record of runtime load figures",
-    "tooltip": "Off by default. When on, only the load, queue depth, and running-profile counts already shown in this menu are kept, in memory, for up to ten minutes, and never leave this computer."
   },
   "refresh-interval": {
     "type": "scale",
@@ -79,29 +65,6 @@
   },
   "runtime-help": {
     "type": "label",
-    "description": "The applet reads this file but never executes content from it. If it is absent, hardware discovery provides a safe device-only status."
-  },
-  "safety-help": {
-    "type": "label",
-    "description": "Model output remains advisory. Device authorization, backups, shutdown thresholds, firmware limits, and access control stay deterministic and outside this applet."
-  },
-  "profile-state": {
-    "type": "generic",
-    "default": {
-      "paused": false,
-      "profiles": {}
-    }
-  },
-  "selected-tab": {
-    "type": "generic",
-    "default": "overview"
-  },
-  "activity-cleared-at": {
-    "type": "generic",
-    "default": 0
-  },
-  "identity-migration-version": {
-    "type": "generic",
-    "default": 0
+    "description": "The panel reads this file to show status. Everything else happens in the XPU Workload Manager client, which the menu opens."
   }
 }

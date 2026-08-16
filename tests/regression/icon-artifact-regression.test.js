@@ -23,20 +23,19 @@ function readIcon(name) {
 }
 
 test("regression: the panel resolves custom icons through Cinnamon's symbolic theme", () => {
+    // By name, never by path: a path skips the theme, so the icon stops
+    // following the desktop's symbolic colours.
     assert.doesNotMatch(APPLET_SOURCE, /set_applet_icon_symbolic_path/u);
-    assert.match(APPLET_SOURCE, /set_applet_icon_symbolic_name\("xpuwlm-v2-symbolic"\)/u);
-    assert.match(APPLET_SOURCE, /set_applet_icon_symbolic_name\(panelIconName\(iconStatus\)\)/u);
+    assert.match(
+        APPLET_SOURCE,
+        /set_applet_icon_symbolic_name\(PanelStatus\.panelIconName\(status\)\)/u,
+    );
 });
 
 test("regression: every panel icon remains caller-labelled and themeable", () => {
     const symbolicFallbacks = new Set(["#2e3436", "#33d17a", "#ff7800", "#e01b24"]);
-    const names = [
-        "xpuwlm-symbolic.svg",
-        "xpuwlm-v2-symbolic.svg",
-        "xpuwlm-device-symbolic.svg",
-        "xpuwlm-sliders-symbolic.svg",
-        ...Object.keys(STATUS_PALETTES).map((status) => `xpuwlm-status-${status}-symbolic.svg`),
-    ];
+    const names = fs.readdirSync(ICON_DIRECTORY).filter((name) => name.endsWith(".svg"));
+    assert.equal(names.length > 0, true);
     for (const name of names) {
         const icon = readIcon(name);
         assert.match(icon, /^<svg[^>]*viewBox="0 0 16 16"[^>]*>[\s\S]*<\/svg>\s*$/u);
