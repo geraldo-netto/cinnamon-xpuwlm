@@ -12,8 +12,12 @@ a panel is genuinely good at is what is left here.
 
 ## What it does
 
-- **Panel presence.** A symbolic status icon, an opt-in text label, a tooltip,
-  and an accessible name, from the runtime's own published snapshot.
+- **Panel presence.** A symbolic status icon, a tooltip, and an accessible
+  name, from the runtime's own published snapshot. No text beside the icon: the
+  five status shapes and the desktop's own symbolic colours carry the status,
+  and a word repeating them costs pixels in the most contested strip on the
+  screen. The words are in the tooltip and the popup, where they are read
+  deliberately rather than glanced past.
 - **A five-line popup.** Runtime state, which accelerator is serving, queued,
   running, and how much needs review. Read-only: anything a person can act on
   belongs in the client.
@@ -39,9 +43,8 @@ a panel is genuinely good at is what is left here.
 
 ## Panel status
 
-The panel defaults to a compact icon without a text label; the label remains an
-opt-in setting. Cinnamon recolours each symbolic status icon from the active
-theme, and the stylesheet maps the five statuses onto the desktop's own
+The panel is a compact icon and nothing else. Cinnamon recolours each symbolic
+status icon from the active theme, and the stylesheet maps the five statuses onto the desktop's own
 symbolic success, warning, and error colours. Online, detected, attention,
 paused, and unavailable also use different centre shapes, and the tooltip and
 accessible name state the status in text, so meaning never depends on colour

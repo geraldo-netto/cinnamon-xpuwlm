@@ -143,10 +143,8 @@ test("every harvestable settings and metadata string is catalogued", () => {
     for (const expected of [
         "General",
         "Runtime integration",
-        "Panel",
         "Monitoring",
         "Workload runtime",
-        "Show XPU status beside the panel icon",
         "Refresh interval",
         "seconds",
         "Runtime snapshot file",
@@ -166,7 +164,6 @@ test("every runtime UI string family is catalogued from the sources", () => {
         "Online",
         "Runtime not running",
         "Runtime stale",
-        "Accel Offline",
         "Accelerator",
         "Queued",
         "Running",

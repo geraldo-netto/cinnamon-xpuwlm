@@ -2,9 +2,10 @@
 
 // What the panel says, from what the snapshot reader saw.
 //
-// The helper's whole visible surface: an icon status, a label, a tooltip, an
-// accessible name, and the handful of lines the popup lists above the button
-// that opens the client. Everything that used to render here — workload
+// The helper's whole visible surface: an icon status, a tooltip, an accessible
+// name, and the handful of lines the popup lists above the button that opens
+// the client. No panel text: the icon is the status, and a word beside it in
+// the tray repeats what the shape and colour already said. Everything that used to render here — workload
 // screens, workflow forms, policy controls — moved to the Python client, so
 // this file draws the answer to one question: is the runtime working, and is
 // anything waiting.
@@ -66,7 +67,6 @@ function offlineModel(state) {
     const reason = state.detail || state.reason || runtimeLabel(state);
     return {
         status: "unavailable",
-        label: _("Accel Offline"),
         tooltip: format(_("XPU Workload Manager — %s"), reason),
         accessibleName: format(_("XPU Workload Manager, unavailable: %s"), reason),
     };
@@ -77,25 +77,19 @@ function panelModel(state) {
         return offlineModel(state);
     }
     if (!state.available) {
-        return {
-            ...offlineModel(state),
-            status: "detected",
-            label: _("Accel Detected"),
-        };
+        return {...offlineModel(state), status: "detected"};
     }
     const work = workText(state);
     if (state.attention > 0) {
         const review = attentionText(state.attention);
         return {
             status: "attention",
-            label: `${backendLabel(state)} ${review}`,
             tooltip: format(_("XPU Workload Manager — %s"), review),
             accessibleName: format(_("XPU Workload Manager, attention: %s"), review),
         };
     }
     return {
         status: "online",
-        label: `${backendLabel(state)} ${work}`,
         tooltip: format(_("XPU Workload Manager — online, %s"), work.toLowerCase()),
         accessibleName: format(_("XPU Workload Manager, online: %s"), work.toLowerCase()),
     };

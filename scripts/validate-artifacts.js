@@ -145,7 +145,9 @@ function validateJsonArtifacts({
         false,
         "The helper must not ship mirrored contract schemas",
     );
-    assert.equal(settings["show-panel-label"].default, false);
+    // No panel text at all: a setting that could put a word back in the tray
+    // would be a setting to keep working for a surface that no longer exists.
+    assert.equal(Object.hasOwn(settings, "show-panel-label"), false);
     assert.equal(
         settings["runtime-state-path"].default,
         require(path.join(targetAppletRoot, "lib/snapshot-reader.js")).RUNTIME_STATE_PATH,

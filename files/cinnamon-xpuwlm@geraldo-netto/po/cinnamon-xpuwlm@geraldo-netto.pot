@@ -43,14 +43,6 @@ msgid "Accel"
 msgstr ""
 
 #: lib/panel-status.js
-msgid "Accel Detected"
-msgstr ""
-
-#: lib/panel-status.js
-msgid "Accel Offline"
-msgstr ""
-
-#: lib/panel-status.js
 msgid "Accelerator"
 msgstr ""
 
@@ -106,10 +98,6 @@ msgstr ""
 msgid "Open XPU Workload Manager"
 msgstr ""
 
-#: settings-schema.json
-msgid "Panel"
-msgstr ""
-
 #: lib/panel-status.js
 msgid "Queued"
 msgstr ""
@@ -152,10 +140,6 @@ msgstr ""
 
 #: lib/panel-status.js
 msgid "Runtime unreadable"
-msgstr ""
-
-#: settings-schema.json
-msgid "Show XPU status beside the panel icon"
 msgstr ""
 
 #: lib/panel-status.js

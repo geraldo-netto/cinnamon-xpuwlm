@@ -140,10 +140,8 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
 
     _createSettings(metadata, instanceId, overrides) {
         this.settings = createAppletSettings(this, metadata, instanceId, overrides, this._orientation);
-        this._showPanelLabel = false;
         this._refreshInterval = DEFAULT_REFRESH_SECONDS;
         this._runtimeStatePath = SnapshotReader.RUNTIME_STATE_PATH;
-        this.settings.bind("show-panel-label", "_showPanelLabel", () => this._render());
         this.settings.bind("refresh-interval", "_refreshInterval", () => this._startTimer());
         this.settings.bind("runtime-state-path", "_runtimeStatePath", () => this.refresh());
     }
@@ -204,7 +202,10 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     _render() {
         const model = PanelStatus.panelModel(this._state);
         this._setPanelIcon(model.status);
-        this.set_applet_label(this._showPanelLabel ? model.label : "");
+        // No text in the panel. The icon carries the status — five distinct
+        // shapes in the desktop's own symbolic colours — and a word beside it
+        // repeats that in a strip where every pixel is contested. What the
+        // words are for is the tooltip, the accessible name, and the popup.
         this._tooltip.set_text(model.tooltip);
         this.actor.set_accessible_name(model.accessibleName);
         const lines = PanelStatus.popupLines(this._state);

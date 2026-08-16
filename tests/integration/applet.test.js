@@ -15,7 +15,6 @@ const {
 const DEFAULTS = {
     "refresh-interval": 2,
     "runtime-state-path": "~/.local/state/xpu-workload-manager/state.json",
-    "show-panel-label": false,
 };
 
 const NOW = 1_700_000_000_000;
@@ -57,6 +56,7 @@ class FakeTextIconApplet {
     set_applet_label(label) {
         this.label = label;
     }
+
 }
 
 class BoundSettings extends FakeSettings {
@@ -193,18 +193,16 @@ test("the panel draws the runtime's own status the moment it is built", () => {
 
     assert.equal(applet.symbolicIconNames.at(-1), "xpuwlm-status-online-symbolic");
     assert.equal(applet._tooltip.text, "XPU Workload Manager — online, 1 queued");
-    // The label is off by default, so an icon-only panel says nothing extra.
-    assert.equal(applet.label, "");
     applet.on_applet_removed_from_panel();
 });
 
-test("turning the label on shows the backend and what it is doing", () => {
+test("the panel writes nothing beside its icon", () => {
     const applet = build();
-    applet._showPanelLabel = true;
 
     applet.refresh();
 
-    assert.equal(applet.label, "GPU 1 queued");
+    assert.equal(applet.label, null, "the applet must never set a panel label");
+    assert.match(applet.actor.accessibleName, /XPU Workload Manager, online/u);
     applet.on_applet_removed_from_panel();
 });
 

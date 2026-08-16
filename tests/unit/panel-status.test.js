@@ -18,12 +18,25 @@ function state(overrides = {}) {
     };
 }
 
-test("a working runtime reads as online, naming the backend and its work", () => {
+test("a working runtime reads as online, and says what it is doing", () => {
     const model = PanelStatus.panelModel(state());
 
     assert.equal(model.status, "online");
-    assert.equal(model.label, "GPU 1 running");
     assert.equal(model.accessibleName, "XPU Workload Manager, online: 1 running");
+    assert.equal(model.tooltip, "XPU Workload Manager — online, 1 running");
+});
+
+test("the model carries no panel text, because the panel draws none", () => {
+    // The icon is the status. A word beside it in the tray repeats the shape
+    // and the colour, in a strip where every pixel is contested.
+    for (const model of [
+        PanelStatus.panelModel(state()),
+        PanelStatus.panelModel(state({attention: 2})),
+        PanelStatus.panelModel(state({runtime: "absent"})),
+        PanelStatus.panelModel(state({available: false})),
+    ]) {
+        assert.equal(Object.hasOwn(model, "label"), false);
+    }
 });
 
 test("the panel does not report the accelerator's busy percentage", () => {
@@ -32,7 +45,6 @@ test("the panel does not report the accelerator's busy percentage", () => {
     // client's Health page carries the percentile over a minute instead.
     const model = PanelStatus.panelModel(state());
 
-    assert.doesNotMatch(model.label, /%/u);
     assert.doesNotMatch(model.tooltip, /%/u);
     assert.doesNotMatch(model.accessibleName, /%/u);
     assert.equal(Object.hasOwn(PanelStatus, "formatLoad"), false);
@@ -48,7 +60,6 @@ test("anything needing review outranks the load in the label", () => {
     const model = PanelStatus.panelModel(state({attention: 3}));
 
     assert.equal(model.status, "attention");
-    assert.equal(model.label, "GPU 3 items need review");
     assert.match(model.tooltip, /3 items need review/u);
 });
 
@@ -65,7 +76,6 @@ test("a runtime that is not publishing is unavailable, and says why", () => {
     }));
 
     assert.equal(model.status, "unavailable");
-    assert.equal(model.label, "Accel Offline");
     assert.match(model.accessibleName, /The runtime is not running/u);
 });
 
@@ -74,7 +84,6 @@ test("a running runtime with no usable device is detected, not offline", () => {
     const model = PanelStatus.panelModel(state({available: false, reason: "no driver"}));
 
     assert.equal(model.status, "detected");
-    assert.equal(model.label, "Accel Detected");
 });
 
 test("an unknown backend still gets a label rather than an empty one", () => {

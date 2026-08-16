@@ -9,7 +9,6 @@
       "type": "page",
       "title": "General",
       "sections": [
-        "panel-section",
         "polling-section"
       ]
     },
@@ -18,13 +17,6 @@
       "title": "Runtime integration",
       "sections": [
         "runtime-section"
-      ]
-    },
-    "panel-section": {
-      "type": "section",
-      "title": "Panel",
-      "keys": [
-        "show-panel-label"
       ]
     },
     "polling-section": {
@@ -42,11 +34,6 @@
         "runtime-help"
       ]
     }
-  },
-  "show-panel-label": {
-    "type": "switch",
-    "default": false,
-    "description": "Show XPU status beside the panel icon"
   },
   "refresh-interval": {
     "type": "scale",
