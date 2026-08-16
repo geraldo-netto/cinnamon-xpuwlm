@@ -32,12 +32,19 @@ const THEMES = Object.freeze([
         error: "#ff716c",
     },
     {
-        name: "low-contrast-semantic",
+        // The status ink is the glyph's own semantic colour, not the theme's
+        // foreground: GTK's symbolic recolouring rewrites `fill` and leaves
+        // `stroke` alone, so a stroked chip painted in the foreground
+        // placeholder stayed the placeholder — #2e3436, a shade off a dark
+        // panel, leaving only the small status mark visible beside 32-pixel
+        // neighbours. This theme washes the foreground out to prove the icon
+        // no longer depends on it.
+        name: "low-contrast-foreground",
         background: [250, 250, 250],
-        foreground: "#202124",
-        success: "#fafafa",
-        warning: "#fafafa",
-        error: "#fafafa",
+        foreground: "#fafafa",
+        success: "#137a3f",
+        warning: "#925400",
+        error: "#b3261e",
     },
 ]);
 

@@ -43,8 +43,17 @@ a panel is genuinely good at is what is left here.
 
 ## Panel status
 
-The panel is a compact icon and nothing else. Cinnamon recolours each symbolic
-status icon from the active theme, and the stylesheet maps the five statuses onto the desktop's own
+The panel is a compact icon and nothing else, drawn at 28 pixels minimum —
+Cinnamon's zone preference still asks for 16 on a 40-pixel panel, which draws
+the glyph visibly smaller than the systray icons beside it, and the glyph is
+the whole message now that the panel carries no text.
+
+The status ink is the glyph's own semantic colour rather than the theme's
+foreground. GTK's symbolic recolouring rewrites `fill` and leaves `stroke`
+alone, so a stroked chip painted in the foreground placeholder stayed that
+placeholder — `#2e3436`, a shade off a dark panel — and only the small status
+mark was visible. The payload's icon directory is registered with the icon
+theme on construction, so Cinnamon can resolve those names at all, and the stylesheet maps the five statuses onto the desktop's own
 symbolic success, warning, and error colours. Online, detected, attention,
 paused, and unavailable also use different centre shapes, and the tooltip and
 accessible name state the status in text, so meaning never depends on colour

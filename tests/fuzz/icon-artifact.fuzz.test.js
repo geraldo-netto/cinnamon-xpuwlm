@@ -65,7 +65,6 @@ test("fuzz: all icon geometries stay visible and bounded across panel sizes", ()
         const status = STATUS_NAMES.find((name) => icon.includes(`id="status-${name}"`));
         if (status) {
             const glyph = tagById(icon, `status-${status}`);
-            assert.match(glyph, /stroke="#2e3436"/u);
             assert.match(glyph, /paint-order="stroke fill"/u);
         }
     }

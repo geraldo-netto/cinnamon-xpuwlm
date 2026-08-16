@@ -40,6 +40,20 @@ function snapshotDocument(overrides = {}) {
     });
 }
 
+class FakeIcon {
+    constructor() {
+        this.size = null;
+    }
+
+    set_icon_size(size) {
+        this.size = size;
+    }
+
+    get_icon_size() {
+        return this.size;
+    }
+}
+
 class FakeTextIconApplet {
     constructor(orientation, panelHeight, instanceId) {
         this.baseArguments = {orientation, panelHeight, instanceId};
@@ -47,6 +61,7 @@ class FakeTextIconApplet {
         this.actor = new FakeActor();
         this.symbolicIconNames = [];
         this.label = null;
+        this._applet_icon = new FakeIcon();
     }
 
     set_applet_icon_symbolic_name(name) {
@@ -116,6 +131,7 @@ class RecordingMenu extends FakeMenu {
     }
 }
 
+const iconPaths = [];
 const notifications = [];
 const spawned = [];
 const timers = new Map();
@@ -147,6 +163,14 @@ global.imports = {
             FileTest: {IS_EXECUTABLE: 8},
             file_test: () => false,
         },
+        Gtk: {
+            IconTheme: {
+                get_default: () => ({
+                    get_search_path: () => iconPaths.slice(),
+                    append_search_path: (candidate) => iconPaths.push(candidate),
+                }),
+            },
+        },
         St: {...createSt()},
     },
     mainloop: {
@@ -177,7 +201,7 @@ const AppletModule = require("../../files/cinnamon-xpuwlm@geraldo-netto/applet.j
 
 function build(overrides = {}) {
     return new AppletModule.XpuWorkloadApplet(
-        {uuid: AppletModule.UUID, "max-instances": 1},
+        {uuid: AppletModule.UUID, "max-instances": 1, path: "/applets/xpuwlm"},
         "top",
         28,
         "instance-1",
@@ -271,8 +295,50 @@ test("a refresh interval outside the supported range is clamped, not obeyed", ()
     assert.equal(AppletModule.refreshSeconds(0), AppletModule.MIN_REFRESH_SECONDS);
     assert.equal(AppletModule.refreshSeconds(9999), AppletModule.MAX_REFRESH_SECONDS);
     assert.equal(AppletModule.refreshSeconds("soon"), AppletModule.DEFAULT_REFRESH_SECONDS);
+});
+
+test("the icon is never drawn smaller than its neighbours in the tray", () => {
+    // Cinnamon's zone preference asks for 16 on a 40-pixel panel, which draws
+    // the status glyph noticeably smaller than the systray icons beside it —
+    // and the glyph is the whole message now that the panel carries no text.
+    assert.equal(AppletModule.panelIconSize(16), AppletModule.MIN_PANEL_ICON_SIZE);
+    // No size at all is the default rather than the floor: an unreadable
+    // preference is not evidence that the panel wants the smallest icon.
     assert.equal(AppletModule.panelIconSize(0), AppletModule.DEFAULT_PANEL_ICON_SIZE);
-    assert.equal(AppletModule.panelIconSize(24.7), 24);
+    assert.equal(AppletModule.panelIconSize("large"), AppletModule.DEFAULT_PANEL_ICON_SIZE);
+    // A panel that asks for more than the floor gets what it asked for: this
+    // raises a small icon, it does not cap a large one.
+    assert.equal(AppletModule.panelIconSize(48), 48);
+    assert.equal(AppletModule.panelIconSize(36.7), 36);
+});
+
+test("the icon size is applied on every status change, not only at startup", () => {
+    const applet = build();
+
+    assert.equal(applet._applet_icon.size, AppletModule.DEFAULT_PANEL_ICON_SIZE);
+
+    applet.on_panel_icon_size_changed(44);
+    assert.equal(applet._applet_icon.size, 44);
+
+    // Setting a symbolic name replaces the actor's size, so a status change
+    // has to re-apply it or the icon silently shrinks back.
+    applet._applet_icon.size = 16;
+    applet._panelIconStatus = null;
+    applet.refresh();
+    assert.equal(applet._applet_icon.size, 44);
+    applet.on_applet_removed_from_panel();
+});
+
+test("the payload's icons are registered once, so the theme can find them", () => {
+    // Without this the panel asks Cinnamon for an icon name the theme has
+    // never heard of; appending twice would grow the search path on reload.
+    iconPaths.length = 0;
+    const first = build();
+    const second = build();
+
+    assert.deepEqual(iconPaths, ["/applets/xpuwlm/icons"]);
+    first.on_applet_removed_from_panel();
+    second.on_applet_removed_from_panel();
 });
 
 test("clicking the applet toggles its popup", () => {

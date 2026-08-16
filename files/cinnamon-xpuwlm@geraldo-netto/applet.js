@@ -21,6 +21,7 @@ const ByteArray = imports.byteArray;
 const Gettext = imports.gettext;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
+const Gtk = imports.gi.Gtk;
 const Main = imports.ui.main;
 const Mainloop = imports.mainloop;
 const PopupMenu = imports.ui.popupMenu;
@@ -38,7 +39,10 @@ const {_, format} = I18n;
 
 const UUID = "cinnamon-xpuwlm@geraldo-netto";
 const DEFAULT_PANEL_ICON_SIZE = 32;
-const MIN_PANEL_ICON_SIZE = 1;
+// Not 1: an icon Cinnamon sizes to its zone preference is drawn smaller than
+// every systray neighbour, and the status shape is the entire message now that
+// the panel carries no text.
+const MIN_PANEL_ICON_SIZE = 28;
 const DEFAULT_REFRESH_SECONDS = 2;
 const MIN_REFRESH_SECONDS = 1;
 const MAX_REFRESH_SECONDS = 60;
@@ -64,10 +68,15 @@ function installTranslations(gettextModule, environment) {
     return true;
 }
 
+// Cinnamon's panel-zone preference still asks for 16 pixels on a 40-pixel
+// panel, which draws this glyph noticeably smaller than the systray icons
+// beside it. The floor is what keeps a compact status shape legible without
+// touching the panel's own height, which is the user's setting, not ours.
 function panelIconSize(requestedSize) {
-    return Number.isFinite(requestedSize) && requestedSize > 0
-        ? Math.max(MIN_PANEL_ICON_SIZE, Math.floor(requestedSize))
+    const requested = Number.isFinite(requestedSize) && requestedSize > 0
+        ? Math.floor(requestedSize)
         : DEFAULT_PANEL_ICON_SIZE;
+    return Math.max(MIN_PANEL_ICON_SIZE, requested);
 }
 
 function refreshSeconds(requestedSeconds) {
@@ -109,6 +118,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._timer = null;
         this._state = SnapshotReader.EMPTY_STATE;
         this._panelIconStatus = null;
+        this._iconSize = overrides.iconSize || DEFAULT_PANEL_ICON_SIZE;
         this._lineItems = [];
         this._environment = overrides.environment || defaultEnvironment();
         this._logger = overrides.logger || defaultLogger();
@@ -132,10 +142,24 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     }
 
     _construct(metadata, instanceId, overrides) {
+        this._registerIconPath(metadata, overrides);
         this._createSettings(metadata, instanceId, overrides);
         this._createPresentation(overrides);
         this.refresh();
         this._startTimer();
+    }
+
+    // Without this the payload's icons are not in the icon theme, so Cinnamon
+    // cannot recolour them: the chip drew in the symbolic fallback grey, which
+    // on a dark panel is nearly the background, leaving only the small green
+    // status mark visible beside 32-pixel neighbours. Appended once, and only
+    // when absent, so a reload does not grow the search path.
+    _registerIconPath(metadata, overrides) {
+        const iconTheme = (overrides && overrides.iconTheme) || Gtk.IconTheme.get_default();
+        const iconPath = `${metadata.path}/icons`;
+        if (!iconTheme.get_search_path().includes(iconPath)) {
+            iconTheme.append_search_path(iconPath);
+        }
     }
 
     _createSettings(metadata, instanceId, overrides) {
@@ -230,6 +254,33 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._panelIconStatus = status;
         this.actor.add_style_class_name(`xpuwlm-panel-${status}`);
         this.set_applet_icon_symbolic_name(PanelStatus.panelIconName(status));
+        this._applyPanelIconSize(this._iconSize);
+    }
+
+    // Setting the icon replaces the actor's size, so the size is re-applied
+    // after every status change rather than once at construction.
+    //
+    // Both paths are used deliberately. `set_icon_size` is the property, and
+    // the desktop theme's own `.applet-icon { icon-size: ... }` rule overrides
+    // it — which is why this glyph drew at 14 pixels beside 32-pixel systray
+    // neighbours. An inline style is the one declaration a stylesheet cannot
+    // outrank, so it is what actually decides the size.
+    _applyPanelIconSize(requestedSize) {
+        const icon = this._applet_icon;
+        if (!icon || typeof icon.set_icon_size !== "function") {
+            return false;
+        }
+        const size = panelIconSize(requestedSize);
+        icon.set_icon_size(size);
+        if (typeof icon.set_style === "function") {
+            icon.set_style(`icon-size: ${size}px;`);
+        }
+        return true;
+    }
+
+    on_panel_icon_size_changed(size) {
+        this._iconSize = size;
+        this._applyPanelIconSize(size);
     }
 
     _startTimer() {

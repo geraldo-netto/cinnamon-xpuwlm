@@ -45,7 +45,6 @@ test("regression: every panel icon remains caller-labelled and themeable", () =>
         for (const paint of icon.matchAll(/(?:fill|stroke)="(#[\da-f]{6})"/giu)) {
             assert.equal(symbolicFallbacks.has(paint[1].toLowerCase()), true, `${name} palette`);
         }
-        assert.match(icon, /#2e3436/iu);
     }
 });
 
@@ -65,7 +64,6 @@ test("regression: status icons pair semantic palette with unique non-color glyph
         const shape = icon.match(new RegExp(`<[^>]+id="status-${status}"[^>]*>`, "u"));
         assert.ok(shape, `${status} glyph is required`);
         assert.match(shape[0], new RegExp(`class="${palette}"`, "u"));
-        assert.match(shape[0], /stroke="#2e3436"/u);
         assert.match(shape[0], /paint-order="stroke fill"/u);
         assert.match(icon, /<rect id="chip-body"/u);
         assert.match(icon, /<path id="chip-pins"/u);
