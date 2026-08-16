@@ -14,6 +14,7 @@ const HELPER_MODULES = Object.freeze([
     "lib/i18n.js",
     "lib/panel-status.js",
     "lib/snapshot-reader.js",
+    "lib/window-placement.js",
     "lib/xpuwlm-launcher.js",
 ]);
 
@@ -30,7 +31,7 @@ test("applet payload JavaScript is exactly the production graph and its Cinnamon
     assert.equal(Object.isFrozen(graph.rootShims), true);
 });
 
-test("the helper ships the panel, the reader, and the launcher — and nothing else", () => {
+test("the helper ships the panel, the reader, the launcher and the placer — nothing else", () => {
     const graph = Package.productionRequireGraph(Package.payloadRoot);
     assert.deepEqual([...graph.modules].sort(Package.compareText), [...HELPER_MODULES]);
     assert.deepEqual([...graph.rootShims], ["i18n.js"]);

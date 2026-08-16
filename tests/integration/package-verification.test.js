@@ -34,7 +34,8 @@ test("staging, checksums, install and uninstall verification round-trip", () => 
     // exist here any more, which is what keeps staging honest.
     for (const relativePath of [
         "applet.js", "i18n.js", "lib/i18n.js", "lib/panel-status.js",
-        "lib/snapshot-reader.js", "lib/xpuwlm-launcher.js", "stylesheet.css",
+        "lib/snapshot-reader.js", "lib/window-placement.js", "lib/xpuwlm-launcher.js",
+        "stylesheet.css",
     ]) {
         assert.equal(fs.existsSync(path.join(stagedRoot, relativePath)), true, relativePath);
     }

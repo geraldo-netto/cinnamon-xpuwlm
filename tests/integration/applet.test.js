@@ -72,6 +72,12 @@ class FakeTextIconApplet {
         this.label = label;
     }
 
+    // Cinnamon's own implementation, which spawns xlet-settings and never
+    // places the window it asks for.
+    configureApplet(tab) {
+        this.configuredTabs = this.configuredTabs || [];
+        this.configuredTabs.push(tab);
+    }
 }
 
 class BoundSettings extends FakeSettings {
@@ -138,8 +144,61 @@ const timers = new Map();
 let nextTimerId = 1;
 let snapshotContents = snapshotDocument();
 let snapshotError = null;
+const idlers = new Map();
 
 global.logWarning = () => {};
+
+// Muffin's display, as far as this applet uses it: one signal, and a way to
+// stop listening to it.
+class FakeDisplay {
+    constructor() {
+        this.handlers = new Map();
+        this.disconnected = [];
+        this.nextHandler = 1;
+    }
+
+    connect(signal, callback) {
+        const id = this.nextHandler;
+        this.nextHandler += 1;
+        this.handlers.set(id, {signal, callback});
+        return id;
+    }
+
+    disconnect(id) {
+        this.disconnected.push(id);
+        this.handlers.delete(id);
+    }
+
+    open(window) {
+        for (const {signal, callback} of [...this.handlers.values()]) {
+            if (signal === "window-created") {
+                callback(this, window);
+            }
+        }
+    }
+}
+
+function settingsWindow(overrides = {}) {
+    return {
+        get_wm_class: () => "Xlet-settings.py",
+        get_frame_rect: () => ({x: 90, y: 90, width: 800, height: 632}),
+        get_work_area_current_monitor: () => ({x: 0, y: 0, width: 3840, height: 2120}),
+        allows_move: () => true,
+        move_frame(userOperation, x, y) {
+            this.moved = {userOperation, x, y};
+        },
+        ...overrides,
+    };
+}
+
+function runIdlers() {
+    for (const [id, callback] of [...idlers.entries()]) {
+        idlers.delete(id);
+        callback();
+    }
+}
+
+global.display = new FakeDisplay();
 global.imports = {
     byteArray: {toString: (value) => String(value)},
     gettext: null,
@@ -178,6 +237,12 @@ global.imports = {
             const id = nextTimerId;
             nextTimerId += 1;
             timers.set(id, {seconds, callback});
+            return id;
+        },
+        idle_add(callback) {
+            const id = nextTimerId;
+            nextTimerId += 1;
+            idlers.set(id, callback);
             return id;
         },
         source_remove: (id) => timers.delete(id),
@@ -479,4 +544,92 @@ test("gettext without plural support still resolves a plural msgid", () => {
 
     assert.equal(I18n.ngettext("one", "many", 3), "many");
     I18n.reset();
+});
+
+test("Configure… centres the settings window Cinnamon opens", () => {
+    // Cinnamon spawns xlet-settings with a size and no position, so the window
+    // manager drops it in a corner while the applet sits in the panel.
+    const applet = build();
+    const display = new FakeDisplay();
+    const window = settingsWindow();
+
+    applet._placeSettingsWindow(display, global.imports.mainloop);
+    display.open(window);
+    runIdlers();
+
+    assert.deepEqual(window.moved, {userOperation: true, x: 1520, y: 744});
+    applet.on_applet_removed_from_panel();
+});
+
+test("Configure… still asks Cinnamon to open its own settings window", () => {
+    const applet = build();
+
+    applet.configureApplet(2);
+
+    assert.deepEqual(applet.configuredTabs, [2]);
+    applet.on_applet_removed_from_panel();
+});
+
+test("another application's window opening is not moved", () => {
+    const applet = build();
+    const display = new FakeDisplay();
+    const window = settingsWindow({get_wm_class: () => "Google-chrome"});
+
+    applet._placeSettingsWindow(display, global.imports.mainloop);
+    display.open(window);
+    runIdlers();
+
+    assert.equal(window.moved, undefined);
+    assert.deepEqual(display.disconnected, []);
+    applet.on_applet_removed_from_panel();
+});
+
+test("the applet stops listening once it has placed one window", () => {
+    const applet = build();
+    const display = new FakeDisplay();
+
+    applet._placeSettingsWindow(display, global.imports.mainloop);
+    display.open(settingsWindow());
+    runIdlers();
+
+    assert.equal(display.handlers.size, 0);
+    assert.equal(display.disconnected.length, 1);
+    applet.on_applet_removed_from_panel();
+});
+
+test("a settings window that never opens is not waited for forever", () => {
+    // A spawn that failed, or a Cinnamon that stopped using xlet-settings.
+    const applet = build();
+    const display = new FakeDisplay();
+
+    applet._placeSettingsWindow(display, global.imports.mainloop);
+    const [waiting] = [...timers.values()].filter((timer) => timer.seconds >= 1).slice(-1);
+    waiting.callback();
+
+    assert.equal(display.handlers.size, 0);
+    applet.on_applet_removed_from_panel();
+});
+
+test("a window that cannot be placed costs the placement, not the settings window", () => {
+    const applet = build();
+    const display = new FakeDisplay();
+    const window = settingsWindow({
+        move_frame() {
+            throw new Error("the window manager said no");
+        },
+    });
+
+    applet._placeSettingsWindow(display, global.imports.mainloop);
+    display.open(window);
+
+    assert.doesNotThrow(runIdlers);
+    applet.on_applet_removed_from_panel();
+});
+
+test("a shell that publishes no display is left alone", () => {
+    const applet = build();
+
+    assert.equal(applet._placeSettingsWindow(null, global.imports.mainloop), false);
+    assert.equal(applet._placeSettingsWindow({}, global.imports.mainloop), false);
+    applet.on_applet_removed_from_panel();
 });

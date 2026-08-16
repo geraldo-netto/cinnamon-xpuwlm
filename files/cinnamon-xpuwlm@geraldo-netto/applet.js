@@ -33,6 +33,7 @@ const Util = imports.misc.util;
 const I18n = require("./lib/i18n.js");
 const PanelStatus = require("./lib/panel-status.js");
 const SnapshotReader = require("./lib/snapshot-reader.js");
+const WindowPlacement = require("./lib/window-placement.js");
 const XpuwlmLauncher = require("./lib/xpuwlm-launcher.js");
 
 const {_, format} = I18n;
@@ -303,6 +304,53 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
 
     on_applet_clicked() {
         this.menu.toggle();
+    }
+
+    // Cinnamon's own "Configure…", which spawns a window it never places: it
+    // sets a size and leaves the position to the window manager, which opens
+    // it in a corner while the applet it configures sits at the other end of
+    // the panel. The client's windows centre themselves, so this one does too.
+    configureApplet(tab = 0) {
+        this._placeSettingsWindow();
+        super.configureApplet(tab);
+    }
+
+    // Waits for the window Cinnamon is about to spawn, centres it once, and
+    // stops waiting either way — a settings window that never appears must not
+    // leave a handler listening for the rest of the session.
+    _placeSettingsWindow(display = global.display, mainloop = Mainloop) {
+        if (!display || typeof display.connect !== "function") {
+            return false;
+        }
+        let handler = display.connect("window-created", (_display, window) => {
+            if (!WindowPlacement.isSettingsWindow(window)) {
+                return;
+            }
+            handler = this._stopWaiting(display, handler);
+            // One turn of the loop, so the window has been given its size:
+            // centring a window that is still 1×1 puts it in the middle and
+            // then lets it grow down and right from there.
+            mainloop.idle_add(() => {
+                try {
+                    WindowPlacement.placeWindow(window);
+                } catch (error) {
+                    this._logger.warn(`could not place the settings window: ${error}`);
+                }
+                return false;
+            });
+        });
+        mainloop.timeout_add_seconds(WindowPlacement.SETTINGS_WAIT_SECONDS, () => {
+            handler = this._stopWaiting(display, handler);
+            return false;
+        });
+        return true;
+    }
+
+    _stopWaiting(display, handler) {
+        if (handler) {
+            display.disconnect(handler);
+        }
+        return 0;
     }
 
     on_panel_height_changed() {
