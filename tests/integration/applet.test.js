@@ -192,19 +192,19 @@ test("the panel draws the runtime's own status the moment it is built", () => {
     const applet = build();
 
     assert.equal(applet.symbolicIconNames.at(-1), "xpuwlm-status-online-symbolic");
-    assert.equal(applet._tooltip.text, "XPU Workload Manager — online");
+    assert.equal(applet._tooltip.text, "XPU Workload Manager — online, 1 queued");
     // The label is off by default, so an icon-only panel says nothing extra.
     assert.equal(applet.label, "");
     applet.on_applet_removed_from_panel();
 });
 
-test("turning the label on shows the backend and its load", () => {
+test("turning the label on shows the backend and what it is doing", () => {
     const applet = build();
     applet._showPanelLabel = true;
 
     applet.refresh();
 
-    assert.equal(applet.label, "GPU 40%");
+    assert.equal(applet.label, "GPU 1 queued");
     applet.on_applet_removed_from_panel();
 });
 

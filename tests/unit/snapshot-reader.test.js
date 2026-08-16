@@ -59,7 +59,6 @@ test("a published snapshot yields exactly the fields the panel draws", () => {
     assert.equal(state.runtime, "connected");
     assert.equal(state.available, true);
     assert.equal(state.backend, "gpu");
-    assert.equal(state.load, 42);
     assert.equal(state.queued, 3);
     assert.equal(state.running, 1);
     assert.equal(state.attention, 0);
@@ -122,16 +121,21 @@ test("an unavailable device is still reported rather than hidden", () => {
 
     assert.equal(state.available, false);
     assert.equal(state.reason, "no driver");
-    assert.equal(state.load, null);
 });
 
-test("counters and loads outside their bounds are clamped, not trusted", () => {
+test("the device's busy percentage is not read at all", () => {
+    // The panel is not a load meter: the client's Health page keeps a minute
+    // of samples and shows the percentile, which is the honest form of it.
+    const state = Reader.stateFromDocument(document(), NOW);
+
+    assert.equal(Object.hasOwn(state, "load"), false);
+});
+
+test("counters outside their bounds are clamped, not trusted", () => {
     const state = Reader.stateFromDocument(document({
-        devices: [{backend: "gpu", available: true, load: 400}],
         metrics: {queueDepth: -4, runningProfiles: "many"},
     }), NOW);
 
-    assert.equal(state.load, 100);
     assert.equal(state.queued, 0);
     assert.equal(state.running, 0);
 });
@@ -145,12 +149,8 @@ test("only unresolved alerts count as needing review", () => {
 });
 
 test("a device that is not a record contributes nothing rather than throwing", () => {
-    assert.deepEqual(Reader.deviceFields(null), {
-        available: false, backend: null, load: null, reason: "",
-    });
-    assert.deepEqual(Reader.deviceFields({}), {
-        available: false, backend: null, load: null, reason: "",
-    });
+    assert.deepEqual(Reader.deviceFields(null), {available: false, backend: null, reason: ""});
+    assert.deepEqual(Reader.deviceFields({}), {available: false, backend: null, reason: ""});
 });
 
 test("a snapshot with no timestamp is read rather than judged stale", () => {

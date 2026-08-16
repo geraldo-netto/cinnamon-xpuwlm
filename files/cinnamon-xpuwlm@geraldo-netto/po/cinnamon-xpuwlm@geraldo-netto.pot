@@ -19,8 +19,16 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/panel-status.js
-msgid "%s at %s"
-msgstr ""
+msgid "%d queued"
+msgid_plural "%d queued"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/panel-status.js
+msgid "%d running"
+msgid_plural "%d running"
+msgstr[0] ""
+msgstr[1] ""
 
 #: applet.js
 msgid "%s: %s"
@@ -102,6 +110,10 @@ msgstr ""
 msgid "Queued"
 msgstr ""
 
+#: lib/panel-status.js
+msgid "Ready"
+msgstr ""
+
 #: settings-schema.json
 msgid "Refresh interval"
 msgstr ""
@@ -163,7 +175,7 @@ msgid "XPU Workload Manager — %s"
 msgstr ""
 
 #: lib/panel-status.js
-msgid "XPU Workload Manager — online"
+msgid "XPU Workload Manager — online, %s"
 msgstr ""
 
 #: lib/panel-status.js
@@ -171,7 +183,7 @@ msgid "XPU Workload Manager, attention: %s"
 msgstr ""
 
 #: lib/panel-status.js
-msgid "XPU Workload Manager, online: %s load"
+msgid "XPU Workload Manager, online: %s"
 msgstr ""
 
 #: lib/panel-status.js

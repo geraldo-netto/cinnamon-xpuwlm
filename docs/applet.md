@@ -14,7 +14,7 @@ a panel is genuinely good at is what is left here.
 
 - **Panel presence.** A symbolic status icon, an opt-in text label, a tooltip,
   and an accessible name, from the runtime's own published snapshot.
-- **A five-line popup.** Runtime state, the accelerator and its load, queued,
+- **A five-line popup.** Runtime state, which accelerator is serving, queued,
   running, and how much needs review. Read-only: anything a person can act on
   belongs in the client.
 - **One action.** "Open XPU Workload Manager" starts the client and closes the
@@ -29,8 +29,13 @@ a panel is genuinely good at is what is left here.
   against the canonical schemas with a real schema engine. A mirror here would
   be a second reader to keep in parity — the drift that made the applet reject
   every snapshot the runtime published, once.
-- **It reads six fields.** Whatever the snapshot carries beyond what the panel
+- **It reads five fields.** Whatever the snapshot carries beyond what the panel
   draws is not read, not validated, and not modelled.
+- **It is not a load meter.** The panel used to show the accelerator's
+  instantaneous busy percentage, which answers "was it busy the moment I
+  looked" rather than "is it busy". The client's Health page keeps a minute of
+  samples per device and shows the ninetieth percentile; a second, worse copy
+  of that in the tray is not worth the pixels or the poll.
 
 ## Panel status
 
@@ -59,8 +64,8 @@ draws rather than an error it swallows:
 | `malformed` | Not JSON, not an object, or larger than the panel reads. |
 | `unreadable` | The file exists but could not be read. |
 
-Absent and zero are different facts throughout: a device that published no load
-reads as unknown, never as idle.
+Absent and zero are different facts throughout: a runtime that published no
+figure reads as unknown, never as idle.
 
 ### The one file the two sides share
 

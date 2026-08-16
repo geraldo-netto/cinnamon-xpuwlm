@@ -6,8 +6,16 @@
 // accessible name, and the handful of lines the popup lists above the button
 // that opens the client. Everything that used to render here — workload
 // screens, workflow forms, policy controls — moved to the Python client, so
-// this file draws the answer to one question: is the accelerator working, and
-// is anything waiting.
+// this file draws the answer to one question: is the runtime working, and is
+// anything waiting.
+//
+// Deliberately not a load meter. The panel used to carry the accelerator's
+// instantaneous busy percentage, which is the least informative number about
+// it: one read of a figure that moves constantly says whether the device was
+// busy at that instant, not whether it is busy. The client's Health page shows
+// the ninetieth percentile over the last minute, which is the honest form of
+// that question, and a second, worse copy of it in the tray is not worth the
+// pixels or the poll.
 
 const I18n = require("./i18n.js");
 
@@ -40,12 +48,18 @@ function runtimeLabel(state) {
     return _(RUNTIME_LABELS[state.runtime] || RUNTIME_LABELS.unreadable);
 }
 
-function formatLoad(value) {
-    return typeof value === "number" && Number.isFinite(value) ? `${Math.round(value)}%` : "—";
-}
-
 function attentionText(count) {
     return format(ngettext("%d item needs review", "%d items need review", count), count);
+}
+
+function workText(state) {
+    if (state.running > 0) {
+        return format(ngettext("%d running", "%d running", state.running), state.running);
+    }
+    if (state.queued > 0) {
+        return format(ngettext("%d queued", "%d queued", state.queued), state.queued);
+    }
+    return _("Ready");
 }
 
 function offlineModel(state) {
@@ -69,21 +83,21 @@ function panelModel(state) {
             label: _("Accel Detected"),
         };
     }
-    const load = formatLoad(state.load);
+    const work = workText(state);
     if (state.attention > 0) {
         const review = attentionText(state.attention);
         return {
             status: "attention",
-            label: `${backendLabel(state)} ${load} · ${review}`,
+            label: `${backendLabel(state)} ${review}`,
             tooltip: format(_("XPU Workload Manager — %s"), review),
             accessibleName: format(_("XPU Workload Manager, attention: %s"), review),
         };
     }
     return {
         status: "online",
-        label: `${backendLabel(state)} ${load}`,
-        tooltip: _("XPU Workload Manager — online"),
-        accessibleName: format(_("XPU Workload Manager, online: %s load"), load),
+        label: `${backendLabel(state)} ${work}`,
+        tooltip: format(_("XPU Workload Manager — online, %s"), work.toLowerCase()),
+        accessibleName: format(_("XPU Workload Manager, online: %s"), work.toLowerCase()),
     };
 }
 
@@ -101,9 +115,7 @@ function popupLines(state) {
         {label: _("Runtime"), value: runtimeLabel(state)},
         {
             label: _("Accelerator"),
-            value: state.available
-                ? format(_("%s at %s"), backendLabel(state), formatLoad(state.load))
-                : _("No device available"),
+            value: state.available ? backendLabel(state) : _("No device available"),
         },
         {label: _("Queued"), value: String(state.queued)},
         {label: _("Running"), value: String(state.running)},
@@ -122,10 +134,10 @@ module.exports = {
     RUNTIME_LABELS,
     attentionText,
     backendLabel,
-    formatLoad,
     offlineModel,
     panelIconName,
     panelModel,
     popupLines,
     runtimeLabel,
+    workText,
 };

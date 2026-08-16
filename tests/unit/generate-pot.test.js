@@ -173,7 +173,8 @@ test("every runtime UI string family is catalogued from the sources", () => {
         "Needs review",
         "Open XPU Workload Manager",
         "Could not start the client. Is xpuwlm installed?",
-        "XPU Workload Manager — online",
+        "XPU Workload Manager — online, %s",
+        "Ready",
     ]) {
         assert.equal(messages.has(expected), true, `missing runtime string: ${expected}`);
     }

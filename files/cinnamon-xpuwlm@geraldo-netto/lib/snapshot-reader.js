@@ -9,9 +9,14 @@
 // the panel shows. Anything the panel does not draw is not read, not
 // validated, and not mirrored.
 //
-// That is the whole reason this is 130 lines where the applet used to carry
-// about 2,700 lines of hand-written contract mirrors: a reader that renders
-// six fields needs to agree with the writer about six fields.
+// That is the whole reason this is short where the applet used to carry about
+// 2,700 lines of hand-written contract mirrors: a reader that renders five
+// fields needs to agree with the writer about five fields.
+//
+// Device load is deliberately not among them. A panel that reports the
+// accelerator's instantaneous busy percentage answers "was it busy the moment
+// I looked", which is not the question anyone is asking; the client's Health
+// page keeps a minute of samples and shows the ninetieth percentile.
 
 const MAX_SNAPSHOT_BYTES = 512 * 1024;
 // The service republishes every two seconds; three misses is a runtime that
@@ -24,7 +29,6 @@ const EMPTY_STATE = Object.freeze({
     detail: "",
     available: false,
     backend: null,
-    load: null,
     reason: "",
     queued: 0,
     running: 0,
@@ -47,17 +51,9 @@ function boundedCount(value) {
     return Number.isInteger(value) && value >= 0 ? value : 0;
 }
 
-// Absent and zero are different facts: a device that published no load reads
-// as unknown rather than as idle.
-function boundedLoad(value) {
-    return typeof value === "number" && Number.isFinite(value)
-        ? Math.max(0, Math.min(100, value))
-        : null;
-}
-
 // The device the panel speaks for: the runtime orders backends tpu > npu >
 // gpu and never schedules onto a CPU, so the first available device in that
-// order is the one whose load the label carries.
+// order is the one the label names.
 const BACKEND_ORDER = Object.freeze(["tpu", "npu", "gpu"]);
 
 function primaryDevice(devices) {
@@ -85,12 +81,11 @@ function failed(runtime, detail) {
 
 function deviceFields(device) {
     if (!isRecord(device)) {
-        return {available: false, backend: null, load: null, reason: ""};
+        return {available: false, backend: null, reason: ""};
     }
     return {
         available: device.available === true,
         backend: typeof device.backend === "string" ? device.backend : null,
-        load: boundedLoad(device.load),
         reason: typeof device.reason === "string" ? device.reason : "",
     };
 }
