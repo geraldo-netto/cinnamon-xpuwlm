@@ -119,7 +119,12 @@ function popupLines(state) {
         },
         {label: _("Queued"), value: String(state.queued)},
         {label: _("Running"), value: String(state.running)},
-        {label: _("Needs review"), value: attentionText(state.attention)},
+        {
+            // "Needs review: 0 items need review" says the label twice and the
+            // number once; nothing to review is worth one word.
+            label: _("Needs review"),
+            value: state.attention > 0 ? attentionText(state.attention) : _("Nothing"),
+        },
     ];
 }
 

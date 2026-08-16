@@ -90,6 +90,14 @@ test("the popup lists what is running when the runtime answers", () => {
     ]);
     assert.equal(lines[1].value, "GPU");
     assert.equal(lines[2].value, "2");
+    assert.equal(lines[4].value, "1 item needs review");
+});
+
+test("nothing to review is one word, not a sentence repeating the label", () => {
+    const lines = PanelStatus.popupLines(state({attention: 0}));
+
+    assert.equal(lines[4].label, "Needs review");
+    assert.equal(lines[4].value, "Nothing");
 });
 
 test("the popup says what is wrong when the runtime does not answer", () => {
