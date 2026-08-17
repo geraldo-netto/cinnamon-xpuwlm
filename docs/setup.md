@@ -1,6 +1,6 @@
 # Hardware and software setup
 
-[Previous: Use cases and practicality](use-cases.md) · [Documentation index](../README.md) · [Next: Cinnamon applet integration](cinnamon-integration.md)
+[Documentation index](../README.md) · [Next: Cinnamon applet integration](cinnamon-integration.md)
 
 ## Hardware integration
 
@@ -30,8 +30,10 @@ Power and heat depend on model, inference rate, and operating frequency. The PCI
 
 ### Accelerator probing reference
 
-When no runtime snapshot is present, the applet probes for device nodes per
-backend. The OmniTensor service uses the matching runtime stack per backend:
+The OmniTensor service discovers accelerators by probing device nodes per
+backend and uses the matching runtime stack for each. The applet itself never
+probes hardware: it reads only the published snapshot, and when none is
+present it reports that the runtime is not running.
 
 | Backend | Device nodes probed | Vendor source | Runtime stack |
 | --- | --- | --- | --- |
@@ -51,7 +53,7 @@ ImageMagick, and either librsvg or Inkscape. On Debian or Ubuntu:
 
 ```bash
 sudo apt-get update
-sudo apt-get install cinnamon cjs imagemagick librsvg2-bin zenity
+sudo apt-get install cinnamon cjs imagemagick librsvg2-bin
 npm ci
 npm test
 ```

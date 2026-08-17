@@ -70,6 +70,34 @@ render.
 Identical payload bytes always produce identical staging trees, manifests,
 and archives, so releases can be rebuilt and audited offline.
 
+## Installing the applet
+
+Cinnamon loads applets from UUID-named directories under
+`~/.local/share/cinnamon/applets/`, but copying the payload there is not
+enough to show it: an applet appears in a panel only when the
+`org.cinnamon enabled-applets` gsettings list carries an entry for it. Each
+entry has the form `panelN:side:position:uuid:instanceId`, where `side` is
+`left`, `center`, or `right` and `instanceId` is an integer unique across the
+list. Adding the applet through Cinnamon's own "Applets" tool writes this
+entry for you; by hand it is:
+
+```bash
+cp -r files/cinnamon-xpuwlm@geraldo-netto ~/.local/share/cinnamon/applets/
+
+gsettings get org.cinnamon enabled-applets
+# Append an entry for this applet while keeping every existing one, e.g.:
+gsettings set org.cinnamon enabled-applets \
+  "[<existing entries>, 'panel1:right:0:cinnamon-xpuwlm@geraldo-netto:99']"
+```
+
+Cinnamon watches the list and shows the applet as soon as the entry lands.
+Reloading the xlet (`org.Cinnamon.ReloadXlet` over the session bus) only
+re-executes an applet that is already enabled; it does not add one, so a
+fresh install without the `enabled-applets` entry stays invisible no matter
+how often it is reloaded. After installing, `npm run package:verify --
+~/.local/share/cinnamon/applets/cinnamon-xpuwlm@geraldo-netto` audits the
+installed files against the payload checksums.
+
 ## Localization
 
 The applet ships a gettext template at

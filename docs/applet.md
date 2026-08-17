@@ -33,8 +33,8 @@ a panel is genuinely good at is what is left here.
   against the canonical schemas with a real schema engine. A mirror here would
   be a second reader to keep in parity — the drift that made the applet reject
   every snapshot the runtime published, once.
-- **It reads five fields.** Whatever the snapshot carries beyond what the panel
-  draws is not read, not validated, and not modelled.
+- **It reads a handful of fields.** Whatever the snapshot carries beyond what
+  the panel draws is not read, not validated, and not modelled.
 - **It is not a load meter.** The panel used to show the accelerator's
   instantaneous busy percentage, which answers "was it busy the moment I
   looked" rather than "is it busy". The client's Health page keeps a minute of
@@ -64,16 +64,16 @@ Cinnamon for an icon file the payload does not ship.
 
 ## Reading the runtime
 
-The snapshot is read on a timer — two seconds by default, bounded to between
-one and sixty — from the path in settings. Each outcome is a state the panel
-draws rather than an error it swallows:
+The snapshot is read on a timer — once a second by default, bounded to between
+one and sixty seconds — from the path in settings. Each outcome is a state the
+panel draws rather than an error it swallows:
 
 | State | What it means |
 | --- | --- |
 | `connected` | The runtime published recently; the panel shows its figures. |
 | `absent` | No snapshot file: the runtime is not running. |
 | `stale` | Published more than fifteen seconds ago; the runtime stopped. |
-| `malformed` | Not JSON, not an object, or larger than the panel reads. |
+| `malformed` | Not JSON, or not an object. A snapshot is read whatever size it has grown to. |
 | `unreadable` | The file exists but could not be read. |
 
 Absent and zero are different facts throughout: a runtime that published no

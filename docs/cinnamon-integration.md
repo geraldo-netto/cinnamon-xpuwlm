@@ -53,15 +53,14 @@ The service should normally be the only process that owns a given inference inte
 
 ### Portable client composition
 
-The production applet composes four host boundaries before constructing its
-workflows: path syntax, recovery guidance, runtime transport, and discovery.
-The Cinnamon composition deliberately selects POSIX paths, Linux device
-discovery, and session D-Bus. Portable validators can instead receive the
-strict Windows path port, but that does not make Windows paths valid for the
-current Linux OmniTensor service or change its serialized snapshot paths. A
-sibling client must provide its own guidance, transport, and authoritative
-discovery implementations; Windows runtime evidence remains a separate
-release prerequisite.
+The production helper no longer composes host boundaries of its own: workflow
+construction, recovery guidance, runtime transport, and discovery all moved to
+the Python client (`../../xpuwlm`) and the OmniTensor service. What remains in
+the applet assumes only a POSIX home directory — it expands `~/` in the
+snapshot path, reads that one file, and spawns the client. A sibling client
+for another platform must provide its own guidance, transport, and
+authoritative discovery implementations; Windows runtime evidence remains a
+separate release prerequisite.
 
 ### XPU workload management
 
@@ -254,7 +253,7 @@ Track at least:
 
 ### Suggested D-Bus contract
 
-Use a session-bus name such as `org.example.CoralControl1`, an object path such as `/org/example/CoralControl1`, and a matching interface name. Include a version in the API or bus name so the applet and service can reject incompatible peers. The names below are illustrative for a from-scratch integration; the production applet's actual control surface is the much smaller `org.cinnamon.OmniTensor1` contract implemented by the OmniTensor service, documented with the runtime that implements it, in `../../omnitensor/docs/control-boundary.md`.
+Use a session-bus name such as `org.example.CoralControl1`, an object path such as `/org/example/CoralControl1`, and a matching interface name. Include a version in the API or bus name so the applet and service can reject incompatible peers. The names below are illustrative for a from-scratch integration; the production applet has no control surface at all — it reads the published snapshot and launches the Python client, and the client speaks the OmniTensor service's uid-scoped Unix control socket, documented with the runtime that implements it, in `../../omnitensor/docs/control-boundary.md`.
 
 | Member | Direction | Purpose |
 | --- | --- | --- |
