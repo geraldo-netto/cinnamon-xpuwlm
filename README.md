@@ -60,28 +60,10 @@ This document is application-neutral. It explains the hardware and software boun
 
 - Product artifacts
   - [Cinnamon helper](docs/applet.md) — what the panel shows, what moved to the client, and the quality gates
+  - The reference design, the mockups, the execution model and the use-case notes
+    live with the client that implements them, in `../xpuwlm/design` and
+    `../xpuwlm/docs`: they described that client rather than this applet
   - Workload guides — event extraction, ask-selected-files, selected-text tools, file organizer and media transcription are documented with the runtime that implements them, in `../omnitensor/docs/`
-  - [Reference UI/interaction design](design/prototype/DESIGN.md) — approved prototype rationale and states; not the live implementation
-  - [Consolidated workload profiles](design/prototype/WORKLOADS.md)
-  - [Prototype screen gallery](design/prototype/mockup/screens/all-screens.png)
-  - [Compact panel status montage](design/prototype/mockup/xpuwlm-panel-status-montage.png)
-- [Fundamentals and execution model](docs/fundamentals.md)
-  - [Documentation and maintenance status](docs/fundamentals.md#documentation-and-maintenance-status)
-  - [How to read the evidence](docs/fundamentals.md#how-to-read-the-evidence)
-  - [What the Edge TPU is](docs/fundamentals.md#what-the-edge-tpu-is)
-  - [What the Edge TPU is not](docs/fundamentals.md#what-the-edge-tpu-is-not)
-  - [What it can and cannot do](docs/fundamentals.md#what-it-can-and-cannot-do)
-  - [Neural-network inference](docs/fundamentals.md#neural-network-inference)
-  - [Execution boundary](docs/fundamentals.md#execution-boundary)
-  - [Model compatibility](docs/fundamentals.md#model-compatibility)
-  - [Memory, performance, and scaling](docs/fundamentals.md#memory-performance-and-scaling)
-- [Use cases and practicality](docs/use-cases.md)
-  - [Decision guide](docs/use-cases.md#decision-guide)
-  - [System, resource, and data workflows](docs/use-cases/system-workflows.md)
-  - [Vision and audio](docs/use-cases/vision-and-audio.md)
-  - [Systems and data](docs/use-cases/systems-and-data.md)
-  - [Physical automation](docs/use-cases/physical-automation.md)
-  - [Speculative idea bank](docs/use-cases.md#speculative-idea-bank)
 - [Hardware and software setup](docs/setup.md)
   - [Hardware integration](docs/setup.md#hardware-integration)
   - [Software setup](docs/setup.md#software-setup)
