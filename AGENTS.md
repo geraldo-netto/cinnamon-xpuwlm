@@ -40,11 +40,15 @@ These rules apply to the entire repository.
 - Whenever implementing or fixing code, add or update all of the following:
   - unit and integration tests appropriate to the changed behavior;
   - regression tests whenever the change fixes or prevents a reproducible defect;
-  - fuzz or property-based coverage for changed input boundaries and state transitions;
-  - mutation tests covering changed logic.
+  - fuzz or property-based coverage for changed input boundaries and state transitions.
+- **Mutation tests are never written or run here.** The maintainer creates and executes
+  them by hand. `npm test` chains `test:mutation:scoped`, so it is not the assistant's
+  gate; `npm run test:ci` is the same chain without the mutation campaign and is what an
+  assistant runs. Never author a mutation test, never invoke a mutation runner, and never
+  substitute a hand-written "mutation audit" for one.
 - Achieve at least 80% coverage for every changed or added function or method, regardless of programming language. Aggregate file or project coverage does not replace this per-function requirement.
 - Unless the user explicitly requests a long or full suite, run only tests and quality gates scoped to the changed behavior; do not run complete repository suites by default.
-- Parallelize independent scoped tests and gates whenever safe, provided their temporary files, coverage data, and mutation reports cannot collide.
+- Parallelize independent scoped tests and gates whenever safe, provided their temporary files and coverage data cannot collide.
 - A user may explicitly waive one or more named local quality gates for the current scoped commit. A waiver is one-time: stop or skip only the named gates, never report them as passing, and disclose the waiver and partial result in the commit message and final handoff. All remaining applicable gates must still pass.
 - If required tooling is missing or a quality gate cannot run, record the blocker in `TODO.md`; do not treat the implementation or fix as complete.
 
@@ -59,7 +63,7 @@ These rules apply to the entire repository.
 ## Git
 
 - Never push automatically. Push only when the user explicitly requests it.
-- After an implementation or fix passes every applicable local test, regression, fuzz, mutation, and per-function coverage gate, commit the scoped changes automatically. A gate explicitly waived under the one-time rule above does not prevent that scoped commit.
+- After an implementation or fix passes every applicable local test, regression, fuzz, and per-function coverage gate, commit the scoped changes automatically. Mutation coverage is not among them; it is the maintainer's, and waiting on it would block every commit indefinitely. A gate explicitly waived under the one-time rule above does not prevent that scoped commit.
 - Do not commit a failing, incomplete, or blocked implementation or fix.
 - Do not stage or commit unrelated user changes.
 - Use concise Conventional Commit messages.
