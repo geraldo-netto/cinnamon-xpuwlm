@@ -10,6 +10,7 @@ These rules apply to the entire repository.
 - Move findings that cannot progress without external input, hardware, credentials, or a dependency into the dedicated `Blocked` table; move them back to `Findings` when they become actionable.
 - Once a finding is fully resolved and verified, remove its row automatically instead of retaining completed work in `TODO.md`. Include the removal in the same scoped commit as the resolution; when no companion changes remain, commit the removal as a scoped documentation change.
 - The `done` status is transitional only; no completed row should remain after its resolution is committed.
+- A row is removed only when the work is genuinely finished. When an item is implemented only in part, keep its row and add to the description exactly what is still missing, naming the specific remainder rather than calling it partial. A row deleted after half the work silently loses the rest: nothing records it and nobody finds it again. Work that the resolution newly reveals is a new row with a new id, not a note appended to the old one.
 - Move findings intentionally rejected or not planned to the dedicated `Rejected / Won't fix` table in `TODO.md`; never mix them into the active `Findings` table. Record the decision and concise rationale in the description instead of removing the row.
 - Use stable sequential IDs in the form `XTPU-0001`.
 - Use only `open`, `in_progress`, or transitional `done` in the active `Findings` table.
