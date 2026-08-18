@@ -252,6 +252,30 @@ test("a runtime that publishes no policy is not held", () => {
 
     assert.equal(running.paused, false);
     assert.equal(Reader.EMPTY_STATE.paused, false);
-    assert.equal(Reader.stateFromDocument({policy: "held"}, 0).paused, false);
-    assert.equal(Reader.stateFromDocument({policy: {paused: "yes"}}, 0).paused, false);
+    assert.equal(Reader.stateFromDocument({version: 1, policy: "held"}, 0).paused, false);
+    assert.equal(
+        Reader.stateFromDocument({version: 1, policy: {paused: "yes"}}, 0).paused,
+        false,
+    );
+});
+
+// The deployment order is reader before writer, so an unrecognised version is
+// this panel being older than the runtime — a fact worth saying. Rendered
+// field by field instead, a document whose metrics were renamed draws a
+// healthy runtime with nothing queued and nothing to review, which is exactly
+// what an idle desk looks like.
+test("a snapshot version the panel does not know is refused, and named", () => {
+    const future = Reader.stateFromDocument(document({version: 2}), NOW);
+
+    assert.equal(future.runtime, "malformed");
+    assert.match(future.detail, /version 2, not 1/u);
+    assert.equal(future.queued, 0);
+});
+
+test("a snapshot with no version at all is not read as version one", () => {
+    const {version, ...versionless} = document();
+
+    assert.equal(version, Reader.SNAPSHOT_VERSION);
+    assert.equal(Reader.stateFromDocument(versionless, NOW).runtime, "malformed");
+    assert.equal(Reader.stateFromDocument(document({version: "1"}), NOW).runtime, "malformed");
 });

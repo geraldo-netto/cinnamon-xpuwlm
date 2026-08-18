@@ -26,6 +26,13 @@ const MAX_SNAPSHOT_BYTES = null;
 // The service republishes every two seconds; three misses is a runtime that
 // has stopped, not one that is briefly busy.
 const STALE_AFTER_MS = 15000;
+// The one contract number the panel does check. The canonical schema pins
+// `version` to 1, and the deployment order is reader before writer, so a
+// document announcing anything else is a runtime this panel is too old to
+// read. Saying so is the point: an unrecognised document rendered field by
+// field draws a healthy runtime with nothing queued, nothing running and
+// nothing to review — the same picture as an idle desk.
+const SNAPSHOT_VERSION = 1;
 const RUNTIME_STATE_PATH = "~/.local/state/xpu-workload-manager/state.json";
 
 const EMPTY_STATE = Object.freeze({
@@ -99,19 +106,11 @@ function isStale(generatedAt, nowMs) {
     return generatedAt !== null && nowMs - generatedAt > STALE_AFTER_MS;
 }
 
-function stateFromDocument(document, nowMs) {
-    if (!isRecord(document)) {
-        return failed("malformed", "The runtime snapshot is not an object");
-    }
-    const generatedAt = Number.isInteger(document.generatedAt) ? document.generatedAt : null;
-    if (isStale(generatedAt, nowMs)) {
-        return Object.freeze({
-            ...EMPTY_STATE,
-            runtime: "stale",
-            detail: "The runtime stopped publishing",
-            generatedAt,
-        });
-    }
+// The six figures the panel draws, from a document already known to be one
+// this panel can read. Absent is not zero anywhere: a field the runtime did
+// not publish falls back to the empty state's value rather than to a figure
+// the panel would then show as fact.
+function connectedState(document, generatedAt) {
     const metrics = isRecord(document.metrics) ? document.metrics : {};
     // A hold is the runtime's own state, not a window's: the service enforces
     // it with or without a client attached, so the panel reads it from the
@@ -128,6 +127,31 @@ function stateFromDocument(document, nowMs) {
         paused: policy.paused === true,
         generatedAt,
     });
+}
+
+// The envelope, and only the envelope: is this a document, is it a version
+// this panel reads, and is it recent enough to believe. Each answer is a
+// runtime word the panel can draw; the figures are read once all three pass.
+function stateFromDocument(document, nowMs) {
+    if (!isRecord(document)) {
+        return failed("malformed", "The runtime snapshot is not an object");
+    }
+    if (document.version !== SNAPSHOT_VERSION) {
+        return failed(
+            "malformed",
+            `The runtime publishes snapshot version ${document.version}, not ${SNAPSHOT_VERSION}`,
+        );
+    }
+    const generatedAt = Number.isInteger(document.generatedAt) ? document.generatedAt : null;
+    if (isStale(generatedAt, nowMs)) {
+        return Object.freeze({
+            ...EMPTY_STATE,
+            runtime: "stale",
+            detail: "The runtime stopped publishing",
+            generatedAt,
+        });
+    }
+    return connectedState(document, generatedAt);
 }
 
 // The ceiling is off by default rather than deleted: a caller that sets one is
@@ -175,10 +199,12 @@ function readSnapshot(environment, filename, nowMs) {
 
 module.exports = {
     BACKEND_ORDER,
+    connectedState,
     deviceFields,
     EMPTY_STATE,
     MAX_SNAPSHOT_BYTES,
     RUNTIME_STATE_PATH,
+    SNAPSHOT_VERSION,
     STALE_AFTER_MS,
     expandHome,
     primaryDevice,
