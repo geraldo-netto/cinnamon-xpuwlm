@@ -95,6 +95,12 @@ function panelModel(state) {
     };
 }
 
+// The most lines any state can produce. The popup's items are built once and
+// reused, so the pool is sized from this rather than from a number written out
+// again in the applet: a line beyond the pool would be computed, formatted and
+// then silently dropped.
+const MAX_POPUP_LINES = 5;
+
 // The popup's read-only lines. Deliberately few: anything a person can act on
 // belongs in the client, and a panel menu that grows controls is the thing
 // this helper exists to stop.
@@ -129,6 +135,7 @@ function panelIconName(status) {
 
 module.exports = {
     BACKEND_LABELS,
+    MAX_POPUP_LINES,
     PANEL_STATUSES,
     RUNTIME_LABELS,
     attentionText,

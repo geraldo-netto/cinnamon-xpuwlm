@@ -154,3 +154,25 @@ test("a popup line for a runtime with no detail still says something", () => {
 
     assert.equal(lines[1].value, "No further detail");
 });
+
+// The applet builds its popup items once, from this bound. A state that
+// produced more lines than the pool would have the extra ones computed,
+// formatted, and then dropped without a word.
+test("no state produces more popup lines than the popup has room for", () => {
+    const states = [
+        state(),
+        state({runtime: "absent", detail: ""}),
+        state({runtime: "stale", detail: "The runtime stopped publishing"}),
+        state({runtime: "malformed"}),
+        state({runtime: "unreadable"}),
+        state({available: false, backend: null}),
+        state({attention: 3, queued: 9, running: 2}),
+    ];
+
+    for (const candidate of states) {
+        assert.ok(
+            PanelStatus.popupLines(candidate).length <= PanelStatus.MAX_POPUP_LINES,
+            `${candidate.runtime} produced more lines than the popup can show`,
+        );
+    }
+});

@@ -462,6 +462,35 @@ test("an applet whose icon actor cannot be sized says so instead of throwing", (
     applet.on_applet_removed_from_panel();
 });
 
+test("the actor carries exactly one status class, across a panel height change", () => {
+    // The height change forgets the drawn status to force a redraw. If it also
+    // forgot which class is on the actor, a status that changed in between
+    // would leave two colours on one icon and let stylesheet order pick.
+    snapshotError = null;
+    snapshotContents = snapshotDocument();
+    const applet = build();
+    const statusClasses = () => [...applet.actor.styleClasses]
+        .filter((name) => name.startsWith("xpuwlm-panel-"));
+
+    assert.deepEqual(statusClasses(), ["xpuwlm-panel-online"]);
+
+    applet.on_panel_height_changed();
+    snapshotError = Object.assign(new Error("gone"), {code: 1});
+    applet.refresh();
+
+    assert.deepEqual(statusClasses(), ["xpuwlm-panel-unavailable"]);
+    snapshotError = null;
+    applet.on_applet_removed_from_panel();
+});
+
+test("the popup has an item for every line the model can produce", () => {
+    const PanelStatus = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/panel-status.js");
+    const applet = build();
+
+    assert.equal(applet._lineItems.length, PanelStatus.MAX_POPUP_LINES);
+    applet.on_applet_removed_from_panel();
+});
+
 test("a panel height change redraws the icon rather than leaving a stale one", () => {
     const applet = build();
     const drawn = applet.symbolicIconNames.length;

@@ -126,6 +126,10 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._timer = null;
         this._state = SnapshotReader.EMPTY_STATE;
         this._panelIconStatus = null;
+        // What is on the actor, as opposed to what was last drawn: a panel
+        // height change forgets the second to force a redraw, and the class
+        // still has to be taken off whatever it was applied for.
+        this._panelIconClass = null;
         this._iconSize = overrides.iconSize || DEFAULT_PANEL_ICON_SIZE;
         this._lineItems = [];
         this._environment = overrides.environment || defaultEnvironment();
@@ -191,7 +195,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     // wrong is above the way to fix it.
     _buildMenu() {
         this._lineItems = [];
-        for (let index = 0; index < 5; index += 1) {
+        for (let index = 0; index < PanelStatus.MAX_POPUP_LINES; index += 1) {
             const item = new PopupMenu.PopupMenuItem("", {reactive: false});
             this._lineItems.push(item);
             this.menu.addMenuItem(item);
@@ -256,11 +260,12 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         }
         // The status class is what the stylesheet colours, so it is swapped
         // with the icon rather than left behind on the previous status.
-        if (this._panelIconStatus !== null) {
-            this.actor.remove_style_class_name(`xpuwlm-panel-${this._panelIconStatus}`);
+        if (this._panelIconClass !== null) {
+            this.actor.remove_style_class_name(this._panelIconClass);
         }
         this._panelIconStatus = status;
-        this.actor.add_style_class_name(`xpuwlm-panel-${status}`);
+        this._panelIconClass = `xpuwlm-panel-${status}`;
+        this.actor.add_style_class_name(this._panelIconClass);
         this.set_applet_icon_symbolic_name(PanelStatus.panelIconName(status));
         this._applyPanelIconSize(this._iconSize);
     }
