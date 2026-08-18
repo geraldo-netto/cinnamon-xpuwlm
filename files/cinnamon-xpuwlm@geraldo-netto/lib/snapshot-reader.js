@@ -55,10 +55,10 @@ function boundedCount(value) {
     return Number.isInteger(value) && value >= 0 ? value : 0;
 }
 
-// The device the panel speaks for: the runtime orders backends tpu > npu >
-// gpu and never schedules onto a CPU, so the first available device in that
+// The device the panel speaks for: the runtime orders backends gpu > npu >
+// tpu and never schedules onto a CPU, so the first available device in that
 // order is the one the label names.
-const BACKEND_ORDER = Object.freeze(["tpu", "npu", "gpu"]);
+const BACKEND_ORDER = Object.freeze(["gpu", "npu", "tpu"]);
 
 function primaryDevice(devices) {
     const usable = devices.filter((device) => isRecord(device));

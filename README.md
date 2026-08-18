@@ -23,7 +23,7 @@ successor is versioned. Without a compatible runtime, the helper falls back to
 device-only monitoring of what the snapshot last said and the client has
 nothing to drive.
 
-Here **XPU** is an umbrella for the supported `tpu`, `npu`, and `gpu` backend
+Here **XPU** is an umbrella for the supported `gpu`, `npu`, and `tpu` backend
 families. It is not a fourth backend, a claim of universal accelerator support,
 or a substitute for each workload's hardware and model acceptance evidence.
 

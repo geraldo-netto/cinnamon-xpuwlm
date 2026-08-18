@@ -110,8 +110,8 @@ test("the device the panel speaks for follows the runtime's backend order", () =
         {backend: "npu", available: true, load: 50},
     ];
 
-    assert.equal(Reader.primaryDevice(devices).backend, "tpu");
-    assert.deepEqual([...Reader.BACKEND_ORDER], ["tpu", "npu", "gpu"]);
+    assert.equal(Reader.primaryDevice(devices).backend, "gpu");
+    assert.deepEqual([...Reader.BACKEND_ORDER], ["gpu", "npu", "tpu"]);
 });
 
 test("an unavailable device is still reported rather than hidden", () => {
