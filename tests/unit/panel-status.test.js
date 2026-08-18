@@ -176,3 +176,48 @@ test("no state produces more popup lines than the popup has room for", () => {
         );
     }
 });
+
+// The runtime holds every workload from its own policy store, so the panel
+// reads the hold rather than guessing it from an empty queue. This is the
+// fifth status shape, and the icon for it has always shipped.
+test("a held runtime draws as paused and says so in words", () => {
+    const model = PanelStatus.panelModel(state({paused: true, queued: 0, running: 0}));
+
+    assert.equal(model.status, "paused");
+    assert.equal(model.tooltip, "XPU Workload Manager — paused");
+    assert.equal(model.accessibleName, "XPU Workload Manager, paused");
+});
+
+test("a hold carries the work waiting behind it", () => {
+    const model = PanelStatus.panelModel(state({paused: true, queued: 4}));
+
+    assert.equal(model.tooltip, "XPU Workload Manager — paused, 4 queued");
+    assert.equal(PanelStatus.pausedText({queued: 1}), "paused, 1 queued");
+});
+
+test("something waiting for a person outranks a hold that person chose", () => {
+    const model = PanelStatus.panelModel(state({paused: true, attention: 2}));
+
+    assert.equal(model.status, "attention");
+});
+
+test("a held runtime with no device still reads as detected, not paused", () => {
+    const model = PanelStatus.panelModel(state({paused: true, available: false}));
+
+    assert.equal(model.status, "detected");
+});
+
+test("the popup reports the hold on the runtime line, which is still connected", () => {
+    const [runtime] = PanelStatus.popupLines(state({paused: true}));
+
+    assert.deepEqual(runtime, {label: "Runtime", value: "Paused"});
+    assert.equal(PanelStatus.popupLines(state()).at(0).value, "Online");
+});
+
+test("a runtime that is not connected is never reported as paused", () => {
+    const [runtime] = PanelStatus.popupLines({
+        ...state(), runtime: "stale", paused: true,
+    });
+
+    assert.equal(runtime.value, "Runtime stale");
+});

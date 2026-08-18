@@ -99,6 +99,10 @@ msgid "Open XPU Workload Manager"
 msgstr ""
 
 #: lib/panel-status.js
+msgid "Paused"
+msgstr ""
+
+#: lib/panel-status.js
 msgid "Queued"
 msgstr ""
 
@@ -167,6 +171,10 @@ msgid "XPU Workload Manager — online, %s"
 msgstr ""
 
 #: lib/panel-status.js
+msgid "XPU Workload Manager, %s"
+msgstr ""
+
+#: lib/panel-status.js
 msgid "XPU Workload Manager, attention: %s"
 msgstr ""
 
@@ -177,6 +185,16 @@ msgstr ""
 #: lib/panel-status.js
 msgid "XPU Workload Manager, unavailable: %s"
 msgstr ""
+
+#: lib/panel-status.js
+msgid "paused"
+msgstr ""
+
+#: lib/panel-status.js
+msgid "paused, %d queued"
+msgid_plural "paused, %d queued"
+msgstr[0] ""
+msgstr[1] ""
 
 #: settings-schema.json
 msgid "seconds"

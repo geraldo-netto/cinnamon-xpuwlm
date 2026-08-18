@@ -45,8 +45,28 @@ function backendLabel(state) {
     return label ? _(label) : _("Accel");
 }
 
+// A held runtime is connected — it is publishing, and it answers — so the
+// hold is what the line reports rather than a sixth runtime word.
+const PAUSED_LABEL = N_("Paused");
+
 function runtimeLabel(state) {
+    if (state.runtime === "connected" && state.paused) {
+        return _(PAUSED_LABEL);
+    }
     return _(RUNTIME_LABELS[state.runtime] || RUNTIME_LABELS.unreadable);
+}
+
+// Every workload held, which the runtime publishes as policy rather than a
+// client keeping its own copy. The backlog goes with it: a hold with work
+// waiting behind it is a different fact from a hold with nothing to do.
+function pausedText(state) {
+    if (state.queued > 0) {
+        return format(
+            ngettext("paused, %d queued", "paused, %d queued", state.queued),
+            state.queued,
+        );
+    }
+    return _("paused");
 }
 
 function attentionText(count) {
@@ -86,6 +106,16 @@ function panelModel(state) {
             status: "attention",
             tooltip: format(_("XPU Workload Manager — %s"), review),
             accessibleName: format(_("XPU Workload Manager, attention: %s"), review),
+        };
+    }
+    // Below attention: something waiting for a person outranks a hold the
+    // person put there deliberately.
+    if (state.paused) {
+        const held = pausedText(state);
+        return {
+            status: "paused",
+            tooltip: format(_("XPU Workload Manager — %s"), held),
+            accessibleName: format(_("XPU Workload Manager, %s"), held),
         };
     }
     return {
@@ -136,6 +166,7 @@ function panelIconName(status) {
 module.exports = {
     BACKEND_LABELS,
     MAX_POPUP_LINES,
+    PAUSED_LABEL,
     PANEL_STATUSES,
     RUNTIME_LABELS,
     attentionText,
@@ -143,6 +174,7 @@ module.exports = {
     offlineModel,
     panelIconName,
     panelModel,
+    pausedText,
     popupLines,
     runtimeLabel,
     workText,

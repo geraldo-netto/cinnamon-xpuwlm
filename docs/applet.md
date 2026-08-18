@@ -59,6 +59,12 @@ paused, and unavailable also use different centre shapes, and the tooltip and
 accessible name state the status in text, so meaning never depends on colour
 alone.
 
+Paused is the runtime's own state, read from the `policy` block of the
+snapshot rather than guessed from an empty queue: the service enforces a hold
+with or without a client attached, so a hold that ended when a window closed
+would not be a hold. It ranks below attention — something waiting for a person
+outranks a hold that person chose — and carries the backlog waiting behind it.
+
 A status the helper does not recognise draws as unavailable rather than asking
 Cinnamon for an icon file the payload does not ship.
 

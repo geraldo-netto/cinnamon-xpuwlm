@@ -222,3 +222,36 @@ test("a ceiling, when one is set, is still enforced before parsing", () => {
     assert.equal(Reader.tooLargeFor(contents, 1024), null);
     assert.equal(Reader.tooLargeFor(contents, 16).runtime, "malformed");
 });
+
+// Pause is service state: the runtime enforces it with or without a client
+// attached, and publishes it as policy. A panel that inferred it from an
+// empty queue would draw a hold on an idle desk.
+test("the reader takes the hold from the runtime's own policy", () => {
+    const held = Reader.stateFromDocument({
+        version: 1,
+        generatedAt: 10,
+        devices: [{backend: "gpu", available: true}],
+        metrics: {queueDepth: 3, runningProfiles: 0},
+        alerts: [],
+        policy: {revision: 7, paused: true, profiles: {}},
+    }, 10);
+
+    assert.equal(held.paused, true);
+    assert.equal(held.runtime, "connected");
+    assert.equal(held.queued, 3);
+});
+
+test("a runtime that publishes no policy is not held", () => {
+    const running = Reader.stateFromDocument({
+        version: 1,
+        generatedAt: 10,
+        devices: [{backend: "gpu", available: true}],
+        metrics: {queueDepth: 0, runningProfiles: 1},
+        alerts: [],
+    }, 10);
+
+    assert.equal(running.paused, false);
+    assert.equal(Reader.EMPTY_STATE.paused, false);
+    assert.equal(Reader.stateFromDocument({policy: "held"}, 0).paused, false);
+    assert.equal(Reader.stateFromDocument({policy: {paused: "yes"}}, 0).paused, false);
+});

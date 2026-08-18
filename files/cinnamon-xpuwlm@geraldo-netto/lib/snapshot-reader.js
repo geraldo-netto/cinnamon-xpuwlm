@@ -37,6 +37,7 @@ const EMPTY_STATE = Object.freeze({
     queued: 0,
     running: 0,
     attention: 0,
+    paused: false,
     generatedAt: null,
 });
 
@@ -112,6 +113,11 @@ function stateFromDocument(document, nowMs) {
         });
     }
     const metrics = isRecord(document.metrics) ? document.metrics : {};
+    // A hold is the runtime's own state, not a window's: the service enforces
+    // it with or without a client attached, so the panel reads it from the
+    // snapshot rather than inferring it from an empty queue. A runtime that
+    // predates the field publishes no policy at all, which reads as not held.
+    const policy = isRecord(document.policy) ? document.policy : {};
     return Object.freeze({
         runtime: "connected",
         detail: "",
@@ -119,6 +125,7 @@ function stateFromDocument(document, nowMs) {
         queued: boundedCount(metrics.queueDepth),
         running: boundedCount(metrics.runningProfiles),
         attention: unresolvedAlerts(Array.isArray(document.alerts) ? document.alerts : []),
+        paused: policy.paused === true,
         generatedAt,
     });
 }

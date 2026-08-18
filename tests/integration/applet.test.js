@@ -337,6 +337,18 @@ test("a runtime that is not running is drawn as unavailable, and says why", () =
     applet.on_applet_removed_from_panel();
 });
 
+test("a runtime holding every workload draws the paused shape", () => {
+    snapshotError = null;
+    snapshotContents = snapshotDocument({policy: {revision: 3, paused: true, profiles: {}}});
+
+    const applet = build();
+
+    assert.equal(applet.symbolicIconNames.at(-1), "xpuwlm-status-paused-symbolic");
+    assert.equal(applet._tooltip.text, "XPU Workload Manager — paused, 1 queued");
+    snapshotContents = snapshotDocument();
+    applet.on_applet_removed_from_panel();
+});
+
 test("the popup lists the runtime's state above the way into the client", () => {
     snapshotContents = snapshotDocument();
     const applet = build();
