@@ -2,9 +2,10 @@
 
    This file used to carry about nine hundred lines of card, tab, disclosure,
    and control geometry for screens that now live in the Python client. What a
-   panel presence needs is the status colour of its own icon and the spacing of
-   a five-line popup, and those colours are the desktop's symbolic ones so a
-   theme the user chose is what decides them. */
+   panel presence needs is the status colour of its own icon, and those colours
+   are the desktop's symbolic ones so a theme the user chose is what decides
+   them. Every class here is one `panelIconName` can ask for: a rule for a
+   surface the helper no longer draws is a rule nobody can see is dead. */
 
 .xpuwlm-panel-online .system-status-icon {
     color: symbolic-success;
@@ -24,14 +25,4 @@
 
 .xpuwlm-panel-unavailable .system-status-icon {
     color: symbolic-error;
-}
-
-/* The label beside the icon is secondary to it: the icon carries the status,
-   the text repeats it for anyone who reads rather than glances. */
-.xpuwlm-panel-label {
-    padding-left: 4px;
-}
-
-.xpuwlm-status-line {
-    spacing: 8px;
 }

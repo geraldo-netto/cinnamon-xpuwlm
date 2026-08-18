@@ -3,7 +3,11 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
+const fs = require("node:fs");
+const path = require("node:path");
+
 const Package = require("../../scripts/package-applet.js");
+const PanelStatus = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/panel-status.js");
 
 // The helper's whole production surface. This list is the point of the gate:
 // a module that is present but unreachable is a module nobody ships and
@@ -70,5 +74,23 @@ test("the helper ships no mirrored contract schemas", () => {
         Package.payloadFiles(Package.payloadRoot)
             .filter((relativePath) => relativePath.endsWith(".schema.json")),
         [],
+    );
+});
+
+// A rule for a surface the helper no longer draws is dead payload nobody can
+// see is dead: the sheet kept `.xpuwlm-panel-label` and a comment about the
+// text beside the icon long after the panel stopped writing any.
+test("the stylesheet styles exactly the statuses the panel can draw", () => {
+    const css = fs.readFileSync(
+        path.join(Package.payloadRoot, "stylesheet.css"),
+        "utf8",
+    );
+    const classes = [...css.matchAll(/\.(xpuwlm-[a-z-]+)/gu)].map((match) => match[1]);
+
+    assert.deepEqual(
+        [...new Set(classes)].sort(Package.compareText),
+        PanelStatus.PANEL_STATUSES
+            .map((status) => `xpuwlm-panel-${status}`)
+            .sort(Package.compareText),
     );
 });
