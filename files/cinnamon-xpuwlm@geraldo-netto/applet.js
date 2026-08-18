@@ -44,7 +44,10 @@ const DEFAULT_PANEL_ICON_SIZE = 32;
 // every systray neighbour, and the status shape is the entire message now that
 // the panel carries no text.
 const MIN_PANEL_ICON_SIZE = 28;
-const DEFAULT_REFRESH_SECONDS = 2;
+// The shipped default lives in settings-schema.json; this is only the value
+// the applet holds between construction and the first binding, so the two
+// have to agree or the panel refreshes at a rate nothing configured.
+const DEFAULT_REFRESH_SECONDS = 1;
 const MIN_REFRESH_SECONDS = 1;
 const MAX_REFRESH_SECONDS = 60;
 
