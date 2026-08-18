@@ -106,11 +106,15 @@ function settingsInstanceId(metadata, instanceId) {
     return metadata && metadata["max-instances"] === 1 ? UUID : instanceId;
 }
 
-function createAppletSettings(owner, metadata, instanceId, overrides, environment) {
+// Cinnamon's AppletSettings takes the xlet, the UUID and the instance id, and
+// nothing else. A fourth argument used to be passed here — the panel
+// orientation, under a parameter named `environment` — which the constructor
+// discarded while the call site read as though settings needed one.
+function createAppletSettings(owner, metadata, instanceId, overrides) {
     if (overrides && overrides.settings) {
         return overrides.settings;
     }
-    return new Settings.AppletSettings(owner, UUID, settingsInstanceId(metadata, instanceId), environment);
+    return new Settings.AppletSettings(owner, UUID, settingsInstanceId(metadata, instanceId));
 }
 
 class XpuWorkloadApplet extends Applet.TextIconApplet {
@@ -167,7 +171,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     }
 
     _createSettings(metadata, instanceId, overrides) {
-        this.settings = createAppletSettings(this, metadata, instanceId, overrides, this._orientation);
+        this.settings = createAppletSettings(this, metadata, instanceId, overrides);
         this._refreshInterval = DEFAULT_REFRESH_SECONDS;
         this._runtimeStatePath = SnapshotReader.RUNTIME_STATE_PATH;
         this.settings.bind("refresh-interval", "_refreshInterval", () => this._startTimer());

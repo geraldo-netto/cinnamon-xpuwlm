@@ -80,9 +80,12 @@ class FakeTextIconApplet {
     }
 }
 
+const settingsConstructions = [];
+
 class BoundSettings extends FakeSettings {
-    constructor(owner) {
+    constructor(owner, ...rest) {
         super(owner, DEFAULTS);
+        settingsConstructions.push(rest);
     }
 }
 
@@ -466,6 +469,31 @@ test("a panel height change redraws the icon rather than leaving a stale one", (
     applet.on_panel_height_changed();
 
     assert.equal(applet.symbolicIconNames.length, drawn + 1);
+    applet.on_applet_removed_from_panel();
+});
+
+// Cinnamon's AppletSettings is (xlet, uuid, instanceId). A fourth argument is
+// discarded by the constructor, so passing one only misleads the reader about
+// what settings needs.
+test("the settings object is built with the three arguments Cinnamon accepts", () => {
+    settingsConstructions.length = 0;
+
+    const applet = build();
+
+    assert.deepEqual(settingsConstructions, [[AppletModule.UUID, AppletModule.UUID]]);
+    applet.on_applet_removed_from_panel();
+});
+
+test("an overridden settings object is used instead of building one", () => {
+    settingsConstructions.length = 0;
+    const bound = [];
+    const settings = {bind: (key) => bound.push(key)};
+
+    const applet = build({settings});
+
+    assert.equal(applet.settings, settings);
+    assert.deepEqual(bound, ["refresh-interval", "runtime-state-path"]);
+    assert.deepEqual(settingsConstructions, []);
     applet.on_applet_removed_from_panel();
 });
 
