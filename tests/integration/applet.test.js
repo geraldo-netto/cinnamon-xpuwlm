@@ -591,6 +591,49 @@ test("the default environment reads through GJS rather than through Node", () =>
     assert.equal(AppletModule.defaultLogger().warn("noted"), undefined);
 });
 
+// Teardown is reachable twice — the constructor releases what it built when
+// construction fails, and Cinnamon calls back when the applet leaves the panel
+// — and the second pass must not finalize a binding or destroy a menu again.
+test("an applet removed from the panel twice releases its presentation once", () => {
+    const counts = {finalized: 0, removed: 0, menuDestroyed: 0, tooltipDestroyed: 0};
+    const menu = new RecordingMenu();
+    menu.destroy = () => {
+        counts.menuDestroyed += 1;
+    };
+    const applet = build({
+        settings: {
+            bind() {},
+            finalize() {
+                counts.finalized += 1;
+            },
+        },
+        menu,
+        menuManager: {
+            addMenu() {},
+            removeMenu() {
+                counts.removed += 1;
+            },
+        },
+        tooltip: {
+            set_text() {},
+            destroy() {
+                counts.tooltipDestroyed += 1;
+            },
+        },
+    });
+
+    assert.equal(applet._teardown(), true);
+    assert.equal(applet._teardown(), false);
+    applet.on_applet_removed_from_panel();
+
+    assert.deepEqual(counts, {
+        finalized: 1,
+        removed: 1,
+        menuDestroyed: 1,
+        tooltipDestroyed: 1,
+    });
+});
+
 test("a destroyed applet neither refreshes nor re-arms its timer", () => {
     const applet = build();
     applet.on_applet_removed_from_panel();

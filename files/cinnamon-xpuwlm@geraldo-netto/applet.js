@@ -365,7 +365,16 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._teardown();
     }
 
+    // Reachable twice: the constructor releases what it managed to build when
+    // construction fails, and Cinnamon calls back when the applet leaves the
+    // panel. Finalizing a settings binding, removing a menu from its manager,
+    // or destroying a menu and a tooltip a second time acts on objects that
+    // are already gone, so the flag the applet already keeps is consulted
+    // rather than only written.
     _teardown() {
+        if (this._destroyed) {
+            return false;
+        }
         this._destroyed = true;
         this._stopTimer();
         this._settingsPlacer.cancel();
@@ -373,6 +382,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             this.settings.finalize();
         }
         this._releasePresentation();
+        return true;
     }
 
     // What setup created, teardown releases: `removeMenu` is what disconnects
@@ -408,7 +418,7 @@ if (typeof module !== "undefined") {
         createAppletSettings,
         defaultEnvironment,
         defaultLogger,
-            main,
+        main,
         panelIconSize,
         refreshSeconds,
         settingsInstanceId,
