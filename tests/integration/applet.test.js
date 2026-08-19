@@ -315,6 +315,25 @@ test("the panel draws the runtime's own status the moment it is built", () => {
     applet.on_applet_removed_from_panel();
 });
 
+test("a panel change after removal draws nothing into destroyed actors", () => {
+    // Cinnamon broadcasts height and icon-size changes to every applet the
+    // panel still holds, including one it is in the middle of removing.
+    snapshotError = null;
+    snapshotContents = snapshotDocument();
+    const applet = build();
+    applet.on_applet_removed_from_panel();
+    const drawn = applet.symbolicIconNames.length;
+    const tooltipText = applet._tooltip.text;
+    const iconSize = applet._applet_icon.get_icon_size();
+
+    applet.on_panel_height_changed();
+    applet.on_panel_icon_size_changed(48);
+
+    assert.equal(applet.symbolicIconNames.length, drawn);
+    assert.equal(applet._tooltip.text, tooltipText);
+    assert.equal(applet._applet_icon.get_icon_size(), iconSize);
+});
+
 test("the panel writes nothing beside its icon", () => {
     const applet = build();
 

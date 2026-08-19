@@ -246,7 +246,8 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     }
 
     // The read outlives the turn that started it, so an applet removed from
-    // the panel while one was in flight draws nothing when it lands.
+    // the panel while one was in flight neither keeps the answer nor draws it.
+    // `_render` refuses the draw on its own; this is about the state.
     _receiveState(state) {
         this._reading = false;
         if (this._destroyed) {
@@ -256,7 +257,14 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._render();
     }
 
+    // Guarded here rather than at each caller: Cinnamon broadcasts a height
+    // change and an icon-size change to every applet a panel still holds,
+    // including one it is in the middle of removing, and both reach the actor,
+    // the tooltip and the popup items. After teardown those are destroyed.
     _render() {
+        if (this._destroyed) {
+            return false;
+        }
         const model = PanelStatus.panelModel(this._state);
         this._setPanelIcon(model.status);
         // No text in the panel. The icon carries the status — five distinct
@@ -273,6 +281,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
                 item.label.set_text(`${line.label}: ${line.value}`);
             }
         });
+        return true;
     }
 
     _setPanelIcon(status) {
@@ -300,7 +309,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     // neighbours. An inline style is the one declaration a stylesheet cannot
     // outrank, so it is what actually decides the size.
     _applyPanelIconSize(requestedSize) {
-        const icon = this._applet_icon;
+        const icon = this._destroyed ? null : this._applet_icon;
         if (!icon || typeof icon.set_icon_size !== "function") {
             return false;
         }
