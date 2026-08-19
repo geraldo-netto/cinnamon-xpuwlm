@@ -401,11 +401,20 @@ function commandStage(log, dist = distRoot, files = appletPayloadFiles(payloadRo
 // to write the same digest into two places.
 function commandPack(log, dist = distRoot) {
     const files = appletPayloadFiles(payloadRoot);
+    // The previous run's outputs go before this one's are written, digest
+    // first. A pack that dies partway used to leave the new checksum manifest
+    // beside the *previous* archive and the previous digest — a pair that
+    // verifies against each other and against nothing that was staged. Cleared
+    // in this order, the sidecar never names an archive it did not measure:
+    // either it is absent or the archive beside it is the one it describes.
+    const archivePath = path.join(dist, `${UUID}.tar`);
+    fs.rmSync(`${archivePath}.sha256`, {force: true});
+    fs.rmSync(archivePath, {force: true});
     commandStage(log, dist, files);
     const archive = buildArchive(payloadRoot, UUID, files);
     const digest = sha256Hex(archive);
-    fs.writeFileSync(path.join(dist, `${UUID}.tar`), archive);
-    fs.writeFileSync(path.join(dist, `${UUID}.tar.sha256`), `${digest}  ${UUID}.tar\n`);
+    fs.writeFileSync(archivePath, archive);
+    fs.writeFileSync(`${archivePath}.sha256`, `${digest}  ${UUID}.tar\n`);
     log(`packed ${UUID}.tar (${archive.length} bytes, sha256 ${digest})`);
     commandSpice(log, dist, files);
     return 0;

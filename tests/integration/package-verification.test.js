@@ -115,3 +115,22 @@ test("an installed tree is inspected rather than refused", () => {
     assert.deepEqual(Package.verifyAbsent(stagedRoot).remaining.includes("metadata.json"), true);
     fs.rmSync(dist, {recursive: true, force: true});
 });
+
+// A pack that dies partway must not leave a dist that reads as a release.
+// The checksum manifest is written first, so a failure after it leaves the
+// previous run's archive and its digest sidecar beside a manifest for a
+// different payload — three files that agree in pairs and describe nothing.
+test("a pack that fails partway leaves no archive digest from the previous run", () => {
+    const dist = temporaryDirectory();
+    const archive = path.join(dist, `${Package.UUID}.tar`);
+    const digest = `${archive}.sha256`;
+    fs.writeFileSync(digest, `${"0".repeat(64)}  ${Package.UUID}.tar\n`);
+    // The archive cannot be written over a directory, which is this test's way
+    // of interrupting the pack after the payload has been staged.
+    fs.mkdirSync(archive);
+
+    assert.throws(() => Package.commandPack(() => {}, dist));
+
+    assert.equal(fs.existsSync(digest), false, "a stale digest survived a failed pack");
+    fs.rmSync(dist, {recursive: true, force: true});
+});
