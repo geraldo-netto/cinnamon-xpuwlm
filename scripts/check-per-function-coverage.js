@@ -3,6 +3,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
+const {compareText} = require("./lib/compare-text.js");
+
 const threshold = 80;
 const reportPath = path.resolve(__dirname, "../coverage/coverage-final.json");
 
@@ -42,14 +44,6 @@ function validLocation(value) {
         && comparePosition(value.start, value.end) <= 0;
 }
 
-// The payload no longer carries a shared validation module: what it used to
-// hold moved to the Python client. One comparator is all this gate needed.
-function compareText(left, right) {
-    if (left === right) {
-        return 0;
-    }
-    return left < right ? -1 : 1;
-}
 
 function sameKeys(left, right) {
     const leftKeys = Object.keys(left).sort(compareText);

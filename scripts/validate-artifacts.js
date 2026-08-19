@@ -5,21 +5,13 @@ const childProcess = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 
+const {compareText} = require("./lib/compare-text.js");
+
 const UUID = "cinnamon-xpuwlm@geraldo-netto";
 const repositoryRoot = path.resolve(__dirname, "..");
 const filesRoot = path.join(repositoryRoot, "files");
 const appletRoot = path.join(filesRoot, UUID);
 
-// The helper ships no shared validation module any more — everything it used
-// to validate moved to the Python client, which validates against the
-// canonical schemas rather than a mirror of them. One comparator is all this
-// script still needed from it.
-function compareText(left, right) {
-    if (left === right) {
-        return 0;
-    }
-    return left < right ? -1 : 1;
-}
 const PAYLOAD_TOP_LEVEL = Object.freeze([
     "applet.js",
     "icon.png",

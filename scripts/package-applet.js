@@ -9,6 +9,8 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
+const {compareText} = require("./lib/compare-text.js");
+
 const UUID = "cinnamon-xpuwlm@geraldo-netto";
 const repositoryRoot = path.resolve(__dirname, "..");
 const payloadRoot = path.join(repositoryRoot, "files", UUID);
@@ -25,12 +27,6 @@ const REQUIRE_START = /\brequire\s*\(/gu;
 const STATIC_REQUIRE = /\brequire\s*\(\s*("(?:[^"\\]|\\.)*")\s*\)/gu;
 const CHECKSUM_LINE = /^([0-9a-f]{64}) {2}(.+)$/u;
 
-function compareText(left, right) {
-    if (left === right) {
-        return 0;
-    }
-    return left < right ? -1 : 1;
-}
 
 // Sorted relative paths of every regular payload file. Symlinks and special
 // files are rejected loudly: they must never reach a staged release.
