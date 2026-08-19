@@ -236,7 +236,26 @@ function readSnapshot(environment, filename, nowMs) {
 // the fallback for a platform whose Gio offers no asynchronous load, and is
 // what the return value distinguishes: true when the read was handed to the
 // mainloop, false when it had already finished by the time this returned.
-function readSnapshotAsync(environment, filename, nowMs, deliver) {
+// "Exactly once" made structural rather than promised. The consumer of a state
+// is the panel, and drawing can throw — a destroyed actor, a tooltip already
+// gone — so a delivery is not a call that always returns. Wrapped in the
+// error handling around the read it would be caught as though the *read* had
+// failed, delivering a second, invented state after the real one; the panel
+// would then latch onto an "unreadable" runtime it never saw.
+function deliverOnce(deliver) {
+    let delivered = false;
+    return (state) => {
+        if (delivered) {
+            return false;
+        }
+        delivered = true;
+        deliver(state);
+        return true;
+    };
+}
+
+function readSnapshotAsync(environment, filename, nowMs, deliverState) {
+    const deliver = deliverOnce(deliverState);
     let file;
     try {
         file = environment.Gio.File.new_for_path(expandHome(environment, filename));
@@ -256,12 +275,14 @@ function readSnapshotAsync(environment, filename, nowMs, deliver) {
     // exit from this function delivers exactly one state.
     try {
         file.load_contents_async(null, (source, result) => {
+            let state;
             try {
                 const [ok, contents] = (source || file).load_contents_finish(result);
-                deliver(stateFromContents(environment, ok, contents, nowMs));
+                state = stateFromContents(environment, ok, contents, nowMs);
             } catch (error) {
-                deliver(stateFromError(environment, error));
+                state = stateFromError(environment, error);
             }
+            deliver(state);
         });
     } catch (error) {
         deliver(stateFromError(environment, error));

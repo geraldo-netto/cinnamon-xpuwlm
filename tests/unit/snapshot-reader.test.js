@@ -323,12 +323,17 @@ function asyncEnvironment({
     throws = null,
     finishThrows = null,
     startThrows = null,
+    immediate = false,
 } = {}) {
     const pending = [];
     const file = {
         load_contents_async(_cancellable, callback) {
             if (startThrows) {
                 throw startThrows;
+            }
+            if (immediate) {
+                callback(file, {});
+                return;
             }
             pending.push(() => callback(file, {}));
         },
@@ -435,5 +440,45 @@ test("a platform without an asynchronous load falls back to the blocking read", 
     );
 
     assert.equal(deferred, false);
+    assert.equal(delivered[0].runtime, "connected");
+});
+
+// Delivering a state is a call into the panel, and drawing can throw: a
+// destroyed actor, a tooltip already gone. Caught as though the read had
+// failed, that throw invented a second state — so the panel that had just been
+// handed a working runtime was immediately handed an unreadable one.
+test("a consumer that throws while drawing is not answered with a second state", () => {
+    const {pending, environment: async} = asyncEnvironment({
+        contents: JSON.stringify(document()),
+    });
+    const delivered = [];
+
+    Reader.readSnapshotAsync(async, "~/state.json", NOW, (state) => {
+        delivered.push(state);
+        throw new Error("the actor is gone");
+    });
+
+    assert.throws(() => pending.pop()(), /the actor is gone/u);
+    assert.equal(delivered.length, 1);
+    assert.equal(delivered[0].runtime, "connected");
+});
+
+// The same throw, from a Gio whose callback runs before the call that armed it
+// returns: the guard around arming the read is the one that would have caught
+// it and delivered again.
+test("a read that answers before it returns still delivers exactly one state", () => {
+    const {environment: async} = asyncEnvironment({
+        contents: JSON.stringify(document()),
+        immediate: true,
+    });
+    const delivered = [];
+
+    const deferred = Reader.readSnapshotAsync(async, "~/state.json", NOW, (state) => {
+        delivered.push(state);
+        throw new Error("the actor is gone");
+    });
+
+    assert.equal(deferred, false);
+    assert.equal(delivered.length, 1);
     assert.equal(delivered[0].runtime, "connected");
 });
