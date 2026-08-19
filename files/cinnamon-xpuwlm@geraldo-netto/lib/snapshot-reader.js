@@ -248,14 +248,25 @@ function readSnapshotAsync(environment, filename, nowMs, deliver) {
         deliver(readSnapshot(environment, filename, nowMs));
         return false;
     }
-    file.load_contents_async(null, (source, result) => {
-        try {
-            const [ok, contents] = (source || file).load_contents_finish(result);
-            deliver(stateFromContents(environment, ok, contents, nowMs));
-        } catch (error) {
-            deliver(stateFromError(environment, error));
-        }
-    });
+    // Arming the read can fail as loudly as finishing it — a path Gio refuses
+    // outright, a mainloop that is gone — and a throw here used to escape
+    // without ever calling `deliver`. The applet holds a latch while a read is
+    // outstanding and only drops it when the state arrives, so one such throw
+    // froze the panel on its last picture for the rest of the session. Every
+    // exit from this function delivers exactly one state.
+    try {
+        file.load_contents_async(null, (source, result) => {
+            try {
+                const [ok, contents] = (source || file).load_contents_finish(result);
+                deliver(stateFromContents(environment, ok, contents, nowMs));
+            } catch (error) {
+                deliver(stateFromError(environment, error));
+            }
+        });
+    } catch (error) {
+        deliver(stateFromError(environment, error));
+        return false;
+    }
     return true;
 }
 

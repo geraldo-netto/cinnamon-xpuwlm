@@ -318,10 +318,18 @@ test("a snapshot with no version at all is not read as version one", () => {
 
 // The applet runs on the compositor thread, so the read it performs once a
 // tick has to hand the waiting to the mainloop rather than to the desktop.
-function asyncEnvironment({contents = null, throws = null, finishThrows = null} = {}) {
+function asyncEnvironment({
+    contents = null,
+    throws = null,
+    finishThrows = null,
+    startThrows = null,
+} = {}) {
     const pending = [];
     const file = {
         load_contents_async(_cancellable, callback) {
+            if (startThrows) {
+                throw startThrows;
+            }
             pending.push(() => callback(file, {}));
         },
         load_contents_finish() {
@@ -391,6 +399,27 @@ test("a file that cannot even be named is delivered before the call returns", ()
 
     assert.equal(deferred, false);
     assert.equal(delivered[0].runtime, "absent");
+});
+
+// The applet drops its read latch only when a state arrives, so a throw from
+// arming the read — rather than from finishing it — used to freeze the panel
+// on its last picture for the rest of the session.
+test("a read that cannot even be started is a state, not a throw", () => {
+    const refused = Object.assign(new Error("refused"), {code: 14});
+    const {pending, environment: async} = asyncEnvironment({startThrows: refused});
+    const delivered = [];
+
+    const deferred = Reader.readSnapshotAsync(
+        async,
+        "~/state.json",
+        NOW,
+        (state) => delivered.push(state),
+    );
+
+    assert.equal(deferred, false);
+    assert.deepEqual(pending, []);
+    assert.equal(delivered.length, 1);
+    assert.equal(delivered[0].runtime, "unreadable");
 });
 
 // Cinnamon's Gio always offers the asynchronous form; a harness handing in a
