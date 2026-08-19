@@ -251,6 +251,10 @@ global.imports = {
                 get_default: () => ({
                     get_search_path: () => iconPaths.slice(),
                     append_search_path: (candidate) => iconPaths.push(candidate),
+                    set_search_path(candidates) {
+                        iconPaths.length = 0;
+                        iconPaths.push(...candidates);
+                    },
                 }),
             },
         },
@@ -932,4 +936,41 @@ test("a snapshot path changed mid-read is read again, and the old answer dropped
 
     assert.equal(applet._state.runtime, "connected");
     applet.on_applet_removed_from_panel();
+});
+
+// The theme an applet appends to is `Gtk.IconTheme.get_default()`: the
+// session's, which outlives every applet that ever touched it.
+test("the icons directory leaves the session's icon theme with the applet", () => {
+    iconPaths.length = 0;
+    iconPaths.push("/usr/share/icons");
+    const applet = build();
+
+    assert.deepEqual(iconPaths, ["/usr/share/icons", "/applets/xpuwlm/icons"]);
+
+    applet.on_applet_removed_from_panel();
+
+    assert.deepEqual(iconPaths, ["/usr/share/icons"], "and nothing else goes with it");
+});
+
+test("an applet that appended nothing takes nothing back", () => {
+    iconPaths.length = 0;
+    iconPaths.push("/applets/xpuwlm/icons");
+    const applet = build();
+
+    applet.on_applet_removed_from_panel();
+
+    assert.deepEqual(iconPaths, ["/applets/xpuwlm/icons"]);
+});
+
+test("an icon theme that cannot be told its search path is left alone", () => {
+    const appended = [];
+    const iconTheme = {
+        get_search_path: () => appended.slice(),
+        append_search_path: (candidate) => appended.push(candidate),
+    };
+    const applet = build({iconTheme});
+
+    applet.on_applet_removed_from_panel();
+
+    assert.deepEqual(appended, ["/applets/xpuwlm/icons"]);
 });

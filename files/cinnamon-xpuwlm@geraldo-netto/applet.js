@@ -124,6 +124,8 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             this._panelHeight = panelHeight;
         }
         this._lineItems = [];
+        this._iconTheme = null;
+        this._iconPath = null;
         this._adoptPorts(overrides);
         this.settings = null;
         this.menu = null;
@@ -173,9 +175,32 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     _registerIconPath(metadata, overrides) {
         const iconTheme = (overrides && overrides.iconTheme) || Gtk.IconTheme.get_default();
         const iconPath = `${metadata.path}/icons`;
-        if (!iconTheme.get_search_path().includes(iconPath)) {
-            iconTheme.append_search_path(iconPath);
+        if (iconTheme.get_search_path().includes(iconPath)) {
+            return false;
         }
+        iconTheme.append_search_path(iconPath);
+        this._iconTheme = iconTheme;
+        this._iconPath = iconPath;
+        return true;
+    }
+
+    // And taken back with the applet. `Gtk.IconTheme.get_default()` is the
+    // session's theme, not the applet's, so an appended search path outlives
+    // every applet that appended it and goes on naming a directory that leaves
+    // with the uninstall. Only the applet that added the entry removes it —
+    // which is the whole rule, because `metadata.json` declares one instance.
+    _releaseIconPath() {
+        const iconTheme = this._iconTheme;
+        const iconPath = this._iconPath;
+        this._iconTheme = null;
+        this._iconPath = null;
+        if (!iconTheme || typeof iconTheme.set_search_path !== "function") {
+            return false;
+        }
+        iconTheme.set_search_path(
+            iconTheme.get_search_path().filter((entry) => entry !== iconPath),
+        );
+        return true;
     }
 
     _createSettings(metadata, instanceId, overrides) {
@@ -419,6 +444,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._destroyed = true;
         this._stopTimer();
         this._settingsPlacer.cancel();
+        this._releaseIconPath();
         if (this.settings && typeof this.settings.finalize === "function") {
             this.settings.finalize();
         }
