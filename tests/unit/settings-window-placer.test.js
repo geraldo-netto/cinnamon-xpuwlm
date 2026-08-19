@@ -105,6 +105,22 @@ test("a source still waiting is removed when the placer is cancelled", () => {
     assert.equal(mainloop.removed.length, 1);
 });
 
+test("a cancelled placer arms nothing for a window that arrives anyway", () => {
+    // `cancel` drops the display and the mainloop, which are the session's and
+    // not the applet's; an emission already in flight must find nothing armed.
+    const mainloop = recordingMainloop();
+    const desktop = display();
+    const target = placer();
+    target.awaitWindow(desktop, mainloop);
+    const [{callback}] = [...desktop.handlers.values()];
+    target.cancel();
+    const armed = mainloop.pending.length;
+
+    callback(desktop, {get_wm_class: () => "Xlet-settings.py"});
+
+    assert.equal(mainloop.pending.length, armed);
+});
+
 test("the display handler comes off when the placer is cancelled", () => {
     const mainloop = recordingMainloop();
     const desktop = display();

@@ -84,7 +84,12 @@ function createSettingsWindowPlacer(options = {}) {
     // while the window manager is still handling its own placement is accepted
     // and then discarded — measured, with the window reporting the corner it
     // started in and no second position change at all.
+    // A correction can be asked for by a window signal that arrives after the
+    // placer was cancelled, and there is no mainloop to arm then.
     function placeWhenIdle(window) {
+        if (!mainloop) {
+            return;
+        }
         arm((callback) => mainloop.idle_add(callback), () => place(window));
     }
 
@@ -103,14 +108,21 @@ function createSettingsWindowPlacer(options = {}) {
         );
     }
 
+    // A cancelled placer holds no mainloop, and a `window-created` emission
+    // already in flight when it was cancelled still reaches this.
     function onWindowCreated(_display, window) {
-        if (!placement.isSettingsWindow(window)) {
+        if (!mainloop || !placement.isSettingsWindow(window)) {
             return;
         }
         stopListening();
         settle(window);
     }
 
+    // The collaborators go with the sources. The display it holds is
+    // `global.display`, which outlives every applet, so a placer that kept it
+    // after teardown kept the session's display and Cinnamon's mainloop
+    // reachable for as long as the applet object survived — and read as though
+    // it were still armed.
     function cancel() {
         stopListening();
         releaseWindow();
@@ -120,6 +132,8 @@ function createSettingsWindowPlacer(options = {}) {
             }
         }
         sources.clear();
+        display = null;
+        mainloop = null;
         return true;
     }
 
