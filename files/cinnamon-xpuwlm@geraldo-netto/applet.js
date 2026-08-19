@@ -32,6 +32,7 @@ const Util = imports.misc.util;
 
 const I18n = require("./lib/i18n.js");
 const PanelStatus = require("./lib/panel-status.js");
+const SettingsWindowPlacer = require("./lib/settings-window-placer.js");
 const SnapshotReader = require("./lib/snapshot-reader.js");
 const WindowPlacement = require("./lib/window-placement.js");
 const XpuwlmLauncher = require("./lib/xpuwlm-launcher.js");
@@ -132,14 +133,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._panelIconClass = null;
         this._iconSize = overrides.iconSize || DEFAULT_PANEL_ICON_SIZE;
         this._lineItems = [];
-        this._environment = overrides.environment || defaultEnvironment();
-        this._logger = overrides.logger || defaultLogger();
-        this._now = overrides.now || (() => Date.now());
-        this._launcher = overrides.launcher || XpuwlmLauncher.createLauncher(
-            this._environment,
-            (commandLine) => Util.spawnCommandLineAsync(commandLine),
-            this._logger,
-        );
+        this._adoptPorts(overrides);
         this.settings = null;
         this.menu = null;
         this.menuManager = null;
@@ -151,6 +145,25 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             this._teardown();
             throw error;
         }
+    }
+
+    // Everything the applet talks to the desktop through, and the doubles a
+    // test hands in instead. Collected in one place so the constructor reads
+    // as what it is: ports, then construction, then the first draw.
+    _adoptPorts(overrides) {
+        this._environment = overrides.environment || defaultEnvironment();
+        this._logger = overrides.logger || defaultLogger();
+        this._now = overrides.now || (() => Date.now());
+        this._settingsPlacer = overrides.settingsPlacer
+            || SettingsWindowPlacer.createSettingsWindowPlacer({
+                logger: this._logger,
+                placement: WindowPlacement,
+            });
+        this._launcher = overrides.launcher || XpuwlmLauncher.createLauncher(
+            this._environment,
+            (commandLine) => Util.spawnCommandLineAsync(commandLine),
+            this._logger,
+        );
     }
 
     _construct(metadata, instanceId, overrides) {
@@ -327,64 +340,12 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         super.configureApplet(tab);
     }
 
-    // Waits for the window Cinnamon is about to spawn, centres it once, and
-    // stops waiting either way — a settings window that never appears must not
-    // leave a handler listening for the rest of the session.
+    // The waiting itself — the display handler and the mainloop sources it
+    // arms — belongs to a collaborator that can be cancelled, because all of
+    // it outlives the turn that started it and `global.display` outlives the
+    // applet.
     _placeSettingsWindow(display = global.display, mainloop = Mainloop) {
-        if (!display || typeof display.connect !== "function") {
-            return false;
-        }
-        let handler = display.connect("window-created", (_display, window) => {
-            if (!WindowPlacement.isSettingsWindow(window)) {
-                return;
-            }
-            handler = this._stopWaiting(display, handler);
-            this._settleSettingsWindow(window, mainloop);
-        });
-        mainloop.timeout_add_seconds(WindowPlacement.SETTINGS_WAIT_SECONDS, () => {
-            handler = this._stopWaiting(display, handler);
-            return false;
-        });
-        return true;
-    }
-
-    // A window is created before the window manager has placed it, and the
-    // placement lands either side of the first idle turn depending on how long
-    // the settings process took to start — measured both ways. So the centring
-    // is re-applied for as long as the window is still settling, and released
-    // after that, because a window the person moves later is theirs.
-    _settleSettingsWindow(window, mainloop) {
-        const place = () => {
-            try {
-                WindowPlacement.placeWindow(window);
-            } catch (error) {
-                this._logger.warn(`could not place the settings window: ${error}`);
-            }
-            return false;
-        };
-        // Always from an idle turn, never from inside the signal: a move made
-        // while the window manager is still handling its own placement is
-        // accepted and then discarded — measured, with the window reporting
-        // the corner it started in and no second position change at all.
-        let moved = 0;
-        if (typeof window.connect === "function") {
-            moved = window.connect("position-changed", () => mainloop.idle_add(place));
-        }
-        mainloop.idle_add(place);
-        mainloop.timeout_add(WindowPlacement.SETTLE_MS, () => {
-            if (moved && typeof window.disconnect === "function") {
-                window.disconnect(moved);
-            }
-            return false;
-        });
-        return true;
-    }
-
-    _stopWaiting(display, handler) {
-        if (handler) {
-            display.disconnect(handler);
-        }
-        return 0;
+        return this._settingsPlacer.awaitWindow(display, mainloop);
     }
 
     on_panel_height_changed() {
@@ -399,12 +360,27 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     _teardown() {
         this._destroyed = true;
         this._stopTimer();
+        this._settingsPlacer.cancel();
         if (this.settings && typeof this.settings.finalize === "function") {
             this.settings.finalize();
+        }
+        this._releasePresentation();
+    }
+
+    // What setup created, teardown releases: `removeMenu` is what disconnects
+    // the menu manager's own signals on the menu and its source actor, and the
+    // tooltip arms mainloop timers of its own.
+    _releasePresentation() {
+        if (this.menuManager && this.menu && typeof this.menuManager.removeMenu === "function") {
+            this.menuManager.removeMenu(this.menu);
         }
         if (this.menu && typeof this.menu.destroy === "function") {
             this.menu.destroy();
         }
+        if (this._tooltip && typeof this._tooltip.destroy === "function") {
+            this._tooltip.destroy();
+        }
+        return true;
     }
 }
 

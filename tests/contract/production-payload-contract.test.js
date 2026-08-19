@@ -17,6 +17,7 @@ const HELPER_MODULES = Object.freeze([
     "applet.js",
     "lib/i18n.js",
     "lib/panel-status.js",
+    "lib/settings-window-placer.js",
     "lib/snapshot-reader.js",
     "lib/window-placement.js",
     "lib/xpuwlm-launcher.js",
