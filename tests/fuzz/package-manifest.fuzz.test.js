@@ -66,7 +66,7 @@ test("property: archive member names are accepted exactly up to the ustar bound"
             assert.equal(header.length, Package.BLOCK_SIZE);
             assert.equal(header.subarray(0, length).toString("utf8"), name);
         } else {
-            assert.throws(() => Package.tarHeader(name, 0, "0"), /100 characters/u);
+            assert.throws(() => Package.tarHeader(name, 0, "0"), /100 bytes/u);
         }
     }
 });

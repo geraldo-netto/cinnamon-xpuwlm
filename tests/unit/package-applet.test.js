@@ -291,7 +291,11 @@ test("archives are byte-deterministic valid ustar with fixed metadata", () => {
         {name: "member/applet.js", size: 600, typeflag: "0"},
         {name: "member/lib/module.js", size: 1, typeflag: "0"},
     ]);
-    assert.throws(() => Package.tarHeader(`member/${"n".repeat(120)}`, 0, "0"), /100 characters/u);
+    assert.throws(() => Package.tarHeader(`member/${"n".repeat(120)}`, 0, "0"), /100 bytes/u);
+    // The field is 100 bytes, so a name that fits in characters and not in
+    // bytes is refused rather than written truncated.
+    assert.throws(() => Package.tarHeader("é".repeat(51), 0, "0"), /100 bytes/u);
+    assert.equal(Package.tarHeader("é".repeat(50), 0, "0").length, Package.BLOCK_SIZE);
     fs.rmSync(root, {recursive: true, force: true});
 });
 
@@ -301,6 +305,10 @@ test("member directory expansion is complete, unique, and sorted", () => {
     ]);
     assert.deepEqual(Package.memberDirectories([]), []);
     assert.equal(Package.octal(0, 8), "0000000\0");
+    // A value too wide for its field used to be written a digit short and
+    // still checksum, so the archive said a size or a mode it did not mean.
+    assert.equal(Package.octal(0o7777777, 8), "7777777\0");
+    assert.throws(() => Package.octal(0o77777777, 8), RangeError);
     assert.equal(Package.tarPadding(Package.BLOCK_SIZE).length, 0);
     assert.equal(Package.tarPadding(1).length, Package.BLOCK_SIZE - 1);
     assert.equal(Package.compareText("a", "a"), 0);

@@ -278,13 +278,26 @@ function verifyAbsent(root) {
     return {ok: !fs.existsSync(root), remaining: fs.existsSync(root) ? payloadFiles(root) : []};
 }
 
+// A ustar field is a fixed width, and both of the ways a value can fail to fit
+// one used to be silent: `padStart` widens a short value and leaves a long one
+// alone, so an out-of-range size or mode wrote a field that meant something
+// else, and the archive still matched its own checksum manifest.
 function octal(value, width) {
-    return `${value.toString(8).padStart(width - 1, "0")}\0`;
+    const digits = value.toString(8);
+    if (digits.length > width - 1) {
+        throw new RangeError(
+            `Archive header field needs ${digits.length} octal digits, not ${width - 1}: ${value}`,
+        );
+    }
+    return `${digits.padStart(width - 1, "0")}\0`;
 }
 
 function tarHeader(name, size, typeflag) {
-    if (name.length > 100) {
-        throw new RangeError(`Archive member name exceeds 100 characters: ${name}`);
+    // Bytes, not characters: the name field is 100 bytes, and a name counted
+    // in characters passed this guard and was then silently truncated by
+    // `Buffer.write` — a member the archive names as something it is not.
+    if (Buffer.byteLength(name, "utf8") > 100) {
+        throw new RangeError(`Archive member name exceeds 100 bytes: ${name}`);
     }
     const header = Buffer.alloc(BLOCK_SIZE);
     header.write(name, 0, 100, "utf8");
