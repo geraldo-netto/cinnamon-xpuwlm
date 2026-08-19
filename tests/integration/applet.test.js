@@ -860,11 +860,21 @@ function deferredEnvironment(contents) {
         },
         load_contents_finish: () => [true, contents],
     };
+    const paths = [];
     return {
+        paths,
         pending,
         environment: {
             GLib: {get_home_dir: () => "/home/tester"},
-            Gio: {IOErrorEnum: {NOT_FOUND: 1}, File: {new_for_path: () => file}},
+            Gio: {
+                IOErrorEnum: {NOT_FOUND: 1},
+                File: {
+                    new_for_path(target) {
+                        paths.push(target);
+                        return file;
+                    },
+                },
+            },
             decode: (value) => String(value),
         },
     };
@@ -899,4 +909,27 @@ test("a snapshot that lands after the applet was removed is not drawn", () => {
 
     assert.equal(applet._state.runtime, "absent");
     assert.equal(applet.symbolicIconNames.length, drawn);
+});
+
+// The read outlives the setting it was started from: the binding answers a
+// path change by asking for a refresh, which the outstanding read refuses.
+test("a snapshot path changed mid-read is read again, and the old answer dropped", () => {
+    const {paths, pending, environment} = deferredEnvironment(snapshotDocument());
+    const applet = build({environment});
+
+    assert.deepEqual(paths, ["/home/tester/.local/state/xpu-workload-manager/state.json"]);
+
+    applet._runtimeStatePath = "/tmp/elsewhere/state.json";
+    applet.settings.bindings.get("runtime-state-path").callback();
+    assert.equal(pending.length, 1, "the outstanding read refuses a second beside it");
+
+    pending.pop()();
+
+    assert.equal(applet._state.runtime, "absent", "the previous file's answer is not drawn");
+    assert.equal(paths.at(-1), "/tmp/elsewhere/state.json", "the new path is read at once");
+
+    pending.pop()();
+
+    assert.equal(applet._state.runtime, "connected");
+    applet.on_applet_removed_from_panel();
 });

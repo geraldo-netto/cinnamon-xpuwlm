@@ -236,29 +236,51 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     // desktop once a tick; the bytes arrive on a callback instead. A tick that
     // finds the previous read still outstanding is dropped rather than queued,
     // because two reads in flight would draw the older answer last.
+    // The file the panel is reading now. An empty setting is the shipped
+    // default rather than a path nothing can read: the entry is a text field,
+    // and a person who clears it has asked for the default back.
+    _statePath() {
+        return this._runtimeStatePath || SnapshotReader.RUNTIME_STATE_PATH;
+    }
+
     refresh() {
         if (this._destroyed || this._reading) {
-            return;
+            return false;
         }
+        const target = this._statePath();
         this._reading = true;
         SnapshotReader.readSnapshotAsync(
             this._environment,
-            this._runtimeStatePath || SnapshotReader.RUNTIME_STATE_PATH,
+            target,
             this._now(),
-            (state) => this._receiveState(state),
+            (state) => this._receiveState(state, target),
         );
+        return true;
     }
 
     // The read outlives the turn that started it, so an applet removed from
     // the panel while one was in flight neither keeps the answer nor draws it.
     // `_render` refuses the draw on its own; this is about the state.
-    _receiveState(state) {
+    //
+    // And it outlives the setting it was started from. The settings binding
+    // answers a change to the snapshot path by asking for a refresh, which a
+    // read already in flight refuses — so the state that then arrived was read
+    // from the *previous* file and was drawn as though it were the new one,
+    // with the new one unread until the next tick: up to a minute at the top
+    // of the refresh range. A state read from a path the applet has since been
+    // pointed away from is discarded, and the read the change asked for is the
+    // one made instead.
+    _receiveState(state, target) {
         this._reading = false;
         if (this._destroyed) {
-            return;
+            return false;
+        }
+        if (target !== this._statePath()) {
+            return this.refresh();
         }
         this._state = state;
         this._render();
+        return true;
     }
 
     // Guarded here rather than at each caller: Cinnamon broadcasts a height
