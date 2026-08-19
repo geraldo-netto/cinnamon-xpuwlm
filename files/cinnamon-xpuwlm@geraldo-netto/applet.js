@@ -125,6 +125,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._orientation = orientation;
         this._destroyed = false;
         this._timer = null;
+        this._reading = false;
         this._state = SnapshotReader.EMPTY_STATE;
         this._panelIconStatus = null;
         // What is on the actor, as opposed to what was last drawn: a panel
@@ -236,15 +237,32 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         }
     }
 
+    // Asked for, not waited on. The applet runs on the compositor thread, so a
+    // blocking read of a document that grows with the host would stall the
+    // desktop once a tick; the bytes arrive on a callback instead. A tick that
+    // finds the previous read still outstanding is dropped rather than queued,
+    // because two reads in flight would draw the older answer last.
     refresh() {
-        if (this._destroyed) {
+        if (this._destroyed || this._reading) {
             return;
         }
-        this._state = SnapshotReader.readSnapshot(
+        this._reading = true;
+        SnapshotReader.readSnapshotAsync(
             this._environment,
             this._runtimeStatePath || SnapshotReader.RUNTIME_STATE_PATH,
             this._now(),
+            (state) => this._receiveState(state),
         );
+    }
+
+    // The read outlives the turn that started it, so an applet removed from
+    // the panel while one was in flight draws nothing when it lands.
+    _receiveState(state) {
+        this._reading = false;
+        if (this._destroyed) {
+            return;
+        }
+        this._state = state;
         this._render();
     }
 

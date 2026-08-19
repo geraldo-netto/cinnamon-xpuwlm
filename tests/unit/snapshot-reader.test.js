@@ -315,3 +315,96 @@ test("a snapshot with no version at all is not read as version one", () => {
     assert.equal(Reader.stateFromDocument(versionless, NOW).runtime, "malformed");
     assert.equal(Reader.stateFromDocument(document({version: "1"}), NOW).runtime, "malformed");
 });
+
+// The applet runs on the compositor thread, so the read it performs once a
+// tick has to hand the waiting to the mainloop rather than to the desktop.
+function asyncEnvironment({contents = null, throws = null, finishThrows = null} = {}) {
+    const pending = [];
+    const file = {
+        load_contents_async(_cancellable, callback) {
+            pending.push(() => callback(file, {}));
+        },
+        load_contents_finish() {
+            if (finishThrows) {
+                throw finishThrows;
+            }
+            return [true, Buffer.from(contents)];
+        },
+    };
+    return {
+        pending,
+        environment: {
+            GLib: {get_home_dir: () => "/home/tester"},
+            Gio: {
+                IOErrorEnum: {NOT_FOUND: 1},
+                File: {
+                    new_for_path() {
+                        if (throws) {
+                            throw throws;
+                        }
+                        return file;
+                    },
+                },
+            },
+            decode: (buffer) => buffer.toString("utf8"),
+        },
+    };
+}
+
+test("an asynchronous read delivers its state on the callback, not on the call", () => {
+    const {pending, environment: async} = asyncEnvironment({
+        contents: JSON.stringify(document()),
+    });
+    const delivered = [];
+
+    const deferred = Reader.readSnapshotAsync(async, "~/state.json", NOW, (state) => {
+        delivered.push(state);
+    });
+
+    assert.equal(deferred, true);
+    assert.deepEqual(delivered, []);
+    pending.pop()();
+    assert.equal(delivered.length, 1);
+    assert.equal(delivered[0].runtime, "connected");
+    assert.equal(delivered[0].queued, 3);
+});
+
+test("a failure to finish an asynchronous read is a state, not a throw", () => {
+    const denied = Object.assign(new Error("denied"), {code: 14});
+    const {pending, environment: async} = asyncEnvironment({finishThrows: denied});
+    const delivered = [];
+
+    Reader.readSnapshotAsync(async, "~/state.json", NOW, (state) => delivered.push(state));
+    pending.pop()();
+
+    assert.equal(delivered[0].runtime, "unreadable");
+});
+
+test("a file that cannot even be named is delivered before the call returns", () => {
+    const missing = Object.assign(new Error("gone"), {code: 1});
+    const {environment: async} = asyncEnvironment({throws: missing});
+    const delivered = [];
+
+    const deferred = Reader.readSnapshotAsync(async, "~/state.json", NOW, (state) => {
+        delivered.push(state);
+    });
+
+    assert.equal(deferred, false);
+    assert.equal(delivered[0].runtime, "absent");
+});
+
+// Cinnamon's Gio always offers the asynchronous form; a harness handing in a
+// double that does not must still be answered rather than left waiting.
+test("a platform without an asynchronous load falls back to the blocking read", () => {
+    const delivered = [];
+
+    const deferred = Reader.readSnapshotAsync(
+        environment({contents: JSON.stringify(document())}),
+        "~/state.json",
+        NOW,
+        (state) => delivered.push(state),
+    );
+
+    assert.equal(deferred, false);
+    assert.equal(delivered[0].runtime, "connected");
+});

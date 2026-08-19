@@ -782,3 +782,54 @@ test("a window that cannot report signals is still placed once", () => {
     assert.deepEqual(window.moved, {userOperation: true, x: 1520, y: 744});
     applet.on_applet_removed_from_panel();
 });
+
+// The panel reads the snapshot without blocking the compositor thread, so the
+// state arrives on a callback that outlives the turn which asked for it.
+function deferredEnvironment(contents) {
+    const pending = [];
+    const file = {
+        load_contents_async(_cancellable, callback) {
+            pending.push(() => callback(file, {}));
+        },
+        load_contents_finish: () => [true, contents],
+    };
+    return {
+        pending,
+        environment: {
+            GLib: {get_home_dir: () => "/home/tester"},
+            Gio: {IOErrorEnum: {NOT_FOUND: 1}, File: {new_for_path: () => file}},
+            decode: (value) => String(value),
+        },
+    };
+}
+
+test("a tick that finds the previous read outstanding is dropped, not queued", () => {
+    const {pending, environment} = deferredEnvironment(snapshotDocument());
+    const applet = build({environment});
+
+    assert.equal(pending.length, 1, "construction asks for the snapshot without waiting");
+    assert.equal(applet._state.runtime, "absent");
+
+    applet.refresh();
+    assert.equal(pending.length, 1, "a second read must not be started beside the first");
+
+    pending.pop()();
+    assert.equal(applet._state.runtime, "connected");
+
+    applet.refresh();
+    assert.equal(pending.length, 1, "the next tick reads again once the last one landed");
+    pending.pop()();
+    applet.on_applet_removed_from_panel();
+});
+
+test("a snapshot that lands after the applet was removed is not drawn", () => {
+    const {pending, environment} = deferredEnvironment(snapshotDocument());
+    const applet = build({environment});
+    applet.on_applet_removed_from_panel();
+    const drawn = applet.symbolicIconNames.length;
+
+    pending.pop()();
+
+    assert.equal(applet._state.runtime, "absent");
+    assert.equal(applet.symbolicIconNames.length, drawn);
+});

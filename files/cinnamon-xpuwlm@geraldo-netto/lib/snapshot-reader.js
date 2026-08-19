@@ -187,32 +187,76 @@ function isNotFound(environment, error) {
     return error.code === errors.NOT_FOUND;
 }
 
-function readSnapshot(environment, filename, nowMs) {
-    const target = expandHome(environment, filename);
-    let text;
-    try {
-        const file = environment.Gio.File.new_for_path(target);
-        const [ok, contents] = file.load_contents(null);
-        if (!ok) {
-            return failed("unreadable", "The runtime snapshot could not be read");
-        }
-        const oversized = tooLargeFor(contents, MAX_SNAPSHOT_BYTES);
-        if (oversized !== null) {
-            return oversized;
-        }
-        text = environment.decode(contents);
-    } catch (error) {
-        return isNotFound(environment, error)
-            ? failed("absent", "The runtime is not running")
-            : failed("unreadable", `The runtime snapshot could not be read: ${error}`);
+// One document, from bytes to a runtime word. Shared by both read paths so
+// the asynchronous one cannot drift into reporting a different state for the
+// same file than the synchronous one does.
+function stateFromContents(environment, ok, contents, nowMs) {
+    if (!ok) {
+        return failed("unreadable", "The runtime snapshot could not be read");
+    }
+    const oversized = tooLargeFor(contents, MAX_SNAPSHOT_BYTES);
+    if (oversized !== null) {
+        return oversized;
     }
     let document;
     try {
-        document = JSON.parse(text);
+        document = JSON.parse(environment.decode(contents));
     } catch (error) {
         return failed("malformed", `The runtime snapshot is not valid JSON: ${error}`);
     }
     return stateFromDocument(document, nowMs);
+}
+
+function stateFromError(environment, error) {
+    return isNotFound(environment, error)
+        ? failed("absent", "The runtime is not running")
+        : failed("unreadable", `The runtime snapshot could not be read: ${error}`);
+}
+
+function readSnapshot(environment, filename, nowMs) {
+    const target = expandHome(environment, filename);
+    try {
+        const file = environment.Gio.File.new_for_path(target);
+        const [ok, contents] = file.load_contents(null);
+        return stateFromContents(environment, ok, contents, nowMs);
+    } catch (error) {
+        return stateFromError(environment, error);
+    }
+}
+
+// The panel reads this file on every tick, and the applet runs on Cinnamon's
+// compositor thread: a blocking read there stalls the whole desktop for as
+// long as the disk takes, and the document has no ceiling — the canonical
+// schema permits 128 plugin telemetry entries, 64 kernel histograms and 256
+// policy profiles, all of which grow with the host. So the bytes arrive from
+// the asynchronous form and the parse happens on its callback.
+//
+// `deliver` is called exactly once, with a state, whatever happened; the state
+// machine already has a word for every failure. The synchronous form remains
+// the fallback for a platform whose Gio offers no asynchronous load, and is
+// what the return value distinguishes: true when the read was handed to the
+// mainloop, false when it had already finished by the time this returned.
+function readSnapshotAsync(environment, filename, nowMs, deliver) {
+    let file;
+    try {
+        file = environment.Gio.File.new_for_path(expandHome(environment, filename));
+    } catch (error) {
+        deliver(stateFromError(environment, error));
+        return false;
+    }
+    if (typeof file.load_contents_async !== "function") {
+        deliver(readSnapshot(environment, filename, nowMs));
+        return false;
+    }
+    file.load_contents_async(null, (source, result) => {
+        try {
+            const [ok, contents] = (source || file).load_contents_finish(result);
+            deliver(stateFromContents(environment, ok, contents, nowMs));
+        } catch (error) {
+            deliver(stateFromError(environment, error));
+        }
+    });
+    return true;
 }
 
 module.exports = {
@@ -228,6 +272,9 @@ module.exports = {
     isNotFound,
     primaryDevice,
     readSnapshot,
+    readSnapshotAsync,
+    stateFromContents,
+    stateFromError,
     stateFromDocument,
     tooLargeFor,
 };
