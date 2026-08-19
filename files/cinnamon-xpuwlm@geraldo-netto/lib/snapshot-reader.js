@@ -23,8 +23,13 @@
 // would report a working runtime as absent — the failure the panel exists to
 // tell apart from a real one.
 const MAX_SNAPSHOT_BYTES = null;
-// The service republishes every two seconds; three misses is a runtime that
-// has stopped, not one that is briefly busy.
+// Measured against the heartbeat, not against the busy cadence: the service
+// publishes every two seconds under load, backs off to ten when idle, and
+// emits a proof-of-life heartbeat every ten seconds, so an idle desk that is
+// perfectly healthy can be five seconds old at any moment. Fifteen seconds is
+// one and a half heartbeats — long enough that a working runtime is never
+// reported stale, short enough that a stopped one is named quickly. Shortening
+// it towards the two-second figure would report every idle desk as stale.
 const STALE_AFTER_MS = 15000;
 // The one contract number the panel does check. The canonical schema pins
 // `version` to 1, and the deployment order is reader before writer, so a
@@ -165,6 +170,23 @@ function tooLargeFor(contents, ceiling) {
 
 // `environment` carries GLib and Gio so this stays testable off a desktop:
 // the applet passes the real ones, a test passes doubles.
+// Not-found is the ordinary case — the service is not running — and it is
+// reported as absence rather than as a failure someone should act on. Asked
+// through `matches` where the platform offers it: a bare `code` comparison
+// says nothing about which error domain raised it, so any domain whose first
+// enumerated value happens to be 1 would be drawn as a runtime that is simply
+// not running.
+function isNotFound(environment, error) {
+    const errors = environment.Gio.IOErrorEnum;
+    if (errors === undefined || !error) {
+        return false;
+    }
+    if (typeof error.matches === "function") {
+        return error.matches(errors, errors.NOT_FOUND) === true;
+    }
+    return error.code === errors.NOT_FOUND;
+}
+
 function readSnapshot(environment, filename, nowMs) {
     const target = expandHome(environment, filename);
     let text;
@@ -180,11 +202,7 @@ function readSnapshot(environment, filename, nowMs) {
         }
         text = environment.decode(contents);
     } catch (error) {
-        // Not-found is the ordinary case — the service is not running — and it
-        // is reported as absence rather than as a failure someone should act
-        // on.
-        return environment.Gio.IOErrorEnum !== undefined
-            && error?.code === environment.Gio.IOErrorEnum.NOT_FOUND
+        return isNotFound(environment, error)
             ? failed("absent", "The runtime is not running")
             : failed("unreadable", `The runtime snapshot could not be read: ${error}`);
     }
@@ -207,6 +225,7 @@ module.exports = {
     SNAPSHOT_VERSION,
     STALE_AFTER_MS,
     expandHome,
+    isNotFound,
     primaryDevice,
     readSnapshot,
     stateFromDocument,

@@ -87,6 +87,42 @@ test("a missing file is the runtime not running, not a failure to report", () =>
     assert.equal(state.detail, "The runtime is not running");
 });
 
+// GJS raises a GError, which knows its own domain. A bare `code` comparison
+// does not: the first enumerated value of any other domain is also 1, and a
+// permission failure drawn as "the runtime is not running" is the one picture
+// this panel exists to tell apart from a real absence.
+test("an error from another domain is not read as the runtime being absent", () => {
+    const foreign = Object.assign(new Error("markup"), {
+        code: 1,
+        matches: (domain, code) => domain === "GLib.MarkupError" && code === 1,
+    });
+    const state = Reader.readSnapshot(environment({throws: foreign}), "~/state.json", NOW);
+
+    assert.equal(state.runtime, "unreadable");
+});
+
+test("a GError that names the not-found code in the IO domain is absence", () => {
+    const missing = Object.assign(new Error("gone"), {
+        matches: (domain, code) => domain !== undefined && code === 1,
+    });
+    const state = Reader.readSnapshot(environment({throws: missing}), "~/state.json", NOW);
+
+    assert.equal(state.runtime, "absent");
+});
+
+test("a platform that publishes no IO error domain reports a failure to read", () => {
+    const environmentWithoutErrors = {
+        GLib: {get_home_dir: () => "/home/tester"},
+        Gio: {File: {new_for_path: () => ({load_contents() { throw new Error("boom"); }})}},
+        decode: (value) => String(value),
+    };
+
+    assert.equal(
+        Reader.readSnapshot(environmentWithoutErrors, "/state.json", NOW).runtime,
+        "unreadable",
+    );
+});
+
 test("an unreadable file is named as unreadable rather than as absent", () => {
     const denied = Object.assign(new Error("denied"), {code: 14});
     const state = Reader.readSnapshot(environment({throws: denied}), "~/state.json", NOW);
