@@ -58,18 +58,26 @@ function sourceRequires(source, owner = "source") {
     return matches.map((match) => JSON.parse(match[1]));
 }
 
-function regularModule(root, relativePath) {
+// One guard, asked twice about different subjects: lstat the entry, refuse a
+// symlink or anything that is not a regular file, and hand back the path. The
+// subject is the caller's word because a production module that is missing and
+// a Spice release file that is missing are different failures to read about.
+function regularEntry(root, relativePath, subject) {
     const filename = path.join(root, relativePath);
     let entry;
     try {
         entry = fs.lstatSync(filename);
     } catch (error) {
-        throw new Error(`Production module is missing: ${relativePath}`, {cause: error});
+        throw new Error(`${subject} is missing: ${relativePath}`, {cause: error});
     }
     if (entry.isSymbolicLink() || !entry.isFile()) {
-        throw new Error(`Production module must be a regular file: ${relativePath}`);
+        throw new Error(`${subject} must be a regular file: ${relativePath}`);
     }
     return filename;
+}
+
+function regularModule(root, relativePath) {
+    return regularEntry(root, relativePath, "Production module");
 }
 
 function isAppletModule(relativePath) {
@@ -189,17 +197,7 @@ function stagePayload(sourceRoot, targetRoot, files = payloadFiles(sourceRoot)) 
 }
 
 function regularFile(root, relativePath) {
-    const filename = path.join(root, relativePath);
-    let entry;
-    try {
-        entry = fs.lstatSync(filename);
-    } catch (error) {
-        throw new Error(`Spice release file is missing: ${relativePath}`, {cause: error});
-    }
-    if (entry.isSymbolicLink() || !entry.isFile()) {
-        throw new Error(`Spice release entry must be a regular file: ${relativePath}`);
-    }
-    return filename;
+    return regularEntry(root, relativePath, "Spice release file");
 }
 
 function pngDimensions(contents) {
@@ -435,6 +433,7 @@ module.exports = {
     pngDimensions,
     productionRequireGraph,
     inspectSpiceSources,
+    regularEntry,
     regularFile,
     runCommand,
     sha256Hex,
