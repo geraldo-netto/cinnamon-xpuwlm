@@ -141,16 +141,32 @@ test("payload validation accepts injected roots and rejects repository files", (
     }));
 });
 
-test("JSON validation rejects an absent stage", (context) => {
+test("every JSON validator rejects an absent stage", (context) => {
     const missingRoot = temporaryDirectory();
     context.after(() => fs.rmSync(missingRoot, {recursive: true, force: true}));
-    assert.throws(() => Artifacts.validateJsonArtifacts({
+    const roots = {
         appletRoot: path.join(missingRoot, "missing"),
         repositoryRoot: missingRoot,
-    }));
+    };
+
+    assert.throws(() => Artifacts.validatePayloadMetadata(roots));
+    assert.throws(() => Artifacts.validateSettingsAgreement(roots));
+    assert.throws(() => Artifacts.validateTranslationCatalogue(roots));
+    assert.throws(() => Artifacts.validateRepositoryScripts(roots));
 });
 
-test("JSON validation refuses a mirrored contract schema reappearing", (context) => {
+// The four contracts used to fail under one name, which said which file was
+// read rather than which agreement was broken.
+test("each JSON validator passes on the shipped repository", (context) => {
+    const roots = copiedRepository(context);
+
+    assert.equal(Artifacts.validatePayloadMetadata(roots), true);
+    assert.equal(Artifacts.validateSettingsAgreement(roots), true);
+    assert.equal(Artifacts.validateTranslationCatalogue(roots), true);
+    assert.equal(Artifacts.validateRepositoryScripts(roots), true);
+});
+
+test("payload metadata validation refuses a mirrored contract schema reappearing", (context) => {
     // The helper reads six fields to draw an icon; the client validates the
     // document. A schema copy here would be a second reader to keep in parity.
     const roots = copiedRepository(context);
@@ -160,19 +176,19 @@ test("JSON validation refuses a mirrored contract schema reappearing", (context)
     );
 
     assert.throws(
-        () => Artifacts.validateJsonArtifacts(roots),
+        () => Artifacts.validatePayloadMetadata(roots),
         /must not ship mirrored contract schemas/u,
     );
 });
 
-test("JSON validation pins the settings default to the reader's own path", (context) => {
+test("settings validation pins the settings default to the reader's own path", (context) => {
     const roots = copiedRepository(context);
     const settingsPath = path.join(roots.appletRoot, "settings-schema.json");
     const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
     settings["runtime-state-path"].default = "~/somewhere/else.json";
     fs.writeFileSync(settingsPath, JSON.stringify(settings));
 
-    assert.throws(() => Artifacts.validateJsonArtifacts(roots));
+    assert.throws(() => Artifacts.validateSettingsAgreement(roots));
 });
 
 test("workflow and JavaScript validation cannot become empty stages", (context) => {

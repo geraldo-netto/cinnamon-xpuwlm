@@ -123,12 +123,16 @@ function productionJavaScriptFiles(targetAppletRoot) {
     return [...rootModules, ...libraries];
 }
 
-function validateJsonArtifacts({
+// Four contracts used to be asserted by one function called "JSON
+// validation", which named the file it read rather than the promise it broke.
+// Each is now its own validator, so a failure says which agreement was
+// abandoned: the payload's identity, the settings default, the shipped
+// catalogue, or the repository's own scripts.
+function validatePayloadMetadata({
     appletRoot: targetAppletRoot,
     repositoryRoot: targetRepositoryRoot,
 }) {
     const metadata = readJson(targetAppletRoot, "metadata.json");
-    const settings = readJson(targetAppletRoot, "settings-schema.json");
     const packageJson = readJson(targetRepositoryRoot, "package.json");
 
     assert.equal(metadata.uuid, UUID);
@@ -145,6 +149,15 @@ function validateJsonArtifacts({
         false,
         "The helper must not ship mirrored contract schemas",
     );
+    return true;
+}
+
+// The shipped default and the reader's constant are one fact in two files: a
+// panel whose default names a path the reader would not have read draws an
+// idle desk on a working runtime.
+function validateSettingsAgreement({appletRoot: targetAppletRoot}) {
+    const settings = readJson(targetAppletRoot, "settings-schema.json");
+
     // No panel text at all: a setting that could put a word back in the tray
     // would be a setting to keep working for a surface that no longer exists.
     assert.equal(Object.hasOwn(settings, "show-panel-label"), false);
@@ -152,9 +165,23 @@ function validateJsonArtifacts({
         settings["runtime-state-path"].default,
         require(path.join(targetAppletRoot, "lib/snapshot-reader.js")).RUNTIME_STATE_PATH,
     );
+    return true;
+}
+
+function validateTranslationCatalogue({appletRoot: targetAppletRoot}) {
     const potFile = fs.readFileSync(path.join(targetAppletRoot, "po", `${UUID}.pot`), "utf8");
+
     assert.match(potFile, /"Content-Type: text\/plain; charset=UTF-8\\n"/u);
     assert.equal(potFile.includes(`Project-Id-Version: ${UUID}`), true);
+    return true;
+}
+
+// The gates only run if the scripts that run them are wired, so the wiring is
+// itself an artifact: a stage silently dropped from `test:ci` is a gate that
+// stops reporting rather than a gate that fails.
+function validateRepositoryScripts({repositoryRoot: targetRepositoryRoot}) {
+    const packageJson = readJson(targetRepositoryRoot, "package.json");
+
     assert.equal(packageJson.scripts["test:ci"], [
         "npm run lint",
         "npm run test:syntax",
@@ -167,6 +194,7 @@ function validateJsonArtifacts({
     assert.equal(packageJson.devDependencies.ajv, "8.18.0");
     assert.equal(packageJson.scripts["test:visual"], "node --test tests/visual/*.test.js");
     assert.equal(packageJson.scripts["test:local"], "XPUWLM_SKIP_HOST_GATES=1 npm test");
+    return true;
 }
 
 function readWorkflow(root, name) {
@@ -294,7 +322,10 @@ function validateStaticAssets({
 
 function validateArtifacts(roots) {
     validatePayloadStructure(roots);
-    validateJsonArtifacts(roots);
+    validatePayloadMetadata(roots);
+    validateSettingsAgreement(roots);
+    validateTranslationCatalogue(roots);
+    validateRepositoryScripts(roots);
     validateWorkflows(roots);
     validateJavaScriptSyntax(roots);
     validateStaticAssets(roots);
@@ -322,12 +353,15 @@ module.exports = {
     readWorkflow,
     validateArtifacts,
     validateJavaScriptSyntax,
-    validateJsonArtifacts,
+    validatePayloadMetadata,
     validatePayloadStructure,
+    validateRepositoryScripts,
+    validateSettingsAgreement,
     validatePngIcon,
     validateSourceControls,
     validateStaticAssets,
     validateStylesheet,
     validateSvgIcon,
+    validateTranslationCatalogue,
     validateWorkflows,
 };
