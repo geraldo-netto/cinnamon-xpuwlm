@@ -252,6 +252,42 @@ test("static validation checks the stage and every shipped icon", (context) => {
     assert.throws(() => Artifacts.validateStaticAssets(roots));
 });
 
+// A list of icon names beside the icons only holds what someone remembered to
+// add to it. Read the directory instead, and a new icon is validated the
+// moment it ships rather than the moment the list is updated.
+test("every icon the payload carries is validated, listed or not", (context) => {
+    const roots = copiedRepository(context);
+    const added = path.join(roots.appletRoot, "icons/xpuwlm-invented-symbolic.svg");
+
+    fs.writeFileSync(added, "<svg viewBox=\"0 0 16 16\"><script/></svg>");
+    assert.throws(() => Artifacts.validateStaticAssets(roots));
+
+    fs.writeFileSync(added, "<svg viewBox=\"0 0 16 16\"><path d=\"M0 0h16v16H0z\"/></svg>");
+    assert.equal(Artifacts.validateStaticAssets(roots), undefined);
+    assert.equal(Artifacts.payloadIconNames(roots.appletRoot).includes(path.basename(added)), true);
+
+    fs.writeFileSync(path.join(roots.appletRoot, "icons/notes.txt"), "not an icon");
+    assert.throws(() => Artifacts.validateStaticAssets(roots), /not an icon/u);
+});
+
+// The status icons are the correspondence the panel cannot draw without, so
+// they are demanded of the payload by name — asked of panel-status.js itself.
+test("a status the panel can ask for must name a shipped icon", (context) => {
+    const roots = copiedRepository(context);
+    const required = Artifacts.requiredIconNames(roots.appletRoot);
+
+    assert.deepEqual(required, [
+        "xpuwlm-status-attention-symbolic.svg",
+        "xpuwlm-status-detected-symbolic.svg",
+        "xpuwlm-status-online-symbolic.svg",
+        "xpuwlm-status-paused-symbolic.svg",
+        "xpuwlm-status-unavailable-symbolic.svg",
+    ]);
+
+    fs.rmSync(path.join(roots.appletRoot, "icons", required[0]));
+    assert.throws(() => Artifacts.validateStaticAssets(roots), /does not ship/u);
+});
+
 test("the payload comparator orders names deterministically", () => {
     // The staged inventory is compared name by name, so equal, before, and
     // after all have to answer — a comparator that only ever returns -1 sorts

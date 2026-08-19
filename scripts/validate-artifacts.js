@@ -277,25 +277,46 @@ function validateStylesheet(css) {
     return true;
 }
 
+// The icons the payload actually carries, rather than a list written out
+// beside them: a list only holds the icons someone remembered to add to it, so
+// a new icon shipped to every user unvalidated and a renamed one failed as a
+// bare ENOENT rather than as the correspondence it broke.
+function payloadIconNames(targetAppletRoot) {
+    return fs.readdirSync(path.join(targetAppletRoot, "icons")).sort(compareText);
+}
+
+// The one correspondence the panel cannot draw without: every status
+// `panelIconName` can return has to name a file the payload ships. Asked of
+// the module itself, so a status added there is a status this gate demands.
+function requiredIconNames(targetAppletRoot) {
+    const panelStatus = require(path.join(targetAppletRoot, "lib/panel-status.js"));
+    return panelStatus.PANEL_STATUSES
+        .map((status) => `${panelStatus.panelIconName(status)}.svg`)
+        .sort(compareText);
+}
+
 function validateStaticAssets({
     appletRoot: targetAppletRoot,
     repositoryRoot: targetRepositoryRoot,
 }) {
-    const iconNames = [
-        "xpuwlm-symbolic.svg",
-        "xpuwlm-v2-symbolic.svg",
-        "xpuwlm-device-symbolic.svg",
-        "xpuwlm-sliders-symbolic.svg",
-        "xpuwlm-status-online-symbolic.svg",
-        "xpuwlm-status-detected-symbolic.svg",
-        "xpuwlm-status-attention-symbolic.svg",
-        "xpuwlm-status-paused-symbolic.svg",
-        "xpuwlm-status-unavailable-symbolic.svg",
-    ];
+    const iconNames = payloadIconNames(targetAppletRoot);
+    assert.equal(iconNames.length > 0, true, "The payload must ship its status icons");
+    for (const required of requiredIconNames(targetAppletRoot)) {
+        assert.equal(
+            iconNames.includes(required),
+            true,
+            `The panel can ask for an icon the payload does not ship: ${required}`,
+        );
+    }
     const css = fs.readFileSync(path.join(targetAppletRoot, "stylesheet.css"), "utf8");
     const png = fs.readFileSync(path.join(targetAppletRoot, "icon.png"));
     validatePngIcon(png);
     for (const iconName of iconNames) {
+        assert.equal(
+            iconName.endsWith(".svg"),
+            true,
+            `The payload's icon directory carries a file that is not an icon: ${iconName}`,
+        );
         const svg = fs.readFileSync(path.join(targetAppletRoot, "icons", iconName), "utf8");
         validateSvgIcon(svg);
     }
@@ -334,8 +355,10 @@ module.exports = {
     controlCharacterLine,
     defaultRoots,
     main,
+    payloadIconNames,
     payloadPaths,
     productionJavaScriptFiles,
+    requiredIconNames,
     readJson,
     readWorkflow,
     validateArtifacts,
