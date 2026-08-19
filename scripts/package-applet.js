@@ -180,6 +180,12 @@ function parseChecksums(text) {
         if (!match) {
             throw new Error(`Malformed checksum line: ${line}`);
         }
+        // Last-wins would let a manifest promise one path two different hashes
+        // and still verify: the file matches whichever line survived, and the
+        // other promise is never checked at all.
+        if (entries.has(match[2])) {
+            throw new Error(`Duplicate checksum entry: ${match[2]}`);
+        }
         entries.set(match[2], match[1]);
     }
     return entries;

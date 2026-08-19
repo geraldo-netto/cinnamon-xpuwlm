@@ -129,6 +129,14 @@ test("checksum manifests are deterministic and round-trip through the parser", (
     assert.equal(entries.get("a.txt"), Package.sha256Hex(Buffer.from("alpha")));
     assert.throws(() => Package.parseChecksums("not a checksum line"), /Malformed/u);
     assert.deepEqual([...Package.parseChecksums("").keys()], []);
+    // A manifest that promises one path two different hashes is believed by
+    // nobody: verification would answer "ok" against whichever line it kept.
+    const alpha = Package.sha256Hex(Buffer.from("alpha"));
+    const beta = Package.sha256Hex(Buffer.from("beta"));
+    assert.throws(
+        () => Package.parseChecksums(`${alpha}  a.txt\n${beta}  a.txt\n`),
+        /Duplicate checksum entry: a\.txt/u,
+    );
     fs.rmSync(root, {recursive: true, force: true});
 });
 
