@@ -91,24 +91,26 @@ function targetFor(window) {
     return centredFrame(workArea, window.get_frame_rect());
 }
 
+function isAt(frame, target) {
+    return frame.x === target.x && frame.y === target.y;
+}
+
 // Already there. Asked before every move so that re-applying the placement
 // while the window settles cannot become a loop: a move to where the window
 // already is would emit another position change, which would move it again.
 function isPlaced(window) {
     const target = targetFor(window);
-    if (!target) {
-        return false;
-    }
-    const frame = window.get_frame_rect();
-    return frame.x === target.x && frame.y === target.y;
+    return target !== null && isAt(window.get_frame_rect(), target);
 }
 
+// One target, asked for once. This used to compute it three times over —
+// `shouldPlace`, then `targetFor`, then `isPlaced` computing its own — which
+// is three round trips to the window manager for the frame and the work area
+// on every position change while the window settles.
 function placeWindow(window) {
-    if (!shouldPlace(window)) {
-        return false;
-    }
     const target = targetFor(window);
-    if (!target || typeof window.move_frame !== "function" || isPlaced(window)) {
+    if (!target || typeof window.move_frame !== "function"
+            || isAt(window.get_frame_rect(), target)) {
         return false;
     }
     // `true` for a user operation: this is the person having asked for the
@@ -123,6 +125,7 @@ module.exports = {
     SETTINGS_WM_CLASS,
     SETTLE_MS,
     centredFrame,
+    isAt,
     isPlaced,
     isSettingsWindow,
     placeWindow,
