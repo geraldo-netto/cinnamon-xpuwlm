@@ -36,14 +36,23 @@ function createSettingsWindowPlacer(options = {}) {
     let displayHandler = 0;
     let settling = null;
 
+    // The id is not known until `schedule` returns, and a scheduler that runs
+    // its callback before returning — a mainloop double, a reentrant source —
+    // reaches the deletion while the id is still 0 and then has the real id
+    // added behind it, which nothing would ever remove. So what the callback
+    // records is that it has fired; the id is only remembered while the source
+    // is still live.
     function arm(schedule, run) {
-        const source = {id: 0};
+        const source = {fired: false, id: 0};
         source.id = schedule(() => {
+            source.fired = true;
             sources.delete(source.id);
             run();
             return false;
         });
-        sources.add(source.id);
+        if (!source.fired) {
+            sources.add(source.id);
+        }
         return source.id;
     }
 
