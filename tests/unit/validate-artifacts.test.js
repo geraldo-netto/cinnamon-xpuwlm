@@ -84,7 +84,13 @@ test("PNG and static-asset validators reject unsafe input", () => {
     const invalidSignature = png();
     invalidSignature[0] = 0;
     assert.throws(() => Artifacts.validatePngIcon(invalidSignature));
-    assert.throws(() => Artifacts.validatePngIcon(png(16, 15)));
+    assert.throws(() => Artifacts.validatePngIcon(png(16, 15)), /must be square/u);
+    // One header parser, one message: the icon and the Spice screenshot are
+    // read by the same rule rather than by two that can drift apart.
+    assert.throws(
+        () => Artifacts.validatePngIcon(png().subarray(0, 20)),
+        /PNG with an IHDR header/u,
+    );
 
     const validSvg = "<svg viewBox=\"0 0 16 16\"><path d=\"M0 0\"/></svg>";
     assert.equal(Artifacts.validateSvgIcon(validSvg), true);

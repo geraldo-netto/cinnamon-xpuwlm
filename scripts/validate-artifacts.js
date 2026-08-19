@@ -6,6 +6,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const {compareText} = require("./lib/compare-text.js");
+// The packaging module owns the payload's release rules, and the two the
+// validator needs are its own: what a PNG header has to be, and what a Spice
+// release has to carry. Written out again here they were two rules with one
+// subject — one of them accepting a header the other refused.
+const Package = require("./package-applet.js");
 
 const UUID = "cinnamon-xpuwlm@geraldo-netto";
 const repositoryRoot = path.resolve(__dirname, "..");
@@ -345,10 +350,12 @@ function validateJavaScriptSyntax({appletRoot: targetAppletRoot}) {
     }
 }
 
+// Square, because it is drawn as one: Cinnamon scales the applet icon to a
+// box, and a non-square source is scaled unevenly or letterboxed. The header
+// itself is read by the packaging module's parser.
 function validatePngIcon(png) {
-    assert.deepEqual(png.subarray(0, 8), Buffer.from("89504e470d0a1a0a", "hex"));
-    assert.equal(png.subarray(12, 16).toString("ascii"), "IHDR");
-    assert.equal(png.readUInt32BE(16), png.readUInt32BE(20));
+    const {width, height} = Package.pngDimensions(png);
+    assert.equal(width, height, "The payload icon must be square");
     return true;
 }
 
@@ -436,10 +443,7 @@ function validateStaticAssets({
     }
     validateStylesheet(css);
     validateStatusColours(css, panelStatusModule(targetAppletRoot).PANEL_STATUSES);
-    const spice = require("./package-applet.js").inspectSpiceSources(
-        targetRepositoryRoot,
-        targetAppletRoot,
-    );
+    const spice = Package.inspectSpiceSources(targetRepositoryRoot, targetAppletRoot);
     assert.equal(spice.info.author, "geraldo-netto");
     assert.equal(spice.info.license, "MIT");
 }
