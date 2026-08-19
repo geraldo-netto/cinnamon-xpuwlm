@@ -132,3 +132,69 @@ test("the display handler comes off when the placer is cancelled", () => {
 
     assert.equal(desktop.handlers.size, 0);
 });
+
+// The settling window this placer is centring, as far as it uses one.
+function settlingWindow() {
+    return {
+        handlers: new Map(),
+        nextHandler: 1,
+        moved: [],
+        connect(signal, callback) {
+            const id = this.nextHandler;
+            this.nextHandler += 1;
+            this.handlers.set(id, {signal, callback});
+            return id;
+        },
+        disconnect(id) {
+            this.handlers.delete(id);
+        },
+        get_wm_class: () => "Xlet-settings.py",
+        get_frame_rect: () => ({x: 90, y: 90, width: 800, height: 600}),
+        get_work_area_current_monitor: () => ({x: 0, y: 0, width: 1920, height: 1080}),
+        allows_move: () => true,
+        move_frame(userOperation, x, y) {
+            this.moved.push({userOperation, x, y});
+        },
+    };
+}
+
+function armedPlacer(mainloop) {
+    const desktop = display();
+    const target = placer();
+    target.awaitWindow(desktop, mainloop);
+    const [{callback}] = [...desktop.handlers.values()];
+    return {desktop, target, open: (window) => callback(desktop, window)};
+}
+
+test("a window that settles is centred from an idle turn, not from the signal", () => {
+    const mainloop = recordingMainloop();
+    const window = settlingWindow();
+    const {target, open} = armedPlacer(mainloop);
+
+    open(window);
+    assert.deepEqual(window.moved, [], "a move made inside the signal is discarded");
+
+    for (const run of mainloop.pending.splice(0)) {
+        run();
+    }
+
+    assert.deepEqual(window.moved, [{userOperation: true, x: 560, y: 240}]);
+    target.cancel();
+});
+
+// The window's own position-changed can arrive after the placer was cancelled
+// — the applet was removed while the settings window was still settling — and
+// there is no mainloop to arm a correction on by then.
+test("a correction asked for after cancellation arms nothing", () => {
+    const mainloop = recordingMainloop();
+    const window = settlingWindow();
+    const {target, open} = armedPlacer(mainloop);
+    open(window);
+    const [{callback: onPositionChanged}] = [...window.handlers.values()];
+    mainloop.pending.splice(0);
+    target.cancel();
+
+    onPositionChanged(window);
+
+    assert.deepEqual(mainloop.pending, []);
+});
