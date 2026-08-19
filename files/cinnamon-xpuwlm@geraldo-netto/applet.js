@@ -218,6 +218,9 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     // started, never that it worked. Saying more than that from a panel means
     // waiting on a process the panel does not own.
     _launch() {
+        if (this._destroyed) {
+            return false;
+        }
         this.menu.close();
         if (!this._launcher.launch("ui")) {
             Main.notify(
@@ -225,6 +228,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
                 "Could not start the client. Is xpuwlm installed?",
             );
         }
+        return true;
     }
 
     // Asked for, not waited on. The applet runs on the compositor thread, so a
@@ -344,8 +348,14 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         }
     }
 
+    // A click can still be delivered to an applet the panel has already
+    // removed, and the menu it would toggle is destroyed by then.
     on_applet_clicked() {
+        if (this._destroyed) {
+            return false;
+        }
         this.menu.toggle();
+        return true;
     }
 
     // Cinnamon's own "Configure…", which spawns a window it never places: it
@@ -397,6 +407,11 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     // What setup created, teardown releases: `removeMenu` is what disconnects
     // the menu manager's own signals on the menu and its source actor, and the
     // tooltip arms mainloop timers of its own.
+    //
+    // Then the references go too. Destroying an object the applet still points
+    // at leaves every holder of that applet one property away from a destroyed
+    // menu, and the popup items the menu owned are only reachable through the
+    // pool this drops.
     _releasePresentation() {
         if (this.menuManager && this.menu && typeof this.menuManager.removeMenu === "function") {
             this.menuManager.removeMenu(this.menu);
@@ -407,6 +422,10 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         if (this._tooltip && typeof this._tooltip.destroy === "function") {
             this._tooltip.destroy();
         }
+        this.menu = null;
+        this.menuManager = null;
+        this._tooltip = null;
+        this._lineItems = [];
         return true;
     }
 }
