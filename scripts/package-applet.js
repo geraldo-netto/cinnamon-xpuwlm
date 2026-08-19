@@ -229,7 +229,12 @@ function inspectSpiceSources(projectRoot, appletRoot) {
     return {info, screenshot};
 }
 
-function stageSpiceRelease(projectRoot, appletRoot, targetRoot) {
+function stageSpiceRelease(
+    projectRoot,
+    appletRoot,
+    targetRoot,
+    files = appletPayloadFiles(appletRoot),
+) {
     inspectSpiceSources(projectRoot, appletRoot);
     fs.rmSync(targetRoot, {recursive: true, force: true});
     for (const relativePath of SPICE_METADATA_FILES) {
@@ -239,11 +244,7 @@ function stageSpiceRelease(projectRoot, appletRoot, targetRoot) {
             path.join(targetRoot, relativePath),
         );
     }
-    stagePayload(
-        appletRoot,
-        path.join(targetRoot, "files", UUID),
-        appletPayloadFiles(appletRoot),
-    );
+    stagePayload(appletRoot, path.join(targetRoot, "files", UUID), files);
     return payloadFiles(targetRoot);
 }
 
@@ -337,27 +338,33 @@ function buildArchive(root, memberPrefix, files = payloadFiles(root)) {
     return Buffer.concat([...blocks, Buffer.alloc(BLOCK_SIZE * 2)]);
 }
 
-function commandStage(log, dist = distRoot) {
-    const files = appletPayloadFiles(payloadRoot);
+function commandStage(log, dist = distRoot, files = appletPayloadFiles(payloadRoot)) {
     const staged = stagePayload(payloadRoot, path.join(dist, UUID), files);
     fs.writeFileSync(path.join(dist, `${UUID}.SHA256SUMS`), buildChecksums(payloadRoot, files));
     log(`staged ${staged.length} payload files -> ${path.join(dist, UUID)}`);
     return 0;
 }
 
+// The payload inventory is a directory walk and a resolution of the whole
+// production require graph, and the digest is a hash of the finished archive.
+// Packing wanted each of them once and asked for the inventory three times
+// over — staging, the archive, the Spice tree — and hashed the archive twice
+// to write the same digest into two places.
 function commandPack(log, dist = distRoot) {
-    commandStage(log, dist);
-    const archive = buildArchive(payloadRoot, UUID, appletPayloadFiles(payloadRoot));
+    const files = appletPayloadFiles(payloadRoot);
+    commandStage(log, dist, files);
+    const archive = buildArchive(payloadRoot, UUID, files);
+    const digest = sha256Hex(archive);
     fs.writeFileSync(path.join(dist, `${UUID}.tar`), archive);
-    fs.writeFileSync(path.join(dist, `${UUID}.tar.sha256`), `${sha256Hex(archive)}  ${UUID}.tar\n`);
-    log(`packed ${UUID}.tar (${archive.length} bytes, sha256 ${sha256Hex(archive)})`);
-    commandSpice(log, dist);
+    fs.writeFileSync(path.join(dist, `${UUID}.tar.sha256`), `${digest}  ${UUID}.tar\n`);
+    log(`packed ${UUID}.tar (${archive.length} bytes, sha256 ${digest})`);
+    commandSpice(log, dist, files);
     return 0;
 }
 
-function commandSpice(log, dist = distRoot) {
+function commandSpice(log, dist = distRoot, files = appletPayloadFiles(payloadRoot)) {
     const target = path.join(dist, "spices", UUID);
-    const staged = stageSpiceRelease(repositoryRoot, payloadRoot, target);
+    const staged = stageSpiceRelease(repositoryRoot, payloadRoot, target, files);
     log(`staged ${staged.length} Spice files -> ${target}`);
     return 0;
 }
