@@ -77,11 +77,20 @@ function installTranslations(gettextModule, environment) {
 // panel, which draws this glyph noticeably smaller than the systray icons
 // beside it. The floor is what keeps a compact status shape legible without
 // touching the panel's own height, which is the user's setting, not ours.
-function panelIconSize(requestedSize) {
+//
+// Which is also why the floor is bounded by that height: Cinnamon allows a
+// panel down to 20 pixels, and an unconditional 28 would ask such a panel to
+// draw an icon taller than the strip it sits in — through an inline
+// `icon-size` style, the one declaration the theme cannot outrank. The floor
+// raises a small icon; it never overflows a small panel.
+function panelIconSize(requestedSize, panelHeight) {
     const requested = Number.isFinite(requestedSize) && requestedSize > 0
         ? Math.floor(requestedSize)
         : DEFAULT_PANEL_ICON_SIZE;
-    return Math.max(MIN_PANEL_ICON_SIZE, requested);
+    const floor = Number.isFinite(panelHeight) && panelHeight > 0
+        ? Math.min(MIN_PANEL_ICON_SIZE, Math.floor(panelHeight))
+        : MIN_PANEL_ICON_SIZE;
+    return Math.max(floor, requested);
 }
 
 function refreshSeconds(requestedSeconds) {
@@ -133,6 +142,12 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         // still has to be taken off whatever it was applied for.
         this._panelIconClass = null;
         this._iconSize = overrides.iconSize || DEFAULT_PANEL_ICON_SIZE;
+        // Cinnamon's own Applet keeps `_panelHeight` current across a height
+        // change; a harness whose base class does not is given the height this
+        // applet was constructed with, which is the same number.
+        if (!Number.isFinite(this._panelHeight)) {
+            this._panelHeight = panelHeight;
+        }
         this._lineItems = [];
         this._adoptPorts(overrides);
         this.settings = null;
@@ -314,7 +329,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         if (!icon || typeof icon.set_icon_size !== "function") {
             return false;
         }
-        const size = panelIconSize(requestedSize);
+        const size = panelIconSize(requestedSize, this._panelHeight);
         icon.set_icon_size(size);
         if (typeof icon.set_style === "function") {
             icon.set_style(`icon-size: ${size}px;`);

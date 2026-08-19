@@ -420,6 +420,33 @@ test("the icon is never drawn smaller than its neighbours in the tray", () => {
     assert.equal(AppletModule.panelIconSize(36.7), 36);
 });
 
+test("the floor never asks a short panel for an icon taller than the strip", () => {
+    // Cinnamon allows a panel down to 20 pixels, and the size is applied as an
+    // inline style the theme cannot outrank, so an unconditional floor of 28
+    // drew outside the panel it sits in.
+    assert.equal(AppletModule.panelIconSize(16, 20), 20);
+    assert.equal(AppletModule.panelIconSize(16, 40), AppletModule.MIN_PANEL_ICON_SIZE);
+    // An unknown panel height keeps the floor: a missing number is not
+    // evidence of a short panel.
+    assert.equal(AppletModule.panelIconSize(16, 0), AppletModule.MIN_PANEL_ICON_SIZE);
+    assert.equal(AppletModule.panelIconSize(16, "tall"), AppletModule.MIN_PANEL_ICON_SIZE);
+});
+
+test("an applet in a short panel sizes its icon to the panel it was given", () => {
+    const applet = new AppletModule.XpuWorkloadApplet(
+        {uuid: AppletModule.UUID, "max-instances": 1, path: "/applets/xpuwlm"},
+        "top",
+        20,
+        "instance-short",
+        {now: () => NOW},
+    );
+
+    applet.on_panel_icon_size_changed(16);
+
+    assert.equal(applet._applet_icon.size, 20);
+    applet.on_applet_removed_from_panel();
+});
+
 test("the icon size is applied on every status change, not only at startup", () => {
     const applet = build();
 
