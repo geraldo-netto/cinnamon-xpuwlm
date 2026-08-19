@@ -98,22 +98,16 @@ how often it is reloaded. After installing, `npm run package:verify --
 ~/.local/share/cinnamon/applets/cinnamon-xpuwlm@geraldo-netto` audits the
 installed files against the payload checksums.
 
-## Localization
+## Language
 
-The applet ships a gettext template at
-`files/cinnamon-xpuwlm@geraldo-netto/po/cinnamon-xpuwlm@geraldo-netto.pot`,
-generated deterministically by `npm run generate:pot`. Cinnamon translates
-`settings-schema.json` (titles, descriptions, tooltips, units) and
-`metadata.json` (name, description) through the applet UUID text domain, so
-those strings are harvested into the template and a unit test fails whenever
-the committed template drifts from the sources. Runtime UI, status, and
-accessibility strings flow through the shared translation port in
-`lib/i18n.js` — `_()`, table marker `N_()`, and `ngettext()` with positional
-`%s`/`%d` substitution — which the applet binds to GJS gettext at startup;
-tests run against the identity fallback, so English msgids remain the
-untranslated UI. Translators add
-`po/<language>.po` files against the template; Cinnamon compiles and installs
-them under `~/.local/share/locale` when the applet is installed from Spices.
+The helper ships English only, and carries no translation machinery: no
+catalogue, no text domain, no gettext port. The panel's whole visible surface
+is a tooltip, an accessible name and five popup lines, and the client those
+lines lead to (`../xpuwlm`) is English throughout, so a catalogue for five
+lines would have been a generator, a shim and a lockstep gate maintained for
+nothing. What the port did that plain strings cannot — positional `%s`/`%d`
+interpolation and plural selection — lives on as two small functions in
+`lib/panel-status.js`, so "1 item needs review" never becomes "1 items".
 
 ## Safety and operational limits
 

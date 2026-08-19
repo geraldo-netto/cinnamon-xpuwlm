@@ -15,7 +15,6 @@ const PanelStatus = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/panel
 // here. Adding a file to lib/ without wiring it now fails.
 const HELPER_MODULES = Object.freeze([
     "applet.js",
-    "lib/i18n.js",
     "lib/panel-status.js",
     "lib/settings-window-placer.js",
     "lib/snapshot-reader.js",
@@ -39,7 +38,7 @@ test("applet payload JavaScript is exactly the production graph and its Cinnamon
 test("the helper ships the panel, the reader, the launcher and the placer — nothing else", () => {
     const graph = Package.productionRequireGraph(Package.payloadRoot);
     assert.deepEqual([...graph.modules].sort(Package.compareText), [...HELPER_MODULES]);
-    assert.deepEqual([...graph.rootShims], ["i18n.js"]);
+    assert.deepEqual([...graph.rootShims], []);
 });
 
 test("every JavaScript file present in the payload is reachable from the applet", () => {

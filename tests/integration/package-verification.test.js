@@ -33,7 +33,7 @@ test("staging, checksums, install and uninstall verification round-trip", () => 
     // resolution requires ships beside it. A module nothing requires does not
     // exist here any more, which is what keeps staging honest.
     for (const relativePath of [
-        "applet.js", "i18n.js", "lib/i18n.js", "lib/panel-status.js",
+        "applet.js", "lib/panel-status.js",
         "lib/snapshot-reader.js", "lib/window-placement.js", "lib/xpuwlm-launcher.js",
         "stylesheet.css",
     ]) {

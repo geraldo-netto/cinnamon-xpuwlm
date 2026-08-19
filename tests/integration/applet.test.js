@@ -226,7 +226,6 @@ function runIdlers() {
 global.display = new FakeDisplay();
 global.imports = {
     byteArray: {toString: (value) => String(value)},
-    gettext: null,
     gi: {
         Atk: createAtk(),
         Gio: {
@@ -573,19 +572,6 @@ test("a single-instance applet binds its settings under the UUID", () => {
     assert.equal(AppletModule.settingsInstanceId({"max-instances": 2}, "instance-9"), "instance-9");
 });
 
-test("absent gettext keeps the untranslated English msgids", () => {
-    assert.equal(AppletModule.installTranslations(null, {GLib: {get_home_dir: () => "/home"}}), false);
-    const calls = [];
-    const installed = AppletModule.installTranslations({
-        dgettext: (domain, msgid) => {
-            calls.push([domain, msgid]);
-            return msgid;
-        },
-        bindtextdomain: () => {},
-    }, {GLib: {get_home_dir: () => "/home/tester"}});
-    assert.equal(installed, true);
-});
-
 test("a settings binding failure tears the applet down instead of leaving a timer", () => {
     const before = timers.size;
     assert.throws(() => build({
@@ -628,7 +614,7 @@ test("a missing runtime-state-path falls back to the published default", () => {
     applet.on_applet_removed_from_panel();
 });
 
-test("main installs translations and returns a live applet", () => {
+test("main returns a live applet", () => {
     const applet = AppletModule.main(
         {uuid: AppletModule.UUID, "max-instances": 1},
         "top",
@@ -638,36 +624,6 @@ test("main installs translations and returns a live applet", () => {
 
     assert.equal(applet instanceof AppletModule.XpuWorkloadApplet, true);
     applet.on_applet_removed_from_panel();
-});
-
-test("installed translations route msgids through the desktop's catalogue", () => {
-    const I18n = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/i18n.js");
-    const seen = [];
-    AppletModule.installTranslations({
-        dgettext: (domain, msgid) => {
-            seen.push([domain, msgid]);
-            return `translated:${msgid}`;
-        },
-        dngettext: (domain, singular, plural, count) => (
-            count === 1 ? `translated:${singular}` : `translated:${plural}`
-        ),
-        bindtextdomain: () => {},
-    }, {GLib: {get_home_dir: () => "/home/tester"}});
-
-    assert.equal(I18n._("Online"), "translated:Online");
-    assert.equal(I18n.ngettext("one", "many", 2), "translated:many");
-    assert.equal(seen[0][0], AppletModule.UUID);
-    I18n.reset();
-});
-
-test("gettext without plural support still resolves a plural msgid", () => {
-    const I18n = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/i18n.js");
-    AppletModule.installTranslations({
-        dgettext: (_domain, msgid) => msgid,
-    }, {GLib: {get_home_dir: () => "/home/tester"}});
-
-    assert.equal(I18n.ngettext("one", "many", 3), "many");
-    I18n.reset();
 });
 
 test("Configure… centres the settings window Cinnamon opens", () => {

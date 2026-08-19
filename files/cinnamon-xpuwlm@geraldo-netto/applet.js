@@ -18,7 +18,6 @@
 const Applet = imports.ui.applet;
 const Atk = imports.gi.Atk;
 const ByteArray = imports.byteArray;
-const Gettext = imports.gettext;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
 const Gtk = imports.gi.Gtk;
@@ -30,14 +29,11 @@ const St = imports.gi.St;
 const Tooltips = imports.ui.tooltips;
 const Util = imports.misc.util;
 
-const I18n = require("./lib/i18n.js");
 const PanelStatus = require("./lib/panel-status.js");
 const SettingsWindowPlacer = require("./lib/settings-window-placer.js");
 const SnapshotReader = require("./lib/snapshot-reader.js");
 const WindowPlacement = require("./lib/window-placement.js");
 const XpuwlmLauncher = require("./lib/xpuwlm-launcher.js");
-
-const {_, format} = I18n;
 
 const UUID = "cinnamon-xpuwlm@geraldo-netto";
 const DEFAULT_PANEL_ICON_SIZE = 32;
@@ -51,27 +47,6 @@ const MIN_PANEL_ICON_SIZE = 28;
 const DEFAULT_REFRESH_SECONDS = 1;
 const MIN_REFRESH_SECONDS = 1;
 const MAX_REFRESH_SECONDS = 60;
-
-// Binds the applet UUID text domain and routes the shared translation port
-// through GJS gettext. Absent gettext (test harnesses) keeps the identity
-// fallback, so English msgids remain the untranslated UI.
-function installTranslations(gettextModule, environment) {
-    if (!gettextModule || typeof gettextModule.dgettext !== "function") {
-        return false;
-    }
-    if (typeof gettextModule.bindtextdomain === "function") {
-        gettextModule.bindtextdomain(UUID, `${environment.GLib.get_home_dir()}/.local/share/locale`);
-    }
-    I18n.install({
-        translate: (msgid) => gettextModule.dgettext(UUID, msgid),
-        translatePlural: (singular, plural, count) => (
-            typeof gettextModule.dngettext === "function"
-                ? gettextModule.dngettext(UUID, singular, plural, count)
-                : I18n.identityTranslatePlural(singular, plural, count)
-        ),
-    });
-    return true;
-}
 
 // Cinnamon's panel-zone preference still asks for 16 pixels on a 40-pixel
 // panel, which draws this glyph noticeably smaller than the systray icons
@@ -231,7 +206,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         }
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         const open = new PopupMenu.PopupIconMenuItem(
-            _("Open XPU Workload Manager"),
+            "Open XPU Workload Manager",
             "system-run-symbolic",
             St.IconType.SYMBOLIC,
         );
@@ -246,8 +221,8 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this.menu.close();
         if (!this._launcher.launch("ui")) {
             Main.notify(
-                _("XPU Workload Manager"),
-                _("Could not start the client. Is xpuwlm installed?"),
+                "XPU Workload Manager",
+                "Could not start the client. Is xpuwlm installed?",
             );
         }
     }
@@ -295,7 +270,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             const line = lines[index];
             item.actor.visible = line !== undefined;
             if (line !== undefined) {
-                item.label.set_text(format(_("%s: %s"), line.label, line.value));
+                item.label.set_text(`${line.label}: ${line.value}`);
             }
         });
     }
@@ -418,7 +393,6 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
 }
 
 function main(metadata, orientation, panelHeight, instanceId) {
-    installTranslations(Gettext, {GLib});
     return new XpuWorkloadApplet(metadata, orientation, panelHeight, instanceId);
 }
 
@@ -434,8 +408,7 @@ if (typeof module !== "undefined") {
         createAppletSettings,
         defaultEnvironment,
         defaultLogger,
-        installTranslations,
-        main,
+            main,
         panelIconSize,
         refreshSeconds,
         settingsInstanceId,

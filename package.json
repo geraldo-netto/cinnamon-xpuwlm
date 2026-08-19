@@ -5,7 +5,6 @@
   "license": "MIT",
   "description": "Cinnamon XPU Workload Manager applet for TPU, NPU, and GPU accelerators",
   "scripts": {
-    "generate:pot": "node scripts/generate-pot.js",
     "lint": "eslint files scripts tests",
     "package": "node scripts/package-applet.js pack",
     "package:spice": "node scripts/package-applet.js spice",
@@ -14,7 +13,7 @@
     "test:ci": "npm run lint && npm run test:syntax && npm run test:coverage && npm run test:fuzz && npm run test:visual",
     "test:cjs": "\"${XPUWLM_CJS:-cjs}\" tests/cjs/production-smoke.js files/cinnamon-xpuwlm@geraldo-netto/applet.js files/cinnamon-xpuwlm@geraldo-netto/lib/*.js",
     "test:contract": "node --test tests/contract/*.test.js",
-    "test:coverage": "c8 --clean --reporter=text --reporter=json --reports-dir=coverage --all --include='files/cinnamon-xpuwlm@geraldo-netto/applet.js' --include='files/cinnamon-xpuwlm@geraldo-netto/lib/**/*.js' --include='scripts/generate-pot.js' --include='scripts/package-applet.js' --include='scripts/validate-artifacts.js' --check-coverage --lines=80 --branches=80 --functions=80 --statements=80 npm run test:coverage-target && node scripts/check-per-function-coverage.js",
+    "test:coverage": "c8 --clean --reporter=text --reporter=json --reports-dir=coverage --all --include='files/cinnamon-xpuwlm@geraldo-netto/applet.js' --include='files/cinnamon-xpuwlm@geraldo-netto/lib/**/*.js' --include='scripts/package-applet.js' --include='scripts/validate-artifacts.js' --check-coverage --lines=80 --branches=80 --functions=80 --statements=80 npm run test:coverage-target && node scripts/check-per-function-coverage.js",
     "test:coverage-target": "node --test tests/unit/*.test.js tests/integration/*.test.js tests/regression/*.test.js tests/contract/*.test.js",
     "test:fuzz": "node --test tests/fuzz/*.test.js",
     "test:integration": "node --test tests/integration/*.test.js",

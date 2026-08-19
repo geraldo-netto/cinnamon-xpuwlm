@@ -151,18 +151,16 @@ test("every JSON validator rejects an absent stage", (context) => {
 
     assert.throws(() => Artifacts.validatePayloadMetadata(roots));
     assert.throws(() => Artifacts.validateSettingsAgreement(roots));
-    assert.throws(() => Artifacts.validateTranslationCatalogue(roots));
     assert.throws(() => Artifacts.validateRepositoryScripts(roots));
 });
 
-// The four contracts used to fail under one name, which said which file was
-// read rather than which agreement was broken.
+// The contracts used to fail under one name, which said which file was read
+// rather than which agreement was broken.
 test("each JSON validator passes on the shipped repository", (context) => {
     const roots = copiedRepository(context);
 
     assert.equal(Artifacts.validatePayloadMetadata(roots), true);
     assert.equal(Artifacts.validateSettingsAgreement(roots), true);
-    assert.equal(Artifacts.validateTranslationCatalogue(roots), true);
     assert.equal(Artifacts.validateRepositoryScripts(roots), true);
 });
 

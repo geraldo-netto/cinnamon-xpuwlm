@@ -22,15 +22,11 @@ function compareText(left, right) {
 }
 const PAYLOAD_TOP_LEVEL = Object.freeze([
     "applet.js",
-    // Cinnamon resolves a nested CommonJS import from the applet root, so the
-    // one module lib/ imports from lib/ needs its bridge here.
-    "i18n.js",
     "icon.png",
     "icons",
     "lib",
     "LICENSE",
     "metadata.json",
-    "po",
     "settings-schema.json",
     "stylesheet.css",
 ]);
@@ -165,14 +161,6 @@ function validateSettingsAgreement({appletRoot: targetAppletRoot}) {
         settings["runtime-state-path"].default,
         require(path.join(targetAppletRoot, "lib/snapshot-reader.js")).RUNTIME_STATE_PATH,
     );
-    return true;
-}
-
-function validateTranslationCatalogue({appletRoot: targetAppletRoot}) {
-    const potFile = fs.readFileSync(path.join(targetAppletRoot, "po", `${UUID}.pot`), "utf8");
-
-    assert.match(potFile, /"Content-Type: text\/plain; charset=UTF-8\\n"/u);
-    assert.equal(potFile.includes(`Project-Id-Version: ${UUID}`), true);
     return true;
 }
 
@@ -324,7 +312,6 @@ function validateArtifacts(roots) {
     validatePayloadStructure(roots);
     validatePayloadMetadata(roots);
     validateSettingsAgreement(roots);
-    validateTranslationCatalogue(roots);
     validateRepositoryScripts(roots);
     validateWorkflows(roots);
     validateJavaScriptSyntax(roots);
@@ -362,6 +349,5 @@ module.exports = {
     validateStaticAssets,
     validateStylesheet,
     validateSvgIcon,
-    validateTranslationCatalogue,
     validateWorkflows,
 };
