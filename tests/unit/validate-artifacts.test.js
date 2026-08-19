@@ -211,6 +211,30 @@ test("settings validation refuses a key the applet binds but the schema drops", 
     assert.throws(() => Artifacts.validateSettingsAgreement(roots));
 });
 
+// The gate used to ask one direction only, and a control the applet never
+// reads is worse than a missing one: it shows, it moves, and nothing happens.
+test("settings validation refuses a value key the schema ships and nothing binds", (context) => {
+    const roots = copiedRepository(context);
+    const settingsPath = path.join(roots.appletRoot, "settings-schema.json");
+    const shipped = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+
+    fs.writeFileSync(settingsPath, JSON.stringify({
+        ...shipped,
+        "panel-tint": {type: "colorchooser", default: "#000000", description: "Tint"},
+    }));
+    assert.throws(
+        () => Artifacts.validateSettingsAgreement(roots),
+        /the applet never binds: panel-tint/u,
+    );
+
+    // A label stores nothing, so nothing binds it and nothing should demand it.
+    fs.writeFileSync(settingsPath, JSON.stringify({
+        ...shipped,
+        "extra-help": {type: "label", description: "Help"},
+    }));
+    assert.equal(Artifacts.validateSettingsAgreement(roots), true);
+});
+
 test("the bound keys are read from the applet rather than written out again", (context) => {
     const roots = copiedRepository(context);
     const source = fs.readFileSync(path.join(roots.appletRoot, "applet.js"), "utf8");

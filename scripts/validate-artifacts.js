@@ -160,6 +160,11 @@ function boundSettingsKeys(source) {
     return keys.sort(compareText);
 }
 
+// Cinnamon's display-only widgets: they draw, they store nothing, and no xlet
+// binds them. Every other type carries a value the applet has to read for the
+// control to do anything.
+const DISPLAY_SETTING_TYPES = new Set(["button", "label", "separator"]);
+
 // The shipped default and the reader's constant are one fact in two files: a
 // panel whose default names a path the reader would not have read draws an
 // idle desk on a working runtime. The refresh bounds are the same shape of
@@ -182,11 +187,25 @@ function validateSettingsAgreement({appletRoot: targetAppletRoot}) {
     assert.equal(refresh.max, appletConstant(source, "MAX_REFRESH_SECONDS"));
     assert.equal(refresh.default, appletConstant(source, "DEFAULT_REFRESH_SECONDS"));
 
-    for (const key of boundSettingsKeys(source)) {
+    const bound = new Set(boundSettingsKeys(source));
+    for (const key of bound) {
         assert.equal(
             Object.hasOwn(settings, key),
             true,
             `The applet binds a key the schema does not declare: ${key}`,
+        );
+    }
+    // And the other direction, which nothing asked about: a key that ships,
+    // shows a control and is bound by nothing is a setting the person moves
+    // while the panel goes on reading the value it was built with.
+    for (const [key, definition] of Object.entries(settings)) {
+        if (key === "layout" || DISPLAY_SETTING_TYPES.has(definition.type)) {
+            continue;
+        }
+        assert.equal(
+            bound.has(key),
+            true,
+            `The schema declares a value key the applet never binds: ${key}`,
         );
     }
     return true;
