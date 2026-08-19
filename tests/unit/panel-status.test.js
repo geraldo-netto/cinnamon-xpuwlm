@@ -84,6 +84,28 @@ test("a running runtime with no usable device is detected, not offline", () => {
     const model = PanelStatus.panelModel(state({available: false, reason: "no driver"}));
 
     assert.equal(model.status, "detected");
+    assert.equal(model.tooltip, "XPU Workload Manager — no device available: no driver");
+    assert.equal(model.accessibleName, "XPU Workload Manager, no device available: no driver");
+});
+
+test("a detected runtime that publishes no reason is not called unavailable", () => {
+    // The offline wording fell back through the runtime label, so a connected
+    // runtime with nothing to run on announced itself as "unavailable: Online".
+    const model = PanelStatus.panelModel(state({available: false}));
+
+    assert.equal(model.tooltip, "XPU Workload Manager — no device available");
+    assert.equal(model.accessibleName, "XPU Workload Manager, no device available");
+    assert.doesNotMatch(model.accessibleName, /unavailable|Online/u);
+});
+
+test("the detected wording prefers the detail over the coarser reason", () => {
+    const model = PanelStatus.detectedModel(state({
+        available: false,
+        detail: "vulkan loader missing",
+        reason: "no driver",
+    }));
+
+    assert.equal(model.accessibleName, "XPU Workload Manager, no device available: vulkan loader missing");
 });
 
 test("an unknown backend still gets a label rather than an empty one", () => {

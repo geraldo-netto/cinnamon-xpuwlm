@@ -109,12 +109,31 @@ function offlineModel(state) {
     };
 }
 
+// One fact, said twice: the popup lists it as a value beside a label, and the
+// tooltip and accessible name read it mid-sentence.
+const NO_DEVICE_LABEL = "No device available";
+
+// A detected runtime is answering; what is missing is something to run on.
+// Borrowing the offline wording said "unavailable" about a runtime that is
+// there, and interpolated a reason that fell back through the runtime label —
+// so a device publishing no reason was announced as "unavailable: Online".
+function detectedModel(state) {
+    const device = NO_DEVICE_LABEL.toLowerCase();
+    const reason = state.detail || state.reason;
+    const text = reason ? format("%s: %s", device, reason) : device;
+    return {
+        status: "detected",
+        tooltip: format("XPU Workload Manager — %s", text),
+        accessibleName: format("XPU Workload Manager, %s", text),
+    };
+}
+
 function panelModel(state) {
     if (state.runtime !== "connected") {
         return offlineModel(state);
     }
     if (!state.available) {
-        return {...offlineModel(state), status: "detected"};
+        return detectedModel(state);
     }
     const work = workText(state);
     if (state.attention > 0) {
@@ -162,7 +181,7 @@ function popupLines(state) {
         {label: "Runtime", value: runtimeLabel(state)},
         {
             label: "Accelerator",
-            value: state.available ? backendLabel(state) : "No device available",
+            value: state.available ? backendLabel(state) : NO_DEVICE_LABEL,
         },
         {label: "Queued", value: String(state.queued)},
         {label: "Running", value: String(state.running)},
@@ -184,11 +203,13 @@ module.exports = {
     BACKEND_LABELS,
     format,
     MAX_POPUP_LINES,
+    NO_DEVICE_LABEL,
     PAUSED_LABEL,
     PANEL_STATUSES,
     RUNTIME_LABELS,
     attentionText,
     backendLabel,
+    detectedModel,
     offlineModel,
     panelIconName,
     panelModel,
