@@ -409,9 +409,19 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     // sets a size and leaves the position to the window manager, which opens
     // it in a corner while the applet it configures sits at the other end of
     // the panel. The client's windows centre themselves, so this one does too.
+    //
+    // Guarded like every other entry point Cinnamon can deliver late, and for
+    // a sharper reason than the rest: the placer answers by connecting to
+    // `global.display`, which is the session's and not the applet's, and
+    // teardown has already run the placer's `cancel()` — so a handler armed
+    // after that is one nothing will ever take off again.
     configureApplet(tab = 0) {
+        if (this._destroyed) {
+            return false;
+        }
         this._placeSettingsWindow();
         super.configureApplet(tab);
+        return true;
     }
 
     // The waiting itself — the display handler and the mainloop sources it

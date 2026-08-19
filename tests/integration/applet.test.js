@@ -738,6 +738,21 @@ test("Configure… still asks Cinnamon to open its own settings window", () => {
     applet.on_applet_removed_from_panel();
 });
 
+test("Configure\u2026 after removal arms nothing on the session's display", () => {
+    // The context menu can be activated on an applet the panel has already
+    // removed, and this is the one entry point that would answer by connecting
+    // a fresh handler to `global.display` — which outlives every applet, and
+    // which the placer's own cancel has already run for.
+    const applet = build();
+    applet.on_applet_removed_from_panel();
+    const handlers = global.display.handlers.size;
+
+    assert.equal(applet.configureApplet(1), false);
+
+    assert.equal(global.display.handlers.size, handlers);
+    assert.equal(applet.configuredTabs, undefined);
+});
+
 test("another application's window opening is not moved", () => {
     const applet = build();
     const display = new FakeDisplay();
