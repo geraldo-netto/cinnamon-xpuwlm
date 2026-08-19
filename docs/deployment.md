@@ -98,6 +98,23 @@ how often it is reloaded. After installing, `npm run package:verify --
 ~/.local/share/cinnamon/applets/cinnamon-xpuwlm@geraldo-netto` audits the
 installed files against the payload checksums.
 
+### Install order
+
+The applet reads a document the service writes, and it reads exactly one
+version of it: `SNAPSHOT_VERSION` in `lib/snapshot-reader.js` is pinned to 1,
+and a document announcing any other version is drawn as `malformed` rather
+than rendered field by field. So the reader is deployed before the writer —
+this applet first, then the Python client and the OmniTensor service — because
+an old panel beside a new service reports a working runtime as malformed for
+as long as the two disagree, while a new panel beside an old service simply
+keeps reading the version it already knows.
+
+The same order is what makes the mismatch legible when it happens: the panel
+names the version it saw and the version it reads, so a half-finished upgrade
+says which half is behind instead of showing an idle desk. After installing,
+open the popup — a `Runtime: Runtime malformed` line with that detail is the
+version check reporting, not a broken service.
+
 ## Language
 
 The helper ships English only, and carries no translation machinery: no

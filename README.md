@@ -71,6 +71,7 @@ This document is application-neutral. It explains the hardware and software boun
 - Workload plug-in authoring and the runtime control contract — `../omnitensor/docs/extension-guide.md` and `../omnitensor/docs/control-boundary.md`
 - [Deployment, safety, and references](docs/deployment.md)
   - [Installing the applet](docs/deployment.md#installing-the-applet)
+  - [Install order](docs/deployment.md#install-order)
   - [Virtualization](docs/deployment.md#virtualization)
   - [Deployment and evaluation workflow](docs/deployment.md#deployment-and-evaluation-workflow)
   - [Safety and operational limits](docs/deployment.md#safety-and-operational-limits)
