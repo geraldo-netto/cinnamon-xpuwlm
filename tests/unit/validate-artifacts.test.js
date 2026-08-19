@@ -189,6 +189,72 @@ test("settings validation pins the settings default to the reader's own path", (
     assert.throws(() => Artifacts.validateSettingsAgreement(roots));
 });
 
+test("settings validation pins the slider's bounds to the applet's clamp", (context) => {
+    // A maximum above the clamp is a slider that stops having an effect
+    // partway along, and reports nothing while it does.
+    const roots = copiedRepository(context);
+    const settingsPath = path.join(roots.appletRoot, "settings-schema.json");
+    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+    settings["refresh-interval"].max = 600;
+    fs.writeFileSync(settingsPath, JSON.stringify(settings));
+
+    assert.throws(() => Artifacts.validateSettingsAgreement(roots));
+});
+
+test("settings validation refuses a key the applet binds but the schema drops", (context) => {
+    const roots = copiedRepository(context);
+    const settingsPath = path.join(roots.appletRoot, "settings-schema.json");
+    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+    delete settings["runtime-state-path"];
+    fs.writeFileSync(settingsPath, JSON.stringify(settings));
+
+    assert.throws(() => Artifacts.validateSettingsAgreement(roots));
+});
+
+test("the bound keys are read from the applet rather than written out again", (context) => {
+    const roots = copiedRepository(context);
+    const source = fs.readFileSync(path.join(roots.appletRoot, "applet.js"), "utf8");
+
+    assert.deepEqual(
+        Artifacts.boundSettingsKeys(source),
+        ["refresh-interval", "runtime-state-path"],
+    );
+});
+
+test("layout validation refuses a page, section or key that does not resolve", (context) => {
+    const roots = copiedRepository(context);
+    const settingsPath = path.join(roots.appletRoot, "settings-schema.json");
+    assert.equal(Artifacts.validateSettingsLayout(roots), true);
+
+    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+    settings.layout["polling-section"].keys = ["refresh-rate"];
+    fs.writeFileSync(settingsPath, JSON.stringify(settings));
+    assert.throws(
+        () => Artifacts.validateSettingsLayout(roots),
+        /names a key the schema does not declare/u,
+    );
+
+    settings.layout.pages.push("absent-page");
+    fs.writeFileSync(settingsPath, JSON.stringify(settings));
+    assert.throws(
+        () => Artifacts.validateSettingsLayout(roots),
+        /names a key the schema does not declare|names a page it does not declare/u,
+    );
+});
+
+test("layout validation refuses a shipped key no page shows", (context) => {
+    const roots = copiedRepository(context);
+    const settingsPath = path.join(roots.appletRoot, "settings-schema.json");
+    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+    settings["stray-key"] = {type: "entry", default: "", description: "Stray"};
+    fs.writeFileSync(settingsPath, JSON.stringify(settings));
+
+    assert.throws(
+        () => Artifacts.validateSettingsLayout(roots),
+        /declares a key no page shows/u,
+    );
+});
+
 test("workflow and JavaScript validation cannot become empty stages", (context) => {
     const root = temporaryDirectory();
     context.after(() => fs.rmSync(root, {recursive: true, force: true}));

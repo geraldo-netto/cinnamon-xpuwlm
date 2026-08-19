@@ -140,11 +140,34 @@ function validatePayloadMetadata({
     return true;
 }
 
+// The applet cannot be required here — it reads Cinnamon's `imports` at load
+// — so the two facts this gate needs from it are read out of the source: the
+// bounds it clamps a refresh to, and the keys it binds.
+function appletSource(targetAppletRoot) {
+    return fs.readFileSync(path.join(targetAppletRoot, "applet.js"), "utf8");
+}
+
+function appletConstant(source, name) {
+    const match = new RegExp(`^const ${name} = (\\d+);$`, "mu").exec(source);
+    assert.ok(match, `applet.js no longer declares ${name}`);
+    return Number(match[1]);
+}
+
+function boundSettingsKeys(source) {
+    const keys = [...source.matchAll(/this\.settings\.bind\(\s*"([^"]+)"/gu)]
+        .map((match) => match[1]);
+    assert.equal(keys.length > 0, true, "The applet binds no settings key at all");
+    return keys.sort(compareText);
+}
+
 // The shipped default and the reader's constant are one fact in two files: a
 // panel whose default names a path the reader would not have read draws an
-// idle desk on a working runtime.
+// idle desk on a working runtime. The refresh bounds are the same shape of
+// fact — a schema maximum above the applet's clamp is a slider that stops
+// having an effect partway along.
 function validateSettingsAgreement({appletRoot: targetAppletRoot}) {
     const settings = readJson(targetAppletRoot, "settings-schema.json");
+    const source = appletSource(targetAppletRoot);
 
     // No panel text at all: a setting that could put a word back in the tray
     // would be a setting to keep working for a surface that no longer exists.
@@ -153,6 +176,59 @@ function validateSettingsAgreement({appletRoot: targetAppletRoot}) {
         settings["runtime-state-path"].default,
         require(path.join(targetAppletRoot, "lib/snapshot-reader.js")).RUNTIME_STATE_PATH,
     );
+
+    const refresh = settings["refresh-interval"];
+    assert.equal(refresh.min, appletConstant(source, "MIN_REFRESH_SECONDS"));
+    assert.equal(refresh.max, appletConstant(source, "MAX_REFRESH_SECONDS"));
+    assert.equal(refresh.default, appletConstant(source, "DEFAULT_REFRESH_SECONDS"));
+
+    for (const key of boundSettingsKeys(source)) {
+        assert.equal(
+            Object.hasOwn(settings, key),
+            true,
+            `The applet binds a key the schema does not declare: ${key}`,
+        );
+    }
+    return true;
+}
+
+// The other half of the round trip. Cinnamon resolves the layout by name, and
+// a page, section or key that does not resolve is not an error it reports — it
+// is a settings window drawn empty.
+function validateSettingsLayout({appletRoot: targetAppletRoot}) {
+    const settings = readJson(targetAppletRoot, "settings-schema.json");
+    const {layout} = settings;
+    const listed = new Set();
+
+    assert.equal(Array.isArray(layout.pages) && layout.pages.length > 0, true);
+    for (const pageName of layout.pages) {
+        const page = layout[pageName];
+        assert.ok(page, `The layout names a page it does not declare: ${pageName}`);
+        assert.equal(page.type, "page");
+        for (const sectionName of page.sections) {
+            const section = layout[sectionName];
+            assert.ok(section, `The layout names a section it does not declare: ${sectionName}`);
+            assert.equal(section.type, "section");
+            for (const key of section.keys) {
+                assert.equal(
+                    Object.hasOwn(settings, key),
+                    true,
+                    `The layout names a key the schema does not declare: ${key}`,
+                );
+                listed.add(key);
+            }
+        }
+    }
+
+    // And nothing shipped that no page shows: a key outside the layout is a
+    // setting the person cannot reach and the applet still reads.
+    for (const key of Object.keys(settings)) {
+        assert.equal(
+            key === "layout" || listed.has(key),
+            true,
+            `The schema declares a key no page shows: ${key}`,
+        );
+    }
     return true;
 }
 
@@ -325,6 +401,7 @@ function validateArtifacts(roots) {
     validatePayloadStructure(roots);
     validatePayloadMetadata(roots);
     validateSettingsAgreement(roots);
+    validateSettingsLayout(roots);
     validateRepositoryScripts(roots);
     validateWorkflows(roots);
     validateJavaScriptSyntax(roots);
@@ -343,6 +420,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+    boundSettingsKeys,
     compareText,
     controlCharacterLine,
     defaultRoots,
@@ -359,6 +437,7 @@ module.exports = {
     validatePayloadStructure,
     validateRepositoryScripts,
     validateSettingsAgreement,
+    validateSettingsLayout,
     validatePngIcon,
     validateSourceControls,
     validateStaticAssets,
