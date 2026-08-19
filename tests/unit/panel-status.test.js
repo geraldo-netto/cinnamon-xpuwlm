@@ -221,3 +221,19 @@ test("a runtime that is not connected is never reported as paused", () => {
 
     assert.equal(runtime.value, "Runtime stale");
 });
+
+// What the deleted translation port did that a plain string cannot: a template
+// keeps its placeholders when a value is missing rather than printing
+// "undefined", and English plurals are chosen rather than guessed.
+test("a template with no value for a placeholder keeps the placeholder", () => {
+    assert.equal(PanelStatus.format("%d queued"), "%d queued");
+    assert.equal(PanelStatus.format("%s: %s", "Runtime"), "Runtime: %s");
+    assert.equal(PanelStatus.format("%s", "Online", "ignored"), "Online");
+    assert.equal(PanelStatus.format("nothing to fill"), "nothing to fill");
+});
+
+test("plural selection is by count, not by whether the count is truthy", () => {
+    assert.equal(PanelStatus.plural(1, "item", "items"), "item");
+    assert.equal(PanelStatus.plural(0, "item", "items"), "items");
+    assert.equal(PanelStatus.plural(2, "item", "items"), "items");
+});
