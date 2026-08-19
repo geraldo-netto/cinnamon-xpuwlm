@@ -353,14 +353,41 @@ function payloadIconNames(targetAppletRoot) {
     return fs.readdirSync(path.join(targetAppletRoot, "icons")).sort(compareText);
 }
 
+function panelStatusModule(targetAppletRoot) {
+    return require(path.join(targetAppletRoot, "lib/panel-status.js"));
+}
+
 // The one correspondence the panel cannot draw without: every status
 // `panelIconName` can return has to name a file the payload ships. Asked of
 // the module itself, so a status added there is a status this gate demands.
 function requiredIconNames(targetAppletRoot) {
-    const panelStatus = require(path.join(targetAppletRoot, "lib/panel-status.js"));
+    const panelStatus = panelStatusModule(targetAppletRoot);
     return panelStatus.PANEL_STATUSES
         .map((status) => `${panelStatus.panelIconName(status)}.svg`)
         .sort(compareText);
+}
+
+// The other half of that correspondence, and the half nothing asked about.
+// The applet puts `xpuwlm-panel-<status>` on its panel actor and the
+// stylesheet is the only thing that colours it, so a status shipping without
+// a rule draws in the symbolic fallback grey the stylesheet's own comment
+// describes — nearly the panel background on a dark theme. Asked in both
+// directions, because a rule for a status the panel can no longer ask for is a
+// declaration nobody can see is dead.
+const PANEL_STATUS_CLASS = /\.xpuwlm-panel-([a-z][a-z-]*)\b/gu;
+
+function styledStatuses(css) {
+    const styled = [...String(css).matchAll(PANEL_STATUS_CLASS)].map((match) => match[1]);
+    return [...new Set(styled)].sort(compareText);
+}
+
+function validateStatusColours(css, statuses) {
+    assert.deepEqual(
+        styledStatuses(css),
+        [...statuses].sort(compareText),
+        "Every panel status needs its own colour rule, and every rule a status",
+    );
+    return true;
 }
 
 function validateStaticAssets({
@@ -389,6 +416,7 @@ function validateStaticAssets({
         validateSvgIcon(svg);
     }
     validateStylesheet(css);
+    validateStatusColours(css, panelStatusModule(targetAppletRoot).PANEL_STATUSES);
     const spice = require("./package-applet.js").inspectSpiceSources(
         targetRepositoryRoot,
         targetAppletRoot,
@@ -430,6 +458,7 @@ module.exports = {
     productionJavaScriptFiles,
     requiredIconNames,
     readJson,
+    styledStatuses,
     readWorkflow,
     validateArtifacts,
     validateJavaScriptSyntax,
@@ -441,6 +470,7 @@ module.exports = {
     validatePngIcon,
     validateSourceControls,
     validateStaticAssets,
+    validateStatusColours,
     validateStylesheet,
     validateSvgIcon,
     validateWorkflows,

@@ -362,3 +362,34 @@ test("the payload comparator orders names deterministically", () => {
     assert.equal(Artifacts.compareText("a", "b") < 0, true);
     assert.equal(Artifacts.compareText("b", "a") > 0, true);
 });
+
+// The icon is only half of what a status needs. The applet puts
+// `xpuwlm-panel-<status>` on its actor, and the stylesheet is the only thing
+// that colours it: a status with no rule draws in the fallback grey that is
+// nearly the panel background on a dark theme.
+test("a status the panel can ask for must name a colour rule, and a rule a status", () => {
+    const shipped = ".xpuwlm-panel-online .system-status-icon { color: symbolic-success; }";
+
+    assert.deepEqual(Artifacts.styledStatuses(shipped), ["online"]);
+    assert.equal(Artifacts.validateStatusColours(shipped, ["online"]), true);
+    assert.throws(
+        () => Artifacts.validateStatusColours(shipped, ["online", "attention"]),
+        /Every panel status needs its own colour rule/u,
+    );
+    assert.throws(
+        () => Artifacts.validateStatusColours(`${shipped}\n.xpuwlm-panel-retired {}`, ["online"]),
+        /Every panel status needs its own colour rule/u,
+    );
+});
+
+test("a shipped stylesheet missing a status colour fails the artifact gate", (context) => {
+    const roots = copiedRepository(context);
+    const stylesheet = path.join(roots.appletRoot, "stylesheet.css");
+    const shipped = fs.readFileSync(stylesheet, "utf8");
+
+    fs.writeFileSync(stylesheet, shipped.replace(".xpuwlm-panel-paused", ".xpuwlm-panel-held"));
+    assert.throws(() => Artifacts.validateStaticAssets(roots), /colour rule/u);
+
+    fs.writeFileSync(stylesheet, shipped);
+    assert.equal(Artifacts.validateStaticAssets(roots), undefined);
+});
