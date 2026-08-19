@@ -248,6 +248,41 @@ function stageSpiceRelease(
     return payloadFiles(targetRoot);
 }
 
+// The tree being inspected is not the tree being staged. `payloadFiles` is the
+// staging guard: it refuses a symlink or a device node by throwing, which is
+// right for a payload about to be released and wrong for an installed copy,
+// where such an entry is the finding rather than an error — verifying a
+// tampered install died with "Payload entries must be regular files or
+// directories" instead of naming the entry. An inspection lists what it finds.
+function installedFiles(root, prefix = "") {
+    const names = [];
+    for (const entry of fs.readdirSync(root, {withFileTypes: true})) {
+        const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (entry.isDirectory()) {
+            names.push(...installedFiles(path.join(root, entry.name), relativePath));
+        } else {
+            names.push(relativePath);
+        }
+    }
+    return names.sort(compareText);
+}
+
+// Never through a symlink: `existsSync` and `readFileSync` follow one, so a
+// payload file replaced by a link to an identical file elsewhere verified
+// clean. What the manifest promises is the file itself.
+function installedState(root, relativePath, hash) {
+    let entry;
+    try {
+        entry = fs.lstatSync(path.join(root, relativePath));
+    } catch {
+        return "missing";
+    }
+    if (!entry.isFile()) {
+        return "mismatched";
+    }
+    return sha256Hex(fs.readFileSync(path.join(root, relativePath))) === hash ? "ok" : "mismatched";
+}
+
 // Compares an installed tree against the payload checksum manifest. Extra
 // files are reported: a clean install contains exactly the payload.
 function verifyInstall(root, checksums) {
@@ -255,15 +290,15 @@ function verifyInstall(root, checksums) {
     const missing = [];
     const mismatched = [];
     for (const [relativePath, hash] of expected) {
-        const installed = path.join(root, relativePath);
-        if (!fs.existsSync(installed)) {
+        const state = installedState(root, relativePath, hash);
+        if (state === "missing") {
             missing.push(relativePath);
-        } else if (sha256Hex(fs.readFileSync(installed)) !== hash) {
+        } else if (state === "mismatched") {
             mismatched.push(relativePath);
         }
     }
     const unexpected = fs.existsSync(root)
-        ? payloadFiles(root).filter((relativePath) => !expected.has(relativePath))
+        ? installedFiles(root).filter((relativePath) => !expected.has(relativePath))
         : [];
     return {
         ok: missing.length === 0 && mismatched.length === 0 && unexpected.length === 0,
@@ -275,7 +310,8 @@ function verifyInstall(root, checksums) {
 
 // Uninstall verification: the applet directory must be gone entirely.
 function verifyAbsent(root) {
-    return {ok: !fs.existsSync(root), remaining: fs.existsSync(root) ? payloadFiles(root) : []};
+    const present = fs.existsSync(root);
+    return {ok: !present, remaining: present ? installedFiles(root) : []};
 }
 
 // A ustar field is a fixed width, and both of the ways a value can fail to fit
@@ -453,6 +489,8 @@ module.exports = {
     pngDimensions,
     productionRequireGraph,
     inspectSpiceSources,
+    installedFiles,
+    installedState,
     regularEntry,
     regularFile,
     runCommand,

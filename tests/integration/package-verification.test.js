@@ -83,3 +83,35 @@ test("packing the real payload is deterministic across runs", () => {
     fs.rmSync(firstDist, {recursive: true, force: true});
     fs.rmSync(secondDist, {recursive: true, force: true});
 });
+
+// The staging guard refuses a symlink by throwing, which is right for a
+// payload about to be released and wrong for an installed tree: there, a
+// symlink is what the report exists to name.
+test("an installed tree is inspected rather than refused", () => {
+    const dist = temporaryDirectory();
+    assert.equal(Package.runCommand(["stage"], () => {}, dist), 0);
+    const stagedRoot = path.join(dist, Package.UUID);
+    const checksums = fs.readFileSync(path.join(dist, `${Package.UUID}.SHA256SUMS`), "utf8");
+
+    fs.symlinkSync(path.join(stagedRoot, "metadata.json"), path.join(stagedRoot, "extra.json"));
+    const withLink = Package.verifyInstall(stagedRoot, checksums);
+    assert.equal(withLink.ok, false);
+    assert.deepEqual(withLink.unexpected, ["extra.json"]);
+    assert.deepEqual(withLink.mismatched, []);
+
+    // And a payload file replaced by a link to an identical file is the file
+    // not being there, however well its contents hash.
+    fs.rmSync(path.join(stagedRoot, "extra.json"));
+    const metadata = path.join(stagedRoot, "metadata.json");
+    fs.cpSync(metadata, path.join(dist, "metadata.json"));
+    fs.rmSync(metadata);
+    fs.symlinkSync(path.join(dist, "metadata.json"), metadata);
+    const linked = Package.verifyInstall(stagedRoot, checksums);
+    assert.deepEqual(linked.mismatched, ["metadata.json"]);
+    assert.deepEqual(linked.missing, []);
+
+    // Uninstall verification walks the same tree, and must name what is left
+    // rather than throw on it.
+    assert.deepEqual(Package.verifyAbsent(stagedRoot).remaining.includes("metadata.json"), true);
+    fs.rmSync(dist, {recursive: true, force: true});
+});
