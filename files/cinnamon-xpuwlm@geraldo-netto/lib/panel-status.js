@@ -100,13 +100,28 @@ function workText(state) {
     return "Ready";
 }
 
+// The panel's name, written once. It used to be written ten times over — a
+// tooltip and an accessible name for each of the five statuses — and so was
+// the shape around it: an em dash for the tooltip, a comma for the sentence a
+// screen reader speaks. Five copies of a shape is how `detectedModel` came to
+// announce "unavailable: Online" while the other four did not.
+//
+// The two fragments stay the caller's, because they genuinely differ: a
+// tooltip is a caption and an accessible name is a sentence, so "online, ready"
+// and "online: ready" are both right in their own place.
+const PRODUCT_NAME = "XPU Workload Manager";
+
+function statusModel(status, tooltipText, accessibleText) {
+    return {
+        status,
+        tooltip: format("%s — %s", PRODUCT_NAME, tooltipText),
+        accessibleName: format("%s, %s", PRODUCT_NAME, accessibleText),
+    };
+}
+
 function offlineModel(state) {
     const reason = state.detail || state.reason || runtimeLabel(state);
-    return {
-        status: "unavailable",
-        tooltip: format("XPU Workload Manager — %s", reason),
-        accessibleName: format("XPU Workload Manager, unavailable: %s", reason),
-    };
+    return statusModel("unavailable", reason, format("unavailable: %s", reason));
 }
 
 // One fact, said twice: the popup lists it as a value beside a label, and the
@@ -121,11 +136,7 @@ function detectedModel(state) {
     const device = NO_DEVICE_LABEL.toLowerCase();
     const reason = state.detail || state.reason;
     const text = reason ? format("%s: %s", device, reason) : device;
-    return {
-        status: "detected",
-        tooltip: format("XPU Workload Manager — %s", text),
-        accessibleName: format("XPU Workload Manager, %s", text),
-    };
+    return statusModel("detected", text, text);
 }
 
 function panelModel(state) {
@@ -135,30 +146,20 @@ function panelModel(state) {
     if (!state.available) {
         return detectedModel(state);
     }
-    const work = workText(state);
     if (state.attention > 0) {
         const review = attentionText(state.attention);
-        return {
-            status: "attention",
-            tooltip: format("XPU Workload Manager — %s", review),
-            accessibleName: format("XPU Workload Manager, attention: %s", review),
-        };
+        return statusModel("attention", review, format("attention: %s", review));
     }
     // Below attention: something waiting for a person outranks a hold the
     // person put there deliberately.
     if (state.paused) {
         const held = pausedText(state);
-        return {
-            status: "paused",
-            tooltip: format("XPU Workload Manager — %s", held),
-            accessibleName: format("XPU Workload Manager, %s", held),
-        };
+        return statusModel("paused", held, held);
     }
-    return {
-        status: "online",
-        tooltip: format("XPU Workload Manager — online, %s", work.toLowerCase()),
-        accessibleName: format("XPU Workload Manager, online: %s", work.toLowerCase()),
-    };
+    // Worked out here rather than above the branches: two of the three states
+    // below `connected` never read it, and this one is the only one that does.
+    const work = workText(state).toLowerCase();
+    return statusModel("online", format("online, %s", work), format("online: %s", work));
 }
 
 // The most lines any state can produce. The popup's items are built once and
@@ -206,6 +207,7 @@ module.exports = {
     NO_DEVICE_LABEL,
     PAUSED_LABEL,
     PANEL_STATUSES,
+    PRODUCT_NAME,
     RUNTIME_LABELS,
     attentionText,
     backendLabel,
@@ -217,5 +219,6 @@ module.exports = {
     plural,
     popupLines,
     runtimeLabel,
+    statusModel,
     workText,
 };
