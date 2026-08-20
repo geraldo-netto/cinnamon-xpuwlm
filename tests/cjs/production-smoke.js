@@ -67,48 +67,62 @@ for (const filename of sourceFiles) {
     }
 }
 
-function verifyNativeStateWrite() {
-    const runtimePath = sourceFiles.find((filename) => (
-        GLib.path_get_basename(filename) === "cinnamon-runtime.js"
+// Compiling and loading says every module parses and every name in it
+// resolves under the engine Cinnamon runs. It says nothing about the one thing
+// this payload does with that engine: read the runtime's published snapshot
+// through Gio, on a mainloop, and turn the bytes into a state the panel can
+// draw. Node's tests drive that path against doubles — a real `Gio.File`, a
+// real `load_contents_async` and a real `ByteArray.toString` are only here.
+//
+// This replaces a smoke for a state *write*, which the helper no longer has:
+// the module that owned it left with the GJS product, and the panel reads.
+function verifyNativeSnapshotRead() {
+    const readerPath = sourceFiles.find((filename) => (
+        GLib.path_get_basename(filename) === "snapshot-reader.js"
     ));
-    if (!runtimePath) {
-        throw new Error("cinnamon-runtime.js is required for the CJS state smoke");
+    if (!readerPath) {
+        throw new Error("snapshot-reader.js is required for the CJS snapshot smoke");
     }
-    const directory = GLib.dir_make_tmp("xpuwlm-cjs-state-XXXXXX");
-    const statePath = GLib.build_filenamev([directory, "state.json"]);
-    const repository = new (loadModule(runtimePath).FileStateRepository)({
-        path: statePath,
-        environment: {ByteArray, Gio, GLib},
-    });
+    const SnapshotReader = loadModule(readerPath);
+    const directory = GLib.dir_make_tmp("xpuwlm-cjs-snapshot-XXXXXX");
+    const snapshotPath = GLib.build_filenamev([directory, "state.json"]);
+    const generatedAt = Math.floor(GLib.get_real_time() / 1000);
+    GLib.file_set_contents(snapshotPath, JSON.stringify({
+        version: SnapshotReader.SNAPSHOT_VERSION,
+        generatedAt,
+        devices: [{backend: "gpu", available: true, reason: ""}],
+        metrics: {queueDepth: 3, runningProfiles: 1},
+        alerts: [{resolved: false}],
+        policy: {paused: false},
+    }));
     const loop = GLib.MainLoop.new(null, false);
-    let writeError = null;
-    const asynchronous = repository.save({
-        portfolio: {paused: false, profiles: {}},
-        selectedTab: "profiles",
-        activityClearedAt: 42,
-    }, (error) => {
-        writeError = error;
-        loop.quit();
-    });
+    let state = null;
+    const asynchronous = SnapshotReader.readSnapshotAsync(
+        {ByteArray, Gio, GLib, decode: (contents) => ByteArray.toString(contents)},
+        snapshotPath,
+        () => generatedAt,
+        (delivered) => {
+            state = delivered;
+            loop.quit();
+        },
+    );
     if (!asynchronous) {
-        throw new Error("CJS state smoke did not use the asynchronous GIO path");
+        throw new Error("CJS snapshot smoke did not use the asynchronous GIO path");
     }
     loop.run();
     try {
-        if (writeError) {
-            throw writeError;
+        if (!state || state.runtime !== "connected") {
+            throw new Error(`CJS snapshot smoke read ${state && state.runtime}: ${state && state.detail}`);
         }
-        const [ok, contents] = GLib.file_get_contents(statePath);
-        const stored = ok ? JSON.parse(ByteArray.toString(contents)) : null;
-        if (stored?.selectedTab !== "profiles" || stored.activityClearedAt !== 42) {
-            throw new Error("CJS state smoke did not persist the expected state");
+        if (state.backend !== "gpu" || state.queued !== 3 || state.attention !== 1) {
+            throw new Error("CJS snapshot smoke did not read the fields the panel draws");
         }
     } finally {
-        Gio.File.new_for_path(statePath).delete(null);
+        Gio.File.new_for_path(snapshotPath).delete(null);
         Gio.File.new_for_path(directory).delete(null);
     }
 }
 
-verifyNativeStateWrite();
+verifyNativeSnapshotRead();
 
 print(`CJS production smoke: ${sourceFiles.length} files compiled; ${Object.keys(modules).length} modules loaded`);

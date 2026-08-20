@@ -287,6 +287,17 @@ function validateRepositoryScripts({repositoryRoot: targetRepositoryRoot}) {
     assert.equal(packageJson.scripts.test.includes("test:visual"), true);
     assert.equal(packageJson.scripts["test:contract"], "node --test tests/contract/*.test.js");
     assert.equal(packageJson.scripts["test:visual"], "node --test tests/visual/*.test.js");
+    // Named, not spelled out: the interpreter is overridable and the payload
+    // globs move with the payload. What must not change is that the smoke is
+    // handed the applet *and* every module beside it, because a file the
+    // command does not name is a file no engine ever loads.
+    for (const fragment of ["tests/cjs/production-smoke.js", "/applet.js", "/lib/*.js"]) {
+        assert.equal(
+            packageJson.scripts["test:cjs"].includes(fragment),
+            true,
+            `The CJS smoke command no longer names ${fragment}`,
+        );
+    }
     assert.equal(packageJson.scripts["test:local"], "XPUWLM_SKIP_HOST_GATES=1 npm test");
     return true;
 }
@@ -306,6 +317,11 @@ function validateWorkflows({repositoryRoot: targetRepositoryRoot}) {
         "Development-only advisories must not gate the applet build",
     );
     assert.match(quality, /run: npm run test:ci/);
+    // The one gate `test:ci` cannot carry: it needs cjs, and the workflow
+    // installs two pinned ones to run it. So the workflow is the only thing
+    // that runs the check that loads production sources under Cinnamon's own
+    // engine, and a step dropped from it takes that check with it silently.
+    assert.match(quality, /run: npm run test:cjs$/mu);
     assert.doesNotMatch(quality, /run: npm test(?:\s|$)/mu);
     assert.doesNotMatch(quality, /XPUWLM_SKIP_HOST_GATES/);
     assert.equal(

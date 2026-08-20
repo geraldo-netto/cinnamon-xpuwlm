@@ -362,6 +362,9 @@ test("workflow validation preserves secure downloads and inert installs", (conte
         ],
         ["applet-quality.yml", "npm ci --ignore-scripts", "npm ci"],
         ["dependency-audit.yml", "npm ci --ignore-scripts", "npm ci"],
+        // Not a weakened flag but a dropped stage, which is the other way a
+        // workflow stops checking: `test:cjs` runs nowhere else.
+        ["applet-quality.yml", "run: npm run test:cjs", "run: echo skipped"],
     ]) {
         const target = path.join(workflowRoot, filename);
         fs.writeFileSync(target, originals.get(filename).replace(secure, weakened));
