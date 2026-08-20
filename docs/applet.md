@@ -37,8 +37,9 @@ a panel is genuinely good at is what is left here.
   the panel draws is not read, not validated, and not modelled. The one
   contract number it does check is `version`: the reader is deployed before the
   writer, so a document announcing a version this panel does not know is
-  reported as unreadable rather than rendered field by field into a picture
-  indistinguishable from an idle desk.
+  reported as malformed rather than rendered field by field into a picture
+  indistinguishable from an idle desk. `unreadable` is a different fact — the
+  file is there and the panel could not read it at all.
 - **It is not a load meter.** The panel used to show the accelerator's
   instantaneous busy percentage, which answers "was it busy the moment I
   looked" rather than "is it busy". The client's Health page keeps a minute of
@@ -57,8 +58,9 @@ foreground. GTK's symbolic recolouring rewrites `fill` and leaves `stroke`
 alone, so a stroked chip painted in the foreground placeholder stayed that
 placeholder — `#2e3436`, a shade off a dark panel — and only the small status
 mark was visible. The payload's icon directory is registered with the icon
-theme on construction, so Cinnamon can resolve those names at all, and the stylesheet maps the five statuses onto the desktop's own
-symbolic success, warning, and error colours. Online, detected, attention,
+theme on construction, so Cinnamon can resolve those names at all, and the
+stylesheet maps the five statuses onto the desktop's own symbolic success,
+warning, and error colours. Online, detected, attention,
 paused, and unavailable also use different centre shapes, and the tooltip and
 accessible name state the status in text, so meaning never depends on colour
 alone.
@@ -133,7 +135,10 @@ visual icon gate. Two contract gates keep the tree from growing back:
 - **Root shims** — Cinnamon resolves a nested CommonJS import from the applet
   root, so a module in `lib/` that another `lib/` module imports needs a
   same-name bridge at the root. The inventory is derived from the require graph
-  rather than listed, and is exactly one file today.
+  rather than listed, and is empty today: every `lib/` module is imported by
+  `applet.js` at the root and none imports another, which is also why the
+  settings-window placer is handed its placement rules rather than importing
+  them.
 
 ## Where the rest went
 
