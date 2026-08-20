@@ -345,6 +345,22 @@ function validateWorkflows({repositoryRoot: targetRepositoryRoot}) {
         2,
     );
     assert.match(quality, /run: npm ci --ignore-scripts$/mu);
+    // A job installs what its gates use. The quality job's `test:ci` shells
+    // out to `rsvg-convert` and `convert` for the icon raster gate and loads
+    // no engine at all, so an apt line here naming `cjs` or `cinnamon` is a
+    // step whose name claims the job exercises something it does not — the
+    // engine check belongs to the job above, with its own pinned runtime.
+    // Every apt line that is not the pinned engine install belongs to the
+    // quality job, and there is one: the two renderers the icon raster gate
+    // shells out to. It used to name `cinnamon` and `cjs` as well, under a
+    // step called "Install Cinnamon theme test runtime", for a job whose gates
+    // load neither.
+    assert.deepEqual(
+        [...quality.matchAll(/^ *sudo apt-get install (?<packages>.*)$/gmu)]
+            .map((match) => match.groups.packages)
+            .filter((packages) => !packages.includes("cjs") && !packages.endsWith("\\")),
+        ["--yes --no-install-recommends imagemagick librsvg2-bin"],
+    );
 
     assert.match(audit, /^ {2}schedule:$/mu);
     assert.match(audit, /^ {2}workflow_dispatch:$/mu);

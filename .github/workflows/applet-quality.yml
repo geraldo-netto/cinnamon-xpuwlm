@@ -88,10 +88,15 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: Install Cinnamon theme test runtime
+      # What the gates in this job actually shell out to. The step used to be
+      # named for a "Cinnamon theme test runtime" and install `cinnamon` and
+      # `cjs` beside these two: nothing in `test:ci` loads either. The engine
+      # check is the `cjs-compatibility` job above, which installs its own
+      # pinned build.
+      - name: Install the raster tools the visual gate renders with
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends cinnamon cjs imagemagick librsvg2-bin
+          sudo apt-get install --yes --no-install-recommends imagemagick librsvg2-bin
 
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
