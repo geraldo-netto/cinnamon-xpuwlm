@@ -86,7 +86,7 @@ panel draws rather than an error it swallows:
 | `absent` | No snapshot file: the runtime is not running. |
 | `stale` | Published more than fifteen seconds ago; the runtime stopped. |
 | `malformed` | Not JSON, not an object, not snapshot version 1, or missing a member the panel's figures come from — `devices`, `metrics`, `alerts`, and the two counts inside `metrics`, all of which the canonical schema requires. The line names the member. A snapshot is read whatever size it has grown to. |
-| `unreadable` | The file exists but could not be read. |
+| `unreadable` | The file exists but could not be read. Permission denied and a path that names a directory are said in those words; anything else keeps the platform's own error. |
 
 Absent and zero are different facts throughout: a runtime that published no
 figure is refused rather than drawn as an idle desk. A snapshot with no

@@ -228,23 +228,51 @@ function tooLargeFor(contents, ceiling) {
     return failed("malformed", "The runtime snapshot is larger than the panel reads");
 }
 
+// The refusals a desk actually meets, each answered with a sentence.
+//
+// Not-found is the ordinary one — the service is not running — and is reported
+// as absence rather than as a failure someone should act on. The other two are
+// the ones a person can fix and could not read: a state file owned by another
+// account, and a `runtime-state-path` that names a directory. Both used to be
+// answered by interpolating the platform's own error into the tooltip, so the
+// panel said "Gio.IOErrorEnum: Error opening file /home/…/state.json:
+// Permission denied" where a sentence belongs. Anything else keeps the raw
+// error, because a refusal nobody predicted is better shown than renamed.
+const READ_REFUSALS = Object.freeze([
+    {code: "NOT_FOUND", detail: "The runtime is not running", runtime: "absent"},
+    {
+        code: "PERMISSION_DENIED",
+        detail: "The runtime snapshot cannot be read: permission denied",
+        runtime: "unreadable",
+    },
+    {
+        code: "IS_DIRECTORY",
+        detail: "The runtime snapshot path names a directory, not a file",
+        runtime: "unreadable",
+    },
+]);
+
 // `environment` carries GLib and Gio so this stays testable off a desktop:
 // the applet passes the real ones, a test passes doubles.
-// Not-found is the ordinary case — the service is not running — and it is
-// reported as absence rather than as a failure someone should act on. Asked
-// through `matches` where the platform offers it: a bare `code` comparison
-// says nothing about which error domain raised it, so any domain whose first
-// enumerated value happens to be 1 would be drawn as a runtime that is simply
-// not running.
-function isNotFound(environment, error) {
+// Asked through `matches` where the platform offers it: a bare `code`
+// comparison says nothing about which error domain raised it, so any domain
+// whose first enumerated value happens to be 1 would be drawn as a runtime
+// that is simply not running. A platform whose IO domain does not enumerate
+// the code at all matches nothing, rather than matching every error with no
+// code of its own.
+function matchesCode(environment, error, code) {
     const errors = environment.Gio.IOErrorEnum;
-    if (errors === undefined || !error) {
+    if (errors === undefined || !error || errors[code] === undefined) {
         return false;
     }
     if (typeof error.matches === "function") {
-        return error.matches(errors, errors.NOT_FOUND) === true;
+        return error.matches(errors, errors[code]) === true;
     }
-    return error.code === errors.NOT_FOUND;
+    return error.code === errors[code];
+}
+
+function refusalFor(environment, error) {
+    return READ_REFUSALS.find((refusal) => matchesCode(environment, error, refusal.code)) || null;
 }
 
 // The moment the document is judged against, asked for where it is judged.
@@ -279,9 +307,10 @@ function stateFromContents(environment, ok, contents, clock) {
 }
 
 function stateFromError(environment, error) {
-    return isNotFound(environment, error)
-        ? failed("absent", "The runtime is not running")
-        : failed("unreadable", `The runtime snapshot could not be read: ${error}`);
+    const refusal = refusalFor(environment, error);
+    return refusal === null
+        ? failed("unreadable", `The runtime snapshot could not be read: ${error}`)
+        : failed(refusal.runtime, refusal.detail);
 }
 
 function readSnapshot(environment, filename, clock) {
@@ -368,14 +397,16 @@ module.exports = {
     deviceFields,
     EMPTY_STATE,
     MAX_SNAPSHOT_BYTES,
+    READ_REFUSALS,
     REQUIRED_COUNTS,
     REQUIRED_MEMBERS,
     RUNTIME_STATE_PATH,
     SNAPSHOT_VERSION,
     STALE_AFTER_MS,
     expandHome,
-    isNotFound,
+    matchesCode,
     primaryDevice,
+    refusalFor,
     readSnapshot,
     readSnapshotAsync,
     resolveNow,

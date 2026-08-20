@@ -130,6 +130,64 @@ test("an unreadable file is named as unreadable rather than as absent", () => {
     assert.equal(state.runtime, "unreadable");
 });
 
+// The panel used to hand the platform's own error to the tooltip for every
+// refusal but not-found, so a state file owned by another account read
+// "Gio.IOErrorEnum: Error opening file /home/…/state.json: Permission denied"
+// where a sentence belongs.
+test("the refusals a desk meets are named rather than quoted", () => {
+    const platform = (contents = null, throws = null) => ({
+        GLib: {get_home_dir: () => "/home/tester"},
+        Gio: {
+            IOErrorEnum: {NOT_FOUND: 1, IS_DIRECTORY: 21, PERMISSION_DENIED: 14},
+            File: {
+                new_for_path: () => ({
+                    load_contents() {
+                        if (throws) {
+                            throw throws;
+                        }
+                        return [true, Buffer.from(contents)];
+                    },
+                }),
+            },
+        },
+        decode: (buffer) => buffer.toString("utf8"),
+    });
+    const gerror = (code) => Object.assign(new Error("platform text"), {
+        code,
+        matches: (domain, expected) => domain !== undefined && expected === code,
+    });
+
+    const denied = Reader.readSnapshot(platform(null, gerror(14)), "~/state.json", NOW);
+    assert.equal(denied.runtime, "unreadable");
+    assert.equal(denied.detail, "The runtime snapshot cannot be read: permission denied");
+
+    const directory = Reader.readSnapshot(platform(null, gerror(21)), "~/state", NOW);
+    assert.equal(directory.runtime, "unreadable");
+    assert.equal(directory.detail, "The runtime snapshot path names a directory, not a file");
+
+    // A refusal nobody predicted keeps the platform's own words rather than
+    // being renamed into one of these.
+    const unexpected = Reader.readSnapshot(platform(null, gerror(30)), "~/state.json", NOW);
+    assert.equal(unexpected.runtime, "unreadable");
+    assert.match(unexpected.detail, /could not be read: /u);
+
+    // And an IO domain that does not enumerate a code matches nothing through
+    // it, rather than matching every error that carries no code of its own.
+    assert.equal(
+        Reader.matchesCode(
+            {Gio: {IOErrorEnum: {NOT_FOUND: 1}}},
+            new Error("bare"),
+            "PERMISSION_DENIED",
+        ),
+        false,
+    );
+    assert.equal(Reader.refusalFor({Gio: {IOErrorEnum: {NOT_FOUND: 1}}}, null), null);
+    assert.deepEqual(
+        Reader.READ_REFUSALS.map((refusal) => refusal.code),
+        ["NOT_FOUND", "PERMISSION_DENIED", "IS_DIRECTORY"],
+    );
+});
+
 test("a document that is not JSON, or not an object, is malformed", () => {
     assert.equal(
         Reader.readSnapshot(environment({contents: "{nope"}), "~/x.json", NOW).runtime,
