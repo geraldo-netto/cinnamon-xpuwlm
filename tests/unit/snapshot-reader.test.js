@@ -316,6 +316,31 @@ test("a snapshot with no version at all is not read as version one", () => {
     assert.equal(Reader.stateFromDocument(document({version: "1"}), NOW).runtime, "malformed");
 });
 
+// The mismatch line is what `docs/deployment.md` sends an installer to read
+// after a half-finished upgrade, so it has to name a mismatch. A template
+// renders the string "1" and the number 1 identically, and the report read
+// "snapshot version 1, not 1"; a document with no version named a JavaScript
+// value, "undefined", rather than a fact about the runtime.
+test("the version a document publishes is named as it was published", () => {
+    assert.equal(
+        Reader.stateFromDocument(document({version: "1"}), NOW).detail,
+        'The runtime publishes snapshot version "1", not 1',
+    );
+    assert.equal(
+        Reader.versionMismatch(2),
+        "The runtime publishes snapshot version 2, not 1",
+    );
+    assert.equal(
+        Reader.versionMismatch(undefined),
+        "The runtime publishes a snapshot with no version, and this panel reads version 1",
+    );
+    // A value no JSON document can carry is still named rather than dropped.
+    assert.equal(
+        Reader.versionMismatch(Symbol("one")),
+        "The runtime publishes snapshot version Symbol(one), not 1",
+    );
+});
+
 // The applet runs on the compositor thread, so the read it performs once a
 // tick has to hand the waiting to the mainloop rather than to the desktop.
 function asyncEnvironment({

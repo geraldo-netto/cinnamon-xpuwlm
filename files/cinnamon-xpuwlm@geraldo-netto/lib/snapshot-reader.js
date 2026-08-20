@@ -134,6 +134,23 @@ function connectedState(document, generatedAt) {
     });
 }
 
+// The version as it was published, not as it prints. A template renders the
+// string `"1"` and the number 1 as the same character, so a writer that quoted
+// its version number produced "snapshot version 1, not 1": a mismatch report
+// that names no mismatch, in the one line `docs/deployment.md` tells an
+// installer to read to find out which half of a half-finished upgrade is
+// behind. A document with no version at all said "version undefined", which
+// names a JavaScript value rather than a fact about the runtime.
+function versionMismatch(value) {
+    if (value === undefined) {
+        return "The runtime publishes a snapshot with no version, and this panel "
+            + `reads version ${SNAPSHOT_VERSION}`;
+    }
+    const quoted = JSON.stringify(value);
+    const shown = quoted === undefined ? String(value) : quoted;
+    return `The runtime publishes snapshot version ${shown}, not ${SNAPSHOT_VERSION}`;
+}
+
 // The envelope, and only the envelope: is this a document, is it a version
 // this panel reads, and is it recent enough to believe. Each answer is a
 // runtime word the panel can draw; the figures are read once all three pass.
@@ -142,10 +159,7 @@ function stateFromDocument(document, nowMs) {
         return failed("malformed", "The runtime snapshot is not an object");
     }
     if (document.version !== SNAPSHOT_VERSION) {
-        return failed(
-            "malformed",
-            `The runtime publishes snapshot version ${document.version}, not ${SNAPSHOT_VERSION}`,
-        );
+        return failed("malformed", versionMismatch(document.version));
     }
     const generatedAt = Number.isInteger(document.generatedAt) ? document.generatedAt : null;
     if (isStale(generatedAt, nowMs)) {
@@ -321,4 +335,5 @@ module.exports = {
     stateFromError,
     stateFromDocument,
     tooLargeFor,
+    versionMismatch,
 };
