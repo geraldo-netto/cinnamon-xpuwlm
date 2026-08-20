@@ -89,20 +89,26 @@ function createSettingsWindowPlacer(options = {}) {
     // No capability check here or in `cancel`: the ports were taken whole or
     // refused whole in `awaitWindow`, and `display` and `mainloop` are set
     // nowhere else. Re-asking would be a second, weaker copy of that rule.
+    // Forgotten before it is dropped, for the same reason `cancel` isolates
+    // its releases: a `disconnect` that throws used to leave the handler id
+    // still recorded, so the placer went on believing it was listening on a
+    // display it had already stopped listening to.
     function stopListening() {
-        if (displayHandler && display) {
-            display.disconnect(displayHandler);
-        }
+        const handler = displayHandler;
         displayHandler = 0;
+        if (handler && display) {
+            display.disconnect(handler);
+        }
     }
 
     // A window the person moves after it has settled is theirs, so the
     // correction handler comes off as soon as the settling window closes.
     function releaseWindow() {
-        if (settling && settling.handler && typeof settling.window.disconnect === "function") {
-            settling.window.disconnect(settling.handler);
-        }
+        const target = settling;
         settling = null;
+        if (target && target.handler && typeof target.window.disconnect === "function") {
+            target.window.disconnect(target.handler);
+        }
     }
 
     function place(window) {
@@ -156,12 +162,30 @@ function createSettingsWindowPlacer(options = {}) {
     // after teardown kept the session's display and Cinnamon's mainloop
     // reachable for as long as the applet object survived — and read as though
     // it were still armed.
+    // Every release is asked for on its own. `cancel` is the whole reason this
+    // module exists — it is what stops a handler on the session's display and a
+    // mainloop source from outliving the applet — and as a run of bare
+    // statements it gave back everything up to the first throw and stranded the
+    // rest. A `disconnect` naming a handler the display has already dropped, or
+    // one `source_remove` naming an id GLib has retired, therefore kept every
+    // later source armed and left `global.display` and Cinnamon's mainloop
+    // reachable through this closure: the exact leak the module was written to
+    // prevent, reached through the function written to prevent it.
+    function release(subject, run) {
+        try {
+            run();
+        } catch (error) {
+            logger?.warn(`could not release ${subject}: ${error}`);
+        }
+    }
+
     function cancel() {
-        stopListening();
-        releaseWindow();
+        release("the display handler", stopListening);
+        release("the settling window", releaseWindow);
         if (mainloop) {
+            const armed = mainloop;
             for (const id of sources) {
-                mainloop.source_remove(id);
+                release(`the mainloop source ${id}`, () => armed.source_remove(id));
             }
         }
         sources.clear();

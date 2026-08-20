@@ -246,3 +246,67 @@ test("a correction asked for after cancellation arms nothing", () => {
 
     assert.deepEqual(mainloop.pending, []);
 });
+
+// The placer exists so that a handler on the session's display and a mainloop
+// source cannot outlive the applet, and `cancel` is where that happens. As a
+// run of bare statements it gave back everything up to the first throw: one
+// `disconnect` naming a handler the display had already dropped kept every
+// armed source, `global.display` and Cinnamon's mainloop reachable through the
+// closure — the leak the module was written to prevent, reached through the
+// function written to prevent it.
+test("one release that fails at cancel does not strand the rest", () => {
+    const warnings = [];
+    const target = Placer.createSettingsWindowPlacer({
+        logger: {warn: (message) => warnings.push(message)},
+        placement: WindowPlacement,
+    });
+    const mainloop = recordingMainloop();
+    const stubborn = display();
+    stubborn.disconnect = () => {
+        throw new Error("no such handler");
+    };
+
+    assert.equal(target.awaitWindow(stubborn, mainloop), true);
+    assert.equal(target.cancel(), true);
+
+    // The source the wait armed was still removed, and the placer no longer
+    // holds either collaborator: a second cancel has nothing left to remove.
+    assert.deepEqual(mainloop.removed, [1]);
+    assert.equal(target.cancel(), true);
+    assert.deepEqual(mainloop.removed, [1]);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /the display handler/u);
+});
+
+// A source GLib has already retired is removed by name and refused by name, and
+// the ids behind it in the set are not the ones that failed.
+test("one mainloop source that cannot be removed does not keep the others armed", () => {
+    const warnings = [];
+    const target = Placer.createSettingsWindowPlacer({
+        logger: {warn: (message) => warnings.push(message)},
+        placement: WindowPlacement,
+    });
+    const mainloop = recordingMainloop();
+    const session = display();
+    target.awaitWindow(session, mainloop);
+    for (const {signal, callback} of [...session.handlers.values()]) {
+        assert.equal(signal, "window-created");
+        callback(session, settlingWindow());
+    }
+    const armed = mainloop.removed.length;
+    const refuse = mainloop.source_remove.bind(mainloop);
+    let first = true;
+    mainloop.source_remove = (id) => {
+        if (first) {
+            first = false;
+            mainloop.removed.push(id);
+            throw new Error(`Source ID ${id} was not found when attempting to remove it`);
+        }
+        return refuse(id);
+    };
+
+    target.cancel();
+
+    assert.equal(mainloop.removed.length - armed >= 2, true, "every armed source was named");
+    assert.equal(warnings.some((message) => /the mainloop source/u.test(message)), true);
+});

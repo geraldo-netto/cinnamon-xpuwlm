@@ -1053,3 +1053,98 @@ test("an icon theme that cannot be told its search path is left alone", () => {
 
     assert.deepEqual(appended, ["/applets/xpuwlm/icons"]);
 });
+
+// Teardown is the one place an applet gives back what it took from a session
+// that outlives it: the icon theme's search path, the settings binding, the
+// menu manager's signals, the tooltip's mainloop timers. Written as a run of
+// bare statements it gave back everything up to the first release that threw
+// and stranded the rest for the life of the session.
+test("one release that fails at teardown does not strand the rest", () => {
+    const warnings = [];
+    // Owned by this applet and no other: the registration only appends an
+    // entry that is absent, so a path an earlier applet still holds would be
+    // released by that one rather than by this teardown.
+    iconPaths.length = 0;
+    const counts = {finalized: 0, menuDestroyed: 0, tooltipDestroyed: 0};
+    const menu = new RecordingMenu();
+    menu.destroy = () => {
+        counts.menuDestroyed += 1;
+    };
+    const applet = build({
+        logger: {warn: (message) => warnings.push(message)},
+        settingsPlacer: {
+            awaitWindow: () => true,
+            cancel() {
+                throw new Error("the display handler is already gone");
+            },
+        },
+        settings: {
+            bind() {},
+            finalize() {
+                counts.finalized += 1;
+            },
+        },
+        menu,
+        tooltip: {
+            set_text() {},
+            destroy() {
+                counts.tooltipDestroyed += 1;
+            },
+        },
+    });
+    assert.equal(iconPaths.includes("/applets/xpuwlm/icons"), true);
+
+    applet.on_applet_removed_from_panel();
+
+    // The search path is what leaves with the uninstall, so it is the release
+    // a stranded teardown costs the session for good.
+    assert.equal(iconPaths.includes("/applets/xpuwlm/icons"), false);
+    assert.deepEqual(counts, {finalized: 1, menuDestroyed: 1, tooltipDestroyed: 1});
+    assert.equal(applet.menu, null);
+    assert.equal(applet._tooltip, null);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /the settings-window placer/u);
+});
+
+// The same shape one level down: the presentation's three releases are three
+// objects, and a menu that refuses to be destroyed used to keep the tooltip's
+// mainloop timers armed and leave every reference in place.
+test("a menu that refuses to be destroyed still releases the tooltip", () => {
+    const warnings = [];
+    const menu = new RecordingMenu();
+    menu.destroy = () => {
+        throw new Error("already destroyed");
+    };
+    let tooltipDestroyed = 0;
+    const applet = build({
+        logger: {warn: (message) => warnings.push(message)},
+        menu,
+        tooltip: {
+            set_text() {},
+            destroy() {
+                tooltipDestroyed += 1;
+            },
+        },
+    });
+
+    applet.on_applet_removed_from_panel();
+
+    assert.equal(tooltipDestroyed, 1);
+    assert.equal(applet.menuManager, null);
+    assert.deepEqual(applet._drawnLines, []);
+    assert.equal(warnings.some((message) => /the popup menu/u.test(message)), true);
+});
+
+// `_stopTimer` is what normally removes the refresh source, and a removal that
+// fails is exactly when a source is left behind. A source that goes on calling
+// into a destroyed applet once a second holds the applet and everything it
+// points at reachable for the rest of the session, so it retires itself.
+test("a refresh source that outlives teardown retires itself", () => {
+    const applet = build();
+    const [{callback}] = [...timers.values()].slice(-1);
+
+    assert.equal(callback(), true, "a live applet keeps its own timer");
+    applet.on_applet_removed_from_panel();
+
+    assert.equal(callback(), false, "a destroyed applet's timer must not be re-armed");
+});

@@ -78,6 +78,31 @@ function createAppletSettings(owner, metadata, instanceId, overrides) {
     return new Settings.AppletSettings(owner, UUID, settingsInstanceId(metadata, instanceId));
 }
 
+// Every release, whatever the one before it did.
+//
+// Teardown exists so that an applet leaving the panel gives back everything it
+// took. Written as a run of bare statements it gave back everything up to the
+// first one that threw, and stranded the rest for the life of the session: a
+// placer whose display handler Cinnamon had already dropped took the icon
+// search path with it, so the session's icon theme went on naming a directory
+// that leaves with the uninstall; a settings binding that refused to finalize
+// took the menu, the menu manager's signals and the tooltip's mainloop timers
+// with it. Each release is asked for on its own and every failure is named,
+// because a teardown whose whole point is that one failure must not strand the
+// rest cannot be a sequence that stops at the first.
+function releaseEach(logger, releases) {
+    let released = true;
+    for (const [subject, release] of releases) {
+        try {
+            release();
+        } catch (error) {
+            released = false;
+            logger?.warn(`could not release ${subject} at teardown: ${error}`);
+        }
+    }
+    return released;
+}
+
 class XpuWorkloadApplet extends Applet.TextIconApplet {
     constructor(metadata, orientation, panelHeight, instanceId, overrides = {}) {
         super(orientation, panelHeight, instanceId);
@@ -406,16 +431,28 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         if (this._destroyed) {
             return;
         }
+        // The source retires itself once the applet is gone. `_stopTimer` is
+        // what normally removes it, and a removal that failed — an id GLib had
+        // already retired, a mainloop that is going away — left a source
+        // calling into a destroyed applet once a second for the rest of the
+        // session, holding the applet and everything it points at reachable.
+        // Returning false is the one way a source can leave without being
+        // asked to.
         this._timer = Mainloop.timeout_add_seconds(refreshSeconds(this._refreshInterval), () => {
             this.refresh();
-            return true;
+            return !this._destroyed;
         });
     }
 
+    // Forgotten before it is removed: a `source_remove` that throws used to
+    // leave the id still recorded, so the applet went on believing it held a
+    // timer it had already stopped believing in — and a second stop tried the
+    // same failing removal again.
     _stopTimer() {
-        if (this._timer !== null) {
-            Mainloop.source_remove(this._timer);
-            this._timer = null;
+        const timer = this._timer;
+        this._timer = null;
+        if (timer !== null) {
+            Mainloop.source_remove(timer);
         }
     }
 
@@ -476,13 +513,20 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             return false;
         }
         this._destroyed = true;
-        this._stopTimer();
-        this._settingsPlacer.cancel();
-        this._releaseIconPath();
+        releaseEach(this._logger, [
+            ["the refresh timer", () => this._stopTimer()],
+            ["the settings-window placer", () => this._settingsPlacer.cancel()],
+            ["the icon search path", () => this._releaseIconPath()],
+            ["the settings binding", () => this._finalizeSettings()],
+            ["the presentation", () => this._releasePresentation()],
+        ]);
+        return true;
+    }
+
+    _finalizeSettings() {
         if (this.settings && typeof this.settings.finalize === "function") {
             this.settings.finalize();
         }
-        this._releasePresentation();
         return true;
     }
 
@@ -495,15 +539,11 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     // menu, and the popup items the menu owned are only reachable through the
     // pool this drops.
     _releasePresentation() {
-        if (this.menuManager && this.menu && typeof this.menuManager.removeMenu === "function") {
-            this.menuManager.removeMenu(this.menu);
-        }
-        if (this.menu && typeof this.menu.destroy === "function") {
-            this.menu.destroy();
-        }
-        if (this._tooltip && typeof this._tooltip.destroy === "function") {
-            this._tooltip.destroy();
-        }
+        releaseEach(this._logger, [
+            ["the menu from its manager", () => this._removeMenu()],
+            ["the popup menu", () => this._destroyMenu()],
+            ["the tooltip", () => this._destroyTooltip()],
+        ]);
         this.menu = null;
         this.menuManager = null;
         this._tooltip = null;
@@ -511,6 +551,27 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._drawnLines = [];
         this._drawnTooltip = null;
         this._drawnAccessibleName = null;
+        return true;
+    }
+
+    _removeMenu() {
+        if (this.menuManager && this.menu && typeof this.menuManager.removeMenu === "function") {
+            this.menuManager.removeMenu(this.menu);
+        }
+        return true;
+    }
+
+    _destroyMenu() {
+        if (this.menu && typeof this.menu.destroy === "function") {
+            this.menu.destroy();
+        }
+        return true;
+    }
+
+    _destroyTooltip() {
+        if (this._tooltip && typeof this._tooltip.destroy === "function") {
+            this._tooltip.destroy();
+        }
         return true;
     }
 }
