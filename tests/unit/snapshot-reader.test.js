@@ -184,7 +184,82 @@ test("the refusals a desk meets are named rather than quoted", () => {
     assert.equal(Reader.refusalFor({Gio: {IOErrorEnum: {NOT_FOUND: 1}}}, null), null);
     assert.deepEqual(
         Reader.READ_REFUSALS.map((refusal) => refusal.code),
-        ["NOT_FOUND", "PERMISSION_DENIED", "IS_DIRECTORY"],
+        ["NOT_FOUND", "PERMISSION_DENIED", "IS_DIRECTORY", "NOT_DIRECTORY", "TOO_MANY_LINKS"],
+    );
+});
+
+// The other half of a mistyped path, measured against real Gio before it was
+// named here: `~/…/state.json/state.json` answers G_IO_ERROR_NOT_DIRECTORY and
+// a self-referential link answers G_IO_ERROR_TOO_MANY_LINKS, both of which the
+// panel used to draw as "Gio.IOErrorEnum: Error opening file …" in the tooltip.
+test("a path that runs through a file, or loops, is named rather than quoted", () => {
+    const platform = (throws) => ({
+        GLib: {get_home_dir: () => "/home/tester"},
+        Gio: {
+            IOErrorEnum: {NOT_FOUND: 1, NOT_DIRECTORY: 20, TOO_MANY_LINKS: 41},
+            File: {new_for_path: () => ({load_contents() { throw throws; }})},
+        },
+        decode: (buffer) => String(buffer),
+    });
+    const gerror = (code) => Object.assign(new Error("platform text"), {
+        code,
+        matches: (domain, expected) => domain !== undefined && expected === code,
+    });
+
+    const throughFile = Reader.readSnapshot(platform(gerror(20)), "~/f/state.json", NOW);
+    assert.equal(throughFile.runtime, "unreadable");
+    assert.equal(
+        throughFile.detail,
+        "The runtime snapshot path leads through a file, not a directory",
+    );
+
+    const loop = Reader.readSnapshot(platform(gerror(41)), "~/loop", NOW);
+    assert.equal(loop.runtime, "unreadable");
+    assert.equal(loop.detail, "The runtime snapshot path is a loop of symbolic links");
+});
+
+// Gio resolves a relative path against Cinnamon's working directory, so a
+// setting that names no one place used to be looked for somewhere nobody chose
+// and reported as the runtime not running. Measured under real Gio: both of
+// these answered `absent`, with the popup naming the string that was typed.
+test("a path the panel cannot resolve is refused, not looked for", () => {
+    const platform = {
+        GLib: {get_home_dir: () => "/home/tester"},
+        Gio: {
+            IOErrorEnum: {NOT_FOUND: 1},
+            File: {new_for_path: () => {
+                throw new Error("no read should be attempted");
+            }},
+        },
+        decode: (buffer) => String(buffer),
+    };
+
+    for (const typed of ["state.json", ".local/state/state.json", "~", ""]) {
+        const state = Reader.readSnapshot(platform, typed, NOW);
+        assert.equal(state.runtime, "unreadable");
+        assert.equal(state.detail, Reader.UNRESOLVED_PATH_DETAIL);
+        // The popup names what was typed, which is the thing to correct.
+        assert.equal(state.source, typed);
+    }
+
+    // And the asynchronous path, which the panel actually uses, answers the
+    // same refusal without ever asking Gio for a file.
+    const delivered = [];
+    assert.equal(
+        Reader.readSnapshotAsync(platform, "state.json", () => NOW, (state) => {
+            delivered.push(state);
+        }),
+        false,
+    );
+    assert.equal(delivered.length, 1);
+    assert.equal(delivered[0].detail, Reader.UNRESOLVED_PATH_DETAIL);
+    assert.equal(delivered[0].source, "state.json");
+
+    // A home-relative path is still resolved, and is what a read is attempted
+    // on: the refusal is about paths that name no place, not about `~/`.
+    assert.deepEqual(
+        Reader.resolvePath(platform, "~/state.json"),
+        {target: "/home/tester/state.json", refusal: null},
     );
 });
 

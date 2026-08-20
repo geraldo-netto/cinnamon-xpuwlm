@@ -64,6 +64,31 @@ function expandHome(environment, filename) {
     return `${environment.GLib.get_home_dir()}/${filename.slice(2)}`;
 }
 
+// A path this panel can turn into one place on disk, or a refusal saying so.
+//
+// `expandHome` knows exactly one shape, and everything else used to go on to
+// `Gio.File.new_for_path` unchanged. Gio resolves a relative path against the
+// process's working directory — Cinnamon's, which is neither the person's
+// shell nor anywhere they can predict — so `state.json` and a bare `~` were
+// looked for somewhere nobody chose and drawn as "The runtime is not running",
+// with the popup naming the string that was typed rather than the file that
+// was opened. Measured under real Gio: both answer `absent`. A configuration
+// mistake wearing the costume of an absent service is exactly what the popup's
+// Snapshot line exists to prevent, so a path that names no one place is
+// refused as one rather than looked for in a place nobody meant.
+const UNRESOLVED_PATH_DETAIL = "The runtime snapshot path must start with / or ~/";
+
+function resolvePath(environment, filename) {
+    const target = expandHome(environment, filename);
+    if (typeof target === "string" && target.startsWith("/")) {
+        return {target, refusal: null};
+    }
+    return {
+        target: String(target),
+        refusal: failed("unreadable", UNRESOLVED_PATH_DETAIL),
+    };
+}
+
 function isRecord(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -252,9 +277,12 @@ function tooLargeFor(contents, ceiling) {
 // The refusals a desk actually meets, each answered with a sentence.
 //
 // Not-found is the ordinary one — the service is not running — and is reported
-// as absence rather than as a failure someone should act on. The other two are
-// the ones a person can fix and could not read: a state file owned by another
-// account, and a `runtime-state-path` that names a directory. Both used to be
+// as absence rather than as a failure someone should act on. The rest are the
+// ones a person can fix and could not read, and they are the same mistake seen
+// four ways: a state file owned by another account, and a `runtime-state-path`
+// that names a directory, that runs through a file — `…/state.json/state.json`,
+// an ordinary typo, measured as "Not a directory" — or that loops through a
+// symbolic link. Each of the four used to be
 // answered by interpolating the platform's own error into the tooltip, so the
 // panel said "Gio.IOErrorEnum: Error opening file /home/…/state.json:
 // Permission denied" where a sentence belongs. Anything else keeps the raw
@@ -269,6 +297,16 @@ const READ_REFUSALS = Object.freeze([
     {
         code: "IS_DIRECTORY",
         detail: "The runtime snapshot path names a directory, not a file",
+        runtime: "unreadable",
+    },
+    {
+        code: "NOT_DIRECTORY",
+        detail: "The runtime snapshot path leads through a file, not a directory",
+        runtime: "unreadable",
+    },
+    {
+        code: "TOO_MANY_LINKS",
+        detail: "The runtime snapshot path is a loop of symbolic links",
         runtime: "unreadable",
     },
 ]);
@@ -345,7 +383,10 @@ function readFrom(state, target) {
 }
 
 function readSnapshot(environment, filename, clock) {
-    const target = expandHome(environment, filename);
+    const {target, refusal} = resolvePath(environment, filename);
+    if (refusal !== null) {
+        return readFrom(refusal, target);
+    }
     try {
         const file = environment.Gio.File.new_for_path(target);
         const [ok, contents] = file.load_contents(null);
@@ -390,7 +431,12 @@ function readSnapshotAsync(environment, filename, clock, deliverState) {
     let file;
     const deliver = deliverOnce((state) => deliverState(readFrom(state, target)));
     try {
-        target = expandHome(environment, filename);
+        const resolved = resolvePath(environment, filename);
+        target = resolved.target;
+        if (resolved.refusal !== null) {
+            deliver(resolved.refusal);
+            return false;
+        }
         file = environment.Gio.File.new_for_path(target);
     } catch (error) {
         deliver(stateFromError(environment, error));
@@ -436,6 +482,7 @@ module.exports = {
     RUNTIME_STATE_PATH,
     SNAPSHOT_VERSION,
     STALE_AFTER_MS,
+    UNRESOLVED_PATH_DETAIL,
     expandHome,
     matchesCode,
     primaryDevice,
@@ -444,6 +491,7 @@ module.exports = {
     readSnapshotAsync,
     refusalFor,
     resolveNow,
+    resolvePath,
     stateFromContents,
     stateFromError,
     stateFromDocument,
