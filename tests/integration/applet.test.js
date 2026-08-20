@@ -906,6 +906,7 @@ test("a read that never answers is drawn rather than waited on in silence", () =
     const SnapshotReader = require(
         "../../files/cinnamon-xpuwlm@geraldo-netto/lib/snapshot-reader.js",
     );
+    const PanelStatus = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/panel-status.js");
     const {pending, environment} = deferredEnvironment(snapshotDocument());
     let clock = NOW;
     const applet = build({environment, now: () => clock});
@@ -928,6 +929,15 @@ test("a read that never answers is drawn rather than waited on in silence", () =
         "XPU Workload Manager — The runtime snapshot has not answered in 23 seconds",
     );
     assert.equal(pending.length, 1, "the read is still the mainloop's, and still the only one");
+    // And the popup names the file it is stuck on, resolved, like every other
+    // failure that got far enough to have one.
+    assert.deepEqual(
+        PanelStatus.popupLines(applet._state).find((line) => line.label === "Snapshot"),
+        {
+            label: "Snapshot",
+            value: "/home/tester/.local/state/xpu-workload-manager/state.json",
+        },
+    );
 
     // And the answer, if it ever comes, is still the one drawn — judged
     // against the clock of the turn it arrived in, which by now is 23 seconds

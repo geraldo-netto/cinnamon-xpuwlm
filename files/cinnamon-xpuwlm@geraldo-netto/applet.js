@@ -87,8 +87,12 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._timer = null;
         this._reading = false;
         // When the outstanding read was asked for, so a read that never
-        // answers can be told from one that has only just been started.
+        // answers can be told from one that has only just been started, and
+        // what it was asked for: a read that never answers is the one failure
+        // where naming the file matters most, and the applet is what holds the
+        // path while nothing comes back from the read that would carry it.
         this._readingSince = 0;
+        this._readingTarget = "";
         this._state = SnapshotReader.EMPTY_STATE;
         this._panelIconStatus = null;
         // What is on the actor, as opposed to what was last drawn: a panel
@@ -238,6 +242,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         const target = this._statePath();
         this._reading = true;
         this._readingSince = this._now();
+        this._readingTarget = target;
         // The clock, not a reading of it: the answer is judged for staleness
         // when its bytes arrive, which is not the turn that asked for them.
         SnapshotReader.readSnapshotAsync(
@@ -262,7 +267,14 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         if (waited <= SnapshotReader.STALE_AFTER_MS) {
             return false;
         }
-        this._state = SnapshotReader.unansweredRead(waited);
+        // Named the same way every other failure names its file: the reader
+        // resolves the path, so the popup shows the one a read was attempted
+        // on rather than a second, hand-expanded copy of it. A state built
+        // outside a read is the only one `readFrom` cannot reach on its own.
+        this._state = SnapshotReader.readFrom(
+            SnapshotReader.unansweredRead(waited),
+            SnapshotReader.resolvePath(this._environment, this._readingTarget).target,
+        );
         this._render();
         return true;
     }
