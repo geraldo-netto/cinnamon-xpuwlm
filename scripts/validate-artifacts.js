@@ -382,9 +382,25 @@ function validateSvgIcon(svg) {
     return true;
 }
 
+// The rules, without the prose around them. Both stylesheet gates used to read
+// the whole file: the balance check counted a brace written into a comment as
+// a rule that opened, and the status-colour check would have read a class name
+// mentioned in one as a rule that exists. The shipped sheet opens with an
+// eight-line comment, so this is one sentence away at any time.
+const CSS_COMMENT = /\/\*[\s\S]*?\*\//gu;
+
+function stylesheetDeclarations(css) {
+    return String(css).replace(CSS_COMMENT, "");
+}
+
 function validateStylesheet(css) {
-    assert.equal((css.match(/{/g) || []).length, (css.match(/}/g) || []).length);
-    assert.equal(css.includes("outline: none"), false);
+    const declarations = stylesheetDeclarations(css);
+    assert.equal(
+        (declarations.match(/\{/gu) || []).length,
+        (declarations.match(/\}/gu) || []).length,
+        "The stylesheet's rules do not balance",
+    );
+    assert.equal(declarations.includes("outline: none"), false);
     return true;
 }
 
@@ -420,7 +436,8 @@ function requiredIconNames(targetAppletRoot) {
 const PANEL_STATUS_CLASS = /\.xpuwlm-panel-([a-z][a-z-]*)\b/gu;
 
 function styledStatuses(css) {
-    const styled = [...String(css).matchAll(PANEL_STATUS_CLASS)].map((match) => match[1]);
+    const styled = [...stylesheetDeclarations(css).matchAll(PANEL_STATUS_CLASS)]
+        .map((match) => match[1]);
     return [...new Set(styled)].sort(compareText);
 }
 
@@ -500,6 +517,7 @@ module.exports = {
     requiredIconNames,
     readJson,
     styledStatuses,
+    stylesheetDeclarations,
     readWorkflow,
     validateArtifacts,
     validateJavaScriptSyntax,

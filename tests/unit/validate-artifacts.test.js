@@ -275,6 +275,20 @@ test("the applet's own UUID is held to the one the payload carries", (context) =
     );
 });
 
+// A brace or a class name in the sheet's own prose is not a rule. The shipped
+// sheet opens with an eight-line comment, so both gates read past it.
+test("the stylesheet gates read the rules and not the prose around them", () => {
+    assert.equal(
+        Artifacts.stylesheetDeclarations("/* { .xpuwlm-panel-ghost */\n.a { color: red; }\n"),
+        "\n.a { color: red; }\n",
+    );
+    assert.equal(Artifacts.validateStylesheet("/* } */\n.a { color: red; }\n"), true);
+    assert.deepEqual(Artifacts.styledStatuses("/* .xpuwlm-panel-ghost */\n.xpuwlm-panel-online {}"), [
+        "online",
+    ]);
+    assert.throws(() => Artifacts.validateStylesheet(".a { color: red;\n"), assert.AssertionError);
+});
+
 test("layout validation refuses a page, section or key that does not resolve", (context) => {
     const roots = copiedRepository(context);
     const settingsPath = path.join(roots.appletRoot, "settings-schema.json");
