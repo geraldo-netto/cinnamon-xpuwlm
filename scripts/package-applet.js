@@ -323,11 +323,47 @@ function auditExpected(root, expected) {
     return {missing, mismatched, worldWritable};
 }
 
+// The directories the payload's files are reached through, and the root they
+// all sit in. The manifest names files, because a checksum is of bytes; a
+// directory has none, and was therefore audited by nothing at all.
+//
+// Which left the file audit answering its own question for no file. Replacing
+// `applet.js` needs the write bit on the directory that names it, not on the
+// file — unlink and create, which is what an editor and a `cp` both do — so an
+// `applet.js` at 0644 inside a `lib/` anyone can write is a file anyone can
+// replace, and the audit called it "install verified". The mode is asked of
+// the directories in the same words it is asked of the files.
+function payloadDirectories(expected) {
+    return ["", ...memberDirectories([...expected.keys()])];
+}
+
+function directoryState(root, relativePath) {
+    let entry;
+    try {
+        entry = fs.lstatSync(path.join(root, relativePath));
+    } catch {
+        // A directory nobody can stat is every file under it reported missing
+        // already, which is the finding; a second one naming the directory
+        // would be the same fact twice.
+        return false;
+    }
+    return entry.isDirectory() && isWorldWritable(entry);
+}
+
+// Named as the install shows them, with the applet's own root as `.`: an empty
+// string in a report of paths reads as a report with a blank line in it.
+function permissiveDirectories(root, expected) {
+    return payloadDirectories(expected)
+        .filter((relativePath) => directoryState(root, relativePath))
+        .map((relativePath) => relativePath || ".");
+}
+
 // Compares an installed tree against the payload checksum manifest. Extra
 // files are reported: a clean install contains exactly the payload.
 function verifyInstall(root, checksums) {
     const expected = parseChecksums(checksums);
     const audited = auditExpected(root, expected);
+    audited.worldWritable.push(...permissiveDirectories(root, expected));
     const unexpected = fs.existsSync(root)
         ? installedFiles(root).filter((relativePath) => !expected.has(relativePath))
         : [];
@@ -528,6 +564,8 @@ module.exports = {
     distRoot,
     memberDirectories,
     octal,
+    payloadDirectories,
+    permissiveDirectories,
     parseChecksums,
     payloadFiles,
     payloadRoot,

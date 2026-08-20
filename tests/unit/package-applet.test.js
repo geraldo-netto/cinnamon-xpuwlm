@@ -286,6 +286,43 @@ test("install verification reports a payload file anyone can write", () => {
     fs.rmSync(installed, {recursive: true, force: true});
 });
 
+// A directory's mode is the other half of a file's, and the audit asked the
+// question of files only — so it answered it for none of them. Replacing
+// `applet.js` needs the write bit on the directory that names it, not on the
+// file: unlink and create, which is what an editor and a `cp` both do. An
+// `applet.js` at 0644 inside a `lib/` anyone can write is a file anyone can
+// replace, and this audit called that "install verified".
+test("install verification reports a payload directory anyone can write", () => {
+    const source = temporaryDirectory();
+    const installed = temporaryDirectory();
+    writeTree(source, {"applet.js": "code", "lib/b.txt": "beta"});
+    const checksums = Package.buildChecksums(source);
+    writeTree(installed, {"applet.js": "code", "lib/b.txt": "beta"});
+
+    fs.chmodSync(path.join(installed, "lib"), 0o777);
+    const report = Package.verifyInstall(installed, checksums);
+    assert.equal(report.ok, false);
+    assert.deepEqual(report.worldWritable, ["lib"]);
+    assert.deepEqual(report.mismatched, [], "every file is still the payload's");
+
+    // The applet's own root is a payload directory too, and the one an
+    // unwritable `lib/` does not protect: a new `applet.js` can be dropped
+    // beside the old one. Named `.`, because a report of paths with a blank
+    // line in it names nothing.
+    fs.chmodSync(path.join(installed, "lib"), 0o755);
+    fs.chmodSync(installed, 0o777);
+    assert.deepEqual(Package.verifyInstall(installed, checksums).worldWritable, ["."]);
+    fs.chmodSync(installed, 0o755);
+
+    // A directory nobody can stat is every file under it reported missing
+    // already; saying so twice is one finding wearing two names.
+    assert.deepEqual(Package.permissiveDirectories(installed, new Map([["gone/x", "0"]])), []);
+    assert.deepEqual(Package.payloadDirectories(new Map([["lib/b.txt", "0"]])), ["", "lib"]);
+
+    fs.rmSync(source, {recursive: true, force: true});
+    fs.rmSync(installed, {recursive: true, force: true});
+});
+
 // The staged tree's modes used to be whatever the working tree held, against
 // a promise that identical payload bytes produce identical staging trees.
 test("staging decides the modes it releases rather than inheriting them", () => {

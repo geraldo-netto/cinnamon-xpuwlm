@@ -54,11 +54,14 @@ payload in `files/cinnamon-xpuwlm@geraldo-netto/`:
   whatever umask the pack was run under.
 - `npm run package:verify -- <installed-root>` audits an installed applet
   directory against the payload checksums, reporting missing, mismatched,
-  world-writable, and unexpected files; `verify-absent <installed-root>` proves
-  a clean uninstall. Mode is audited because `applet.js` is executed by the
-  session at every login: a payload file anyone can write is a finding whatever
-  it hashes to. Group-writable is not — an umask-002 desktop installs 0664
-  under a user-private group.
+  world-writable, and unexpected entries; `verify-absent <installed-root>`
+  proves a clean uninstall. Mode is audited because `applet.js` is executed by
+  the session at every login: a payload entry anyone can write is a finding
+  whatever it hashes to. Directories are audited beside the files, the applet's
+  own root among them — replacing `applet.js` needs the write bit on the
+  directory that names it, not on the file, so a `lib/` anyone can write makes
+  the file's own mode beside the point. Group-writable is not a finding — an
+  umask-002 desktop installs 0664 under a user-private group.
 - `npm run package:spice` stages the Linux Mint Cinnamon Spices contribution
   at `dist/spices/cinnamon-xpuwlm@geraldo-netto/`: website `info.json`, a live
   applet `screenshot.png`, repository `README.md` and `LICENSE`, and exactly
@@ -85,10 +88,21 @@ enough to show it: an applet appears in a panel only when the
 entry has the form `panelN:side:position:uuid:instanceId`, where `side` is
 `left`, `center`, or `right` and `instanceId` is an integer unique across the
 list. Adding the applet through Cinnamon's own "Applets" tool writes this
-entry for you; by hand it is:
+entry for you; by hand it is the two steps below.
+
+Install from the staged release rather than from the working tree. `dist/` is
+what `npm run package` decides the modes of — 0644 for files, 0755 for
+directories — while the working tree carries whatever the checkout and the
+caller's umask left there, which on an umask-002 desk is 0664 and 0775; `cp`
+only ever removes bits, so copying the working tree hands those modes on to the
+installed applet and the session executes an `applet.js` inside a directory the
+owner's group can rewrite. It is also the tree the audit below describes: `dist/`
+holds exactly the production payload, and the working tree may hold JavaScript
+no release reaches.
 
 ```bash
-cp -r files/cinnamon-xpuwlm@geraldo-netto ~/.local/share/cinnamon/applets/
+npm run package
+cp -r dist/cinnamon-xpuwlm@geraldo-netto ~/.local/share/cinnamon/applets/
 
 gsettings get org.cinnamon enabled-applets
 # Append an entry for this applet while keeping every existing one, e.g.:
