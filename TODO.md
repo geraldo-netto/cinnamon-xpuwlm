@@ -21,6 +21,7 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
+| — | — | — | — | — | No open findings: the fifteenth scan ran the code instead of reading it. Its seven were fixed — a per-tick cost counted with instrumented doubles (seven text writes a second into St labels with no equality check, now none on an unchanged tick) and with `strace` under real Gio (1 `openat`, 2 `statx`, 7 `read`, 1 `close`, 0.065 ms), every refusal path exercised against real Gio until three of them stopped answering with platform text or with "the runtime is not running" for a path Cinnamon resolved somewhere nobody chose, the modes the packer inherited and the audit could not see, the one failure state that named no file, and two documents that hand-copied a sibling's file list and were already wrong about `document-translation`. Three lenses found nothing and are recorded as such: accessibility — every control the applet builds carries its name, because Cinnamon's `PopupMenuItem` and `PopupIconMenuItem` set `actor.label_actor` from their own label and the panel actor is given a role and a name; two instances on two panels — `metadata.json` declares `max-instances: 1`, so there is one; and the runtime contract — OmniTensor still publishes snapshot version 1 with the same five members the panel reads, and shipping `document-translation` changed nothing this repository reads. What is left below needs a decision, another repository, or hardware. |
 
 ## Blocked
 
