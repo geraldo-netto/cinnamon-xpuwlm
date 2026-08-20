@@ -76,6 +76,22 @@ function placer() {
 test("a placer needs the placement rules it is asked to apply", () => {
     assert.throws(() => Placer.createSettingsWindowPlacer(), TypeError);
     assert.throws(() => Placer.createSettingsWindowPlacer({placement: {}}), TypeError);
+    // Whole, like the mainloop and the display. `placeWindow` used to be the
+    // only member named, and the three below it are reached from inside a
+    // signal emission or while a source is being armed.
+    for (const missing of [
+        "isSettingsWindow",
+        "placeWindow",
+        "SETTINGS_WAIT_SECONDS",
+        "SETTLE_MS",
+    ]) {
+        const {[missing]: _absent, ...partial} = WindowPlacement;
+        assert.throws(
+            () => Placer.createSettingsWindowPlacer({placement: partial}),
+            TypeError,
+            `a placement port without ${missing} was accepted`,
+        );
+    }
 });
 
 test("a display that cannot be listened to is refused rather than half-armed", () => {

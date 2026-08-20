@@ -35,15 +35,26 @@ const MAINLOOP_PORT = Object.freeze([
     "timeout_add_seconds",
 ]);
 const DISPLAY_PORT = Object.freeze(["connect", "disconnect"]);
+// And the rules, for the same reason. `placeWindow` was the only member
+// checked, while `isSettingsWindow` is called from inside a `window-created`
+// emission and the two durations are read while sources are being armed — so
+// a port missing any of the other three refused nothing and threw where an
+// unchecked throw is hardest to attribute.
+const PLACEMENT_PORT = Object.freeze(["isSettingsWindow", "placeWindow"]);
+const PLACEMENT_DURATIONS = Object.freeze(["SETTINGS_WAIT_SECONDS", "SETTLE_MS"]);
 
 function provides(port, methods) {
     return Boolean(port) && methods.every((method) => typeof port[method] === "function");
 }
 
+function publishes(port, numbers) {
+    return numbers.every((name) => Number.isFinite(port[name]));
+}
+
 function createSettingsWindowPlacer(options = {}) {
     const logger = options.logger;
     const placement = options.placement;
-    if (!placement || typeof placement.placeWindow !== "function") {
+    if (!provides(placement, PLACEMENT_PORT) || !publishes(placement, PLACEMENT_DURATIONS)) {
         throw new TypeError("A settings-window placer needs the placement rules");
     }
     // Every id the placer armed and has not yet seen fire. A source that fires
