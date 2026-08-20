@@ -24,13 +24,23 @@ const MIN_PANEL_ICON_SIZE = 28;
 // draw an icon taller than the strip it sits in — through an inline
 // `icon-size` style, the one declaration the theme cannot outrank. The floor
 // raises a small icon; it never overflows a small panel.
+//
+// The default is bounded by the same height, and for the same reason. It is
+// this module's guess at a size nobody has asked for yet, made without seeing
+// the panel; a request is Cinnamon's, made by the one party that knows how
+// tall its own strip is, and is honoured whatever it is. So a 20-pixel panel
+// that has not yet reported a size is not handed 32 pixels of guess.
 function panelIconSize(requestedSize, panelHeight) {
+    const height = Number.isFinite(panelHeight) && panelHeight > 0
+        ? Math.floor(panelHeight)
+        : null;
+    const preferred = height === null
+        ? DEFAULT_PANEL_ICON_SIZE
+        : Math.min(DEFAULT_PANEL_ICON_SIZE, height);
     const requested = Number.isFinite(requestedSize) && requestedSize > 0
         ? Math.floor(requestedSize)
-        : DEFAULT_PANEL_ICON_SIZE;
-    const floor = Number.isFinite(panelHeight) && panelHeight > 0
-        ? Math.min(MIN_PANEL_ICON_SIZE, Math.floor(panelHeight))
-        : MIN_PANEL_ICON_SIZE;
+        : preferred;
+    const floor = height === null ? MIN_PANEL_ICON_SIZE : Math.min(MIN_PANEL_ICON_SIZE, height);
     return Math.max(floor, requested);
 }
 

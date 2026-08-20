@@ -92,7 +92,11 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         // height change forgets the second to force a redraw, and the class
         // still has to be taken off whatever it was applied for.
         this._panelIconClass = null;
-        this._iconSize = overrides.iconSize || PanelIcon.DEFAULT_PANEL_ICON_SIZE;
+        // No size until Cinnamon reports one. The default belongs to the icon
+        // module, which is where the panel's height can bound it: seeded here
+        // it was a number chosen without the panel, and a 20-pixel panel drew
+        // a 32-pixel glyph from construction until the first size change.
+        this._iconSize = overrides.iconSize || null;
         // Cinnamon's own Applet keeps `_panelHeight` current across a height
         // change; a harness whose base class does not is given the height this
         // applet was constructed with, which is the same number.
