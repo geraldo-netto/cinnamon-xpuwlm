@@ -105,15 +105,16 @@ function validatePayloadStructure({
     }
 }
 
+// Every JavaScript file the payload carries, at any depth, read off the tree.
+// This used to be two directory listings — the root and `lib/`, one level each
+// — while the packager ships via a recursive walk. A module one directory down
+// was therefore syntax-checked by nothing, control-character-checked by
+// nothing, loaded by no engine, and shipped to every desktop anyway. A walk
+// checks the files that exist; a listing checks the level someone had in mind.
 function productionJavaScriptFiles(targetAppletRoot) {
-    const rootModules = fs.readdirSync(targetAppletRoot)
-        .filter((name) => name.endsWith(".js"))
-        .map((name) => path.join(targetAppletRoot, name));
-    const libraryDirectory = path.join(targetAppletRoot, "lib");
-    const libraries = fs.readdirSync(libraryDirectory)
-        .filter((name) => name.endsWith(".js"))
-        .map((name) => path.join(libraryDirectory, name));
-    return [...rootModules, ...libraries];
+    return Package.payloadFiles(targetAppletRoot)
+        .filter((relativePath) => relativePath.endsWith(".js"))
+        .map((relativePath) => path.join(targetAppletRoot, relativePath));
 }
 
 // Four contracts used to be asserted by one function called "JSON
@@ -303,17 +304,24 @@ function validateRepositoryScripts({repositoryRoot: targetRepositoryRoot}) {
     }
     assert.equal(packageJson.scripts["test:contract"], "node --test tests/contract/*.test.js");
     assert.equal(packageJson.scripts["test:visual"], "node --test tests/visual/*.test.js");
-    // Named, not spelled out: the interpreter is overridable and the payload
-    // globs move with the payload. What must not change is that the smoke is
-    // handed the applet *and* every module beside it, because a file the
-    // command does not name is a file no engine ever loads.
-    for (const fragment of ["tests/cjs/production-smoke.js", "/applet.js", "/lib/*.js"]) {
+    // The smoke is handed the payload root and descends it. It used to be
+    // handed `applet.js` and `lib/*.js` — one level of a tree the packager
+    // walks — so a module one directory down was named by no glob and compiled
+    // by no engine. A glob here is the finding, not an implementation detail:
+    // it means the command is naming a level again.
+    const cjsCommand = packageJson.scripts["test:cjs"];
+    for (const fragment of ["tests/cjs/production-smoke.js", `files/${UUID}`]) {
         assert.equal(
-            packageJson.scripts["test:cjs"].includes(fragment),
+            cjsCommand.includes(fragment),
             true,
             `The CJS smoke command no longer names ${fragment}`,
         );
     }
+    assert.equal(
+        cjsCommand.includes("*"),
+        false,
+        "The CJS smoke command globs a directory level instead of naming the payload root",
+    );
     assert.equal(packageJson.scripts["test:local"], "XPUWLM_SKIP_HOST_GATES=1 npm test");
     return true;
 }
@@ -407,12 +415,29 @@ function validateSourceControls(source, filename) {
     return true;
 }
 
+// The host modules the payload must never reach for, asked of the module's
+// own require edges rather than of its text. The rule used to be one regular
+// expression naming three modules in one spelling: `require("node:fs")` was
+// refused and `require( "node:fs" )` was not, and any module beyond those three
+// was never named at all. The packaging script already resolves every static
+// require in the payload and refuses a dynamic one, so the rule is asked of
+// that resolution: nothing outside the applet, however it is spelled.
+//
+// `Buffer` is an ESLint rule now (`no-restricted-globals` over `files/**`),
+// where it reads an identifier reference instead of a word: `\bBuffer\b`
+// matched the word in a comment and missed nothing else.
 function validateJavaScriptSyntax({appletRoot: targetAppletRoot}) {
     for (const filename of productionJavaScriptFiles(targetAppletRoot)) {
         childProcess.execFileSync(process.execPath, ["--check", filename], {stdio: "pipe"});
         const source = fs.readFileSync(filename, "utf8");
-        assert.equal(/require\(["'](?:node:)?(?:fs|child_process|path)["']\)/.test(source), false);
-        assert.equal(/\bBuffer\b/.test(source), false);
+        const relativePath = path.relative(targetAppletRoot, filename).split(path.sep).join("/");
+        for (const request of Package.sourceRequires(source, relativePath)) {
+            assert.equal(
+                request.startsWith("./") || request.startsWith("../"),
+                true,
+                `${relativePath} reaches outside the applet: ${request}`,
+            );
+        }
         validateSourceControls(source, filename);
     }
 }

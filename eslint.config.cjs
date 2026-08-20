@@ -48,4 +48,19 @@ module.exports = [
             "complexity": ["error", {"max": 8}],
         },
     },
+    {
+        // The payload runs under Cinnamon's engine, which has no Node globals.
+        // Asked here rather than by the artifact validator's `\bBuffer\b`
+        // search, because a rule that reads identifier references sees a real
+        // use and ignores the word in a comment or a string — and because
+        // ESLint walks `files/**` to any depth, so a module one directory down
+        // is held to it the day it lands.
+        files: ["files/**/*.js"],
+        rules: {
+            "no-restricted-globals": ["error", {
+                "name": "Buffer",
+                "message": "Cinnamon's engine has no Buffer; use ByteArray or GLib.",
+            }],
+        },
+    },
 ];

@@ -5,9 +5,40 @@
 const ByteArray = imports.byteArray;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
-const sourceFiles = imports.system.programArgs.map((filename) => (
-    GLib.canonicalize_filename(filename, GLib.get_current_dir())
-));
+// The payload's JavaScript, walked rather than globbed.
+//
+// The command used to hand this script `applet.js` and `lib/*.js`: one level,
+// while the packager ships via a recursive walk. A module one directory down
+// was named by no glob, so no engine ever compiled it and it shipped anyway.
+// A directory argument is descended instead, so what this smoke loads is what
+// the release contains.
+function collectSources(pathname) {
+    const file = Gio.File.new_for_path(pathname);
+    const type = file.query_file_type(Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null);
+    if (type !== Gio.FileType.DIRECTORY) {
+        return pathname.endsWith(".js") ? [pathname] : [];
+    }
+    const found = [];
+    const children = file.enumerate_children(
+        "standard::name,standard::type",
+        Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS,
+        null,
+    );
+    for (;;) {
+        const info = children.next_file(null);
+        if (info === null) {
+            break;
+        }
+        found.push(...collectSources(GLib.build_filenamev([pathname, info.get_name()])));
+    }
+    children.close(null);
+    return found;
+}
+
+const sourceFiles = imports.system.programArgs
+    .map((filename) => GLib.canonicalize_filename(filename, GLib.get_current_dir()))
+    .reduce((all, pathname) => all.concat(collectSources(pathname)), [])
+    .sort();
 const sourceSet = new Set(sourceFiles);
 const modules = Object.create(null);
 

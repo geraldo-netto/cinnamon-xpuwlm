@@ -464,3 +464,55 @@ test("a shipped stylesheet missing a status colour fails the artifact gate", (co
     fs.writeFileSync(stylesheet, shipped);
     assert.equal(Artifacts.validateStaticAssets(roots), undefined);
 });
+
+// The hole this pair closes: `lib/` was listed one level deep while the
+// packager ships via a recursive walk, so a module one directory down was
+// syntax-checked by nothing and shipped regardless.
+test("a payload module one directory down is checked like every other", (context) => {
+    const roots = copiedRepository(context);
+    writeTree(roots.appletRoot, {
+        "lib/nested/leak.js": `module.exports = {bel: "${String.fromCharCode(7)}"};\n`,
+    });
+
+    assert.equal(
+        Artifacts.productionJavaScriptFiles(roots.appletRoot)
+            .map((filename) => path.relative(roots.appletRoot, filename).split(path.sep).join("/"))
+            .includes("lib/nested/leak.js"),
+        true,
+    );
+    assert.throws(
+        () => Artifacts.validateJavaScriptSyntax(roots),
+        /lib\/nested\/leak\.js:1 carries a control character/u,
+    );
+});
+
+// And the host-module ban, asked of the resolved require edges: the regular
+// expression it replaces refused `require("node:fs")` and accepted the same
+// call with a space inside the parentheses.
+test("a payload module reaching outside the applet fails however it is spelled", (context) => {
+    const roots = copiedRepository(context);
+    writeTree(roots.appletRoot, {
+        "lib/nested/host.js": "const fs = require( \"node:fs\" );\nmodule.exports = {fs};\n",
+    });
+
+    assert.throws(
+        () => Artifacts.validateJavaScriptSyntax(roots),
+        /lib\/nested\/host\.js reaches outside the applet: node:fs/u,
+    );
+});
+
+test("the CJS smoke command must name the payload root, never a directory level", (context) => {
+    const roots = copiedRepository(context);
+    const packageJsonPath = path.join(roots.repositoryRoot, "package.json");
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+    assert.equal(Artifacts.validateRepositoryScripts(roots), true);
+
+    packageJson.scripts["test:cjs"]
+        = `"\${XPUWLM_CJS:-cjs}" tests/cjs/production-smoke.js files/${UUID}/applet.js `
+        + `files/${UUID}/lib/*.js`;
+    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson));
+    assert.throws(
+        () => Artifacts.validateRepositoryScripts(roots),
+        /globs a directory level/u,
+    );
+});
