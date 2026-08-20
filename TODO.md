@@ -21,8 +21,6 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0264 | open | low | xs | XTPU-0265 | Staging copies the packer's umask into the release. `stagePayload` copies with `fs.copyFileSync`, which carries the source mode, so `dist/cinnamon-xpuwlm@geraldo-netto/` and the Spice tree under `dist/spices/` get whatever the working tree happens to hold — 0664 here, group-writable, on an umask-002 desk — while `buildArchive` hard-codes 0644 for files and 0755 for directories in every ustar header. `docs/deployment.md` promises "identical payload bytes always produce identical staging trees, manifests, and archives": true of the bytes and the archive, false of the staged tree, whose modes depend on who ran the pack. The archive already knows what a payload file's mode is; the staging step should agree with it. |
-| XTPU-0265 | open | low | xs | XTPU-0264 | The install audit cannot see a world-writable payload file. `verifyInstall` compares each entry's SHA-256 and lists extras, so an installed `applet.js` left mode 0777 — by a bad `cp`, an unpacking tool, or anyone with write access to the directory — is reported as `install verified`, and that file is executed by the session at every login. The audit exists to be run on an installed tree offline, which is exactly where mode is part of what is being audited. World-writable only: an umask-002 desktop installs 0664 under a user-private group, and calling that a finding would make the audit noise. |
 
 ## Blocked
 

@@ -28,7 +28,9 @@ test("staging, checksums, install and uninstall verification round-trip", () => 
 
     // The staged tree is the payload: byte-identical files, nothing extra.
     const installReport = Package.verifyInstall(stagedRoot, checksums);
-    assert.deepEqual(installReport, {ok: true, missing: [], mismatched: [], unexpected: []});
+    assert.deepEqual(installReport, {
+        ok: true, missing: [], mismatched: [], worldWritable: [], unexpected: [],
+    });
     // Everything the helper needs ships, and the shim that Cinnamon's nested
     // resolution requires ships beside it. A module nothing requires does not
     // exist here any more, which is what keeps staging honest.

@@ -49,11 +49,16 @@ payload in `files/cinnamon-xpuwlm@geraldo-netto/`:
 - `npm run package` stages the payload into `dist/`, writes a
   `sha256sum --check` compatible `SHA256SUMS` manifest, and builds a
   byte-reproducible ustar archive (sorted members, fixed timestamp, zero
-  ownership) with its own recorded SHA-256.
+  ownership) with its own recorded SHA-256. The staged tree carries the same
+  modes the archive does — 0644 for files, 0755 for directories — rather than
+  whatever umask the pack was run under.
 - `npm run package:verify -- <installed-root>` audits an installed applet
   directory against the payload checksums, reporting missing, mismatched,
-  and unexpected files; `verify-absent <installed-root>` proves a clean
-  uninstall.
+  world-writable, and unexpected files; `verify-absent <installed-root>` proves
+  a clean uninstall. Mode is audited because `applet.js` is executed by the
+  session at every login: a payload file anyone can write is a finding whatever
+  it hashes to. Group-writable is not — an umask-002 desktop installs 0664
+  under a user-private group.
 - `npm run package:spice` stages the Linux Mint Cinnamon Spices contribution
   at `dist/spices/cinnamon-xpuwlm@geraldo-netto/`: website `info.json`, a live
   applet `screenshot.png`, repository `README.md` and `LICENSE`, and exactly
@@ -68,7 +73,8 @@ image was cropped to exclude unrelated desktop content and is not a prototype
 render.
 
 Identical payload bytes always produce identical staging trees, manifests,
-and archives, so releases can be rebuilt and audited offline.
+and archives — contents and modes alike — so releases can be rebuilt and
+audited offline.
 
 ## Installing the applet
 

@@ -237,7 +237,7 @@ test("install verification reports missing, mismatched, and unexpected files", (
     const checksums = Package.buildChecksums(source);
     writeTree(installed, {"a.txt": "alpha", "lib/b.txt": "beta"});
     assert.deepEqual(Package.verifyInstall(installed, checksums), {
-        ok: true, missing: [], mismatched: [], unexpected: [],
+        ok: true, missing: [], mismatched: [], worldWritable: [], unexpected: [],
     });
 
     writeTree(installed, {"a.txt": "tampered", "extra.txt": "extra"});
@@ -254,6 +254,62 @@ test("install verification reports missing, mismatched, and unexpected files", (
     assert.deepEqual(absent.unexpected, []);
     fs.rmSync(source, {recursive: true, force: true});
     fs.rmSync(installed, {recursive: true, force: true});
+});
+
+// The bytes are half of what an installed tree promises. `applet.js` is
+// executed by the session at every login, so a copy anyone can write is a
+// finding whatever it hashes to today — and one the audit used to call
+// "install verified".
+test("install verification reports a payload file anyone can write", () => {
+    const source = temporaryDirectory();
+    const installed = temporaryDirectory();
+    writeTree(source, {"applet.js": "code", "lib/b.txt": "beta"});
+    const checksums = Package.buildChecksums(source);
+    writeTree(installed, {"applet.js": "code", "lib/b.txt": "beta"});
+
+    fs.chmodSync(path.join(installed, "applet.js"), 0o777);
+    const report = Package.verifyInstall(installed, checksums);
+    assert.equal(report.ok, false);
+    assert.deepEqual(report.worldWritable, ["applet.js"]);
+    assert.deepEqual(report.mismatched, [], "the bytes are still the payload's");
+    const lines = [];
+    assert.equal(Package.commandVerify(installed, (line) => lines.push(line)), 1);
+    assert.equal(lines.some((line) => line.includes("worldWritable: applet.js")), true);
+
+    // Group-writable is not: an umask-002 desktop installs 0664 under a
+    // user-private group, and calling that a finding would make the audit
+    // noise nobody reads.
+    fs.chmodSync(path.join(installed, "applet.js"), 0o664);
+    assert.equal(Package.verifyInstall(installed, checksums).ok, true);
+
+    fs.rmSync(source, {recursive: true, force: true});
+    fs.rmSync(installed, {recursive: true, force: true});
+});
+
+// The staged tree's modes used to be whatever the working tree held, against
+// a promise that identical payload bytes produce identical staging trees.
+test("staging decides the modes it releases rather than inheriting them", () => {
+    const source = temporaryDirectory();
+    const target = temporaryDirectory();
+    writeTree(source, {"applet.js": "code", "lib/b.txt": "beta"});
+    fs.chmodSync(path.join(source, "applet.js"), 0o666);
+    fs.chmodSync(path.join(source, "lib/b.txt"), 0o600);
+
+    Package.stagePayload(source, target);
+
+    for (const relativePath of ["applet.js", "lib/b.txt"]) {
+        assert.equal(
+            fs.statSync(path.join(target, relativePath)).mode & 0o777,
+            Package.PAYLOAD_FILE_MODE,
+            relativePath,
+        );
+    }
+    assert.equal(
+        fs.statSync(path.join(target, "lib")).mode & 0o777,
+        Package.PAYLOAD_DIRECTORY_MODE,
+    );
+    fs.rmSync(source, {recursive: true, force: true});
+    fs.rmSync(target, {recursive: true, force: true});
 });
 
 test("uninstall verification requires the directory to be gone", () => {

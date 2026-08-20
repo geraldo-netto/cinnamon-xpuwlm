@@ -23,6 +23,14 @@ const MIN_SCREENSHOT_DIMENSION = 400;
 // Fixed archive timestamp (2000-01-01T00:00:00Z): determinism without the
 // tool-compatibility problems of a zero mtime.
 const ARCHIVE_MTIME = 946684800;
+// What a payload entry's mode is, said once for every tree this script makes.
+// The archive hard-coded these two numbers while staging copied whatever the
+// working tree happened to hold — 0664 on an umask-002 desk — so the same
+// payload bytes produced a staged tree whose modes depended on who ran the
+// pack, against a promise of trees that are identical. A mode is part of what
+// is released, so it is decided here rather than inherited.
+const PAYLOAD_FILE_MODE = 0o644;
+const PAYLOAD_DIRECTORY_MODE = 0o755;
 const BLOCK_SIZE = 512;
 const REQUIRE_START = /\brequire\s*\(/gu;
 const STATIC_REQUIRE = /\brequire\s*\(\s*("(?:[^"\\]|\\.)*")\s*\)/gu;
@@ -191,8 +199,11 @@ function stagePayload(sourceRoot, targetRoot, files = payloadFiles(sourceRoot)) 
     const staged = [...files].sort(compareText);
     for (const relativePath of staged) {
         const target = path.join(targetRoot, relativePath);
-        fs.mkdirSync(path.dirname(target), {recursive: true});
+        fs.mkdirSync(path.dirname(target), {recursive: true, mode: PAYLOAD_DIRECTORY_MODE});
         fs.copyFileSync(path.join(sourceRoot, relativePath), target);
+        // `copyFileSync` carries the source mode, and the source is a working
+        // tree rather than a release.
+        fs.chmodSync(target, PAYLOAD_FILE_MODE);
     }
     return staged;
 }
@@ -243,9 +254,11 @@ function stageSpiceRelease(
 ) {
     const {metadataFiles} = inspectSpiceSources(projectRoot, appletRoot);
     fs.rmSync(targetRoot, {recursive: true, force: true});
-    fs.mkdirSync(targetRoot, {recursive: true});
+    fs.mkdirSync(targetRoot, {recursive: true, mode: PAYLOAD_DIRECTORY_MODE});
     for (const [relativePath, filename] of metadataFiles) {
-        fs.copyFileSync(filename, path.join(targetRoot, relativePath));
+        const target = path.join(targetRoot, relativePath);
+        fs.copyFileSync(filename, target);
+        fs.chmodSync(target, PAYLOAD_FILE_MODE);
     }
     stagePayload(appletRoot, path.join(targetRoot, "files", UUID), files);
     return payloadFiles(targetRoot);
@@ -264,41 +277,64 @@ function installedFiles(root) {
 // Never through a symlink: `existsSync` and `readFileSync` follow one, so a
 // payload file replaced by a link to an identical file elsewhere verified
 // clean. What the manifest promises is the file itself.
+//
+// The mode is inspected beside the bytes because the bytes are only half of
+// what an installed tree promises: `applet.js` is executed by the session at
+// every login, and a copy anyone can write is a finding whatever it hashes to
+// today. World-writable only — an umask-002 desktop installs 0664 under a
+// user-private group, and calling that a finding would make the audit noise.
+function isWorldWritable(entry) {
+    return (entry.mode & 0o002) !== 0;
+}
+
 function installedState(root, relativePath, hash) {
     let entry;
     try {
         entry = fs.lstatSync(path.join(root, relativePath));
     } catch {
-        return "missing";
+        return {state: "missing", worldWritable: false};
     }
     if (!entry.isFile()) {
-        return "mismatched";
+        return {state: "mismatched", worldWritable: false};
     }
-    return sha256Hex(fs.readFileSync(path.join(root, relativePath))) === hash ? "ok" : "mismatched";
+    const bytes = fs.readFileSync(path.join(root, relativePath));
+    return {
+        state: sha256Hex(bytes) === hash ? "ok" : "mismatched",
+        worldWritable: isWorldWritable(entry),
+    };
+}
+
+// Every entry the manifest promises, sorted into the buckets the report names.
+// An entry can land in two of them at once — a file that is both replaced and
+// left world-writable is both findings — so the mode is asked separately from
+// the bytes rather than as one more state.
+function auditExpected(root, expected) {
+    const missing = [];
+    const mismatched = [];
+    const worldWritable = [];
+    const buckets = {missing, mismatched};
+    for (const [relativePath, hash] of expected) {
+        const found = installedState(root, relativePath, hash);
+        buckets[found.state]?.push(relativePath);
+        if (found.worldWritable) {
+            worldWritable.push(relativePath);
+        }
+    }
+    return {missing, mismatched, worldWritable};
 }
 
 // Compares an installed tree against the payload checksum manifest. Extra
 // files are reported: a clean install contains exactly the payload.
 function verifyInstall(root, checksums) {
     const expected = parseChecksums(checksums);
-    const missing = [];
-    const mismatched = [];
-    for (const [relativePath, hash] of expected) {
-        const state = installedState(root, relativePath, hash);
-        if (state === "missing") {
-            missing.push(relativePath);
-        } else if (state === "mismatched") {
-            mismatched.push(relativePath);
-        }
-    }
+    const audited = auditExpected(root, expected);
     const unexpected = fs.existsSync(root)
         ? installedFiles(root).filter((relativePath) => !expected.has(relativePath))
         : [];
+    const report = {...audited, unexpected};
     return {
-        ok: missing.length === 0 && mismatched.length === 0 && unexpected.length === 0,
-        missing,
-        mismatched,
-        unexpected,
+        ok: Object.values(report).every((entries) => entries.length === 0),
+        ...report,
     };
 }
 
@@ -331,7 +367,10 @@ function tarHeader(name, size, typeflag) {
     }
     const header = Buffer.alloc(BLOCK_SIZE);
     header.write(name, 0, 100, "utf8");
-    header.write(typeflag === "5" ? octal(0o755, 8) : octal(0o644, 8), 100);
+    header.write(
+        octal(typeflag === "5" ? PAYLOAD_DIRECTORY_MODE : PAYLOAD_FILE_MODE, 8),
+        100,
+    );
     header.write(octal(0, 8), 108);
     header.write(octal(0, 8), 116);
     header.write(octal(size, 12), 124);
@@ -472,9 +511,12 @@ module.exports = {
     ARCHIVE_MTIME,
     BLOCK_SIZE,
     MIN_SCREENSHOT_DIMENSION,
+    PAYLOAD_DIRECTORY_MODE,
+    PAYLOAD_FILE_MODE,
     SPICE_METADATA_FILES,
     UUID,
     appletPayloadFiles,
+    auditExpected,
     buildArchive,
     buildChecksums,
     commandPack,
@@ -495,6 +537,7 @@ module.exports = {
     inspectSpiceSources,
     installedFiles,
     installedState,
+    isWorldWritable,
     regularEntry,
     regularFile,
     runCommand,
