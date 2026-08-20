@@ -65,7 +65,7 @@ This document is application-neutral. It explains the hardware and software boun
   - The reference design, the mockups, the execution model and the use-case notes
     live with the client that implements them, in `../xpuwlm/design` and
     `../xpuwlm/docs`: they described that client rather than this applet
-  - Workload guides — event extraction, ask-selected-files, selected-text tools, file organizer and media transcription are documented with the runtime that implements them, in `../omnitensor/docs/`
+  - Workload guides — one per workload, documented with the runtime that implements them, in `../omnitensor/docs/`. The set is the runtime's and changes with it, so it is not copied here
 - [Hardware and software setup](docs/setup.md)
   - [Hardware integration](docs/setup.md#hardware-integration)
   - [Software setup](docs/setup.md#software-setup)

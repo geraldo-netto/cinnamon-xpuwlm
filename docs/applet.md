@@ -153,4 +153,4 @@ visual icon gate. Two contract gates keep the tree from growing back:
 | Workload screens, workflow forms, policy controls | `../../xpuwlm` (Python client) |
 | Snapshot, control, job, and manifest contracts | `../../omnitensor/schemas` |
 | Workload manifests and plug-in authoring | `../../omnitensor` (`docs/extension-guide.md`) |
-| Ask-selected-files, selected-text, file organizer, event extraction, media transcription | `../../omnitensor/docs` |
+| The guide for any one workload | `../../omnitensor/docs` (one document per workload, listed by the runtime that ships them) |
