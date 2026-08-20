@@ -80,6 +80,27 @@ test("a placer needs the placement rules it is asked to apply", () => {
 
 test("a display that cannot be listened to is refused rather than half-armed", () => {
     assert.equal(placer().awaitWindow(null, recordingMainloop()), false);
+    // Not just the signal it connects: teardown disconnects, and a display
+    // that cannot be disconnected from is the same leak arriving later.
+    const {disconnect: _unused, ...deaf} = display();
+    assert.equal(placer().awaitWindow(deaf, recordingMainloop()), false);
+});
+
+// Regression: the guard used to name `timeout_add_seconds` alone, which is the
+// method `awaitWindow` itself calls. `idle_add` is reached from inside the
+// `window-created` emission and `timeout_add` from the settle that follows it,
+// so a mainloop carrying only the checked method passed, the handler went onto
+// the session's display, and the throw arrived from inside a signal — the
+// exact leak this refusal exists to prevent, only harder to attribute.
+test("a mainloop missing a method used later is refused before anything connects", () => {
+    for (const absent of ["idle_add", "source_remove", "timeout_add", "timeout_add_seconds"]) {
+        const desktop = display();
+        const mainloop = recordingMainloop();
+        delete mainloop[absent];
+
+        assert.equal(placer().awaitWindow(desktop, mainloop), false, absent);
+        assert.equal(desktop.handlers.size, 0, absent);
+    }
 });
 
 // The mainloop is reached one statement after the display handler is

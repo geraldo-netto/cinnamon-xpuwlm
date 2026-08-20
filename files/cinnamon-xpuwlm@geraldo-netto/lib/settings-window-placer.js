@@ -21,6 +21,25 @@
 // imports another needs a root shim shipped beside it. The applet already
 // holds both, and handing the rules in keeps the payload one file smaller.
 
+// Every mainloop method this placer calls, and the display's. Named as a set
+// rather than checked one at a time: the refusal below exists so a caller
+// without a working mainloop cannot leave a handler on the session's display,
+// and a guard that names one of the four methods only prevents the failures
+// that happen to arrive through that one. The other three are reached from
+// inside a signal emission or from teardown, which is where an unchecked
+// throw is hardest to attribute and does the most damage.
+const MAINLOOP_PORT = Object.freeze([
+    "idle_add",
+    "source_remove",
+    "timeout_add",
+    "timeout_add_seconds",
+]);
+const DISPLAY_PORT = Object.freeze(["connect", "disconnect"]);
+
+function provides(port, methods) {
+    return Boolean(port) && methods.every((method) => typeof port[method] === "function");
+}
+
 function createSettingsWindowPlacer(options = {}) {
     const logger = options.logger;
     const placement = options.placement;
@@ -56,8 +75,11 @@ function createSettingsWindowPlacer(options = {}) {
         return source.id;
     }
 
+    // No capability check here or in `cancel`: the ports were taken whole or
+    // refused whole in `awaitWindow`, and `display` and `mainloop` are set
+    // nowhere else. Re-asking would be a second, weaker copy of that rule.
     function stopListening() {
-        if (displayHandler && display && typeof display.disconnect === "function") {
+        if (displayHandler && display) {
             display.disconnect(displayHandler);
         }
         displayHandler = 0;
@@ -126,7 +148,7 @@ function createSettingsWindowPlacer(options = {}) {
     function cancel() {
         stopListening();
         releaseWindow();
-        if (mainloop && typeof mainloop.source_remove === "function") {
+        if (mainloop) {
             for (const id of sources) {
                 mainloop.source_remove(id);
             }
@@ -143,17 +165,16 @@ function createSettingsWindowPlacer(options = {}) {
         // never appears must not leave a handler listening for the life of the
         // session.
         awaitWindow(targetDisplay, targetMainloop) {
-            // Both ports, before either is used. Only the display used to be
-            // checked, and the mainloop is reached one statement after the
-            // `window-created` handler is connected — so a caller without one
-            // threw with the handler already on the session's display and its
-            // id not yet recorded anywhere, leaving a handler nothing could
+            // Both ports whole, before either is used. Only the display used
+            // to be checked, and the mainloop is reached one statement after
+            // the `window-created` handler is connected — so a caller without
+            // one threw with the handler already on the session's display and
+            // its id not yet recorded anywhere, leaving a handler nothing could
             // ever take off. That is the exact leak this module exists to
-            // prevent, so it refuses before it connects.
-            if (!targetDisplay || typeof targetDisplay.connect !== "function") {
-                return false;
-            }
-            if (!targetMainloop || typeof targetMainloop.timeout_add_seconds !== "function") {
+            // prevent, so it refuses before it connects — and it asks for every
+            // method it will call, not just the first one it reaches.
+            if (!provides(targetDisplay, DISPLAY_PORT)
+                    || !provides(targetMainloop, MAINLOOP_PORT)) {
                 return false;
             }
             cancel();
