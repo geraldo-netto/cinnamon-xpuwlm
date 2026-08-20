@@ -21,6 +21,7 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
+| — | — | — | — | — | No open findings: the fourteenth scan stopped asking how the code is shaped and asked what the panel says when the file it reads misbehaves. Its seven were fixed — a mismatch report that named no mismatch, a document missing every figure drawn as an idle desk, a raw platform error where a sentence belongs, a read that never answered freezing the panel on its last picture, a README fallback that never existed and a gate pinning it there, a popup that never named the file it failed on, and a contract gate reading a sibling's layout instead of its number. Each was proved by the state it produced, not by the shape of the code that produced it. What is left below needs a decision, another repository, or hardware. |
 
 ## Blocked
 
