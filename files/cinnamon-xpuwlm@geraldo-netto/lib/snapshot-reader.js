@@ -24,12 +24,18 @@
 // tell apart from a real one.
 const MAX_SNAPSHOT_BYTES = null;
 // Measured against the heartbeat, not against the busy cadence: the service
-// publishes every two seconds under load, backs off to ten when idle, and
-// emits a proof-of-life heartbeat every ten seconds, so an idle desk that is
-// perfectly healthy can be five seconds old at any moment. Fifteen seconds is
-// one and a half heartbeats — long enough that a working runtime is never
-// reported stale, short enough that a stopped one is named quickly. Shortening
-// it towards the two-second figure would report every idle desk as stale.
+// publishes every two seconds under load and backs off to ten when idle, so a
+// perfectly healthy idle desk can be a full ten seconds old at any moment.
+// Measured on the live desk rather than reasoned from the service's constants:
+// consecutive `generatedAt` values ten seconds and eighteen milliseconds apart,
+// and a snapshot read at just under nine seconds old with the runtime serving
+// two GPUs. Fifteen seconds is one and a half of those intervals — long enough
+// that a working runtime is never reported stale, short enough that a stopped
+// one is named quickly. Shortening it towards the two-second figure would
+// report every idle desk as stale.
+//
+// What the margin therefore is: five seconds, not the ten the arithmetic used
+// to claim by halving the idle interval. XTPU-0273 asks whether five is enough.
 const STALE_AFTER_MS = 15000;
 // The one contract number the panel does check. The canonical schema pins
 // `version` to 1, and the deployment order is reader before writer, so a

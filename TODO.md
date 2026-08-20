@@ -21,7 +21,6 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0271 | open | low | xs | XTPU-0273 | `STALE_AFTER_MS` is justified by arithmetic the live desk contradicts. The comment in `lib/snapshot-reader.js` says the service's ten-second idle back-off leaves a healthy idle desk "five seconds old at any moment", which halves an interval that is not halved: an idle desk is up to a full ten seconds old. Measured beside the running service rather than reasoned from its constants — consecutive `generatedAt` values 10,018 ms apart, and a snapshot read at 8,996 ms old with the runtime serving two GPUs and nothing queued. The number itself is unchanged; what was wrong is the premise the number is defended by, and the margin it implies is five seconds rather than ten. |
 
 ## Blocked
 
