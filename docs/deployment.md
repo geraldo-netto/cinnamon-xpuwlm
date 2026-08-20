@@ -115,6 +115,20 @@ says which half is behind instead of showing an idle desk. After installing,
 open the popup — a `Runtime: Runtime malformed` line with that detail is the
 version check reporting, not a broken service.
 
+That is the panel reporting after the fact. The install itself is checked by
+`xpuwlm verify`, which the Python client provides (`../xpuwlm/docs/install.md`):
+it asks all three pieces which snapshot version they speak and prints a row for
+each, exiting 0 when they agree, 1 when they are all installed and disagree,
+and 3 when the service could not be asked — the other two rows still printed in
+that last case. Run it once the three are in place, rather than waiting for a
+desktop that shows nothing to say so.
+
+The panel's own number is the one piece that cannot publish itself, so
+`xpuwlm verify` reads it out of the installed applet: the `SNAPSHOT_VERSION`
+constant in `lib/snapshot-reader.js`. Its file, its name and its bare-integer
+form are therefore an interface with the installer and not a private detail;
+`tests/contract/install-verification-contract.test.js` holds them to it.
+
 ## Language
 
 The helper ships English only, and carries no translation machinery: no

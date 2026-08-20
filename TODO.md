@@ -13,7 +13,7 @@ domain grouping without weakening the required status schema.
 - **Vision and image processing:** XTPU-0049, XTPU-0126–XTPU-0129
 - **Camera, equipment, and audio:** XTPU-0130–XTPU-0133
 - **Wiring gaps:** XTPU-0183, XTPU-0185, XTPU-0186, XTPU-0188, XTPU-0189
-- **Install and verification:** XTPU-0191, XTPU-0256, XTPU-0257
+- **Install and verification:** XTPU-0191
 - **Ledger hygiene:** XTPU-0184
 - **SonarCloud remediation:** XTPU-0177–XTPU-0180
 
@@ -21,8 +21,7 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0256 | open | medium | s | XTPU-0197 | The panel's pinned snapshot version is now a cross-repository interface and nothing here holds it to that shape. `../xpuwlm`'s `xpuwlm verify` (`src/xpuwlm/runtime/installation.py`) reads the installed applet's number out of `~/.local/share/cinnamon/applets/cinnamon-xpuwlm@geraldo-netto/lib/snapshot-reader.js` with the pattern `SNAPSHOT_VERSION = <digits>;`, because a panel applet has no way to publish it. Renaming the constant, moving the file, or writing the value as anything but a bare integer literal leaves the installer reporting "pins no snapshot version" against a perfectly good applet — and no gate in this repository would notice. Pin the declaration's file, name and shape here. |
-| XTPU-0257 | open | low | xs | XTPU-0256 | `docs/deployment.md#install-order` and the README still name the popup as the only place a version mismatch is reported. `../xpuwlm`'s `dc24401` added `xpuwlm verify`, which asks all three pieces at install time and exits 0 when they agree, 1 when they disagree and 3 when the service cannot be asked — which is the check the install order was written to need. Name it where the order is stated. |
+| — | — | — | — | — | No open findings. |
 
 ## Blocked
 
