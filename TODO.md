@@ -16,13 +16,12 @@ domain grouping without weakening the required status schema.
 - **Install and verification:** XTPU-0191
 - **Ledger hygiene:** XTPU-0184
 - **SonarCloud remediation:** XTPU-0177–XTPU-0180
-- **Rescan findings:** XTPU-0260–XTPU-0262
+- **Rescan findings:** XTPU-0261, XTPU-0262
 
 ## Findings
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0260 | open | low | xs | — | A 25 MB PostScript document is tracked at the repository root under the name `json`. `git log -- json` shows it arriving as the second file of `491ee9f`, a one-line TODO edit, so it is an ImageMagick output caught by a wide `git add` rather than anything the project uses: no script, gate, document or payload names it, and `.gitignore` has no pattern that would have stopped it. Remove it from the tree. Its bytes stay in history — a rewrite is not an audit's call — so note that a fresh clone still pays for them. |
 | XTPU-0261 | open | low | xs | — | `applet.js` explains `refresh` above `_statePath`. The paragraph beginning "Asked for, not waited on" describes why the snapshot read is asynchronous and why a tick arriving on top of an outstanding read is dropped — all of it about `refresh`, none of it about the path getter it now sits on, which has its own explanation appended underneath. Two unrelated comments run together above the wrong function, and the method they belong to has none. Move it to `refresh`. |
 | XTPU-0262 | open | low | s | — | `docs/cinnamon-integration.md` recommends the transport this project measured and removed. Its required-layers table calls for "preferably a versioned session D-Bus interface", its architecture diagram draws "session D-Bus" as the edge between panel and service, its scheduler diagram is fed by "D-Bus clients", and its user-service example is `Type=dbus` with a `BusName` — while both halves of the shipped design dropped session D-Bus, the client speaks framed msgpack over a uid-scoped Unix socket, and this applet opens no transport at all. The document is honest about being generic guidance and says so beside the illustrative interface, but a reader following its recommendation builds the thing this project stopped building, and nowhere does it say that or why. State the shipped choice where the recommendation is made. |
 
