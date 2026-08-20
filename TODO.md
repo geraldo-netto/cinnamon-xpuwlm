@@ -21,7 +21,6 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0273 | open | low | xs | — | `scripts/validate-artifacts.js` credits a gate with a catch that gate does not make. The comment above `PERMITTED_CONTROL_CODES` says a control character in a string literal is "refused by the SpiderMonkey parser Cinnamon actually runs" and that "the cjs smoke caught it". Fed a real BEL in a shipped `lib/` source, `cjs 115.1` compiles and loads the payload without complaint and `npm run test:cjs` exits 0; the only thing that goes red is the cheap text check in this file. The check is right and stays; the prose describing why is a claim about a gate nobody had made fail. Say what is true — this is the only gate that catches it — so the next reader does not delete it trusting the smoke. |
 
 ## Blocked
 

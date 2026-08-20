@@ -369,14 +369,19 @@ function validateWorkflows({repositoryRoot: targetRepositoryRoot}) {
     assert.doesNotMatch(audit, /run: npm test/);
 }
 
-// A control character inside a string literal is invisible in a diff, accepted
-// by Node, and refused by the SpiderMonkey parser Cinnamon actually runs — so
-// it ships a module the desktop cannot load while every Node test passes. One
-// reached a shipped source this way; the cjs smoke caught it, but that gate is
-// not part of `test:ci` and needs cjs installed, so the cheap check runs here.
+// A control character inside a string literal is invisible in a diff and
+// accepted by every parser in this repository's reach, which is what makes it
+// worth a gate of its own: nothing else is looking. This comment used to say
+// SpiderMonkey refused it and that the cjs smoke had caught one, and neither
+// is true of the engine Cinnamon ships today — fed a real BEL in a shipped
+// `lib/` source, `cjs 115.1` compiles and loads the payload and `npm run
+// test:cjs` exits 0. So this is not a cheap stand-in for a stronger check
+// downstream; it is the only check. A byte the author cannot see, the diff
+// does not show and the reviewer cannot review has no business in a source
+// file that ships to desktops, whatever the parser tolerates.
+//
 // Tab, newline, and carriage return are the only control characters a source
-// file may contain; everything else below 0x20 is invisible in a diff and
-// refused by the parser Cinnamon runs.
+// file may contain.
 const PERMITTED_CONTROL_CODES = new Set([9, 10, 13]);
 
 function controlCharacterLine(source) {
@@ -397,7 +402,7 @@ function validateSourceControls(source, filename) {
     assert.equal(
         line,
         0,
-        `${filename}:${line} carries a control character Cinnamon's parser refuses`,
+        `${filename}:${line} carries a control character no reviewer can see`,
     );
     return true;
 }
