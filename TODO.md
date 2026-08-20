@@ -21,6 +21,7 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
+| — | — | — | — | — | No open findings: the twelfth scan audited the gates themselves and its eight were fixed. Every gate here has now been fed the mistake it exists to catch and seen to go red; everything below needs a decision, another repository, or hardware. |
 
 ## Blocked
 
