@@ -118,15 +118,17 @@ test("a window already where it belongs is not moved again", () => {
         get_frame_rect: () => ({x: 1520, y: 744, width: 800, height: 632}),
     });
 
-    assert.equal(Placement.isPlaced(window), true);
+    assert.equal(Placement.isAt(window.get_frame_rect(), Placement.targetFor(window)), true);
     assert.equal(Placement.placeWindow(window), false);
     assert.equal(window.moved, undefined);
 });
 
 test("a window in the corner is not where it belongs", () => {
-    assert.equal(Placement.isPlaced(settingsWindow()), false);
-    assert.equal(Placement.isPlaced(settingsWindow({allows_move: () => false})), false);
-    assert.equal(Placement.isPlaced(null), false);
+    const corner = settingsWindow();
+
+    assert.equal(Placement.isAt(corner.get_frame_rect(), Placement.targetFor(corner)), false);
+    assert.equal(Placement.targetFor(settingsWindow({allows_move: () => false})), null);
+    assert.equal(Placement.targetFor(null), null);
 });
 
 test("the target is where the window would sit if it were centred now", () => {
