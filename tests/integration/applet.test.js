@@ -898,6 +898,45 @@ test("a tick that finds the previous read outstanding is dropped, not queued", (
     applet.on_applet_removed_from_panel();
 });
 
+// `_reading` is lowered by the answer and by nothing else, so a read whose
+// callback never arrives had every later tick dropped as "a read is already in
+// flight" and the panel went on drawing its last picture for the rest of the
+// session — a stopped runtime shown as "online, 1 queued" indefinitely.
+test("a read that never answers is drawn rather than waited on in silence", () => {
+    const SnapshotReader = require(
+        "../../files/cinnamon-xpuwlm@geraldo-netto/lib/snapshot-reader.js",
+    );
+    const {pending, environment} = deferredEnvironment(snapshotDocument());
+    let clock = NOW;
+    const applet = build({environment, now: () => clock});
+
+    pending.pop()();
+    assert.equal(applet._state.runtime, "connected");
+
+    applet.refresh();
+    assert.equal(pending.length, 1, "the read the panel is now waiting on");
+
+    clock += SnapshotReader.STALE_AFTER_MS;
+    assert.equal(applet.refresh(), false, "a wait inside the staleness window is not a fault");
+    assert.equal(applet._state.runtime, "connected");
+
+    clock += 8000;
+    assert.equal(applet.refresh(), true);
+    assert.equal(applet._state.runtime, "unreadable");
+    assert.equal(
+        applet._tooltip.text,
+        "XPU Workload Manager — The runtime snapshot has not answered in 23 seconds",
+    );
+    assert.equal(pending.length, 1, "the read is still the mainloop's, and still the only one");
+
+    // And the answer, if it ever comes, is still the one drawn — judged
+    // against the clock of the turn it arrived in, which by now is 23 seconds
+    // past a snapshot that was fresh when the read was asked for.
+    pending.pop()();
+    assert.equal(applet._state.runtime, "stale");
+    applet.on_applet_removed_from_panel();
+});
+
 test("a snapshot that lands after the applet was removed is not drawn", () => {
     const {pending, environment} = deferredEnvironment(snapshotDocument());
     const applet = build({environment});

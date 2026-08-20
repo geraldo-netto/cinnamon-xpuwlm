@@ -219,6 +219,23 @@ function stateFromDocument(document, nowMs) {
     return connectedState(document, generatedAt);
 }
 
+// A read that was asked for and never answered.
+//
+// The panel drops a tick that finds the previous read still outstanding, so a
+// read that never completes is not a slow panel but a stopped one: it goes on
+// drawing the last picture it had for the rest of the session. Staleness
+// cannot catch that — `generatedAt` is judged when bytes arrive, and no bytes
+// ever arrive — so the wait itself is the fact, and the elapsed time is named
+// because a number that keeps growing is how a person tells this apart from a
+// panel that has simply stopped.
+function unansweredRead(waitedMs) {
+    const seconds = Math.max(1, Math.round(waitedMs / 1000));
+    return failed(
+        "unreadable",
+        `The runtime snapshot has not answered in ${seconds} seconds`,
+    );
+}
+
 // The ceiling is off by default rather than deleted: a caller that sets one is
 // still held to it, so re-imposing a bound is a one-line change.
 function tooLargeFor(contents, ceiling) {
@@ -414,6 +431,7 @@ module.exports = {
     stateFromError,
     stateFromDocument,
     tooLargeFor,
+    unansweredRead,
     unreadableMember,
     versionMismatch,
 };

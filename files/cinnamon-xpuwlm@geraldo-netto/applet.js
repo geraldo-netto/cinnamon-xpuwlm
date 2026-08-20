@@ -86,6 +86,9 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._destroyed = false;
         this._timer = null;
         this._reading = false;
+        // When the outstanding read was asked for, so a read that never
+        // answers can be told from one that has only just been started.
+        this._readingSince = 0;
         this._state = SnapshotReader.EMPTY_STATE;
         this._panelIconStatus = null;
         // What is on the actor, as opposed to what was last drawn: a panel
@@ -226,11 +229,15 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     // finds the previous read still outstanding is dropped rather than queued,
     // because two reads in flight would draw the older answer last.
     refresh() {
-        if (this._destroyed || this._reading) {
+        if (this._destroyed) {
             return false;
+        }
+        if (this._reading) {
+            return this._reportUnansweredRead();
         }
         const target = this._statePath();
         this._reading = true;
+        this._readingSince = this._now();
         // The clock, not a reading of it: the answer is judged for staleness
         // when its bytes arrive, which is not the turn that asked for them.
         SnapshotReader.readSnapshotAsync(
@@ -239,6 +246,24 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             this._now,
             (state) => this._receiveState(state, target),
         );
+        return true;
+    }
+
+    // A read that never answers is a fact the panel has to draw. `_reading` is
+    // lowered by the answer and by nothing else, so a `load_contents_async`
+    // whose callback never arrives — a stalled network mount, a reply that is
+    // lost — has every later tick dropped as "a read is already in flight",
+    // and the panel goes on showing "online, 3 running" for a runtime that
+    // stopped an hour ago. The read is still owned by the mainloop and is
+    // still the one that will lower the latch; what changes is that the wait
+    // stops being invisible.
+    _reportUnansweredRead() {
+        const waited = this._now() - this._readingSince;
+        if (waited <= SnapshotReader.STALE_AFTER_MS) {
+            return false;
+        }
+        this._state = SnapshotReader.unansweredRead(waited);
+        this._render();
         return true;
     }
 
