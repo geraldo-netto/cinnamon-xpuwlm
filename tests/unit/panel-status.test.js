@@ -177,6 +177,31 @@ test("a popup line for a runtime with no detail still says something", () => {
     assert.equal(lines[1].value, "No further detail");
 });
 
+// A runtime-state-path that disagrees with the service's own reports the
+// runtime as not running, so the path is the one thing that tells a
+// misconfigured panel from a stopped service.
+test("the popup names the file the panel could not read", () => {
+    const lines = PanelStatus.popupLines(state({
+        runtime: "absent",
+        detail: "The runtime is not running",
+        source: "/home/tester/.local/state/xpu-workload-manager/state.json",
+    }));
+
+    assert.deepEqual(lines.at(-1), {
+        label: "Snapshot",
+        value: "/home/tester/.local/state/xpu-workload-manager/state.json",
+    });
+    // A read that never got as far as a path says nothing rather than naming
+    // an empty one, and a connected runtime does not need telling which file
+    // it came from.
+    assert.equal(PanelStatus.popupLines(state({runtime: "absent"})).length, 2);
+    assert.equal(
+        PanelStatus.popupLines(state({source: "/tmp/state.json"}))
+            .some((line) => line.label === "Snapshot"),
+        false,
+    );
+});
+
 // The applet builds its popup items once, from this bound. A state that
 // produced more lines than the pool would have the extra ones computed,
 // formatted, and then dropped without a word.
@@ -186,7 +211,7 @@ test("no state produces more popup lines than the popup has room for", () => {
         state({runtime: "absent", detail: ""}),
         state({runtime: "stale", detail: "The runtime stopped publishing"}),
         state({runtime: "malformed"}),
-        state({runtime: "unreadable"}),
+        state({runtime: "unreadable", source: "/home/tester/state.json"}),
         state({available: false, backend: null}),
         state({attention: 3, queued: 9, running: 2}),
     ];

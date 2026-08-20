@@ -183,10 +183,19 @@ const MAX_POPUP_LINES = 5;
 // this helper exists to stop.
 function popupLines(state) {
     if (state.runtime !== "connected") {
-        return [
+        const lines = [
             {label: "Runtime", value: runtimeLabel(state)},
             {label: "Detail", value: state.detail || "No further detail"},
         ];
+        // The file the panel could not read, when the read got far enough to
+        // have one. A `runtime-state-path` that disagrees with the service's
+        // own `OMNITENSOR_STATE_PATH` reports the runtime as not running, so
+        // the popup names the path rather than leaving a configuration mistake
+        // wearing the costume of an absent service.
+        if (state.source) {
+            lines.push({label: "Snapshot", value: state.source});
+        }
+        return lines;
     }
     return [
         {label: "Runtime", value: runtimeLabel(state)},

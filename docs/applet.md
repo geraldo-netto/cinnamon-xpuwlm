@@ -19,8 +19,9 @@ a panel is genuinely good at is what is left here.
   screen. The words are in the tooltip and the popup, where they are read
   deliberately rather than glanced past.
 - **A five-line popup.** Runtime state, which accelerator is serving, queued,
-  running, and how much needs review. Read-only: anything a person can act on
-  belongs in the client.
+  running, and how much needs review — and, when the read failed, the path of
+  the file it failed on. Read-only: anything a person can act on belongs in the
+  client.
 - **One action.** "Open XPU Workload Manager" starts the client and closes the
   menu.
 
@@ -104,7 +105,9 @@ derives it from the other:
 Moving it is a two-sided edit. The service side is the `OMNITENSOR_STATE_PATH`
 environment variable; the helper side is the `runtime-state-path` setting. Change
 one without the other and the panel reports that the runtime is not running,
-which is a configuration mistake wearing the costume of an absent service.
+which is a configuration mistake wearing the costume of an absent service — so
+the popup names the file it just failed to read, on a `Snapshot` line, and the
+two can be told apart without opening the settings.
 
 ## Launching the client
 

@@ -51,6 +51,10 @@ const EMPTY_STATE = Object.freeze({
     attention: 0,
     paused: false,
     generatedAt: null,
+    // The file the state was read from, expanded. Carried by the state rather
+    // than asked of the applet because it is the answer to "which file", and
+    // the state is what the panel draws that answer from.
+    source: "",
 });
 
 function expandHome(environment, filename) {
@@ -330,14 +334,24 @@ function stateFromError(environment, error) {
         : failed(refusal.runtime, refusal.detail);
 }
 
+// The path is attached where the read happens rather than threaded through
+// every judgement it passes: which file was read is a fact about the read, not
+// about the document, and one place to attach it is one place for it to be
+// right. The popup names it, because a `runtime-state-path` that disagrees
+// with the service's own is a configuration mistake wearing the costume of an
+// absent service, and the path is what tells the two apart.
+function readFrom(state, target) {
+    return Object.freeze({...state, source: target});
+}
+
 function readSnapshot(environment, filename, clock) {
     const target = expandHome(environment, filename);
     try {
         const file = environment.Gio.File.new_for_path(target);
         const [ok, contents] = file.load_contents(null);
-        return stateFromContents(environment, ok, contents, clock);
+        return readFrom(stateFromContents(environment, ok, contents, clock), target);
     } catch (error) {
-        return stateFromError(environment, error);
+        return readFrom(stateFromError(environment, error), target);
     }
 }
 
@@ -372,10 +386,12 @@ function deliverOnce(deliver) {
 }
 
 function readSnapshotAsync(environment, filename, clock, deliverState) {
-    const deliver = deliverOnce(deliverState);
+    let target = filename;
     let file;
+    const deliver = deliverOnce((state) => deliverState(readFrom(state, target)));
     try {
-        file = environment.Gio.File.new_for_path(expandHome(environment, filename));
+        target = expandHome(environment, filename);
+        file = environment.Gio.File.new_for_path(target);
     } catch (error) {
         deliver(stateFromError(environment, error));
         return false;
@@ -423,9 +439,10 @@ module.exports = {
     expandHome,
     matchesCode,
     primaryDevice,
-    refusalFor,
+    readFrom,
     readSnapshot,
     readSnapshotAsync,
+    refusalFor,
     resolveNow,
     stateFromContents,
     stateFromError,

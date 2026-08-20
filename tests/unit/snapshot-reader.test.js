@@ -335,6 +335,28 @@ test("a read the platform reports as unsuccessful is unreadable", () => {
     assert.equal(Reader.readSnapshot(failing, "/state.json", NOW).runtime, "unreadable");
 });
 
+test("every state a read produces names the file it was read from", () => {
+    const missing = Object.assign(new Error("gone"), {code: 1});
+    const expanded = "/home/tester/.local/state/xpu-workload-manager/state.json";
+    const filename = "~/.local/state/xpu-workload-manager/state.json";
+
+    assert.equal(
+        Reader.readSnapshot(environment({throws: missing}), filename, NOW).source,
+        expanded,
+    );
+    assert.equal(
+        Reader.readSnapshot(
+            environment({contents: JSON.stringify(document())}),
+            filename,
+            NOW,
+        ).source,
+        expanded,
+    );
+    // The empty state names no file, because no read produced it.
+    assert.equal(Reader.EMPTY_STATE.source, "");
+    assert.equal(Reader.readFrom(Reader.EMPTY_STATE, "/state.json").source, "/state.json");
+});
+
 test("a snapshot larger than any guessed ceiling is still read", () => {
     // The runtime publishes one entry per installed workload with no cap, so a
     // size limit here would report a working runtime as absent.
