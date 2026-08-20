@@ -6,6 +6,7 @@ const test = require("node:test");
 const fs = require("node:fs");
 const path = require("node:path");
 
+const Artifacts = require("../../scripts/validate-artifacts.js");
 const Package = require("../../scripts/package-applet.js");
 const PanelStatus = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/panel-status.js");
 
@@ -81,17 +82,21 @@ test("the helper ships no mirrored contract schemas", () => {
 // A rule for a surface the helper no longer draws is dead payload nobody can
 // see is dead: the sheet kept `.xpuwlm-panel-label` and a comment about the
 // text beside the icon long after the panel stopped writing any.
+//
+// Asked through the artifact validator rather than restated here. This test
+// used to match `.xpuwlm-*` over the raw file while the validator matched the
+// same classes over the comment-stripped rules — two rules with one subject,
+// disagreeing about a class name written into a comment, and the shipped sheet
+// opens with an eight-line one.
 test("the stylesheet styles exactly the statuses the panel can draw", () => {
     const css = fs.readFileSync(
         path.join(Package.payloadRoot, "stylesheet.css"),
         "utf8",
     );
-    const classes = [...css.matchAll(/\.(xpuwlm-[a-z-]+)/gu)].map((match) => match[1]);
 
+    assert.equal(Artifacts.validateStatusColours(css, PanelStatus.PANEL_STATUSES), true);
     assert.deepEqual(
-        [...new Set(classes)].sort(Package.compareText),
-        PanelStatus.PANEL_STATUSES
-            .map((status) => `xpuwlm-panel-${status}`)
-            .sort(Package.compareText),
+        Artifacts.styledStatuses(css),
+        [...PanelStatus.PANEL_STATUSES].sort(Package.compareText),
     );
 });
