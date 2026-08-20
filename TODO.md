@@ -21,7 +21,6 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0258 | open | low | s | — | Three directory walks over the same tree, in two scripts: `payloadFiles` and `installedFiles` in `scripts/package-applet.js` and `payloadPaths` in `scripts/validate-artifacts.js`. They genuinely differ in policy — refuse an irregular entry, list it as a finding, or assert on it — and in whether directories are named, but the walk itself is one recursion written three times, and the sort order they must agree on is what a release's staging, manifest and archive all depend on. One walk that takes the policy as an argument. |
 | XTPU-0259 | open | low | s | — | `applet.js` carries the panel icon's whole presentation — the size floor and its panel-height bound, the status style class swap, the symbolic name, the inline `icon-size` override, and registering and releasing the payload's icon search path — mixed in among settings binding, menu construction, the refresh timer and teardown. It is one coherent subject with its own rules and its own failure (an icon larger than the strip it draws in), and it is the reason the file is 512 lines. Split it into a `lib/` module the applet holds, keeping the drawn result identical. |
 
 ## Blocked

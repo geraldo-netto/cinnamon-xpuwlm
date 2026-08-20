@@ -10,6 +10,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const {compareText} = require("./lib/compare-text.js");
+const {walkTree} = require("./lib/walk-tree.js");
 
 const UUID = "cinnamon-xpuwlm@geraldo-netto";
 const repositoryRoot = path.resolve(__dirname, "..");
@@ -30,20 +31,14 @@ const CHECKSUM_LINE = /^([0-9a-f]{64}) {2}(.+)$/u;
 
 // Sorted relative paths of every regular payload file. Symlinks and special
 // files are rejected loudly: they must never reach a staged release.
-function payloadFiles(root, prefix = "") {
-    const names = [];
-    for (const entry of fs.readdirSync(root, {withFileTypes: true})) {
-        const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
-        if (entry.isSymbolicLink() || !(entry.isFile() || entry.isDirectory())) {
-            throw new Error(`Payload entries must be regular files or directories: ${relativePath}`);
-        }
-        if (entry.isDirectory()) {
-            names.push(...payloadFiles(path.join(root, entry.name), relativePath));
-        } else {
-            names.push(relativePath);
-        }
+function refuseIrregularPayloadEntry(entry, relativePath) {
+    if (entry.isSymbolicLink() || !(entry.isFile() || entry.isDirectory())) {
+        throw new Error(`Payload entries must be regular files or directories: ${relativePath}`);
     }
-    return names.sort(compareText);
+}
+
+function payloadFiles(root) {
+    return walkTree(root, refuseIrregularPayloadEntry);
 }
 
 // Production dependencies are deliberately static CommonJS edges. Dynamic,
@@ -262,17 +257,8 @@ function stageSpiceRelease(
 // where such an entry is the finding rather than an error — verifying a
 // tampered install died with "Payload entries must be regular files or
 // directories" instead of naming the entry. An inspection lists what it finds.
-function installedFiles(root, prefix = "") {
-    const names = [];
-    for (const entry of fs.readdirSync(root, {withFileTypes: true})) {
-        const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
-        if (entry.isDirectory()) {
-            names.push(...installedFiles(path.join(root, entry.name), relativePath));
-        } else {
-            names.push(relativePath);
-        }
-    }
-    return names.sort(compareText);
+function installedFiles(root) {
+    return walkTree(root, () => {});
 }
 
 // Never through a symlink: `existsSync` and `readFileSync` follow one, so a
@@ -504,6 +490,7 @@ module.exports = {
     payloadFiles,
     payloadRoot,
     pngDimensions,
+    refuseIrregularPayloadEntry,
     productionRequireGraph,
     inspectSpiceSources,
     installedFiles,
@@ -519,4 +506,5 @@ module.exports = {
     tarPadding,
     verifyAbsent,
     verifyInstall,
+    walkTree,
 };

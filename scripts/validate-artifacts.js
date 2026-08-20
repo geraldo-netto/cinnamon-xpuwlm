@@ -61,22 +61,19 @@ function defaultRoots() {
     return {appletRoot, filesRoot, repositoryRoot};
 }
 
-function payloadPaths(directory, prefix = "") {
-    const paths = [];
-    for (const entry of fs.readdirSync(directory, {withFileTypes: true})) {
-        const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+// The same descent the packaging script makes, with this gate's own policy: an
+// assertion rather than a throw, and directories named as well as files, since
+// a repository-only directory leaking into the payload is exactly what the
+// caller below looks for.
+function payloadPaths(directory) {
+    return Package.walkTree(directory, (entry, relativePath) => {
         assert.equal(entry.isSymbolicLink(), false, `Payload symlink is forbidden: ${relativePath}`);
         assert.equal(
             entry.isDirectory() || entry.isFile(),
             true,
             `Payload entry must be a regular file or directory: ${relativePath}`,
         );
-        paths.push(relativePath);
-        if (entry.isDirectory()) {
-            paths.push(...payloadPaths(path.join(directory, entry.name), relativePath));
-        }
-    }
-    return paths;
+    }, {directories: true});
 }
 
 function validatePayloadStructure({
