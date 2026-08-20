@@ -21,8 +21,6 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0256 | open | medium | s | XTPU-0257 | The payload ships four SVG icons production asks for nowhere. `icons/xpuwlm-device-symbolic.svg` and `icons/xpuwlm-sliders-symbolic.svg` are named by no source, no stylesheet, no metadata and no test; `icons/xpuwlm-symbolic.svg` and `icons/xpuwlm-v2-symbolic.svg` are byte-identical to each other, so one file ships twice under two names. Cinnamon draws the applet-list entry from `icon.png`, which the gate already validates. Dead art on every desktop, and a regression test guarding a silhouette nothing draws. |
-| XTPU-0257 | open | medium | s | XTPU-0256 | The icon correspondence is asked in one direction only. `validateStaticAssets` requires every status `panelIconName` can return to name a shipped file and never requires a shipped file to be one something asks for — the mirror of the stylesheet rule, which is bidirectional. And `tests/fuzz/icon-artifact.fuzz.test.js` fuzzes a hand-typed `names` list while both icon tests recite the five status names: an icon added to the payload is fuzzed by nothing, and a status added to `PANEL_STATUSES` is regression-checked by nothing. |
 
 ## Blocked
 

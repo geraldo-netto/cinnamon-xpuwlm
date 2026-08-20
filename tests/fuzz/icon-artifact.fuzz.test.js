@@ -5,8 +5,17 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
-const ICON_DIRECTORY = path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto/icons");
-const STATUS_NAMES = Object.freeze(["online", "detected", "attention", "paused", "unavailable"]);
+const PAYLOAD_ROOT = path.resolve(__dirname, "../../files/cinnamon-xpuwlm@geraldo-netto");
+const ICON_DIRECTORY = path.join(PAYLOAD_ROOT, "icons");
+const PanelStatus = require(path.join(PAYLOAD_ROOT, "lib/panel-status.js"));
+
+// The icons the payload carries, not a list written out beside them: a list
+// only fuzzes what someone remembered to add to it, so a new icon shipped to
+// every desktop was bounded by nothing.
+const ICON_NAMES = Object.freeze(
+    fs.readdirSync(ICON_DIRECTORY).filter((name) => name.endsWith(".svg")).sort(),
+);
+const STATUS_NAMES = PanelStatus.PANEL_STATUSES;
 
 function readIcon(name) {
     return fs.readFileSync(path.join(ICON_DIRECTORY, name), "utf8");
@@ -31,9 +40,8 @@ function geometryNumbers(icon) {
 }
 
 test("fuzz: all icon geometries stay visible and bounded across panel sizes", () => {
-    const names = ["xpuwlm-symbolic.svg", "xpuwlm-v2-symbolic.svg", ...STATUS_NAMES.map(
-        (status) => `xpuwlm-status-${status}-symbolic.svg`,
-    )];
+    const names = ICON_NAMES;
+    assert.equal(names.length > 0, true, "the payload ships no icon to fuzz");
     let seed = 0x58545055;
 
     for (let iteration = 0; iteration < 4_096; iteration += 1) {

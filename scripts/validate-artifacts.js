@@ -652,24 +652,28 @@ function validateStaticAssets({
 }) {
     const iconNames = payloadIconNames(targetAppletRoot);
     assert.equal(iconNames.length > 0, true, "The payload must ship its status icons");
-    for (const required of requiredIconNames(targetAppletRoot)) {
-        assert.equal(
-            iconNames.includes(required),
-            true,
-            `The panel can ask for an icon the payload does not ship: ${required}`,
-        );
-    }
-    const css = fs.readFileSync(path.join(targetAppletRoot, "stylesheet.css"), "utf8");
-    const png = fs.readFileSync(path.join(targetAppletRoot, "icon.png"));
-    validatePngIcon(png);
     for (const iconName of iconNames) {
         assert.equal(
             iconName.endsWith(".svg"),
             true,
             `The payload's icon directory carries a file that is not an icon: ${iconName}`,
         );
-        const svg = fs.readFileSync(path.join(targetAppletRoot, "icons", iconName), "utf8");
-        validateSvgIcon(svg);
+    }
+    // Both directions, like the stylesheet's status rules. The first half was
+    // always here: a status the panel can ask for must name a shipped file.
+    // The second was not, so four icons production asks for nowhere — two of
+    // them the same bytes under two names — shipped to every desktop with
+    // nothing able to say they were dead.
+    assert.deepEqual(
+        iconNames,
+        requiredIconNames(targetAppletRoot),
+        "Every status needs its own icon, and every icon a status",
+    );
+    const css = fs.readFileSync(path.join(targetAppletRoot, "stylesheet.css"), "utf8");
+    const png = fs.readFileSync(path.join(targetAppletRoot, "icon.png"));
+    validatePngIcon(png);
+    for (const iconName of iconNames) {
+        validateSvgIcon(fs.readFileSync(path.join(targetAppletRoot, "icons", iconName), "utf8"));
     }
     validateStylesheet(css);
     validateStatusColours(css, panelStatusModule(targetAppletRoot).PANEL_STATUSES);

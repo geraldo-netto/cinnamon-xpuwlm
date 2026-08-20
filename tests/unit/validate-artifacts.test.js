@@ -411,7 +411,7 @@ test("static validation checks the stage and every shipped icon", (context) => {
 
     const roots = copiedRepository(context);
     fs.writeFileSync(
-        path.join(roots.appletRoot, "icons/xpuwlm-symbolic.svg"),
+        path.join(roots.appletRoot, "icons/xpuwlm-status-online-symbolic.svg"),
         "<svg><script/></svg>",
     );
     assert.throws(() => Artifacts.validateStaticAssets(roots));
@@ -426,10 +426,19 @@ test("every icon the payload carries is validated, listed or not", (context) => 
 
     fs.writeFileSync(added, "<svg viewBox=\"0 0 16 16\"><script/></svg>");
     assert.throws(() => Artifacts.validateStaticAssets(roots));
-
-    fs.writeFileSync(added, "<svg viewBox=\"0 0 16 16\"><path d=\"M0 0h16v16H0z\"/></svg>");
-    assert.equal(Artifacts.validateStaticAssets(roots), undefined);
     assert.equal(Artifacts.payloadIconNames(roots.appletRoot).includes(path.basename(added)), true);
+
+    // Sound bytes are not enough any more. An icon nothing asks for is dead
+    // art on every desktop, and four of them shipped that way — two of them
+    // the same file under two names — because this correspondence was only
+    // ever asked in one direction.
+    fs.writeFileSync(added, "<svg viewBox=\"0 0 16 16\"><path d=\"M0 0h16v16H0z\"/></svg>");
+    assert.throws(
+        () => Artifacts.validateStaticAssets(roots),
+        /every icon a status/u,
+    );
+    fs.rmSync(added);
+    assert.equal(Artifacts.validateStaticAssets(roots), undefined);
 
     fs.writeFileSync(path.join(roots.appletRoot, "icons/notes.txt"), "not an icon");
     assert.throws(() => Artifacts.validateStaticAssets(roots), /not an icon/u);
@@ -450,7 +459,10 @@ test("a status the panel can ask for must name a shipped icon", (context) => {
     ]);
 
     fs.rmSync(path.join(roots.appletRoot, "icons", required[0]));
-    assert.throws(() => Artifacts.validateStaticAssets(roots), /does not ship/u);
+    assert.throws(
+        () => Artifacts.validateStaticAssets(roots),
+        /Every status needs its own icon, and every icon a status/u,
+    );
 });
 
 test("the payload comparator orders names deterministically", () => {
