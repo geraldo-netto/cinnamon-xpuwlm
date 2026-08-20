@@ -21,6 +21,7 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
+| — | — | — | — | — | No open findings: the thirteenth scan hunted one pattern — a gate reciting a list someone typed instead of reading the tree it guards — and its ten were fixed. Every list that could not see a file it was not told about now derives, and each conversion was proved by feeding it the fault the old list missed. What is left below needs a decision, another repository, or hardware. |
 
 ## Blocked
 
