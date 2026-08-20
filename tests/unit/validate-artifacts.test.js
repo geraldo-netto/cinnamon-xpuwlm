@@ -116,9 +116,22 @@ test("payload validation accepts injected roots and rejects repository files", (
         "applet.js": "module.exports = {};\n",
         "lib/module.js": "module.exports = {};\n",
     });
-    const roots = {appletRoot, expectedTopLevel: ["applet.js", "lib"], filesRoot};
+    // The repository's own entries are the rule. Two of them here, so what the
+    // payload may not carry is derived from this root rather than from a list
+    // that only knows the names someone thought of.
+    writeTree(root, {"package.json": "{}", "tests/placeholder.js": "\n"});
+    const roots = {
+        appletRoot,
+        expectedTopLevel: ["applet.js", "lib"],
+        filesRoot,
+        repositoryRoot: root,
+    };
 
     assert.doesNotThrow(() => Artifacts.validatePayloadStructure(roots));
+    assert.deepEqual(
+        [...Artifacts.repositoryOnlyNames(root, ["applet.js", "lib"])].sort(),
+        ["package.json", "tests"],
+    );
     assert.deepEqual(Artifacts.payloadPaths(appletRoot), [
         "applet.js",
         "lib",
@@ -140,11 +153,26 @@ test("payload validation accepts injected roots and rejects repository files", (
     assert.throws(() => Artifacts.validatePayloadStructure(roots));
     fs.rmSync(path.join(appletRoot, "lib/nested"), {recursive: true, force: true});
 
+    // A repository-only name that no list ever mentioned: derived, it is
+    // refused the moment the repository starts keeping one.
+    fs.mkdirSync(path.join(root, "design"));
+    writeTree(appletRoot, {"lib/design/notes.txt": "repository only"});
+    assert.throws(
+        () => Artifacts.validatePayloadStructure(roots),
+        /Repository-only entry leaked into payload: lib\/design/u,
+    );
+    fs.rmSync(path.join(appletRoot, "lib/design"), {recursive: true, force: true});
+
+    // And a private name, whatever the repository root happens to hold.
+    writeTree(appletRoot, {"lib/__pycache__/module.pyc.keep": "cached"});
+    assert.throws(
+        () => Artifacts.validatePayloadStructure(roots),
+        /Private entry leaked into payload: lib\/__pycache__/u,
+    );
+    fs.rmSync(path.join(appletRoot, "lib/__pycache__"), {recursive: true, force: true});
+
     writeTree(appletRoot, {"lib/debug.tmp": "temporary"});
-    assert.throws(() => Artifacts.validatePayloadStructure({
-        ...roots,
-        expectedTopLevel: ["applet.js", "lib"],
-    }));
+    assert.throws(() => Artifacts.validatePayloadStructure(roots));
 });
 
 test("every JSON validator rejects an absent stage", (context) => {
@@ -514,5 +542,78 @@ test("the CJS smoke command must name the payload root, never a directory level"
     assert.throws(
         () => Artifacts.validateRepositoryScripts(roots),
         /globs a directory level/u,
+    );
+});
+
+// A third workflow used to be read by nothing at all: this gate opened two
+// files by name, so a job that ran the full suite, escaped the host gates,
+// fetched over plain HTTP or floated an action was invisible to every gate
+// here.
+test("every workflow in the directory is held to the rules, and an unknown one fails", (context) => {
+    const root = temporaryDirectory();
+    context.after(() => fs.rmSync(root, {recursive: true, force: true}));
+    const workflows = path.join(root, ".github/workflows");
+    for (const name of ["applet-quality.yml", "dependency-audit.yml"]) {
+        writeTree(root, {
+            [path.join(".github/workflows", name)]: fs.readFileSync(
+                path.join(REPOSITORY_ROOT, ".github/workflows", name),
+                "utf8",
+            ),
+        });
+    }
+    assert.deepEqual(
+        Artifacts.workflowNames(root),
+        ["applet-quality.yml", "dependency-audit.yml"],
+    );
+    assert.equal(Artifacts.validateWorkflows({repositoryRoot: root}), undefined);
+
+    fs.writeFileSync(path.join(workflows, "nightly.yml"), "name: Nightly\n");
+    assert.throws(
+        () => Artifacts.validateWorkflows({repositoryRoot: root}),
+        /no rules for/u,
+    );
+});
+
+test("the shared workflow rules refuse an escape hatch, a float and a bare fetch", () => {
+    const sound = [
+        "permissions:",
+        "  contents: read",
+        "jobs:",
+        "  build:",
+        "    steps:",
+        "      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+        "      - run: curl --fail --location --proto '=https' --proto-redir '=https' https://x",
+        "      - run: npm ci --ignore-scripts",
+        "",
+    ].join("\n");
+    assert.equal(Artifacts.validateWorkflowCommon("sound.yml", sound), true);
+
+    assert.throws(
+        () => Artifacts.validateWorkflowCommon("loose.yml", sound.replace(
+            "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+            "actions/checkout@v6",
+        )),
+        /floats an unpinned action/u,
+    );
+    assert.throws(
+        () => Artifacts.validateWorkflowCommon("plain.yml", sound.replace(
+            "--proto '=https' --proto-redir '=https' ",
+            "",
+        )),
+        /fetches without pinning the protocol/u,
+    );
+    assert.throws(
+        () => Artifacts.validateWorkflowCommon(
+            "skipping.yml",
+            `${sound}      - run: XPUWLM_SKIP_HOST_GATES=1 npm test\n`,
+        ),
+        /skips the host gates/u,
+    );
+    assert.throws(
+        () => Artifacts.validateWorkflowCommon("open.yml", sound.replace(
+            "  contents: read",
+            "  contents: write",
+        )),
+        /does not drop write permissions/u,
     );
 });

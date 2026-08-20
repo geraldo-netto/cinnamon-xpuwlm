@@ -30,28 +30,30 @@ const PAYLOAD_TOP_LEVEL = Object.freeze([
     "settings-schema.json",
     "stylesheet.css",
 ]);
-const FORBIDDEN_PAYLOAD_SEGMENTS = new Set([
-    ".cache",
-    ".stryker-tmp",
-    "__pycache__",
-    "build",
-    "coverage",
-    "design",
-    "dist",
-    "mutation-report",
-    "node_modules",
-    "prototype",
-    "prototypes",
-    "scripts",
-    "tests",
-]);
-const FORBIDDEN_PAYLOAD_FILES = new Set([
-    ".gitignore",
-    "eslint.config.cjs",
-    "package-lock.json",
-    "package.json",
-    "stryker.config.cjs",
-]);
+// Nothing the repository keeps for itself may appear inside the payload. This
+// used to be two lists someone typed — thirteen directory names and five
+// filenames — which is a rule that only knows the names it was told about: a
+// repository-only directory added tomorrow leaked into the payload past a
+// green gate, and so did any dot-directory but the two that were listed.
+//
+// Read off the repository root instead, minus the names the payload is
+// declared to carry. `LICENSE` is the only one they genuinely share, and it is
+// in the declared top level, so it excuses itself without the rule having to
+// name it. `expectedTopLevel` is the payload's declaration rather than its
+// contents — the contents are held to it a few lines below — so a leaked
+// `scripts/` cannot excuse itself by being present.
+function repositoryOnlyNames(targetRepositoryRoot, expectedTopLevel) {
+    const shipped = new Set(expectedTopLevel);
+    return new Set(fs.readdirSync(targetRepositoryRoot)
+        .filter((name) => name !== "files" && !shipped.has(name)));
+}
+
+// The names no payload entry may take, whatever the repository root happens to
+// hold today: a cache, a tool's scratch directory, a Python bytecode
+// directory. Stated as a shape rather than as a list of the ones that exist.
+function isPrivateName(name) {
+    return name.startsWith(".") || name.startsWith("__");
+}
 
 function readJson(root, relativePath) {
     return JSON.parse(fs.readFileSync(path.join(root, relativePath), "utf8"));
@@ -80,6 +82,7 @@ function validatePayloadStructure({
     appletRoot: targetAppletRoot,
     expectedTopLevel = PAYLOAD_TOP_LEVEL,
     filesRoot: targetFilesRoot,
+    repositoryRoot: targetRepositoryRoot,
 }) {
     const filesEntries = fs.readdirSync(targetFilesRoot, {withFileTypes: true});
     assert.deepEqual(filesEntries.map((entry) => entry.name).sort(compareText), [UUID]);
@@ -89,18 +92,21 @@ function validatePayloadStructure({
         [...expectedTopLevel].sort(compareText),
     );
 
+    const repositoryOnly = repositoryOnlyNames(targetRepositoryRoot, expectedTopLevel);
     for (const relativePath of payloadPaths(targetAppletRoot)) {
         const segments = relativePath.split("/");
-        assert.equal(
-            segments.some((segment) => FORBIDDEN_PAYLOAD_SEGMENTS.has(segment)),
-            false,
-            `Repository-only directory leaked into payload: ${relativePath}`,
-        );
-        assert.equal(
-            FORBIDDEN_PAYLOAD_FILES.has(segments.at(-1)),
-            false,
-            `Repository-only file leaked into payload: ${relativePath}`,
-        );
+        for (const segment of segments) {
+            assert.equal(
+                repositoryOnly.has(segment),
+                false,
+                `Repository-only entry leaked into payload: ${relativePath}`,
+            );
+            assert.equal(
+                isPrivateName(segment),
+                false,
+                `Private entry leaked into payload: ${relativePath}`,
+            );
+        }
         assert.equal(/\.(?:log|pyc|temp|tmp)$/u.test(relativePath), false);
     }
 }
@@ -330,7 +336,67 @@ function readWorkflow(root, name) {
     return fs.readFileSync(path.join(root, ".github/workflows", name), "utf8");
 }
 
+function workflowNames(root) {
+    return fs.readdirSync(path.join(root, ".github/workflows")).sort(compareText);
+}
+
+// The rules that hold for every workflow in the directory, whichever ones are
+// there. This gate used to open two files by name: a third workflow was read by
+// nothing, so it could run `npm test`, set the host-gate escape hatch, fetch
+// over plain HTTP or float an unpinned action with every gate here still green.
+// The directory is enumerated instead, each file is held to these, and the two
+// with rules of their own are named after that.
+// Whole lines, comments dropped: a `uses:` key and a `curl` invocation are
+// each written both as a step of their own and inside a run block, and a rule
+// anchored to one indentation reads only the spelling its author had in mind.
+function workflowLines(source) {
+    return String(source).split("\n").filter((line) => !/^\s*#/u.test(line));
+}
+
+function validateWorkflowCommon(name, source) {
+    assert.match(source, /^ {2}contents: read$/mu, `${name} does not drop write permissions`);
+    assert.match(source, /run: npm ci --ignore-scripts$/mu, `${name} installs with scripts`);
+    assert.doesNotMatch(
+        source,
+        /XPUWLM_SKIP_HOST_GATES/u,
+        `${name} skips the host gates it exists to run`,
+    );
+    for (const line of workflowLines(source)) {
+        const uses = /\buses:\s*(?<action>\S+)\s*$/u.exec(line);
+        if (uses) {
+            assert.match(
+                uses.groups.action,
+                /@[0-9a-f]{40}$/u,
+                `${name} floats an unpinned action: ${uses.groups.action}`,
+            );
+        }
+        if (/\bcurl\s/u.test(line)) {
+            assert.match(
+                line,
+                /--proto '=https' --proto-redir '=https'/u,
+                `${name} fetches without pinning the protocol: ${line.trim()}`,
+            );
+        }
+    }
+    return true;
+}
+
+// The workflows this gate has rules of its own for. A file appearing beside
+// them is the finding: it is a job nobody wrote a rule for, and silence about
+// it is what this list exists to prevent.
+const KNOWN_WORKFLOWS = Object.freeze(["applet-quality.yml", "dependency-audit.yml"]);
+
 function validateWorkflows({repositoryRoot: targetRepositoryRoot}) {
+    const names = workflowNames(targetRepositoryRoot);
+    assert.deepEqual(
+        names,
+        [...KNOWN_WORKFLOWS],
+        "A workflow runs in CI that this gate has no rules for",
+    );
+    for (const name of names) {
+        validateWorkflowCommon(name, readWorkflow(targetRepositoryRoot, name));
+    }
+
     const quality = readWorkflow(targetRepositoryRoot, "applet-quality.yml");
     const audit = readWorkflow(targetRepositoryRoot, "dependency-audit.yml");
 
@@ -348,11 +414,9 @@ function validateWorkflows({repositoryRoot: targetRepositoryRoot}) {
     assert.match(quality, /run: npm run test:cjs$/mu);
     assert.doesNotMatch(quality, /run: npm test(?:\s|$)/mu);
     assert.doesNotMatch(quality, /XPUWLM_SKIP_HOST_GATES/);
-    assert.equal(
-        [...quality.matchAll(/curl --fail --location --proto '=https' --proto-redir '=https'/gu)].length,
-        2,
-    );
-    assert.match(quality, /run: npm ci --ignore-scripts$/mu);
+    // The count this used to pin — two — is now the shared rule's business:
+    // every `curl` line in every workflow is held to the pinned protocol,
+    // however many of them there are.
     // A job installs what its gates use. The quality job's `test:ci` shells
     // out to `rsvg-convert` and `convert` for the icon raster gate and loads
     // no engine at all, so an apt line here naming `cjs` or `cinnamon` is a
@@ -373,7 +437,6 @@ function validateWorkflows({repositoryRoot: targetRepositoryRoot}) {
     assert.match(audit, /^ {2}schedule:$/mu);
     assert.match(audit, /^ {2}workflow_dispatch:$/mu);
     assert.match(audit, /run: npm audit --audit-level=low$/mu);
-    assert.match(audit, /run: npm ci --ignore-scripts$/mu);
     assert.doesNotMatch(audit, /run: npm test/);
 }
 
@@ -581,6 +644,10 @@ if (require.main === module) {
 
 module.exports = {
     appletUuid,
+    validateWorkflowCommon,
+    workflowNames,
+    isPrivateName,
+    repositoryOnlyNames,
     boundSettingsKeys,
     compareText,
     controlCharacterLine,
