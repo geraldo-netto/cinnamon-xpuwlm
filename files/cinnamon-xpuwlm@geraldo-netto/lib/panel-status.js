@@ -162,6 +162,16 @@ function panelModel(state) {
     return statusModel("online", format("online, %s", work), format("online: %s", work));
 }
 
+// The one sentence the helper says outside the panel: the desktop notification
+// a failed launch raises. It lives here rather than at the call site because
+// this module owns the helper's wording — the panel's name, the interpolation
+// and the plural rule are all here, and a sentence written out in `applet.js`
+// is one the reader of this file cannot see the panel say.
+const LAUNCH_FAILURE = Object.freeze({
+    title: PRODUCT_NAME,
+    body: "Could not start the client. Is xpuwlm installed?",
+});
+
 // The most lines any state can produce. The popup's items are built once and
 // reused, so the pool is sized from this rather than from a number written out
 // again in the applet: a line beyond the pool would be computed, formatted and
@@ -202,6 +212,7 @@ function panelIconName(status) {
 
 module.exports = {
     BACKEND_LABELS,
+    LAUNCH_FAILURE,
     format,
     MAX_POPUP_LINES,
     NO_DEVICE_LABEL,

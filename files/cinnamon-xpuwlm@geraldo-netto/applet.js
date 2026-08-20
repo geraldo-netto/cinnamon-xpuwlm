@@ -248,10 +248,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         }
         this.menu.close();
         if (!this._launcher.launch("ui")) {
-            Main.notify(
-                "XPU Workload Manager",
-                "Could not start the client. Is xpuwlm installed?",
-            );
+            Main.notify(PanelStatus.LAUNCH_FAILURE.title, PanelStatus.LAUNCH_FAILURE.body);
         }
         return true;
     }
