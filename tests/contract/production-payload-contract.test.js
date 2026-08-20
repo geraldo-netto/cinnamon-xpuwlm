@@ -15,6 +15,7 @@ const PanelStatus = require("../../files/cinnamon-xpuwlm@geraldo-netto/lib/panel
 // here. Adding a file to lib/ without wiring it now fails.
 const HELPER_MODULES = Object.freeze([
     "applet.js",
+    "lib/panel-icon.js",
     "lib/panel-status.js",
     "lib/settings-window-placer.js",
     "lib/snapshot-reader.js",

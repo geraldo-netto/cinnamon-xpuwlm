@@ -29,6 +29,7 @@ const St = imports.gi.St;
 const Tooltips = imports.ui.tooltips;
 const Util = imports.misc.util;
 
+const PanelIcon = require("./lib/panel-icon.js");
 const PanelStatus = require("./lib/panel-status.js");
 const SettingsWindowPlacer = require("./lib/settings-window-placer.js");
 const SnapshotReader = require("./lib/snapshot-reader.js");
@@ -36,37 +37,12 @@ const WindowPlacement = require("./lib/window-placement.js");
 const XpuwlmLauncher = require("./lib/xpuwlm-launcher.js");
 
 const UUID = "cinnamon-xpuwlm@geraldo-netto";
-const DEFAULT_PANEL_ICON_SIZE = 32;
-// Not 1: an icon Cinnamon sizes to its zone preference is drawn smaller than
-// every systray neighbour, and the status shape is the entire message now that
-// the panel carries no text.
-const MIN_PANEL_ICON_SIZE = 28;
 // The shipped default lives in settings-schema.json; this is only the value
 // the applet holds between construction and the first binding, so the two
 // have to agree or the panel refreshes at a rate nothing configured.
 const DEFAULT_REFRESH_SECONDS = 1;
 const MIN_REFRESH_SECONDS = 1;
 const MAX_REFRESH_SECONDS = 60;
-
-// Cinnamon's panel-zone preference still asks for 16 pixels on a 40-pixel
-// panel, which draws this glyph noticeably smaller than the systray icons
-// beside it. The floor is what keeps a compact status shape legible without
-// touching the panel's own height, which is the user's setting, not ours.
-//
-// Which is also why the floor is bounded by that height: Cinnamon allows a
-// panel down to 20 pixels, and an unconditional 28 would ask such a panel to
-// draw an icon taller than the strip it sits in — through an inline
-// `icon-size` style, the one declaration the theme cannot outrank. The floor
-// raises a small icon; it never overflows a small panel.
-function panelIconSize(requestedSize, panelHeight) {
-    const requested = Number.isFinite(requestedSize) && requestedSize > 0
-        ? Math.floor(requestedSize)
-        : DEFAULT_PANEL_ICON_SIZE;
-    const floor = Number.isFinite(panelHeight) && panelHeight > 0
-        ? Math.min(MIN_PANEL_ICON_SIZE, Math.floor(panelHeight))
-        : MIN_PANEL_ICON_SIZE;
-    return Math.max(floor, requested);
-}
 
 function refreshSeconds(requestedSeconds) {
     if (!Number.isFinite(requestedSeconds)) {
@@ -116,7 +92,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         // height change forgets the second to force a redraw, and the class
         // still has to be taken off whatever it was applied for.
         this._panelIconClass = null;
-        this._iconSize = overrides.iconSize || DEFAULT_PANEL_ICON_SIZE;
+        this._iconSize = overrides.iconSize || PanelIcon.DEFAULT_PANEL_ICON_SIZE;
         // Cinnamon's own Applet keeps `_panelHeight` current across a height
         // change; a harness whose base class does not is given the height this
         // applet was constructed with, which is the same number.
@@ -124,8 +100,9 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             this._panelHeight = panelHeight;
         }
         this._lineItems = [];
-        this._iconTheme = null;
-        this._iconPath = null;
+        // Nulled before construction can throw: teardown releases the search
+        // path, and it runs whether or not the registration was ever made.
+        this._iconSearchPath = null;
         this._adoptPorts(overrides);
         this.settings = null;
         this.menu = null;
@@ -167,40 +144,19 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this._startTimer();
     }
 
-    // Without this the payload's icons are not in the icon theme, so Cinnamon
-    // cannot recolour them: the chip drew in the symbolic fallback grey, which
-    // on a dark panel is nearly the background, leaving only the small green
-    // status mark visible beside 32-pixel neighbours. Appended once, and only
-    // when absent, so a reload does not grow the search path.
+    // The rules and the ownership are `lib/panel-icon.js`'s; what the applet
+    // holds is when they happen — appended as it is built, taken back as it
+    // leaves the panel.
     _registerIconPath(metadata, overrides) {
-        const iconTheme = (overrides && overrides.iconTheme) || Gtk.IconTheme.get_default();
-        const iconPath = `${metadata.path}/icons`;
-        if (iconTheme.get_search_path().includes(iconPath)) {
-            return false;
-        }
-        iconTheme.append_search_path(iconPath);
-        this._iconTheme = iconTheme;
-        this._iconPath = iconPath;
-        return true;
+        this._iconSearchPath = PanelIcon.createIconSearchPath(
+            (overrides && overrides.iconTheme) || Gtk.IconTheme.get_default(),
+            `${metadata.path}/icons`,
+        );
+        return this._iconSearchPath.register();
     }
 
-    // And taken back with the applet. `Gtk.IconTheme.get_default()` is the
-    // session's theme, not the applet's, so an appended search path outlives
-    // every applet that appended it and goes on naming a directory that leaves
-    // with the uninstall. Only the applet that added the entry removes it —
-    // which is the whole rule, because `metadata.json` declares one instance.
     _releaseIconPath() {
-        const iconTheme = this._iconTheme;
-        const iconPath = this._iconPath;
-        this._iconTheme = null;
-        this._iconPath = null;
-        if (!iconTheme || typeof iconTheme.set_search_path !== "function") {
-            return false;
-        }
-        iconTheme.set_search_path(
-            iconTheme.get_search_path().filter((entry) => entry !== iconPath),
-        );
-        return true;
+        return this._iconSearchPath !== null && this._iconSearchPath.release();
     }
 
     _createSettings(metadata, instanceId, overrides) {
@@ -363,7 +319,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         if (!icon || typeof icon.set_icon_size !== "function") {
             return false;
         }
-        const size = panelIconSize(requestedSize, this._panelHeight);
+        const size = PanelIcon.panelIconSize(requestedSize, this._panelHeight);
         icon.set_icon_size(size);
         if (typeof icon.set_style === "function") {
             icon.set_style(`icon-size: ${size}px;`);
@@ -493,10 +449,12 @@ function main(metadata, orientation, panelHeight, instanceId) {
 
 if (typeof module !== "undefined") {
     module.exports = {
-        DEFAULT_PANEL_ICON_SIZE,
+        // Re-exported, not re-declared: the icon's rules are one module away,
+        // and a caller of the applet should not have to know which.
+        DEFAULT_PANEL_ICON_SIZE: PanelIcon.DEFAULT_PANEL_ICON_SIZE,
         DEFAULT_REFRESH_SECONDS,
         MAX_REFRESH_SECONDS,
-        MIN_PANEL_ICON_SIZE,
+        MIN_PANEL_ICON_SIZE: PanelIcon.MIN_PANEL_ICON_SIZE,
         MIN_REFRESH_SECONDS,
         UUID,
         XpuWorkloadApplet,
@@ -504,7 +462,7 @@ if (typeof module !== "undefined") {
         defaultEnvironment,
         defaultLogger,
         main,
-        panelIconSize,
+        panelIconSize: PanelIcon.panelIconSize,
         refreshSeconds,
         settingsInstanceId,
     };
