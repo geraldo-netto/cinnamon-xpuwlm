@@ -123,6 +123,21 @@ and 3 when the service could not be asked — the other two rows still printed i
 that last case. Run it once the three are in place, rather than waiting for a
 desktop that shows nothing to say so.
 
+Each row carries one column per kind of version, and only the pieces that
+publish one fill it in — a *release* is a distribution version, which only the
+client has; a *contract* is what the service announces; a *snapshot* is the
+document version all three agree by, which is the column that decides the
+answer. The panel's row is therefore two dashes and a number:
+
+```
+panel    release —        contract —    snapshot 1
+```
+
+A dash is a piece that publishes none of that kind, not a lookup that failed.
+An applet is a panel presence rather than a distribution or a service, so it
+publishes neither a release nor a contract, and nothing here should be changed
+to make it appear to.
+
 The panel's own number is the one piece that cannot publish itself, so
 `xpuwlm verify` reads it out of the installed applet: the `SNAPSHOT_VERSION`
 constant in `lib/snapshot-reader.js`. Its file, its name and its bare-integer

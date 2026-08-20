@@ -21,7 +21,6 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0267 | open | low | xs | — | `docs/deployment.md` describes a `xpuwlm verify` output that changed. `../xpuwlm`'s `de102ec` gave each kind of version its own column — a client release, the service's contract version, the snapshot version all three agree by — and prints `—` where a piece publishes none, in place of one column meaning three things and the word `unknown` for the panel. The paragraph here still describes a single row of snapshot versions, so an operator reading it sees two dashes on the panel's row and no text that says a dash is the applet publishing no release and no contract, by design. |
 | XTPU-0269 | open | low | xs | XTPU-0184 | Two ledger rows are one question. XTPU-0219 and XTPU-0230 both ask whether the four SVGs no production code names — `xpuwlm-symbolic`, `xpuwlm-v2-symbolic`, `xpuwlm-device-symbolic`, `xpuwlm-sliders-symbolic` — are identity artwork or dead weight, and both are blocked on the same maintainer call; a decision recorded against one would leave the other open. And XTPU-0179 cites `lib/i18n.js` as where the reviewed regular-expression pattern lives, a module deleted with the split: `format` and `plural` are in `lib/panel-status.js`. |
 
 ## Blocked
