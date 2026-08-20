@@ -111,6 +111,18 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
             this._panelHeight = panelHeight;
         }
         this._lineItems = [];
+        // What each surface was last written with, so a tick that changes
+        // nothing writes nothing. Counted before this existed: ten thousand
+        // ticks of an unchanged snapshot issued one tooltip write, one
+        // accessible-name write and five popup-label writes each — seven a
+        // second at the shipped interval — while the icon and its style class
+        // were written zero times, because those two were the only writes
+        // `_render` guarded. `St.Label.set_text` has no equality check of its
+        // own, so an identical string still throws away a Pango layout and
+        // asks for a relayout, five of them inside a popup that is closed.
+        this._drawnTooltip = null;
+        this._drawnAccessibleName = null;
+        this._drawnLines = [];
         // Nulled before construction can throw: teardown releases the search
         // path, and it runs whether or not the registration was ever made.
         this._iconSearchPath = null;
@@ -191,6 +203,7 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
     // wrong is above the way to fix it.
     _buildMenu() {
         this._lineItems = [];
+        this._drawnLines = [];
         for (let index = 0; index < PanelStatus.MAX_POPUP_LINES; index += 1) {
             const item = new PopupMenu.PopupMenuItem("", {reactive: false});
             this._lineItems.push(item);
@@ -318,14 +331,29 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         // shapes in the desktop's own symbolic colours — and a word beside it
         // repeats that in a strip where every pixel is contested. What the
         // words are for is the tooltip, the accessible name, and the popup.
-        this._tooltip.set_text(model.tooltip);
-        this.actor.set_accessible_name(model.accessibleName);
+        if (model.tooltip !== this._drawnTooltip) {
+            this._drawnTooltip = model.tooltip;
+            this._tooltip.set_text(model.tooltip);
+        }
+        if (model.accessibleName !== this._drawnAccessibleName) {
+            this._drawnAccessibleName = model.accessibleName;
+            this.actor.set_accessible_name(model.accessibleName);
+        }
         const lines = PanelStatus.popupLines(this._state);
         this._lineItems.forEach((item, index) => {
+            // One string per line, and null for a line this state does not
+            // have: whether the item is shown is decided by the same text that
+            // fills it, so the two cannot be written a different number of
+            // times.
             const line = lines[index];
-            item.actor.visible = line !== undefined;
-            if (line !== undefined) {
-                item.label.set_text(`${line.label}: ${line.value}`);
+            const text = line === undefined ? null : `${line.label}: ${line.value}`;
+            if (text === this._drawnLines[index]) {
+                return;
+            }
+            this._drawnLines[index] = text;
+            item.actor.visible = text !== null;
+            if (text !== null) {
+                item.label.set_text(text);
             }
         });
         return true;
@@ -480,6 +508,9 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         this.menuManager = null;
         this._tooltip = null;
         this._lineItems = [];
+        this._drawnLines = [];
+        this._drawnTooltip = null;
+        this._drawnAccessibleName = null;
         return true;
     }
 }

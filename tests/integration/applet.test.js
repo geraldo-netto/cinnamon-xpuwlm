@@ -947,6 +947,41 @@ test("a read that never answers is drawn rather than waited on in silence", () =
     applet.on_applet_removed_from_panel();
 });
 
+// Counted before this guard existed: ten thousand ticks of an unchanged
+// snapshot issued one tooltip write, one accessible-name write and five popup
+// label writes each, into St labels whose `set_text` has no equality check of
+// its own — seven Pango layouts discarded and rebuilt every second on an idle
+// desk, five of them inside a popup that is closed.
+test("a tick that changes nothing writes nothing", () => {
+    snapshotError = null;
+    snapshotContents = snapshotDocument();
+    const applet = build();
+    let writes = 0;
+    applet._tooltip.set_text = () => {
+        writes += 1;
+    };
+    applet.actor.set_accessible_name = () => {
+        writes += 1;
+    };
+    for (const item of applet._lineItems) {
+        item.label.set_text = () => {
+            writes += 1;
+        };
+    }
+
+    applet.refresh();
+    applet.refresh();
+    assert.equal(writes, 0, "an unchanged snapshot is not redrawn");
+
+    // A figure that moves is still drawn, and only what moved is written: the
+    // tooltip, the accessible name and the Queued line say a different thing
+    // now; the other four popup lines do not.
+    snapshotContents = snapshotDocument({metrics: {queueDepth: 9, runningProfiles: 0}});
+    applet.refresh();
+    assert.equal(writes, 3);
+    applet.on_applet_removed_from_panel();
+});
+
 test("a snapshot that lands after the applet was removed is not drawn", () => {
     const {pending, environment} = deferredEnvironment(snapshotDocument());
     const applet = build({environment});
