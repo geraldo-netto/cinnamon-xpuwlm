@@ -12,7 +12,10 @@ const {compareText} = require("./lib/compare-text.js");
 // subject — one of them accepting a header the other refused.
 const Package = require("./package-applet.js");
 
-const UUID = "cinnamon-xpuwlm@geraldo-netto";
+// Not written out again: the packaging module already declares the payload's
+// UUID, and a validator holding its own copy is a gate that agrees with itself
+// while the release it checks disagrees.
+const {UUID} = Package;
 const repositoryRoot = path.resolve(__dirname, "..");
 const filesRoot = path.join(repositoryRoot, "files");
 const appletRoot = path.join(filesRoot, UUID);
@@ -130,6 +133,15 @@ function validatePayloadMetadata({
 
     assert.equal(metadata.uuid, UUID);
     assert.equal(metadata.uuid, path.basename(targetAppletRoot));
+    // The applet's own copy, which nothing else could reach: it is what names
+    // the settings instance and prefixes every warning the helper logs, and it
+    // cannot import the packaging module because Cinnamon loads it, so the
+    // literal is read out of the source and held to the same name.
+    assert.equal(
+        appletUuid(appletSource(targetAppletRoot)),
+        metadata.uuid,
+        "applet.js names a UUID the payload does not carry",
+    );
     assert.equal(packageJson.version, metadata.version);
     assert.equal(metadata["max-instances"], 1);
     assert.ok(metadata["cinnamon-version"].includes("6.6"));
@@ -150,6 +162,12 @@ function validatePayloadMetadata({
 // bounds it clamps a refresh to, and the keys it binds.
 function appletSource(targetAppletRoot) {
     return fs.readFileSync(path.join(targetAppletRoot, "applet.js"), "utf8");
+}
+
+function appletUuid(source) {
+    const match = /^const UUID = "([^"]+)";$/mu.exec(source);
+    assert.ok(match, "applet.js no longer declares UUID");
+    return match[1];
 }
 
 function appletConstant(source, name) {
@@ -470,6 +488,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+    appletUuid,
     boundSettingsKeys,
     compareText,
     controlCharacterLine,

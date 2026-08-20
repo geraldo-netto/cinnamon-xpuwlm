@@ -251,6 +251,30 @@ test("the bound keys are read from the applet rather than written out again", (c
     );
 });
 
+// The applet cannot import the packaging module — Cinnamon loads it — so its
+// UUID is a literal, and a literal nothing checks is a settings instance and a
+// log prefix naming an applet that is not this one.
+test("the applet's own UUID is held to the one the payload carries", (context) => {
+    const roots = copiedRepository(context);
+    const appletPath = path.join(roots.appletRoot, "applet.js");
+    const source = fs.readFileSync(appletPath, "utf8");
+
+    assert.equal(Artifacts.appletUuid(source), "cinnamon-xpuwlm@geraldo-netto");
+    assert.throws(() => Artifacts.appletUuid("const UUID = elsewhere;"), assert.AssertionError);
+
+    fs.writeFileSync(
+        appletPath,
+        source.replace(
+            'const UUID = "cinnamon-xpuwlm@geraldo-netto";',
+            'const UUID = "cinnamon-xpuwlm@someone-else";',
+        ),
+    );
+    assert.throws(
+        () => Artifacts.validatePayloadMetadata(roots),
+        /applet\.js names a UUID the payload does not carry/,
+    );
+});
+
 test("layout validation refuses a page, section or key that does not resolve", (context) => {
     const roots = copiedRepository(context);
     const settingsPath = path.join(roots.appletRoot, "settings-schema.json");
