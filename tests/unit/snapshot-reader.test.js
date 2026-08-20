@@ -167,13 +167,22 @@ test("the device's busy percentage is not read at all", () => {
     assert.equal(Object.hasOwn(state, "load"), false);
 });
 
-test("counters outside their bounds are clamped, not trusted", () => {
+test("counters outside their bounds are refused, not clamped to zero", () => {
+    // Clamping a negative or non-integer count to zero published a figure the
+    // runtime never did, in the place the panel draws its busiest fact.
     const state = Reader.stateFromDocument(document({
         metrics: {queueDepth: -4, runningProfiles: "many"},
     }), NOW);
 
-    assert.equal(state.queued, 0);
-    assert.equal(state.running, 0);
+    assert.equal(state.runtime, "malformed");
+    assert.equal(state.detail, "The runtime snapshot's metrics.queueDepth is not a count");
+    assert.equal(
+        Reader.stateFromDocument(
+            document({metrics: {queueDepth: 4, runningProfiles: "many"}}),
+            NOW,
+        ).detail,
+        "The runtime snapshot's metrics.runningProfiles is not a count",
+    );
 });
 
 test("only unresolved alerts count as needing review", () => {
@@ -196,13 +205,57 @@ test("a snapshot with no timestamp is read rather than judged stale", () => {
     assert.equal(state.generatedAt, null);
 });
 
-test("missing devices and metrics degrade to empty rather than to an error", () => {
+// This used to read "degrade to empty rather than to an error", and empty is
+// the lie: a document with no metrics drew "online, ready" with Queued 0,
+// Running 0 and nothing to review, which is what a healthy idle desk looks
+// like. Absent is not zero, so a document missing a member the panel draws
+// from is refused and the member is named.
+test("a document missing the figures the panel draws is refused, and names them", () => {
     const state = Reader.stateFromDocument({version: 1, generatedAt: NOW}, NOW);
 
-    assert.equal(state.runtime, "connected");
-    assert.equal(state.available, false);
-    assert.equal(state.queued, 0);
-    assert.equal(state.attention, 0);
+    assert.equal(state.runtime, "malformed");
+    assert.equal(state.detail, "The runtime snapshot publishes no devices");
+
+    const {metrics, ...metricless} = document();
+    assert.equal(metrics.queueDepth, 3);
+    assert.equal(
+        Reader.stateFromDocument(metricless, NOW).detail,
+        "The runtime snapshot publishes no metrics",
+    );
+    assert.equal(
+        Reader.stateFromDocument(document({alerts: undefined}), NOW).detail,
+        "The runtime snapshot publishes no alerts",
+    );
+    assert.equal(
+        Reader.stateFromDocument(document({metrics: {runningProfiles: 0}}), NOW).detail,
+        "The runtime snapshot publishes no metrics.queueDepth",
+    );
+});
+
+test("a member the runtime publishes with the wrong type is refused too", () => {
+    // The failure this catches is a rename or a retyping on the writer's side,
+    // which is silent by construction: a quoted count read as zero draws an
+    // empty queue on a busy runtime.
+    assert.equal(
+        Reader.stateFromDocument(document({devices: {}}), NOW).detail,
+        "The runtime snapshot's devices is not an array",
+    );
+    assert.equal(
+        Reader.stateFromDocument(document({metrics: []}), NOW).detail,
+        "The runtime snapshot's metrics is not an object",
+    );
+    assert.equal(
+        Reader.stateFromDocument(document({alerts: "none"}), NOW).detail,
+        "The runtime snapshot's alerts is not an array",
+    );
+    assert.equal(
+        Reader.stateFromDocument(
+            document({metrics: {queueDepth: "3", runningProfiles: 1}}),
+            NOW,
+        ).detail,
+        "The runtime snapshot's metrics.queueDepth is not a count",
+    );
+    assert.equal(Reader.unreadableMember(document()), null);
 });
 
 test("no available device falls back to the first one published", () => {
@@ -288,9 +341,9 @@ test("a runtime that publishes no policy is not held", () => {
 
     assert.equal(running.paused, false);
     assert.equal(Reader.EMPTY_STATE.paused, false);
-    assert.equal(Reader.stateFromDocument({version: 1, policy: "held"}, 0).paused, false);
+    assert.equal(Reader.stateFromDocument(document({policy: "held"}), NOW).paused, false);
     assert.equal(
-        Reader.stateFromDocument({version: 1, policy: {paused: "yes"}}, 0).paused,
+        Reader.stateFromDocument(document({policy: {paused: "yes"}}), NOW).paused,
         false,
     );
 });

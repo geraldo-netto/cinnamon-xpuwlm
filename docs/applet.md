@@ -85,11 +85,14 @@ panel draws rather than an error it swallows:
 | `connected` | The runtime published recently; the panel shows its figures. |
 | `absent` | No snapshot file: the runtime is not running. |
 | `stale` | Published more than fifteen seconds ago; the runtime stopped. |
-| `malformed` | Not JSON, not an object, or not snapshot version 1. A snapshot is read whatever size it has grown to. |
+| `malformed` | Not JSON, not an object, not snapshot version 1, or missing a member the panel's figures come from — `devices`, `metrics`, `alerts`, and the two counts inside `metrics`, all of which the canonical schema requires. The line names the member. A snapshot is read whatever size it has grown to. |
 | `unreadable` | The file exists but could not be read. |
 
 Absent and zero are different facts throughout: a runtime that published no
-figure reads as unknown, never as idle.
+figure is refused rather than drawn as an idle desk. A snapshot with no
+`metrics`, or with a `queueDepth` the writer renamed or started quoting, used
+to read as "online, ready" with nothing queued and nothing to review — the
+same picture the version check exists to keep off the panel.
 
 ### The one file the two sides share
 

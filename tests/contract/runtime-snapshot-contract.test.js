@@ -118,6 +118,31 @@ test("the panel's snapshot version is the version the schema pins", (t) => {
     );
 });
 
+// The panel refuses a document that omits a member its figures come out of,
+// which is only safe while the runtime is obliged to publish that member. A
+// demand for something the schema makes optional would report every runtime
+// that legitimately leaves it out as malformed.
+test("every member the panel demands is one the schema requires", (t) => {
+    const schema = readServiceJson(SCHEMA_PATH);
+    if (schema === null) {
+        t.skip(SKIP_REASON);
+        return;
+    }
+    for (const {name} of SnapshotReader.REQUIRED_MEMBERS) {
+        assert.ok(
+            schema.required.includes(name),
+            `the panel refuses a snapshot without ${name}, which the schema does not require`,
+        );
+    }
+    for (const name of SnapshotReader.REQUIRED_COUNTS) {
+        assert.ok(
+            schema.properties.metrics.required.includes(name),
+            `the panel refuses a snapshot without metrics.${name}, `
+            + "which the schema does not require",
+        );
+    }
+});
+
 // The panel names one device: the first available one in the runtime's own
 // preference order. Ordering them differently here would label the desk with a
 // device the scheduler would not have chosen.

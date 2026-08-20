@@ -64,8 +64,49 @@ function isRecord(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function boundedCount(value) {
-    return Number.isInteger(value) && value >= 0 ? value : 0;
+function isCount(value) {
+    return Number.isInteger(value) && value >= 0;
+}
+
+// The members a version-1 document has to carry for the figures the panel
+// draws to mean anything, and the type each of them has to be. Every one is
+// `required` in the canonical schema, and a contract gate holds this list to
+// that so the panel cannot come to demand something the runtime may omit.
+//
+// This is the other half of the version check. Absent was read as zero
+// everywhere it mattered: a document publishing no `metrics` at all, or a
+// `queueDepth` the writer renamed or started quoting, drew a healthy runtime
+// with nothing queued, nothing running and nothing to review — which is
+// exactly what an idle desk looks like, and exactly the picture refusing an
+// unknown version exists to prevent.
+const REQUIRED_MEMBERS = Object.freeze([
+    {kind: "an array", name: "devices", accepts: Array.isArray},
+    {kind: "an object", name: "metrics", accepts: isRecord},
+    {kind: "an array", name: "alerts", accepts: Array.isArray},
+]);
+const REQUIRED_COUNTS = Object.freeze(["queueDepth", "runningProfiles"]);
+
+// The first member the panel cannot read, named as the sentence the popup
+// shows, or null when the document carries them all.
+function unreadableMember(document) {
+    for (const {accepts, kind, name} of REQUIRED_MEMBERS) {
+        if (document[name] === undefined) {
+            return `The runtime snapshot publishes no ${name}`;
+        }
+        if (!accepts(document[name])) {
+            return `The runtime snapshot's ${name} is not ${kind}`;
+        }
+    }
+    for (const name of REQUIRED_COUNTS) {
+        const count = document.metrics[name];
+        if (count === undefined) {
+            return `The runtime snapshot publishes no metrics.${name}`;
+        }
+        if (!isCount(count)) {
+            return `The runtime snapshot's metrics.${name} is not a count`;
+        }
+    }
+    return null;
 }
 
 // The device the panel speaks for: the runtime orders backends gpu > npu >
@@ -116,19 +157,19 @@ function isStale(generatedAt, nowMs) {
 // not publish falls back to the empty state's value rather than to a figure
 // the panel would then show as fact.
 function connectedState(document, generatedAt) {
-    const metrics = isRecord(document.metrics) ? document.metrics : {};
     // A hold is the runtime's own state, not a window's: the service enforces
     // it with or without a client attached, so the panel reads it from the
     // snapshot rather than inferring it from an empty queue. A runtime that
-    // predates the field publishes no policy at all, which reads as not held.
+    // predates the field publishes no policy at all, which reads as not held —
+    // which is why `policy` is not among the members demanded above.
     const policy = isRecord(document.policy) ? document.policy : {};
     return Object.freeze({
         runtime: "connected",
         detail: "",
-        ...deviceFields(primaryDevice(Array.isArray(document.devices) ? document.devices : [])),
-        queued: boundedCount(metrics.queueDepth),
-        running: boundedCount(metrics.runningProfiles),
-        attention: unresolvedAlerts(Array.isArray(document.alerts) ? document.alerts : []),
+        ...deviceFields(primaryDevice(document.devices)),
+        queued: document.metrics.queueDepth,
+        running: document.metrics.runningProfiles,
+        attention: unresolvedAlerts(document.alerts),
         paused: policy.paused === true,
         generatedAt,
     });
@@ -152,14 +193,19 @@ function versionMismatch(value) {
 }
 
 // The envelope, and only the envelope: is this a document, is it a version
-// this panel reads, and is it recent enough to believe. Each answer is a
-// runtime word the panel can draw; the figures are read once all three pass.
+// this panel reads, does it carry the members the figures come out of, and is
+// it recent enough to believe. Each answer is a runtime word the panel can
+// draw; the figures are read once all four pass.
 function stateFromDocument(document, nowMs) {
     if (!isRecord(document)) {
         return failed("malformed", "The runtime snapshot is not an object");
     }
     if (document.version !== SNAPSHOT_VERSION) {
         return failed("malformed", versionMismatch(document.version));
+    }
+    const unreadable = unreadableMember(document);
+    if (unreadable !== null) {
+        return failed("malformed", unreadable);
     }
     const generatedAt = Number.isInteger(document.generatedAt) ? document.generatedAt : null;
     if (isStale(generatedAt, nowMs)) {
@@ -322,6 +368,8 @@ module.exports = {
     deviceFields,
     EMPTY_STATE,
     MAX_SNAPSHOT_BYTES,
+    REQUIRED_COUNTS,
+    REQUIRED_MEMBERS,
     RUNTIME_STATE_PATH,
     SNAPSHOT_VERSION,
     STALE_AFTER_MS,
@@ -335,5 +383,6 @@ module.exports = {
     stateFromError,
     stateFromDocument,
     tooLargeFor,
+    unreadableMember,
     versionMismatch,
 };
