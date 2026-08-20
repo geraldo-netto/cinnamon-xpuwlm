@@ -21,7 +21,6 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0253 | open | high | s | — | No gate derives that every test file is executed. `test:coverage-target`, `test:fuzz` and `test:visual` each name a directory glob written by hand; a new `tests/<kind>/` directory is run by no script and reported by nothing. Walk `tests/`, expand the globs the package scripts name, and require the two sets to agree. |
 | XTPU-0255 | open | low | xs | — | Two rules, one subject: `tests/contract/production-payload-contract.test.js` matches `.xpuwlm-*` classes over the raw stylesheet while `validateStatusColours` matches them over the comment-stripped rules. The shipped sheet opens with an eight-line comment, so a class name written into one is a rule that exists to the contract test and does not exist to the validator. Have the contract test read the validator's derivation. |
 
 ## Blocked

@@ -617,3 +617,61 @@ test("the shared workflow rules refuse an escape hatch, a float and a bare fetch
         /does not drop write permissions/u,
     );
 });
+
+// A new `tests/<kind>/` directory used to be executed by no script and
+// reported by nothing: its tests neither passed nor failed.
+test("every test file is run by a script, and every glob runs something", (context) => {
+    const root = temporaryDirectory();
+    context.after(() => fs.rmSync(root, {recursive: true, force: true}));
+    const scripts = {
+        "test:unit": "node --test tests/unit/*.test.js tests/regression/*.test.js",
+        "test:visual": "node --test tests/visual/*.test.js",
+    };
+    writeTree(root, {
+        "package.json": JSON.stringify({scripts}),
+        "tests/unit/one.test.js": "\n",
+        "tests/regression/two.test.js": "\n",
+        "tests/visual/three.test.js": "\n",
+        "tests/helpers/fakes.js": "\n",
+    });
+
+    assert.deepEqual(Artifacts.testGlobs({scripts}), [
+        "tests/regression/*.test.js",
+        "tests/unit/*.test.js",
+        "tests/visual/*.test.js",
+    ]);
+    assert.deepEqual(Artifacts.testFiles(root), [
+        "tests/regression/two.test.js",
+        "tests/unit/one.test.js",
+        "tests/visual/three.test.js",
+    ]);
+    assert.equal(Artifacts.validateTestWiring({repositoryRoot: root}), true);
+
+    writeTree(root, {"tests/newkind/orphan.test.js": "\n"});
+    assert.throws(
+        () => Artifacts.validateTestWiring({repositoryRoot: root}),
+        /No repository script runs tests\/newkind\/orphan\.test\.js/u,
+    );
+    fs.rmSync(path.join(root, "tests/newkind"), {recursive: true, force: true});
+
+    // And the other direction: a stage whose glob matches nothing reports
+    // success over an empty set.
+    fs.rmSync(path.join(root, "tests/visual"), {recursive: true, force: true});
+    assert.throws(
+        () => Artifacts.validateTestWiring({repositoryRoot: root}),
+        /reports success over an empty set: tests\/visual\/\*\.test\.js/u,
+    );
+});
+
+test("test globs match one directory level unless they say otherwise", () => {
+    assert.equal(Artifacts.globPattern("tests/unit/*.test.js").test("tests/unit/a.test.js"), true);
+    assert.equal(
+        Artifacts.globPattern("tests/unit/*.test.js").test("tests/unit/deep/a.test.js"),
+        false,
+    );
+    assert.equal(
+        Artifacts.globPattern("tests/**/*.test.js").test("tests/unit/deep/a.test.js"),
+        true,
+    );
+    assert.equal(Artifacts.globPattern("tests/unit/*.test.js").test("tests/unitXa.test.js"), false);
+});

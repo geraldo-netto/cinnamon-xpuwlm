@@ -332,6 +332,64 @@ function validateRepositoryScripts({repositoryRoot: targetRepositoryRoot}) {
     return true;
 }
 
+// A gate only reports on the files it is handed, and every runner here is
+// handed a glob written by hand. Nothing derived that the two agree, so a new
+// `tests/<kind>/` directory was executed by no script and reported by nothing:
+// its tests neither passed nor failed, they simply did not run.
+//
+// So the tree is walked and the globs are expanded, and the two sets have to be
+// the same one. Both directions: a test file no runner names never runs, and a
+// glob that matches nothing is a stage that reports success over an empty set.
+const TEST_SUFFIX = ".test.js";
+
+function globPattern(glob) {
+    const source = glob.split("**")
+        .map((part) => part.replace(/[.+^${}()|[\]\\]/gu, "\\$&").replace(/\*/gu, "[^/]*"))
+        .join(".*");
+    return new RegExp(`^${source}$`, "u");
+}
+
+function testFiles(targetRepositoryRoot) {
+    return Package.walkTree(path.join(targetRepositoryRoot, "tests"), () => {})
+        .filter((relativePath) => relativePath.endsWith(TEST_SUFFIX))
+        .map((relativePath) => `tests/${relativePath}`);
+}
+
+function testGlobs(packageJson) {
+    const globs = new Set();
+    for (const command of Object.values(packageJson.scripts)) {
+        for (const match of command.matchAll(/node --test ([^&|]+)/gu)) {
+            for (const glob of match[1].trim().split(/\s+/u)) {
+                globs.add(glob);
+            }
+        }
+    }
+    return [...globs].sort(compareText);
+}
+
+function validateTestWiring({repositoryRoot: targetRepositoryRoot}) {
+    const globs = testGlobs(readJson(targetRepositoryRoot, "package.json"));
+    assert.equal(globs.length > 0, true, "No repository script runs any test at all");
+    const files = testFiles(targetRepositoryRoot);
+    const patterns = globs.map((glob) => [glob, globPattern(glob)]);
+
+    for (const relativePath of files) {
+        assert.equal(
+            patterns.some(([, pattern]) => pattern.test(relativePath)),
+            true,
+            `No repository script runs ${relativePath}`,
+        );
+    }
+    for (const [glob, pattern] of patterns) {
+        assert.equal(
+            files.some((relativePath) => pattern.test(relativePath)),
+            true,
+            `A repository script reports success over an empty set: ${glob}`,
+        );
+    }
+    return true;
+}
+
 function readWorkflow(root, name) {
     return fs.readFileSync(path.join(root, ".github/workflows", name), "utf8");
 }
@@ -626,6 +684,7 @@ function validateArtifacts(roots) {
     validateSettingsAgreement(roots);
     validateSettingsLayout(roots);
     validateRepositoryScripts(roots);
+    validateTestWiring(roots);
     validateWorkflows(roots);
     validateJavaScriptSyntax(roots);
     validateStaticAssets(roots);
@@ -644,6 +703,10 @@ if (require.main === module) {
 
 module.exports = {
     appletUuid,
+    globPattern,
+    testFiles,
+    testGlobs,
+    validateTestWiring,
     validateWorkflowCommon,
     workflowNames,
     isPrivateName,
