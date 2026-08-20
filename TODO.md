@@ -21,7 +21,6 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0258 | open | medium | xs | — | `tests/contract/runtime-snapshot-contract.test.js` proves the pinned field list is still read by asking `reader.includes(field)` — a plain substring over the whole file, comments and all. `version`, `reason`, `paused` and `generatedAt` all appear in that file's prose, so the read can be deleted and the gate stays green on the word left behind in a comment. Strip the prose and require a property access. |
 
 ## Blocked
 

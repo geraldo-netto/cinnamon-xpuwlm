@@ -81,13 +81,24 @@ test("every snapshot field the panel draws is declared by the canonical schema",
     }
 });
 
+// The rules, not the prose around them. This used to ask `includes(field)` of
+// the whole file: `version`, `reason`, `paused` and `generatedAt` are all
+// written in that reader's own comments, so the read could be deleted and this
+// gate would go on passing on the word left behind. A field is read by being
+// reached for, so what is looked for is the reach.
+function readerRules() {
+    return fs.readFileSync(path.join(appletRoot, "lib/snapshot-reader.js"), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//gu, "")
+        .replace(/^[ \t]*\/\/.*$/gmu, "");
+}
+
 test("the pinned field list is the list the reader actually reads", () => {
-    const reader = fs.readFileSync(path.join(appletRoot, "lib/snapshot-reader.js"), "utf8");
+    const rules = readerRules();
     for (const segments of CONSUMED_FIELDS) {
         const field = segments.at(-1);
-        assert.equal(
-            reader.includes(field),
-            true,
+        assert.match(
+            rules,
+            new RegExp(`(?:\\.|["'])${field}\\b`, "u"),
             `lib/snapshot-reader.js no longer reads ${field}; drop it from this gate `
             + "or restore the read",
         );
