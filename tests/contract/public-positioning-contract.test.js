@@ -21,7 +21,11 @@ test("public README defines the applet and XPU boundary without readiness overcl
         "starts the Python client",
         "different local runtime can integrate",
         "provider-neutral successor",
-        "device-only monitoring",
+        // Not "device-only monitoring": the README promised a fallback the
+        // helper has never had, and this gate held it to the promise. Every
+        // failed read replaces the state whole, so nothing of the last
+        // snapshot survives and no device is watched.
+        "reports the accelerator as unavailable and names why",
         "XPU** is an umbrella",
         "not a fourth backend",
         "early preview (`0.1.0`)",

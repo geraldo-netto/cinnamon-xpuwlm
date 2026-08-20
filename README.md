@@ -19,9 +19,11 @@ different local runtime can integrate by publishing the same validated snapshot
 contract and serving the same framed control socket the client speaks. The
 snapshot the helper reads is version 1 and retains the OmniTensor namespace, so
 another provider must publish that exact document until a provider-neutral
-successor is versioned. Without a compatible runtime, the helper falls back to
-device-only monitoring of what the snapshot last said and the client has
-nothing to drive.
+successor is versioned. Without a compatible runtime there is nothing to read:
+the helper reports the accelerator as unavailable and names why — not
+running, stale, malformed, or unreadable — and the client has nothing to
+drive. It keeps no monitoring of its own and no memory of the last
+snapshot; every read replaces the panel's state whole.
 
 Here **XPU** is an umbrella for the supported `gpu`, `npu`, and `tpu` backend
 families. It is not a fourth backend, a claim of universal accelerator support,

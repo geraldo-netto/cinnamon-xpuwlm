@@ -21,7 +21,6 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| XTPU-0282 | open | low | xs | — | A README claim, verified false by reading the code that would implement it: "Without a compatible runtime, the helper falls back to device-only monitoring of what the snapshot last said." There is no such fallback and no device monitoring. Every failed read replaces the state wholesale — `failed()` returns `EMPTY_STATE` with a runtime word — so nothing of the last snapshot survives the next tick, and without a runtime the panel draws exactly one thing: unavailable, with the reason. Say what it does. |
 | XTPU-0283 | open | low | xs | — | The popup never names the file the panel failed to read. `docs/applet.md` says a `runtime-state-path` that disagrees with the service's `OMNITENSOR_STATE_PATH` is "a configuration mistake wearing the costume of an absent service", and the popup is the one surface that could tell the two apart — it shows "Runtime: Runtime not running" and "Detail: The runtime is not running", the same sentence twice, and never the path it just tried. Carry the path the read was attempted on into the failure state and list it. |
 
 ## Blocked
