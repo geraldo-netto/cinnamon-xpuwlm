@@ -73,13 +73,12 @@ test("packing the real payload is deterministic across runs", () => {
     const secondSpice = path.join(secondDist, "spices", Package.UUID);
     assert.equal(Package.buildChecksums(firstSpice), Package.buildChecksums(secondSpice));
     assert.deepEqual(fs.readdirSync(path.join(firstSpice, "files")), [Package.UUID]);
-    assert.deepEqual(Package.inspectSpiceSources(
+    const inspected = Package.inspectSpiceSources(
         firstSpice,
         path.join(firstSpice, "files", Package.UUID),
-    ), {
-        info: {author: "geraldo-netto", license: "MIT"},
-        screenshot: {width: 585, height: 770},
-    });
+    );
+    assert.deepEqual(inspected.info, {author: "geraldo-netto", license: "MIT"});
+    assert.deepEqual(inspected.screenshot, {width: 585, height: 770});
     fs.rmSync(firstDist, {recursive: true, force: true});
     fs.rmSync(secondDist, {recursive: true, force: true});
 });

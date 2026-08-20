@@ -214,10 +214,15 @@ function pngDimensions(contents) {
     return {width: contents.readUInt32BE(16), height: contents.readUInt32BE(20)};
 }
 
+// What it found, not just that it was happy. The staging step used to run the
+// same `regularFile` guard over the same four names immediately after calling
+// this — the inspection's first statement — because the paths it resolved were
+// thrown away. They are handed back instead, so the file that is copied is the
+// file that was checked.
 function inspectSpiceSources(projectRoot, appletRoot) {
-    for (const relativePath of SPICE_METADATA_FILES) {
-        regularFile(projectRoot, relativePath);
-    }
+    const metadataFiles = new Map(SPICE_METADATA_FILES.map(
+        (relativePath) => [relativePath, regularFile(projectRoot, relativePath)],
+    ));
     const info = JSON.parse(fs.readFileSync(path.join(projectRoot, "info.json"), "utf8"));
     if (info.author !== "geraldo-netto" || info.license !== "MIT") {
         throw new Error("Spice info.json must name GitHub author geraldo-netto and MIT license");
@@ -232,7 +237,7 @@ function inspectSpiceSources(projectRoot, appletRoot) {
     if (!rootLicense.equals(payloadLicense)) {
         throw new Error("Payload LICENSE must match the Spice release LICENSE");
     }
-    return {info, screenshot};
+    return {info, screenshot, metadataFiles};
 }
 
 function stageSpiceRelease(
@@ -241,14 +246,11 @@ function stageSpiceRelease(
     targetRoot,
     files = appletPayloadFiles(appletRoot),
 ) {
-    inspectSpiceSources(projectRoot, appletRoot);
+    const {metadataFiles} = inspectSpiceSources(projectRoot, appletRoot);
     fs.rmSync(targetRoot, {recursive: true, force: true});
-    for (const relativePath of SPICE_METADATA_FILES) {
-        fs.mkdirSync(targetRoot, {recursive: true});
-        fs.copyFileSync(
-            regularFile(projectRoot, relativePath),
-            path.join(targetRoot, relativePath),
-        );
+    fs.mkdirSync(targetRoot, {recursive: true});
+    for (const [relativePath, filename] of metadataFiles) {
+        fs.copyFileSync(filename, path.join(targetRoot, relativePath));
     }
     stagePayload(appletRoot, path.join(targetRoot, "files", UUID), files);
     return payloadFiles(targetRoot);

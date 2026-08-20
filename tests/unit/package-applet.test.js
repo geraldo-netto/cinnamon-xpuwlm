@@ -167,10 +167,15 @@ test("PNG dimensions require the signature and IHDR header", () => {
 test("Spice sources enforce author, screenshot, and matching payload license", () => {
     const project = temporaryDirectory();
     const applet = writeSpiceSources(project);
-    assert.deepEqual(Package.inspectSpiceSources(project, applet), {
-        info: {author: "geraldo-netto", license: "MIT"},
-        screenshot: {width: 585, height: 770},
-    });
+    const inspected = Package.inspectSpiceSources(project, applet);
+    assert.deepEqual(inspected.info, {author: "geraldo-netto", license: "MIT"});
+    assert.deepEqual(inspected.screenshot, {width: 585, height: 770});
+    // The paths it checked, so the staging step copies what was inspected
+    // rather than resolving the same four names a second time.
+    assert.deepEqual([...inspected.metadataFiles.keys()], [...Package.SPICE_METADATA_FILES]);
+    for (const [name, filename] of inspected.metadataFiles) {
+        assert.equal(filename, path.join(project, name));
+    }
 
     fs.writeFileSync(path.join(project, "info.json"), JSON.stringify({author: "wrong", license: "MIT"}));
     assert.throws(() => Package.inspectSpiceSources(project, applet), /GitHub author/u);
@@ -340,10 +345,9 @@ test("Spice command stages the repository release tree", () => {
     assert.equal(Package.runCommand(["spice"], (line) => lines.push(line), dist), 0);
 
     const release = path.join(dist, "spices", Package.UUID);
-    assert.deepEqual(Package.inspectSpiceSources(release, path.join(release, "files", Package.UUID)), {
-        info: {author: "geraldo-netto", license: "MIT"},
-        screenshot: {width: 585, height: 770},
-    });
+    const staged = Package.inspectSpiceSources(release, path.join(release, "files", Package.UUID));
+    assert.deepEqual(staged.info, {author: "geraldo-netto", license: "MIT"});
+    assert.deepEqual(staged.screenshot, {width: 585, height: 770});
     assert.match(lines[0], /^staged \d+ Spice files/u);
     fs.rmSync(dist, {recursive: true, force: true});
 });
