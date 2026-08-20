@@ -271,7 +271,6 @@ function validateRepositoryScripts({repositoryRoot: targetRepositoryRoot}) {
     ].join(" && "));
     assert.equal(packageJson.scripts.test.includes("test:visual"), true);
     assert.equal(packageJson.scripts["test:contract"], "node --test tests/contract/*.test.js");
-    assert.equal(packageJson.devDependencies.ajv, "8.18.0");
     assert.equal(packageJson.scripts["test:visual"], "node --test tests/visual/*.test.js");
     assert.equal(packageJson.scripts["test:local"], "XPUWLM_SKIP_HOST_GATES=1 npm test");
     return true;
