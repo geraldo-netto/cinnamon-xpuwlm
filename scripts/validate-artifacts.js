@@ -285,6 +285,22 @@ function validateRepositoryScripts({repositoryRoot: targetRepositoryRoot}) {
         "npm run test:visual",
     ].join(" && "));
     assert.equal(packageJson.scripts.test.includes("test:visual"), true);
+    // The measured set, not the thresholds. A threshold only applies to the
+    // files the include list names, and that list named four of the twelve
+    // JavaScript sources this repository owns — the other five, the coverage
+    // gate's own script among them, were unmeasured and nothing said so. Named
+    // by glob so a new module under either root is measured the day it lands.
+    for (const included of [
+        "--include='files/cinnamon-xpuwlm@geraldo-netto/applet.js'",
+        "--include='files/cinnamon-xpuwlm@geraldo-netto/lib/**/*.js'",
+        "--include='scripts/**/*.js'",
+    ]) {
+        assert.equal(
+            packageJson.scripts["test:coverage"].includes(included),
+            true,
+            `The coverage gate no longer measures ${included}`,
+        );
+    }
     assert.equal(packageJson.scripts["test:contract"], "node --test tests/contract/*.test.js");
     assert.equal(packageJson.scripts["test:visual"], "node --test tests/visual/*.test.js");
     // Named, not spelled out: the interpreter is overridable and the payload

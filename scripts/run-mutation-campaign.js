@@ -33,10 +33,16 @@ function reportName(source) {
     return `${path.basename(source, ".js")}.json`;
 }
 
-function runTarget(target) {
-    const report = path.join(REPORT_ROOT, reportName(target.source));
+// The spawn and the report directory arrive as arguments so the campaign's own
+// argument handling, exit-status handling and summary arithmetic can be loaded
+// and asserted without a Stryker run. Nothing here had a seam before, so the
+// coverage gate could not reach the file at all — and a file no gate loads is
+// a release-blocking script nobody has proven parses under its own entry
+// point.
+function runTarget(target, {reportRoot = REPORT_ROOT, spawn = childProcess.spawnSync} = {}) {
+    const report = path.join(reportRoot, reportName(target.source));
     fs.rmSync(report, {force: true});
-    const completed = childProcess.spawnSync(
+    const completed = spawn(
         STRYKER,
         ["run", "stryker.config.cjs"],
         {
@@ -70,12 +76,12 @@ function summarize(reports) {
     return {files: reports.length, statuses};
 }
 
-function main(arguments_ = process.argv.slice(2)) {
-    fs.mkdirSync(REPORT_ROOT, {recursive: true});
+function main(arguments_ = process.argv.slice(2), {reportRoot = REPORT_ROOT, run = runTarget} = {}) {
+    fs.mkdirSync(reportRoot, {recursive: true});
     const targets = selectedTargets(arguments_);
-    const summary = summarize(targets.map(runTarget));
+    const summary = summarize(targets.map((target) => run(target, {reportRoot})));
     fs.writeFileSync(
-        path.join(REPORT_ROOT, "summary.json"),
+        path.join(reportRoot, "summary.json"),
         `${JSON.stringify(summary, null, 2)}\n`,
         "utf8",
     );
@@ -91,4 +97,4 @@ if (require.main === module) {
     }
 }
 
-module.exports = {main, reportName, selectedTargets, summarize};
+module.exports = {REPORT_ROOT, main, reportName, runTarget, selectedTargets, summarize};
