@@ -144,18 +144,26 @@ test("the panel's backend order is the runtime's routing hierarchy", (t) => {
 // desk as stale, and one longer than two hides a runtime that has stopped for
 // a full extra beat.
 test("the staleness window is between one and two service heartbeats", (t) => {
-    const serviceSource = readServiceText("src/omnitensor/service.py");
-    if (serviceSource === null) {
+    const sources = omnitensor.readSources("src/omnitensor", ".py");
+    if (sources === null) {
         t.skip(SKIP_REASON);
         return;
     }
-    const heartbeat = /^SNAPSHOT_HEARTBEAT_INTERVAL_S = (?<seconds>[\d.]+)$/mu.exec(serviceSource);
-    assert.notEqual(
-        heartbeat,
-        null,
-        "service.py no longer declares SNAPSHOT_HEARTBEAT_INTERVAL_S",
+    // Wherever the service declares it. Pinning `service.py` made a re-export
+    // look like a deletion: the constant moved into `publish_loop.py`, the
+    // number did not change, and this gate reported a broken contract.
+    const declared = new Set(sources.flatMap((source) => [
+        ...source.matchAll(/^SNAPSHOT_HEARTBEAT_INTERVAL_S = (?<seconds>\d+(?:\.\d+)?)$/gmu),
+    ].map((match) => Number(match.groups.seconds))));
+    assert.equal(
+        declared.size,
+        1,
+        "the service declares "
+        + (declared.size === 0
+            ? "no SNAPSHOT_HEARTBEAT_INTERVAL_S at all"
+            : `${declared.size} different heartbeats: ${[...declared].join(", ")}`),
     );
-    const heartbeatMs = Number(heartbeat.groups.seconds) * 1000;
+    const heartbeatMs = [...declared][0] * 1000;
     assert.ok(
         SnapshotReader.STALE_AFTER_MS > heartbeatMs,
         `${SnapshotReader.STALE_AFTER_MS} ms is shorter than the ${heartbeatMs} ms heartbeat: `

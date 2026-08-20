@@ -3,6 +3,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
+const {walkTree} = require("../../scripts/lib/walk-tree.js");
+
 // The sibling checkouts, resolved once for every cross-repository gate.
 //
 // Three contract files each carried their own resolver — one walking a list of
@@ -50,8 +52,27 @@ function createSiblingRepository({fallback, label, variable}) {
         return text === null ? null : JSON.parse(text);
     }
 
+    // Every source file under one of the sibling's directories, as text.
+    //
+    // A gate that names the file a constant is declared in reads a layout
+    // rather than a contract: OmniTensor moved `SNAPSHOT_HEARTBEAT_INTERVAL_S`
+    // into `publish_loop.py` and left `service.py` re-exporting it under an
+    // alias, and the gate that read `service.py` reported the declaration
+    // missing — a broken contract, for a number that had not changed. What the
+    // gates compare is the value, so the search is for the value.
+    function readSources(relativeDirectory, extension) {
+        const directory = resolve(relativeDirectory);
+        if (directory === null) {
+            return null;
+        }
+        return walkTree(directory, () => {})
+            .filter((name) => name.endsWith(extension))
+            .map((name) => fs.readFileSync(path.join(directory, name), "utf8"));
+    }
+
     return {
         readJson,
+        readSources,
         readText,
         resolve,
         root,
