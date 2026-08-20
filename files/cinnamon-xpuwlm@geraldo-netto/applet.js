@@ -209,11 +209,6 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         return true;
     }
 
-    // Asked for, not waited on. The applet runs on the compositor thread, so a
-    // blocking read of a document that grows with the host would stall the
-    // desktop once a tick; the bytes arrive on a callback instead. A tick that
-    // finds the previous read still outstanding is dropped rather than queued,
-    // because two reads in flight would draw the older answer last.
     // The file the panel is reading now. An empty setting is the shipped
     // default rather than a path nothing can read: the entry is a text field,
     // and a person who clears it has asked for the default back.
@@ -221,6 +216,11 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         return this._runtimeStatePath || SnapshotReader.RUNTIME_STATE_PATH;
     }
 
+    // Asked for, not waited on. The applet runs on the compositor thread, so a
+    // blocking read of a document that grows with the host would stall the
+    // desktop once a tick; the bytes arrive on a callback instead. A tick that
+    // finds the previous read still outstanding is dropped rather than queued,
+    // because two reads in flight would draw the older answer last.
     refresh() {
         if (this._destroyed || this._reading) {
             return false;
