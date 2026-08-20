@@ -15,7 +15,7 @@ This is one concrete desktop adapter, not a change to the application-neutral ar
 | Layer | What is required | Responsibility |
 | --- | --- | --- |
 | Cinnamon applet | `metadata.json`, `applet.js`, and optionally `settings-schema.json` and `stylesheet.css` | Display state, collect bounded user choices, submit requests, and show results |
-| IPC contract | Preferably a versioned session D-Bus interface; a Unix socket is an alternative | Separate Cinnamon/GJS from the runtime language and transport commands, results, state, and errors |
+| IPC contract | A versioned local contract: a uid-scoped Unix socket, or a session D-Bus interface | Separate Cinnamon/GJS from the runtime language and transport commands, results, state, and errors |
 | Inference service | A long-running process written in C++, Python, or another language with a supported TensorFlow Lite binding | Own the interpreters, Edge TPU context, model cache, per-workload queues, scheduler, input processing, inference, and result decoding |
 | User-space Edge TPU stack | `libedgetpu`, TensorFlow Lite, and optionally PyCoral or libcoral where their archived version constraints are acceptable | Open the device and execute Edge TPU custom operations |
 | Compiled model bundle | One or more fully quantized, Edge TPU-compiled `.tflite` files plus labels and preprocessing metadata | Define what the integration can infer; installing a driver does not supply a model |
@@ -32,7 +32,7 @@ Cinnamon panel
     - icon, tooltip, menu, settings
     - asynchronous requests and signal handlers
                 |
-                | session D-Bus: small commands, state, results
+                | versioned local IPC: small commands, state, results
                 v
 Coral inference service
     - validates requests
@@ -46,6 +46,24 @@ Coral inference service
                 v
 Compiled *_edgetpu.tflite model -> Edge TPU
 ```
+
+### What this project chose instead
+
+The layers above are what an integration needs; the rest of this document
+describes one way to satisfy them, and it is not the way this project ended up.
+Both halves dropped session D-Bus. The OmniTensor service speaks framed msgpack
+over a uid-scoped Unix socket, and the Python client (`../../xpuwlm`) is what
+speaks it; a bus name, an introspected interface and a `Type=dbus` unit bought
+nothing the socket did not already give, and cost a second contract to keep in
+parity with the canonical schemas.
+
+The panel opens no transport at all. It reads the snapshot document the service
+publishes and spawns the client — one file read per tick and one process launch
+per user action — because drawing an icon must not cost a round trip, and
+because a panel that can send commands is a panel that grows controls. So the
+`Gio.DBusProxy` connection, the control-surface members, the cancellable and the
+signal handlers below are worth reading as a catalogue of what such a surface
+has to get right, not as a description of anything shipped here.
 
 Keep inference out of `applet.js`. Applet code participates in the desktop UI event loop, so blocking model loading, file decoding, device recovery, synchronous inference, state-file replacement, or directory enumeration can make the panel unresponsive. GJS provides asynchronous D-Bus proxies and method calls through `Gio.DBusProxy`; use those calls and service-emitted signals to update the UI. Defer a button's state-changing action until the next main-loop turn when it can rebuild the popup, so Clutter finishes dispatching `clicked` before the action destroys that button's actor tree. [GJS D-Bus guide](https://gjs.guide/guides/gio/dbus.html) · [`Gio.DBusProxy` reference](https://docs.gtk.org/gio/class.DBusProxy.html)
 
@@ -107,7 +125,7 @@ This produces approximate long-term fairness only. An inference is a non-preempt
 #### Recommended scheduler design
 
 ```text
-D-Bus clients
+Control clients
      |
      v
 Admission control
@@ -446,7 +464,7 @@ systemctl --user status coral-control.service
 journalctl --user -u coral-control.service
 ```
 
-`Type=dbus` requires the service to acquire the declared bus name. If the implementation does not own a D-Bus name, use `Type=simple` instead. A D-Bus activation file can replace eager startup; choose one coherent ownership/startup design rather than allowing several applet instances to spawn workers. See the [`systemd.service` documentation](https://manpages.debian.org/testing/systemd/systemd.service.5.en.html).
+`Type=dbus` requires the service to acquire the declared bus name. If the implementation does not own a D-Bus name — as this project's does not; it listens on a uid-scoped Unix socket — use `Type=simple` instead. A D-Bus activation file can replace eager startup; choose one coherent ownership/startup design rather than allowing several applet instances to spawn workers. See the [`systemd.service` documentation](https://manpages.debian.org/testing/systemd/systemd.service.5.en.html).
 
 ### Applet behavior
 
@@ -457,7 +475,7 @@ The applet should expose only small, reversible controls:
 - show per-workload queue, latency, achieved soft share, deadline misses, and rejection counts in a detail view;
 - enable or pause inference, select an allowlisted model, submit a bounded job, and cancel queued work;
 - label scheduler weights and shares as userspace policy rather than physical TPU partitions;
-- receive D-Bus signals instead of rapidly polling the service;
+- prefer service-pushed updates over rapid polling, or poll a document the service publishes atomically, as this project's panel does;
 - disable controls while the service or device is unavailable;
 - reconnect when the D-Bus name owner changes or Cinnamon reloads the applet;
 - cancel outstanding applet-side calls during removal; and
@@ -492,7 +510,7 @@ The applet should not install packages, load kernel modules, modify `udev` rules
 4. Add bounded per-workload queues, admission control, deadlines, cancellation, and FIFO scheduling first.
 5. Add measured-time accounting, weighted fairness, aging, and bounded model-affinity batching; test them with synthetic long and short jobs.
 6. Verify requested versus achieved shares under saturation, partial load, idle workloads, cold loads, model switches, failures, and overload.
-7. Freeze a small versioned D-Bus contract and test it with `gdbus` or `busctl --user`.
+7. Freeze a small versioned control contract — a D-Bus interface tested with `gdbus` or `busctl --user`, or a socket protocol with a `describe-contract` handshake, which is what this project froze.
 8. Add the user-service unit and verify startup, restart limits, logs, and clean shutdown.
 9. Create the UUID-named Cinnamon applet with `metadata.json` and a minimal `applet.js` status icon.
 10. Connect asynchronously to the session-bus service and render service and scheduler availability before adding controls.
