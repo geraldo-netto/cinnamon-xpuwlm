@@ -5,6 +5,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
+const {clientRepository} = require("../helpers/sibling-repository.js");
+
 // The one number this applet cannot publish, and somebody else reads anyway.
 //
 // The service writes the snapshot document; the panel and the Python client
@@ -33,8 +35,8 @@ const appletRoot = path.join(repositoryRoot, "files", UUID);
 const READER_RELATIVE_PATH = "lib/snapshot-reader.js";
 const SnapshotReader = require(path.join(appletRoot, READER_RELATIVE_PATH));
 
-const SKIP_REASON = "the xpuwlm client checkout is not available; "
-    + "set XPUWLM_CLIENT_ROOT to run the cross-repository half of this gate";
+const client = clientRepository();
+const SKIP_REASON = client.skipReason;
 
 // The shape the installer's pattern needs, stated here in the strictest form
 // that satisfies it: `const`, the name, one bare decimal literal, a semicolon,
@@ -44,13 +46,6 @@ const DECLARATION = /^const SNAPSHOT_VERSION = (\d+);$/mu;
 
 function readerSource() {
     return fs.readFileSync(path.join(appletRoot, READER_RELATIVE_PATH), "utf8");
-}
-
-function clientFile(relativePath) {
-    const root = process.env.XPUWLM_CLIENT_ROOT
-        || path.resolve(repositoryRoot, "../xpuwlm");
-    const candidate = path.join(root, relativePath);
-    return fs.existsSync(candidate) ? fs.readFileSync(candidate, "utf8") : null;
 }
 
 test("the pinned snapshot version is declared where a reader can find it", () => {
@@ -66,7 +61,7 @@ test("the pinned snapshot version is declared where a reader can find it", () =>
 });
 
 test("the installer's own path and pattern still resolve this payload", (t) => {
-    const installer = clientFile("src/xpuwlm/runtime/installation.py");
+    const installer = client.readText("src/xpuwlm/runtime/installation.py");
     if (installer === null) {
         t.skip(SKIP_REASON);
         return;

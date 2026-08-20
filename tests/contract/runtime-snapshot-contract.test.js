@@ -5,6 +5,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
+const {omnitensorRepository} = require("../helpers/sibling-repository.js");
+
 // The applet mirrors the snapshot's *shape* by hand: six fields, read straight
 // out of the published document without a schema engine. That is deliberate —
 // the client validates, the panel draws — but it leaves the mirror ungated. A
@@ -23,24 +25,15 @@ const repositoryRoot = path.resolve(__dirname, "../..");
 const appletRoot = path.join(repositoryRoot, "files/cinnamon-xpuwlm@geraldo-netto");
 const SnapshotReader = require(path.join(appletRoot, "lib/snapshot-reader.js"));
 
-const SKIP_REASON = "the OmniTensor checkout is not available; "
-    + "set XPUWLM_OMNITENSOR_ROOT to run the cross-repository half of this gate";
-
-function serviceFile(relativePath) {
-    const configured = process.env.XPUWLM_OMNITENSOR_ROOT;
-    const root = configured || path.resolve(repositoryRoot, "../omnitensor");
-    const candidate = path.join(root, relativePath);
-    return fs.existsSync(candidate) ? candidate : null;
-}
+const omnitensor = omnitensorRepository();
+const SKIP_REASON = omnitensor.skipReason;
 
 function readServiceJson(relativePath) {
-    const source = serviceFile(relativePath);
-    return source === null ? null : JSON.parse(fs.readFileSync(source, "utf8"));
+    return omnitensor.readJson(relativePath);
 }
 
 function readServiceText(relativePath) {
-    const source = serviceFile(relativePath);
-    return source === null ? null : fs.readFileSync(source, "utf8");
+    return omnitensor.readText(relativePath);
 }
 
 const SCHEMA_PATH = "schemas/runtime-snapshot.schema.json";
@@ -140,12 +133,12 @@ test("the panel's backend order is the runtime's routing hierarchy", (t) => {
 // desk as stale, and one longer than two hides a runtime that has stopped for
 // a full extra beat.
 test("the staleness window is between one and two service heartbeats", (t) => {
-    const service = readServiceText("src/omnitensor/service.py");
-    if (service === null) {
+    const serviceSource = readServiceText("src/omnitensor/service.py");
+    if (serviceSource === null) {
         t.skip(SKIP_REASON);
         return;
     }
-    const heartbeat = /^SNAPSHOT_HEARTBEAT_INTERVAL_S = (?<seconds>[\d.]+)$/mu.exec(service);
+    const heartbeat = /^SNAPSHOT_HEARTBEAT_INTERVAL_S = (?<seconds>[\d.]+)$/mu.exec(serviceSource);
     assert.notEqual(
         heartbeat,
         null,
