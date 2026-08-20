@@ -143,7 +143,17 @@ function createSettingsWindowPlacer(options = {}) {
         // never appears must not leave a handler listening for the life of the
         // session.
         awaitWindow(targetDisplay, targetMainloop) {
+            // Both ports, before either is used. Only the display used to be
+            // checked, and the mainloop is reached one statement after the
+            // `window-created` handler is connected — so a caller without one
+            // threw with the handler already on the session's display and its
+            // id not yet recorded anywhere, leaving a handler nothing could
+            // ever take off. That is the exact leak this module exists to
+            // prevent, so it refuses before it connects.
             if (!targetDisplay || typeof targetDisplay.connect !== "function") {
+                return false;
+            }
+            if (!targetMainloop || typeof targetMainloop.timeout_add_seconds !== "function") {
                 return false;
             }
             cancel();

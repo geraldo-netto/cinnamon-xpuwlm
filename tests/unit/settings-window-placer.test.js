@@ -82,6 +82,17 @@ test("a display that cannot be listened to is refused rather than half-armed", (
     assert.equal(placer().awaitWindow(null, recordingMainloop()), false);
 });
 
+// The mainloop is reached one statement after the display handler is
+// connected, so an unchecked one left that handler on the session's display
+// with its id recorded nowhere. Refused before anything is connected.
+test("a mainloop that cannot arm a source leaves no handler on the display", () => {
+    const desktop = display();
+
+    assert.equal(placer().awaitWindow(desktop, null), false);
+    assert.equal(placer().awaitWindow(desktop, {}), false);
+    assert.equal(desktop.handlers.size, 0);
+});
+
 // A mainloop double that runs its callback before returning the id used to
 // leave that id in the placer's set for ever, so cancelling asked GLib to
 // remove a source it had already retired.
