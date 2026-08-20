@@ -21,7 +21,8 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| — | — | — | — | — | No open findings: the rescan's eleven were fixed, and everything else below needs a decision or another repository. |
+| XTPU-0263 | open | low | xs | — | `docs/applet.md` says a snapshot announcing an unknown version is "reported as unreadable", and its own state table four paragraphs later says `malformed`. The reader agrees with the table — `stateFromDocument` returns `failed("malformed", ...)` for a version mismatch, and `unreadable` is what a file that could not be read at all reports — so the prose names the wrong state for the one contract number the panel checks. |
+| XTPU-0264 | open | low | xs | XTPU-0263 | `docs/applet.md` says the root-shim inventory "is exactly one file today". It is empty: no `lib/` module imports another, so `productionRequireGraph` resolves no shims and the payload ships none. The gate is real and worth describing; the count is not. |
 
 ## Blocked
 
