@@ -274,10 +274,12 @@ class XpuWorkloadApplet extends Applet.TextIconApplet {
         }
         const target = this._statePath();
         this._reading = true;
+        // The clock, not a reading of it: the answer is judged for staleness
+        // when its bytes arrive, which is not the turn that asked for them.
         SnapshotReader.readSnapshotAsync(
             this._environment,
             target,
-            this._now(),
+            this._now,
             (state) => this._receiveState(state, target),
         );
         return true;

@@ -187,10 +187,21 @@ function isNotFound(environment, error) {
     return error.code === errors.NOT_FOUND;
 }
 
+// The moment the document is judged against, asked for where it is judged.
+// A read handed a number was judged against the clock of the turn that asked
+// for it, not the turn its bytes arrived in — so a load the disk stalled on
+// was reported fresher than it was, which is backwards for the one check that
+// exists to notice that publishing stopped. A function is read at parse time;
+// a number is still accepted, because a caller that means one fixed instant —
+// a test, or the synchronous path's own single turn — is saying so.
+function resolveNow(clock) {
+    return typeof clock === "function" ? clock() : clock;
+}
+
 // One document, from bytes to a runtime word. Shared by both read paths so
 // the asynchronous one cannot drift into reporting a different state for the
 // same file than the synchronous one does.
-function stateFromContents(environment, ok, contents, nowMs) {
+function stateFromContents(environment, ok, contents, clock) {
     if (!ok) {
         return failed("unreadable", "The runtime snapshot could not be read");
     }
@@ -204,7 +215,7 @@ function stateFromContents(environment, ok, contents, nowMs) {
     } catch (error) {
         return failed("malformed", `The runtime snapshot is not valid JSON: ${error}`);
     }
-    return stateFromDocument(document, nowMs);
+    return stateFromDocument(document, resolveNow(clock));
 }
 
 function stateFromError(environment, error) {
@@ -213,12 +224,12 @@ function stateFromError(environment, error) {
         : failed("unreadable", `The runtime snapshot could not be read: ${error}`);
 }
 
-function readSnapshot(environment, filename, nowMs) {
+function readSnapshot(environment, filename, clock) {
     const target = expandHome(environment, filename);
     try {
         const file = environment.Gio.File.new_for_path(target);
         const [ok, contents] = file.load_contents(null);
-        return stateFromContents(environment, ok, contents, nowMs);
+        return stateFromContents(environment, ok, contents, clock);
     } catch (error) {
         return stateFromError(environment, error);
     }
@@ -254,7 +265,7 @@ function deliverOnce(deliver) {
     };
 }
 
-function readSnapshotAsync(environment, filename, nowMs, deliverState) {
+function readSnapshotAsync(environment, filename, clock, deliverState) {
     const deliver = deliverOnce(deliverState);
     let file;
     try {
@@ -264,7 +275,7 @@ function readSnapshotAsync(environment, filename, nowMs, deliverState) {
         return false;
     }
     if (typeof file.load_contents_async !== "function") {
-        deliver(readSnapshot(environment, filename, nowMs));
+        deliver(readSnapshot(environment, filename, clock));
         return false;
     }
     // Arming the read can fail as loudly as finishing it — a path Gio refuses
@@ -278,7 +289,7 @@ function readSnapshotAsync(environment, filename, nowMs, deliverState) {
             let state;
             try {
                 const [ok, contents] = (source || file).load_contents_finish(result);
-                state = stateFromContents(environment, ok, contents, nowMs);
+                state = stateFromContents(environment, ok, contents, clock);
             } catch (error) {
                 state = stateFromError(environment, error);
             }
@@ -305,6 +316,7 @@ module.exports = {
     primaryDevice,
     readSnapshot,
     readSnapshotAsync,
+    resolveNow,
     stateFromContents,
     stateFromError,
     stateFromDocument,
