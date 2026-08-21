@@ -200,3 +200,17 @@ test("the staleness window is between one and two service heartbeats", (t) => {
         + "a stopped runtime is named a beat later than it needs to be",
     );
 });
+
+// The runtime removed every ceiling on what a person is told back
+// (omnitensor OMNI-0398): a joined multi-backend reason arrives whole, and
+// this applet lays reasons into tooltips and accessible names, which wrap.
+// Pinned so a future mirror of the schema cannot quietly reintroduce a
+// bound the runtime no longer states (OMNI-0502).
+test("the device reason declares no ceiling", () => {
+    const schema = readServiceJson(SCHEMA_PATH);
+    const reason = declaredAt(schema, [
+        "properties", "devices", "items", "properties", "reason",
+    ]);
+    assert.ok(reason, "the schema declares the reason field");
+    assert.equal(reason.maxLength, undefined);
+});
