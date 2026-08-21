@@ -472,9 +472,24 @@ function buildArchive(root, memberPrefix, files = payloadFiles(root)) {
     return Buffer.concat([...blocks, Buffer.alloc(BLOCK_SIZE * 2)]);
 }
 
+// A file the release ships, written with the release's stated mode rather
+// than the packer's umask — the same rule the staged trees follow, one level
+// up (XTPU-0276): dist/, dist/spices/ and the three sidecars still wore the
+// umask after XTPU-0275 fixed everything beneath them.
+function writeReleaseFile(filePath, contents) {
+    fs.writeFileSync(filePath, contents);
+    fs.chmodSync(filePath, PAYLOAD_FILE_MODE);
+}
+
+function releaseDirectory(directory) {
+    fs.mkdirSync(directory, {recursive: true});
+    fs.chmodSync(directory, PAYLOAD_DIRECTORY_MODE);
+}
+
 function commandStage(log, dist = distRoot, files = appletPayloadFiles(payloadRoot)) {
+    releaseDirectory(dist);
     const staged = stagePayload(payloadRoot, path.join(dist, UUID), files);
-    fs.writeFileSync(path.join(dist, `${UUID}.SHA256SUMS`), buildChecksums(payloadRoot, files));
+    writeReleaseFile(path.join(dist, `${UUID}.SHA256SUMS`), buildChecksums(payloadRoot, files));
     log(`staged ${staged.length} payload files -> ${path.join(dist, UUID)}`);
     return 0;
 }
@@ -498,14 +513,16 @@ function commandPack(log, dist = distRoot) {
     commandStage(log, dist, files);
     const archive = buildArchive(payloadRoot, UUID, files);
     const digest = sha256Hex(archive);
-    fs.writeFileSync(archivePath, archive);
-    fs.writeFileSync(`${archivePath}.sha256`, `${digest}  ${UUID}.tar\n`);
+    writeReleaseFile(archivePath, archive);
+    writeReleaseFile(`${archivePath}.sha256`, `${digest}  ${UUID}.tar\n`);
     log(`packed ${UUID}.tar (${archive.length} bytes, sha256 ${digest})`);
     commandSpice(log, dist, files);
     return 0;
 }
 
 function commandSpice(log, dist = distRoot, files = appletPayloadFiles(payloadRoot)) {
+    releaseDirectory(dist);
+    releaseDirectory(path.join(dist, "spices"));
     const target = path.join(dist, "spices", UUID);
     const staged = stageSpiceRelease(repositoryRoot, payloadRoot, target, files);
     log(`staged ${staged.length} Spice files -> ${target}`);

@@ -21,7 +21,7 @@ domain grouping without weakening the required status schema.
 
 | id | status | severity | effort | related ids | description |
 | --- | --- | --- | --- | --- | --- |
-| — | — | — | — | — | No open findings: the seventeenth scan held the packager's mode promise against a hostile umask and fixed the one gap it found — mkdir(2) masks the mode it is given, so a pack under umask 077 staged directories as 0700 beside 0644 files against deployment.md's promise; directories are now chmodded the way files already were, and the pinning test stages under umask 077 so the promise is proven where it can break. Checked clean the same pass: the runtime's new stable connect-failed code (this applet never opens the control socket, nothing pinned the old behavior), the snapshot schema contract, and the signal/timeout lifecycle. What is left below needs a decision, another repository, or hardware. |
+| — | — | — | — | — | No open findings before the eighteenth scan: the seventeenth scan held the packager's mode promise against a hostile umask and fixed the one gap it found — mkdir(2) masks the mode it is given, so a pack under umask 077 staged directories as 0700 beside 0644 files against deployment.md's promise; directories are now chmodded the way files already were, and the pinning test stages under umask 077 so the promise is proven where it can break. Checked clean the same pass: the runtime's new stable connect-failed code (this applet never opens the control socket, nothing pinned the old behavior), the snapshot schema contract, and the signal/timeout lifecycle. What is left below needs a decision, another repository, or hardware. |
 
 ## Blocked
 

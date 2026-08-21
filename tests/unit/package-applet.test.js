@@ -452,3 +452,27 @@ test("Spice command stages the repository release tree", () => {
     assert.match(lines[0], /^staged \d+ Spice files/u);
     fs.rmSync(dist, {recursive: true, force: true});
 });
+
+// The release's own artifacts — dist/, spices/, and the three sidecars — obey
+// the stated modes under the most hostile umask, like everything beneath them
+// (XTPU-0276; XTPU-0275 fixed one level down).
+test("the dist tree and its sidecars wear the release's modes, not the umask", () => {
+    const dist = path.join(temporaryDirectory(), "dist");
+
+    // Staged from the real payload, under the most hostile umask.
+    const previousUmask = process.umask(0o077);
+    try {
+        Package.commandStage(() => {}, dist);
+    } finally {
+        process.umask(previousUmask);
+    }
+
+    assert.equal(fs.statSync(dist).mode & 0o777, Package.PAYLOAD_DIRECTORY_MODE);
+    const sums = fs.readdirSync(dist).find((name) => name.endsWith(".SHA256SUMS"));
+    assert.ok(sums, "the checksum sidecar was written");
+    assert.equal(
+        fs.statSync(path.join(dist, sums)).mode & 0o777,
+        Package.PAYLOAD_FILE_MODE,
+    );
+    fs.rmSync(path.dirname(dist), {recursive: true, force: true});
+});
