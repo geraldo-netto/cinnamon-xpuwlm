@@ -205,7 +205,22 @@ function stagePayload(sourceRoot, targetRoot, files = payloadFiles(sourceRoot)) 
         // tree rather than a release.
         fs.chmodSync(target, PAYLOAD_FILE_MODE);
     }
+    chmodStagedDirectories(targetRoot);
     return staged;
+}
+
+// mkdir(2) masks its mode argument with the process umask, so the mode the
+// loop above states for a directory was still the caller's umask talking: a
+// pack under umask 077 staged lib/ as 0700 beside 0644 files, against
+// deployment.md's promise that the packager decides the modes (XTPU-0275).
+// chmod(2) is umask-proof, so directories get theirs the way files already do.
+function chmodStagedDirectories(root) {
+    fs.chmodSync(root, PAYLOAD_DIRECTORY_MODE);
+    for (const entry of fs.readdirSync(root, {withFileTypes: true})) {
+        if (entry.isDirectory()) {
+            chmodStagedDirectories(path.join(root, entry.name));
+        }
+    }
 }
 
 function regularFile(root, relativePath) {
@@ -261,6 +276,7 @@ function stageSpiceRelease(
         fs.chmodSync(target, PAYLOAD_FILE_MODE);
     }
     stagePayload(appletRoot, path.join(targetRoot, "files", UUID), files);
+    chmodStagedDirectories(targetRoot);
     return payloadFiles(targetRoot);
 }
 

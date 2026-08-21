@@ -332,7 +332,15 @@ test("staging decides the modes it releases rather than inheriting them", () => 
     fs.chmodSync(path.join(source, "applet.js"), 0o666);
     fs.chmodSync(path.join(source, "lib/b.txt"), 0o600);
 
-    Package.stagePayload(source, target);
+    // Staged under the most hostile umask, because mkdir(2) masks its mode
+    // argument with it: on the desks the promise was written about, 0o755
+    // survived only by luck of the caller's umask (XTPU-0275).
+    const previousUmask = process.umask(0o077);
+    try {
+        Package.stagePayload(source, target);
+    } finally {
+        process.umask(previousUmask);
+    }
 
     for (const relativePath of ["applet.js", "lib/b.txt"]) {
         assert.equal(
